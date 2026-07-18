@@ -28,6 +28,13 @@ struct AppState {
     notifications: NotificationHub,
 }
 
+struct RateLimitPolicy {
+    window_seconds: i32,
+    max_requests: i32,
+    block_seconds: i32,
+    event_type: &'static str,
+}
+
 #[derive(Serialize)]
 struct HealthResponse {
     status: &'static str,
@@ -223,10 +230,12 @@ async fn register(
     enforce_rate_limit(
         &state,
         &format!("register:source:{source_prefix}"),
-        3_600,
-        5,
-        3_600,
-        "registration",
+        RateLimitPolicy {
+            window_seconds: 3_600,
+            max_requests: 5,
+            block_seconds: 3_600,
+            event_type: "registration",
+        },
         &source_prefix,
         Some(&identity),
     )
@@ -273,10 +282,12 @@ async fn login(
     enforce_rate_limit(
         &state,
         &format!("login:source:{source_prefix}"),
-        60,
-        30,
-        60,
-        "login",
+        RateLimitPolicy {
+            window_seconds: 60,
+            max_requests: 30,
+            block_seconds: 60,
+            event_type: "login",
+        },
         &source_prefix,
         Some(&identity),
     )
@@ -285,10 +296,12 @@ async fn login(
     enforce_rate_limit(
         &state,
         &identity_bucket,
-        900,
-        5,
-        900,
-        "login",
+        RateLimitPolicy {
+            window_seconds: 900,
+            max_requests: 5,
+            block_seconds: 900,
+            event_type: "login",
+        },
         &source_prefix,
         Some(&identity),
     )
@@ -340,16 +353,18 @@ async fn login(
 async fn enforce_rate_limit(
     state: &AppState,
     bucket: &str,
-    window_seconds: i32,
-    max_requests: i32,
-    block_seconds: i32,
-    event_type: &str,
+    policy: RateLimitPolicy,
     source_prefix: &str,
     identity: Option<&str>,
 ) -> Result<(), ApiError> {
     match state
         .repository
-        .consume_rate_limit(bucket, window_seconds, max_requests, block_seconds)
+        .consume_rate_limit(
+            bucket,
+            policy.window_seconds,
+            policy.max_requests,
+            policy.block_seconds,
+        )
         .await
     {
         Ok(()) => Ok(()),
@@ -357,13 +372,13 @@ async fn enforce_rate_limit(
             audit_security(
                 state,
                 None,
-                event_type,
+                policy.event_type,
                 "rate_limited",
                 source_prefix,
                 identity,
             )
             .await;
-            Err(ApiError::rate_limited(block_seconds as u64))
+            Err(ApiError::rate_limited(policy.block_seconds as u64))
         }
         Err(_) => Err(ApiError::internal()),
     }
@@ -745,6 +760,17 @@ async fn main() {
         .unwrap_or_else(|_| "127.0.0.1:43170".to_owned())
         .parse::<SocketAddr>()
         .expect("UNCIV_ENGINE_WORKER_ADDR must be a socket address");
+    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30));
+    let worker_capabilities = worker
+        .handshake()
+        .await
+        .expect("authoritative engine worker handshake failed");
+    eprintln!(
+        "authoritative engine worker ready: protocol={}, engine_build={}, rulesets={}",
+        unciv_authoritative_server::worker::WORKER_PROTOCOL_VERSION,
+        worker_capabilities.engine_build,
+        worker_capabilities.installed_rulesets.len(),
+    );
     let notifications = NotificationHub::default();
     tokio::spawn(run_outbox_dispatcher(
         repository.clone(),
@@ -770,7 +796,7 @@ async fn main() {
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,
-            worker: EngineWorkerClient::new(worker_address, Duration::from_secs(30)),
+            worker,
             notifications,
         });
     let listener = tokio::net::TcpListener::bind(address)

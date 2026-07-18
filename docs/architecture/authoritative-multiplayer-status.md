@@ -1,5 +1,50 @@
 # Authoritative multiplayer v3 status
 
+## Worker handshake and enforced engine/ruleset pins
+
+Implemented on 2026-07-18:
+
+- The private protocol now has a versioned `handshake` operation that requires
+  neither actor identity nor game state. It reports the worker's exact Unciv
+  engine build and installed content-addressed rulesets.
+- The Rust service completes that handshake before binding its public listener
+  and fails startup when the worker is absent, malformed, or speaks another
+  protocol version.
+- Every state creation, projection, join, move, and end-turn request is rejected
+  inside the Kotlin worker unless the pinned engine build equals the running
+  build and every named ruleset is installed with the exact expected SHA-256.
+  A display-name match can no longer silently substitute different bytes.
+- Ruleset identity hashes all gameplay JSON files recursively in sorted
+  relative-path order. Each path and payload is length-framed before hashing,
+  making the digest independent of filesystem enumeration order and
+  unambiguous across file boundaries. Media is outside gameplay identity.
+- Server game creation additionally requires its base ruleset and complete mod
+  set to equal the pinned manifest before `GameStarter` runs.
+
+Verification:
+
+```text
+.\gradlew.bat :server:test --no-daemon --no-build-cache
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55446/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+git diff --check
+```
+
+Result: `BUILD SUCCESSFUL`; four Kotlin worker protocol/catalog tests passed,
+including real bundled-ruleset enumeration, order-independent hashing, engine
+version rejection, and content-hash rejection before malformed snapshot
+parsing. Rust reported 13 passing default tests, including an actorless
+length-prefixed handshake contract test. All five ignored-by-default
+PostgreSQL integration tests passed against an owned disposable PostgreSQL 16
+container. A separate live background-process probe was blocked
+by the local command policy before launch and is not counted as verification.
+
+Remaining versioning work includes durable bundle installation/registration,
+modded fixtures, old-worker routing or a compatibility-tested snapshot
+upgrader, and deployment packaging of pinned worker builds.
+
 ## Milestone 0 — baseline and design
 
 Completed on 2026-07-18:

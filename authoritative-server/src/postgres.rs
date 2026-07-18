@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::auth::{
     Account, AuthError, PasswordService, SessionCredential, normalize_username, token_digest,
 };
-use crate::worker::{EngineWorkerClient, WorkerManifest};
+use crate::worker::{EngineWorkerClient, MoveUnitIntent, WorkerManifest};
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, PROTOCOL_VERSION, state_hash,
 };
@@ -600,10 +600,12 @@ impl PostgresGameRepository {
                 &manifest,
                 envelope.expected_revision,
                 &snapshot,
-                &actor_civilization_id,
-                unit_id,
-                destination_x,
-                destination_y,
+                MoveUnitIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    unit_id,
+                    destination_x,
+                    destination_y,
+                },
             )
             .await
             .map_err(|error| match error {

@@ -4,9 +4,17 @@ plugins {
     id("kotlin")
 }
 
+dependencies {
+    testImplementation(libs.junit)
+}
+
 sourceSets {
     main {
         java.srcDir("src/")
+        java.exclude("test/**")
+    }
+    test {
+        java.srcDir("test/")
     }
 }
 
@@ -14,6 +22,10 @@ val mainClassName = "com.unciv.app.server.UncivServer"
 val authoritativeWorkerMainClassName = "com.unciv.app.server.authoritative.EngineWorkerMain"
 val assetsDir = file("../android/assets")
 val deployFolder = file("../deploy")
+
+tasks.test {
+    workingDir = assetsDir
+}
 
 // See https://github.com/libgdx/libgdx/wiki/Starter-classes-and-configuration#common-issues
 // and https://github.com/yairm210/Unciv/issues/5679

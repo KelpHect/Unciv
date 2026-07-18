@@ -30,7 +30,7 @@ pub struct WorkerManifest {
     pub mods: Vec<WorkerRuleset>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct WorkerRuleset {
     pub name: String,
     pub sha256: String,
@@ -40,14 +40,17 @@ pub struct WorkerRuleset {
 #[serde(rename_all = "camelCase")]
 struct WorkerRequest<'a> {
     protocol_version: u16,
-    actor_id: &'a str,
-    ruleset_manifest: &'a WorkerManifest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actor_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ruleset_manifest: Option<&'a WorkerManifest>,
     operation: WorkerOperation<'a>,
 }
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum WorkerOperation<'a> {
+    Handshake,
     CreateGame {
         setup: &'a str,
     },
@@ -81,6 +84,8 @@ enum WorkerOperation<'a> {
 #[serde(rename_all = "camelCase")]
 struct WorkerResponse {
     protocol_version: u16,
+    engine_build: Option<String>,
+    installed_rulesets: Option<Vec<WorkerRuleset>>,
     snapshot: Option<String>,
     canonical_state_hash: Option<String>,
     actor_civilization_id: Option<String>,
@@ -100,6 +105,19 @@ pub struct AssignedPlayer {
 
 pub struct ProjectedState {
     pub projection: serde_json::Value,
+}
+
+pub struct MoveUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkerCapabilities {
+    pub engine_build: String,
+    pub installed_rulesets: Vec<WorkerRuleset>,
 }
 
 #[derive(Deserialize)]
@@ -123,6 +141,23 @@ pub enum WorkerClientError {
 }
 
 impl EngineWorkerClient {
+    pub async fn handshake(&self) -> Result<WorkerCapabilities, WorkerClientError> {
+        let response = self
+            .execute_request(WorkerRequest {
+                protocol_version: WORKER_PROTOCOL_VERSION,
+                actor_id: None,
+                ruleset_manifest: None,
+                operation: WorkerOperation::Handshake,
+            })
+            .await?;
+        Ok(WorkerCapabilities {
+            engine_build: response.engine_build.ok_or(WorkerClientError::Incomplete)?,
+            installed_rulesets: response
+                .installed_rulesets
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub async fn project_state(
         &self,
         actor_id: &str,
@@ -153,10 +188,7 @@ impl EngineWorkerClient {
         manifest: &WorkerManifest,
         previous_revision: u64,
         snapshot: &str,
-        actor_civilization_id: &str,
-        unit_id: i32,
-        destination_x: i32,
-        destination_y: i32,
+        intent: MoveUnitIntent<'_>,
     ) -> Result<CommitProposal, WorkerClientError> {
         let response = self
             .execute(
@@ -164,10 +196,10 @@ impl EngineWorkerClient {
                 manifest,
                 WorkerOperation::MoveUnit {
                     snapshot,
-                    actor_civilization_id,
-                    unit_id,
-                    destination_x,
-                    destination_y,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                    destination_x: intent.destination_x,
+                    destination_y: intent.destination_y,
                 },
             )
             .await?;
@@ -231,8 +263,8 @@ impl EngineWorkerClient {
     ) -> Result<CommitProposal, WorkerClientError> {
         let request = WorkerRequest {
             protocol_version: WORKER_PROTOCOL_VERSION,
-            actor_id,
-            ruleset_manifest: manifest,
+            actor_id: Some(actor_id),
+            ruleset_manifest: Some(manifest),
             operation: WorkerOperation::EndTurn {
                 snapshot,
                 actor_civilization_id,
@@ -332,10 +364,17 @@ impl EngineWorkerClient {
     ) -> Result<WorkerResponse, WorkerClientError> {
         let request = WorkerRequest {
             protocol_version: WORKER_PROTOCOL_VERSION,
-            actor_id,
-            ruleset_manifest: manifest,
+            actor_id: Some(actor_id),
+            ruleset_manifest: Some(manifest),
             operation,
         };
+        self.execute_request(request).await
+    }
+
+    async fn execute_request(
+        &self,
+        request: WorkerRequest<'_>,
+    ) -> Result<WorkerResponse, WorkerClientError> {
         let payload = serde_json::to_vec(&request).map_err(|_| WorkerClientError::Transport)?;
         if payload.len() > MAX_FRAME_BYTES {
             return Err(WorkerClientError::FrameTooLarge);
@@ -383,5 +422,49 @@ impl EngineWorkerClient {
             )));
         }
         Ok(response)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn handshake_uses_the_versioned_actorless_contract() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let size = stream.read_u32().await.unwrap() as usize;
+            let mut request = vec![0; size];
+            stream.read_exact(&mut request).await.unwrap();
+            let request: Value = serde_json::from_slice(&request).unwrap();
+            assert_eq!(request["protocolVersion"], WORKER_PROTOCOL_VERSION);
+            assert_eq!(request["operation"]["type"], "handshake");
+            assert!(request.get("actorId").is_none());
+            assert!(request.get("rulesetManifest").is_none());
+
+            let response = serde_json::to_vec(&serde_json::json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "engineBuild": "4.21.1",
+                "installedRulesets": [{
+                    "name": "Civ V - Vanilla",
+                    "sha256": "a".repeat(64),
+                }],
+            }))
+            .unwrap();
+            stream.write_u32(response.len() as u32).await.unwrap();
+            stream.write_all(&response).await.unwrap();
+        });
+
+        let capabilities = EngineWorkerClient::new(address, Duration::from_secs(1))
+            .handshake()
+            .await
+            .unwrap();
+        assert_eq!(capabilities.engine_build, "4.21.1");
+        assert_eq!(capabilities.installed_rulesets.len(), 1);
+        server.await.unwrap();
     }
 }

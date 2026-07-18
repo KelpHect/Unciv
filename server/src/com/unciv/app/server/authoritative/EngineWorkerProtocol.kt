@@ -1,5 +1,7 @@
 package com.unciv.app.server.authoritative
 
+import com.badlogic.gdx.files.FileHandle
+import com.unciv.UncivGame
 import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
@@ -8,6 +10,7 @@ import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
 import com.unciv.models.metadata.GameSetupInfo
+import com.unciv.models.ruleset.RulesetCache
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -15,6 +18,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
@@ -28,8 +32,8 @@ object EngineWorkerProtocol {
 @Serializable
 data class WorkerRequest(
     val protocolVersion: Int,
-    val actorId: String,
-    val rulesetManifest: WorkerRulesetManifest,
+    val actorId: String? = null,
+    val rulesetManifest: WorkerRulesetManifest? = null,
     val operation: WorkerOperation,
 )
 
@@ -45,6 +49,11 @@ data class WorkerRuleset(val name: String, val sha256: String)
 
 @Serializable
 sealed interface WorkerOperation {
+    /** Capability handshake performed before a control plane routes work to
+     * this process. It intentionally needs neither actor nor game state. */
+    @Serializable @SerialName("handshake")
+    data object Handshake : WorkerOperation
+
     /** A setup intent, never a client-created GameInfo. The worker invokes the
      * shared GameStarter to create canonical revision zero. */
     @Serializable @SerialName("create_game")
@@ -78,6 +87,8 @@ sealed interface WorkerOperation {
 @Serializable
 data class WorkerResponse(
     val protocolVersion: Int = EngineWorkerProtocol.VERSION,
+    val engineBuild: String? = null,
+    val installedRulesets: List<WorkerRuleset>? = null,
     val snapshot: String? = null,
     val canonicalStateHash: String? = null,
     val actorCivilizationId: String? = null,
@@ -91,11 +102,19 @@ data class WorkerError(val code: String, val message: String)
 class AuthoritativeEngineWorker {
     fun execute(request: WorkerRequest): WorkerResponse = try {
         require(request.protocolVersion == EngineWorkerProtocol.VERSION) { "Unsupported protocol version" }
+        if (request.operation is WorkerOperation.Handshake) return WorkerResponse(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            installedRulesets = InstalledRulesetCatalog.all(),
+        )
+        val actorId = requireNotNull(request.actorId) { "Execution requires an authenticated actor" }
+        val manifest = requireNotNull(request.rulesetManifest) { "Execution requires a ruleset manifest" }
+        InstalledRulesetCatalog.requireAvailable(manifest)
         val engine = HeadlessGameEngine(GameExecutionContext.authoritative(
-            actorId = request.actorId,
-            rulesetManifest = request.rulesetManifest.toCore(),
+            actorId = actorId,
+            rulesetManifest = manifest.toCore(),
         ))
         when (val operation = request.operation) {
+            WorkerOperation.Handshake -> error("Handshake was not handled")
             is WorkerOperation.CreateGame -> {
                 val setup = json().fromJson(GameSetupInfo::class.java, operation.setup)
                 setup.gameParameters.isOnlineMultiplayer = true
@@ -103,10 +122,16 @@ class AuthoritativeEngineWorker {
                 val owner = setup.gameParameters.players.firstOrNull()
                     ?: error("Game setup requires at least one player")
                 owner.playerType = com.unciv.logic.civilization.PlayerType.Human
-                owner.playerId = request.actorId
+                require(setup.gameParameters.baseRuleset == manifest.baseRuleset.name) {
+                    "Setup base ruleset does not match the pinned manifest"
+                }
+                require(setup.gameParameters.mods == manifest.mods.map { it.name }.toSet()) {
+                    "Setup mods do not match the pinned manifest"
+                }
+                owner.playerId = actorId
                 val result = engine.createGame(setup)
                 val ownerCivilization = result.game.civilizations.singleOrNull {
-                    it.playerId == request.actorId
+                    it.playerId == actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
                 responseForGame(engine, result.game, ownerCivilization.civID)
             }
@@ -165,6 +190,59 @@ class AuthoritativeEngineWorker {
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
         .digest(bytes)
         .joinToString("") { "%02x".format(it) }
+}
+
+/** Computes content identities over the exact ruleset JSON bytes visible to
+ * this worker. Paths are sorted and length-framed so concatenation cannot be
+ * ambiguous. Media is intentionally excluded from gameplay identity. */
+object InstalledRulesetCatalog {
+    val engineBuild: String get() = UncivGame.VERSION.toSerializeString()
+
+    fun all(): List<WorkerRuleset> = RulesetCache.keys.sorted().map { named(it) }
+
+    fun requireAvailable(manifest: WorkerRulesetManifest) {
+        require(manifest.engineBuild == engineBuild) {
+            "Pinned engine build is unavailable"
+        }
+        val requested = listOf(manifest.baseRuleset) + manifest.mods
+        require(requested.map { it.name }.distinct().size == requested.size) {
+            "Ruleset manifest contains duplicate names"
+        }
+        requested.forEach { expected ->
+            val installed = named(expected.name)
+            require(installed.sha256.equals(expected.sha256, ignoreCase = true)) {
+                "Pinned ruleset content is unavailable: ${expected.name}"
+            }
+        }
+    }
+
+    fun named(name: String): WorkerRuleset {
+        val ruleset = RulesetCache[name] ?: error("Pinned ruleset is unavailable: $name")
+        val jsonFolder = ruleset.folderLocation?.child("jsons") ?: FileHandle("jsons/$name")
+        require(jsonFolder.exists() && jsonFolder.isDirectory) { "Ruleset JSON is unavailable: $name" }
+        return WorkerRuleset(name, hashDirectory(jsonFolder))
+    }
+
+    internal fun hashDirectory(root: FileHandle): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val files = collectFiles(root).sortedBy { it.first }
+        require(files.isNotEmpty()) { "Ruleset JSON directory is empty" }
+        files.forEach { (relativePath, file) ->
+            val path = relativePath.replace('\\', '/').toByteArray(Charsets.UTF_8)
+            val bytes = file.readBytes()
+            digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(path.size).array())
+            digest.update(path)
+            digest.update(ByteBuffer.allocate(Long.SIZE_BYTES).putLong(bytes.size.toLong()).array())
+            digest.update(bytes)
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun collectFiles(root: FileHandle, prefix: String = ""): List<Pair<String, FileHandle>> =
+        root.list().flatMap { child ->
+            val relative = if (prefix.isEmpty()) child.name() else "$prefix/${child.name()}"
+            if (child.isDirectory) collectFiles(child, relative) else listOf(relative to child)
+        }
 }
 
 class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker()) {

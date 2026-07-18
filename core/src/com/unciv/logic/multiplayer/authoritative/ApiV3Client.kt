@@ -39,7 +39,7 @@ class ApiV3Client(
     private var sessionToken: String? = null
     private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
-    suspend fun restoreSession(): Boolean {
+    override suspend fun restoreSession(): Boolean {
         sessionToken = tokenStore.load()
         return sessionToken != null
     }

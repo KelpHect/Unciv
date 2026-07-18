@@ -8,6 +8,9 @@ import com.unciv.logic.automation.civilization.NextTurnAutomation
 import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.event.EventBus
+import com.unciv.logic.multiplayer.authoritative.ApiV3Client
+import com.unciv.logic.multiplayer.authoritative.ApiV3SessionTokenStore
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
 import com.unciv.logic.multiplayer.storage.MultiplayerFileNotFoundException
@@ -43,6 +46,28 @@ class Multiplayer {
     val multiplayerServer = MultiplayerServer()
     /** Handles LOCAL FILES only */
     val multiplayerFiles = MultiplayerFiles()
+
+    /** API-v3 state is explicitly installed after the platform supplies a
+     * secure token store. Legacy save-file multiplayer never shares this
+     * authenticated command lifecycle. */
+    var authoritativeSession: AuthoritativeMultiplayerSession? = null
+        private set
+
+    fun installAuthoritativeSession(
+        baseUrl: String,
+        tokenStore: ApiV3SessionTokenStore,
+    ): AuthoritativeMultiplayerSession {
+        authoritativeSession?.close()
+        return AuthoritativeMultiplayerSession.create(
+            ApiV3Client(baseUrl, tokenStore),
+            closeTransport = true,
+        ).also { authoritativeSession = it }
+    }
+
+    fun clearAuthoritativeSession() {
+        authoritativeSession?.close()
+        authoritativeSession = null
+    }
 
 
     private val lastFileUpdate: AtomicReference<Instant?> = AtomicReference()

@@ -16,10 +16,13 @@ also mutates resignation/turn state locally; and `MultiplayerServer.uploadGame()
 sends the resulting whole save. Therefore no gameplay family is globally
 complete yet, even where the v3 vertical slice has a valid server handler.
 
-API v3 currently exposes only `JoinGame`, `MoveUnit`, and `EndTurn`. The shared
-`AuthoritativeGameCommandBus` can reconcile revisions and retries, but no
-production world-screen action is routed through it. API-v3 game creation and
-projection reads are implemented outside the gameplay command union.
+API v3 currently exposes `JoinGame`, `MoveUnit`, `QueueConstruction`, and
+`EndTurn`. The production `Multiplayer` owner can now install one
+`AuthoritativeMultiplayerSession`, which negotiates capabilities, restores or
+creates an authenticated session, opens per-game command buses from an HTTP
+projection, and reconciles WebSocket hints through HTTP. No production
+world-screen action is routed through that lifecycle yet. API-v3 game creation
+and projection reads are implemented outside the gameplay command union.
 
 Status meanings:
 

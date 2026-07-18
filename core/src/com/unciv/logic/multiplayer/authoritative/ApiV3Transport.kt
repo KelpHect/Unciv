@@ -3,6 +3,7 @@ package com.unciv.logic.multiplayer.authoritative
 import kotlinx.coroutines.flow.Flow
 
 interface ApiV3Transport {
+    suspend fun restoreSession(): Boolean
     suspend fun capabilities(): ApiV3Capabilities
     suspend fun register(username: String, password: String): ApiV3Account
     suspend fun login(username: String, password: String): ApiV3Account

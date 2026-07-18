@@ -190,7 +190,8 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
 
-        override suspend fun capabilities() = ApiV3Capabilities(3, 1, emptyList(), false, false)
+        override suspend fun restoreSession() = true
+        override suspend fun capabilities() = ApiV3Capabilities(3, 2, emptyList(), false, false)
         override suspend fun register(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit

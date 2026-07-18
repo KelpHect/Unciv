@@ -1,5 +1,50 @@
 # Authoritative multiplayer v3 status
 
+## Production-owned authoritative client lifecycle
+
+Implemented on 2026-07-18:
+
+- `AuthoritativeMultiplayerSession` now owns capability negotiation,
+  registration/login/session restore and refresh, per-game command buses,
+  authenticated HTTP projection bootstrap, WebSocket hint reconciliation,
+  logout, and shutdown in the shared client module.
+- Negotiation fails closed on another protocol/projection version or any API
+  claiming that authoritative v3 permits whole-state uploads. Opening a game
+  requires authentication and always starts with an HTTP projection.
+- Notifications remain advisory: revision hints, forced resync, duplicates,
+  and reordering feed the existing command bus, which accepts state only from
+  authenticated HTTP reconciliation. A failed refresh does not permanently
+  stop subsequent notification handling.
+- The production `Multiplayer` owner installs exactly one such lifecycle from
+  the selected server URL and a platform-supplied secure token store. Replacing
+  or clearing it closes its worker and transport; it does not share credentials
+  or state with legacy save-file multiplayer.
+
+Verification:
+
+```text
+JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot \
+  .\gradlew.bat :tests:test \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests \
+  --no-daemon --no-build-cache
+JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot \
+  .\gradlew.bat :tests:test --no-daemon --no-build-cache
+git diff --check
+```
+
+Result: the focused shared-client suites passed, and the complete shared test
+module reported 750 tests, zero failures/errors, and 13 intentionally skipped.
+Coverage includes incompatible and whole-upload capability rejection,
+unauthenticated game access, session restore, HTTP bootstrap, duplicate/older
+notification suppression, forced resync, and logout cleanup. The active Java
+25 host runtime is incompatible with this Gradle version, so verification uses
+the installed JDK 21 toolchain.
+
+This is the lifecycle prerequisite, not UI migration: account screens, secure
+platform token-store implementations, v3 game discovery, projection-only game
+rendering, and the first production world-screen command route remain pending.
+
 ## Canonical snapshot integrity and quarantine
 
 Implemented on 2026-07-18:

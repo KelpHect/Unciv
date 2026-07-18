@@ -20,6 +20,7 @@ use unciv_authoritative_server::{
     postgres::{GameMetadata, PostgresGameRepository},
     worker::EngineWorkerClient,
 };
+use utoipa::{Modify, OpenApi, ToSchema};
 
 #[derive(Clone)]
 struct AppState {
@@ -35,13 +36,13 @@ struct RateLimitPolicy {
     event_type: &'static str,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct HealthResponse {
     status: &'static str,
     protocol_version: u16,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct CapabilitiesResponse {
     protocol_version: u16,
     projection_version: u16,
@@ -50,36 +51,37 @@ struct CapabilitiesResponse {
     websocket_notifications: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 struct CredentialsRequest {
     username: String,
     password: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct AccountResponse {
     account_id: uuid::Uuid,
     username: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct LoginResponse {
     account: AccountResponse,
     session_token: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct SessionResponse {
     session_token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct CreateGameRequest {
     ruleset_manifest_hash: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct GameMetadataResponse {
     game_id: uuid::Uuid,
     committed_revision: u64,
@@ -88,14 +90,14 @@ struct GameMetadataResponse {
     civilization_id: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 #[serde(deny_unknown_fields)]
 struct ListGamesQuery {
     after: Option<String>,
     limit: Option<u32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct EndTurnRequest {
     command_id: uuid::Uuid,
@@ -103,7 +105,7 @@ struct EndTurnRequest {
     client_observed_state_hash: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct JoinGameRequest {
     command_id: uuid::Uuid,
@@ -111,7 +113,7 @@ struct JoinGameRequest {
     client_observed_state_hash: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct MoveUnitRequest {
     command_id: uuid::Uuid,
@@ -122,7 +124,7 @@ struct MoveUnitRequest {
     destination_y: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct QueueConstructionRequest {
     command_id: uuid::Uuid,
@@ -132,7 +134,7 @@ struct QueueConstructionRequest {
     construction_name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct ErrorResponse {
     code: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,6 +147,74 @@ struct ApiError {
     code: &'static str,
     current_revision: Option<u64>,
     retry_after_seconds: Option<u64>,
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        health,
+        capabilities,
+        openapi_document,
+        register,
+        login,
+        refresh_session,
+        logout,
+        list_games,
+        create_game,
+        game_metadata,
+        game_projection,
+        websocket_notifications,
+        join_game,
+        end_turn,
+        move_unit,
+        queue_construction
+    ),
+    components(schemas(
+        HealthResponse,
+        CapabilitiesResponse,
+        CredentialsRequest,
+        AccountResponse,
+        LoginResponse,
+        SessionResponse,
+        CreateGameRequest,
+        GameMetadataResponse,
+        EndTurnRequest,
+        JoinGameRequest,
+        MoveUnitRequest,
+        QueueConstructionRequest,
+        ErrorResponse,
+        unciv_authoritative_server::CommandAccepted,
+        unciv_authoritative_server::postgres::GameSummary,
+        unciv_authoritative_server::postgres::GamePage,
+        unciv_authoritative_server::postgres::GameProjection,
+        unciv_authoritative_server::notifications::RevisionNotification,
+        unciv_authoritative_server::projection::PlayerProjection,
+        unciv_authoritative_server::projection::ProjectedCity,
+        unciv_authoritative_server::projection::ProjectedUnit,
+        unciv_authoritative_server::projection::ProjectedTileVisibility
+    )),
+    modifiers(&SecurityAddon),
+    tags((name = "authoritative-multiplayer-v3", description = "Server-authoritative Unciv multiplayer API v3"))
+)]
+struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer_auth",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .description(Some("Opaque revocable API-v3 session token"))
+                        .build(),
+                ),
+            );
+        }
+    }
 }
 
 impl ApiError {
@@ -221,6 +291,7 @@ fn account_response(account: Account) -> AccountResponse {
     }
 }
 
+#[utoipa::path(get, path = "/healthz", responses((status = 200, body = HealthResponse)))]
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
@@ -228,6 +299,7 @@ async fn health() -> Json<HealthResponse> {
     })
 }
 
+#[utoipa::path(get, path = "/api/v3/capabilities", responses((status = 200, body = CapabilitiesResponse)))]
 async fn capabilities() -> Json<CapabilitiesResponse> {
     Json(CapabilitiesResponse {
         protocol_version: PROTOCOL_VERSION,
@@ -238,6 +310,27 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v3/openapi.json",
+    responses((status = 200, description = "Generated OpenAPI 3.1 contract", body = serde_json::Value))
+)]
+async fn openapi_document() -> Json<utoipa::openapi::OpenApi> {
+    Json(ApiDoc::openapi())
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/auth/register",
+    request_body = CredentialsRequest,
+    responses(
+        (status = 201, body = AccountResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
 async fn register(
     State(state): State<AppState>,
     ConnectInfo(source): ConnectInfo<SocketAddr>,
@@ -290,6 +383,17 @@ async fn register(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/auth/login",
+    request_body = CredentialsRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
 async fn login(
     State(state): State<AppState>,
     ConnectInfo(source): ConnectInfo<SocketAddr>,
@@ -435,6 +539,12 @@ fn source_prefix(address: IpAddr) -> String {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/auth/logout",
+    security(("bearer_auth" = [])),
+    responses((status = 204), (status = 401, body = ErrorResponse), (status = 500, body = ErrorResponse))
+)]
 async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
     let bearer_token = bearer_token(&headers).ok_or_else(ApiError::unauthorized)?;
     // Resolve before revocation so malformed, expired, and already-revoked
@@ -452,6 +562,12 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Result<Sta
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/auth/refresh",
+    security(("bearer_auth" = [])),
+    responses((status = 200, body = SessionResponse), (status = 401, body = ErrorResponse), (status = 500, body = ErrorResponse))
+)]
 async fn refresh_session(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -467,6 +583,20 @@ async fn refresh_session(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games",
+    security(("bearer_auth" = [])),
+    request_body = CreateGameRequest,
+    responses(
+        (status = 201, body = GameMetadataResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+        (status = 502, body = ErrorResponse)
+    )
+)]
 async fn create_game(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -500,6 +630,19 @@ async fn create_game(
     Ok((StatusCode::CREATED, Json(game_metadata_response(metadata))))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v3/games/{game_id}",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, body = GameMetadataResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn game_metadata(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -514,6 +657,18 @@ async fn game_metadata(
     Ok(Json(game_metadata_response(metadata)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v3/games",
+    params(ListGamesQuery),
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, body = unciv_authoritative_server::postgres::GamePage),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
 async fn list_games(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -546,6 +701,19 @@ fn game_page_limit(requested: Option<u32>) -> Result<u32, ApiError> {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v3/games/{game_id}/projection",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, body = unciv_authoritative_server::postgres::GameProjection),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn game_projection(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -560,6 +728,15 @@ async fn game_projection(
     Ok(Json(projection))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v3/notifications",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 101, description = "WebSocket revision-hint stream", body = unciv_authoritative_server::notifications::RevisionNotification),
+        (status = 401, body = ErrorResponse)
+    )
+)]
 async fn websocket_notifications(
     websocket: WebSocketUpgrade,
     State(state): State<AppState>,
@@ -606,6 +783,22 @@ async fn serve_websocket(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/join",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = JoinGameRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn join_game(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -635,6 +828,22 @@ async fn join_game(
 /// The first public gameplay mutation. The payload is intentionally closed:
 /// an authenticated member can request only `EndTurn`, never submit a state
 /// replacement or generic object patch.
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/end-turn",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = EndTurnRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn end_turn(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -661,6 +870,22 @@ async fn end_turn(
     Ok(Json(accepted))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/move-unit",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = MoveUnitRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn move_unit(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -691,6 +916,23 @@ async fn move_unit(
     Ok(Json(accepted))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/queue-construction",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = QueueConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
 async fn queue_construction(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -837,6 +1079,24 @@ fn game_error(error: CommitError) -> ApiError {
 
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|argument| argument == "--write-openapi") {
+        let target = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("openapi")
+            .join("api-v3.json");
+        std::fs::create_dir_all(target.parent().expect("OpenAPI target has a parent"))
+            .expect("failed to create OpenAPI output directory");
+        std::fs::write(
+            &target,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&ApiDoc::openapi())
+                    .expect("OpenAPI document is serializable")
+            ),
+        )
+        .expect("failed to write generated OpenAPI document");
+        eprintln!("wrote {}", target.display());
+        return;
+    }
     let address = std::env::var("UNCIV_V3_BIND")
         .unwrap_or_else(|_| "127.0.0.1:3000".to_owned())
         .parse::<SocketAddr>()
@@ -873,6 +1133,7 @@ async fn main() {
     let app = Router::new()
         .route("/healthz", get(health))
         .route("/api/v3/capabilities", get(capabilities))
+        .route("/api/v3/openapi.json", get(openapi_document))
         .route("/api/v3/notifications", get(websocket_notifications))
         .route("/api/v3/auth/register", post(register))
         .route("/api/v3/auth/login", post(login))
@@ -911,6 +1172,83 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_openapi_matches_checked_in_contract() {
+        let generated = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&ApiDoc::openapi()).unwrap()
+        );
+        assert_eq!(generated, include_str!("../openapi/api-v3.json"));
+    }
+
+    #[test]
+    fn openapi_covers_routes_security_and_closed_command_shapes() {
+        let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
+        let paths = document["paths"].as_object().unwrap();
+        let expected_paths = [
+            "/healthz",
+            "/api/v3/capabilities",
+            "/api/v3/openapi.json",
+            "/api/v3/notifications",
+            "/api/v3/auth/register",
+            "/api/v3/auth/login",
+            "/api/v3/auth/refresh",
+            "/api/v3/auth/logout",
+            "/api/v3/games",
+            "/api/v3/games/{game_id}",
+            "/api/v3/games/{game_id}/projection",
+            "/api/v3/games/{game_id}/join",
+            "/api/v3/games/{game_id}/commands/end-turn",
+            "/api/v3/games/{game_id}/commands/move-unit",
+            "/api/v3/games/{game_id}/commands/queue-construction",
+        ];
+        assert_eq!(paths.len(), expected_paths.len());
+        for path in expected_paths {
+            assert!(paths.contains_key(path), "missing OpenAPI path {path}");
+        }
+        assert_eq!(
+            document["components"]["securitySchemes"]["bearer_auth"]["scheme"],
+            "bearer"
+        );
+        for (path, methods) in paths {
+            for operation in methods.as_object().unwrap().values() {
+                let public = matches!(
+                    path.as_str(),
+                    "/healthz"
+                        | "/api/v3/capabilities"
+                        | "/api/v3/openapi.json"
+                        | "/api/v3/auth/register"
+                        | "/api/v3/auth/login"
+                );
+                assert_eq!(
+                    operation.get("security").is_some(),
+                    !public,
+                    "incorrect security declaration for {path}"
+                );
+            }
+        }
+        for schema in [
+            "EndTurnRequest",
+            "JoinGameRequest",
+            "MoveUnitRequest",
+            "QueueConstructionRequest",
+        ] {
+            assert_eq!(
+                document["components"]["schemas"][schema]["additionalProperties"], false,
+                "{schema} must remain a closed request object"
+            );
+        }
+        assert!(
+            document["components"]["schemas"]["GameProjection"]["properties"]["projection"]["$ref"]
+                .as_str()
+                .unwrap()
+                .ends_with("/PlayerProjection")
+        );
+        let serialized = serde_json::to_string(&document).unwrap();
+        assert!(!serialized.contains("GameInfo"));
+        assert!(!serialized.contains("snapshot"));
+    }
 
     #[test]
     fn stale_errors_expose_the_canonical_revision() {

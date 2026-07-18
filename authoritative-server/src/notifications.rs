@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::postgres::PostgresGameRepository;
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct RevisionNotification {
     #[serde(rename = "type")]
     pub event_type: &'static str,

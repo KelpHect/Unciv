@@ -1,5 +1,55 @@
 # Authoritative multiplayer v3 status
 
+## Generated OpenAPI and typed projection contract
+
+Implemented on 2026-07-18:
+
+- The Rust service now derives an OpenAPI 3.1 contract from its actual request,
+  response, error, command, notification, game-list, and projection types using
+  pinned `utoipa` 5.5.0. All 15 public paths are registered, including auth,
+  discovery, projections, typed commands, WebSocket upgrade, health, and the
+  OpenAPI document itself.
+- `GET /api/v3/openapi.json` serves the generated contract. The deterministic
+  `--write-openapi` mode writes
+  `authoritative-server/openapi/api-v3.json`; a test compares the generated
+  pretty JSON byte-for-byte with that checked-in artifact, so route or schema
+  changes require intentional regeneration.
+- Bearer-auth requirements, stable response classes, path/query parameters,
+  closed request objects, and the absence of `GameInfo`/snapshot fields are
+  regression-tested. Public unauthenticated operations are explicitly limited
+  to health, capabilities, registration, login, and the OpenAPI document.
+- Rust no longer accepts the worker's player projection as an untyped JSON
+  value. `PlayerProjection` and its nested DTOs are closed Rust types used by
+  worker decoding, response serialization, and OpenAPI. Rust and Kotlin both
+  round-trip `protocol/player-projection-v2.fixture.json` and reject an injected
+  canonical-game field.
+
+Generation and verification:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+cargo fmt --manifest-path authoritative-server/Cargo.toml -- --check
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:postgres@localhost:55452/unciv_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib postgres::integration_tests:: -- --ignored --test-threads=1
+JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot \
+  .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+git diff --check
+```
+
+Result: Rust reported 13 passing default library tests, seven PostgreSQL tests
+ignored unless configured, and seven passing HTTP/OpenAPI tests. All seven
+PostgreSQL integration tests passed on an owned disposable PostgreSQL 16
+instance. Kotlin reported four passing worker tests and 754 shared tests with
+zero failures/errors and 13 intentionally skipped.
+
+`utoipa` and `utoipa-gen` are pinned at 5.5.0 and declare `MIT OR Apache-2.0`,
+which is compatible with this MPL-2.0 project. OpenAPI documents the WebSocket
+upgrade and revision-notification frame but is not an AsyncAPI lifecycle model.
+The account UI, secure platform token stores, projection-only game screen, and
+production command routing remain pending.
+
 ## Authenticated game discovery
 
 Implemented on 2026-07-18:
@@ -41,8 +91,7 @@ failures/errors, and 13 intentionally skipped.
 
 This closes server-owned membership discovery, not the client UI: account/game
 list screens, secure platform token stores, and projection-only rendering remain
-pending. The repository still has no generated or checked-in OpenAPI artifact,
-so public API-v3 OpenAPI generation remains an explicit foundation gap.
+pending.
 
 ## Production-owned authoritative client lifecycle
 

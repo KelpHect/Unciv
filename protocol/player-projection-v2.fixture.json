@@ -1,0 +1,47 @@
+{
+  "protocolVersion": 3,
+  "civilizationId": "Rome",
+  "turn": 12,
+  "currentPlayerCivilizationId": "Rome",
+  "isCurrentTurn": true,
+  "gold": 321,
+  "knownCivilizations": ["Greece"],
+  "ownCities": [
+    {
+      "id": "city-rome",
+      "name": "Rome",
+      "x": 2,
+      "y": -1,
+      "population": 5,
+      "health": 200,
+      "constructionQueue": ["Monument"],
+      "availableConstructions": ["Archer", "Granary"]
+    }
+  ],
+  "ownUnits": [
+    {
+      "id": 17,
+      "civilizationId": "Rome",
+      "name": "Warrior",
+      "x": 3,
+      "y": -1,
+      "health": 91,
+      "currentMovement": 1.5
+    }
+  ],
+  "exploredTiles": [
+    { "x": 2, "y": -1, "visible": true },
+    { "x": 3, "y": -1, "visible": false }
+  ],
+  "visibleForeignUnits": [
+    {
+      "id": 29,
+      "civilizationId": "Greece",
+      "name": "Scout",
+      "x": 4,
+      "y": -1,
+      "health": 100,
+      "currentMovement": 0.0
+    }
+  ]
+}

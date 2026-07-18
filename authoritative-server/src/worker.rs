@@ -11,7 +11,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::CommitProposal;
+use crate::{CommitProposal, projection::PlayerProjection};
 
 pub const WORKER_PROTOCOL_VERSION: u16 = 1;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
@@ -113,7 +113,7 @@ pub struct AssignedPlayer {
 }
 
 pub struct ProjectedState {
-    pub projection: serde_json::Value,
+    pub projection: PlayerProjection,
 }
 
 pub struct MoveUnitIntent<'a> {
@@ -222,10 +222,12 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
+        let projection = response
+            .player_projection
+            .ok_or(WorkerClientError::Incomplete)?;
         Ok(ProjectedState {
-            projection: response
-                .player_projection
-                .ok_or(WorkerClientError::Incomplete)?,
+            projection: serde_json::from_value(projection)
+                .map_err(|_| WorkerClientError::Protocol)?,
         })
     }
 

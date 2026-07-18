@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::auth::{
     Account, AuthError, PasswordService, SessionCredential, normalize_username, token_digest,
 };
+use crate::projection::PlayerProjection;
 use crate::worker::{EngineWorkerClient, MoveUnitIntent, QueueConstructionIntent, WorkerManifest};
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -31,7 +32,7 @@ struct NewMemberAssignment {
     civilization_id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GameMetadata {
     pub game_id: Uuid,
     pub committed_revision: u64,
@@ -40,7 +41,7 @@ pub struct GameMetadata {
     pub civilization_id: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GameSummary {
     pub game_id: Uuid,
     pub committed_revision: u64,
@@ -50,20 +51,20 @@ pub struct GameSummary {
     pub available: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GamePage {
     pub games: Vec<GameSummary>,
     pub next_cursor: Option<Uuid>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GameProjection {
     pub game_id: Uuid,
     pub projection_version: u16,
     pub committed_revision: u64,
     pub canonical_state_hash: String,
     pub projection_hash: String,
-    pub projection: serde_json::Value,
+    pub projection: PlayerProjection,
 }
 
 #[derive(Clone, Debug)]

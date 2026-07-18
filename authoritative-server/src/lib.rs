@@ -12,6 +12,7 @@ use uuid::Uuid;
 pub mod auth;
 pub mod notifications;
 pub mod postgres;
+pub mod projection;
 pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
@@ -51,7 +52,7 @@ pub struct CommitProposal {
     pub canonical_state_hash: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 pub struct CommandAccepted {
     pub game_id: Uuid,
     pub command_id: Uuid,

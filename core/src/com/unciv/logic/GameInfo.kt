@@ -355,11 +355,15 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
      *  @param progressBar Optional reference to UI widget either provided by [WorldScreen.nextTurn][com.unciv.ui.screens.worldscreen.WorldScreen.nextTurn] or `null` when simulating
      *  @param shouldGainTime on a multiplayer game, if true, makes the player whose turn is ended recover time to play before risking getting forced to resign, 'false' by default 
      */
-    fun nextTurn(progressBar: NextTurnProgress? = null, shouldGainTime: Boolean = false): Unit = timeThis("GameInfo.nextTurn") {
+    fun nextTurn(
+        progressBar: NextTurnProgress? = null,
+        shouldGainTime: Boolean = false,
+        executionContext: GameExecutionContext = GameExecutionContext.client(),
+    ): Unit = timeThis("GameInfo.nextTurn") {
         var player = currentPlayerCiv
         var playerIndex = civilizations.indexOf(player)
 
-        if (gameParameters.isOnlineMultiplayer) updateMinutesBeforeForceResign(player, shouldGainTime)
+        if (gameParameters.isOnlineMultiplayer) updateMinutesBeforeForceResign(player, shouldGainTime, executionContext.clockMillis())
         // We rotate Players in cycle: 1,2...N,1,2...
         fun setNextPlayer() {
             playerIndex = (playerIndex + 1) % civilizations.size
@@ -413,7 +417,7 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
             // Automation done here
             TurnManager(player).automateTurn()
 
-            val worldScreen = UncivGame.Current.worldScreen
+            val worldScreen = if (executionContext.allowUiSideEffects) UncivGame.Current.worldScreen else null
             // Do we need to break if player won?
             if (simulateUntilWin && (player.victoryManager.hasWon() || simulateMaxTurns > 0 && turns >= simulateMaxTurns)) {
                 simulateUntilWin = false
@@ -437,7 +441,7 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
             DebugUtils.SIMULATE_UNTIL_TURN = 0
 
         // We found a human player, so we are making them current
-        currentTurnStartTime = System.currentTimeMillis()
+        currentTurnStartTime = executionContext.clockMillis()
         currentPlayer = player.civID
         currentPlayerCiv = player
 
@@ -449,7 +453,7 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
             currentPlayerCiv.popupAlerts.clear()
 
         // Play some nice music TODO: measuring actual play time might be nicer
-        if (turns % 10 == 0 && Gdx.app != null)
+        if (executionContext.allowUiSideEffects && turns % 10 == 0 && Gdx.app != null)
             UncivGame.Current.musicController.chooseTrack(
                 currentPlayerCiv.civName,
                 MusicMood.peaceOrWar(currentPlayerCiv.isAtWar()), MusicTrackChooserFlags.setNextTurn
@@ -463,10 +467,10 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
         player.notificationCountAtStartTurn = player.notifications.size
     }
     
-    private fun updateMinutesBeforeForceResign(player: Civilization, shouldGainTime: Boolean) {
+    private fun updateMinutesBeforeForceResign(player: Civilization, shouldGainTime: Boolean, nowMillis: Long) {
             // Update remaining time before the player who's turn is ending can be forced to resign
             val turnStart: Instant  = Instant.ofEpochMilli(currentTurnStartTime)
-            val timeUsed = Duration.between(turnStart, Instant.now()).toMinutes().toInt()
+            val timeUsed = Duration.between(turnStart, Instant.ofEpochMilli(nowMillis)).toMinutes().toInt()
             val timeRegained = if (shouldGainTime) gameParameters.minutesRecoveredPerTurn else 0
             val rawNewTime = player.playerMinutesBeforeForceResign - timeUsed + timeRegained
             val maxNewTime = gameParameters.minutesUntilForceResign

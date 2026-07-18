@@ -34,17 +34,22 @@ import yairm210.purity.annotations.Readonly
  *  is fully random per game.
  */
 class GameStarter private constructor(
-    private val gameSetupInfo: GameSetupInfo
+    private val gameSetupInfo: GameSetupInfo,
+    private val executionContext: GameExecutionContext,
 ) {
     companion object {
         // temporary instrumentation while tuning/debugging
         private const val consoleTimings = false
 
-        fun startNewGame(gameSetupInfo: GameSetupInfo): GameInfo =
-            GameStarter(gameSetupInfo).gameInfo
+        fun startNewGame(
+            gameSetupInfo: GameSetupInfo,
+            executionContext: GameExecutionContext = GameExecutionContext.client(),
+        ): GameInfo = GameStarter(gameSetupInfo, executionContext).gameInfo
     }
 
-    private val gameInfo = GameInfo()
+    private val gameInfo = GameInfo().apply {
+        currentTurnStartTime = executionContext.clockMillis()
+    }
     private val rng = GameContext(gameInfo = gameInfo).stateBasedRandom("GameStarter")
     private val ruleset: Ruleset
     private lateinit var tileMap: TileMap
@@ -149,9 +154,11 @@ class GameStarter private constructor(
         // This triggers the one-time greeting from Nation.startIntroPart1/2
         addPlayerIntros()
 
-        UncivGame.Current.settings.apply {
-            lastGameSetup = gameSetupInfo
-            save()
+        if (executionContext.persistLocalSettings) {
+            UncivGame.Current.settings.apply {
+                lastGameSetup = gameSetupInfo
+                save()
+            }
         }
     }
 

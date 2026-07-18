@@ -137,3 +137,7 @@ snapshot and stored worker manifest, delegates only `EndTurn` to the private
 Kotlin worker, then submits its result through the revision-CAS commit method.
 It never accepts a client replacement snapshot; a concurrent change becomes a
 stale conflict.
+
+Authentication foundation: migration `0002_revocable_sessions.sql` adds hashed,
+rotating, revocable server-side session records. Registration/login handlers and
+Argon2id verification are still pending.

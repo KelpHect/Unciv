@@ -85,6 +85,13 @@ sealed interface WorkerOperation {
         val constructionName: String,
     ) : WorkerOperation
 
+    @Serializable @SerialName("set_research_path")
+    data class SetResearchPath(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val technologyName: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("project_state")
     data class ProjectState(
         val snapshot: String,
@@ -170,6 +177,15 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.cityId,
                     operation.constructionName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetResearchPath -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setResearchPath(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.technologyName,
                 )
                 responseForGame(engine, result.game)
             }

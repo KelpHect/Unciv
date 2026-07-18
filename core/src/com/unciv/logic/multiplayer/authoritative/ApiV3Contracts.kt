@@ -115,6 +115,14 @@ data class ApiV3QueueConstructionRequest(
 )
 
 @Serializable
+data class ApiV3SetResearchPathRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("technology_name") val technologyName: String,
+)
+
+@Serializable
 data class ApiV3EndTurnRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

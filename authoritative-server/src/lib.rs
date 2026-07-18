@@ -16,7 +16,7 @@ pub mod projection;
 pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 3;
+pub const PROJECTION_VERSION: u16 = 4;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -32,6 +32,9 @@ pub enum GameCommand {
     QueueConstruction {
         city_id: String,
         construction_name: String,
+    },
+    SetResearchPath {
+        technology_name: String,
     },
 }
 
@@ -264,6 +267,29 @@ mod tests {
                 "city_id": "city-1",
                 "construction_name": "Monument",
                 "gold_cost": 1,
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn set_research_path_contract_is_typed_and_closed() {
+        let command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "set_research_path",
+            "technology_name": "Writing"
+        }))
+        .unwrap();
+        assert_eq!(
+            command,
+            GameCommand::SetResearchPath {
+                technology_name: "Writing".to_owned(),
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "set_research_path",
+                "technology_name": "Writing",
+                "research_queue": ["Pottery", "Writing"]
             }))
             .is_err()
         );

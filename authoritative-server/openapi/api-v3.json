@@ -975,6 +975,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-research-path": {
+      "post": {
+        "tags": [],
+        "operationId": "set_research_path",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetResearchPathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/join": {
       "post": {
         "tags": [],
@@ -1652,6 +1766,7 @@
           "currentPlayerCivilizationId",
           "isCurrentTurn",
           "pendingTurnActions",
+          "research",
           "gold",
           "knownCivilizations",
           "ownCities",
@@ -1707,6 +1822,9 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "research": {
+            "$ref": "#/components/schemas/ProjectedResearch"
           },
           "turn": {
             "type": "integer",
@@ -1767,6 +1885,41 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedResearch": {
+        "type": "object",
+        "required": [
+          "queue",
+          "selectableTargets",
+          "freeTechnologyChoices"
+        ],
+        "properties": {
+          "currentTechnology": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "freeTechnologyChoices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "selectableTargets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false
@@ -1909,6 +2062,35 @@
             "type": "string"
           }
         }
+      },
+      "SetResearchPathRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "technology_name"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "technology_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

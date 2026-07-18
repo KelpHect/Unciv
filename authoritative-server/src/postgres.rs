@@ -10,7 +10,10 @@ use crate::auth::{
     token_digest,
 };
 use crate::projection::PlayerProjection;
-use crate::worker::{EngineWorkerClient, MoveUnitIntent, QueueConstructionIntent, WorkerManifest};
+use crate::worker::{
+    EngineWorkerClient, MoveUnitIntent, QueueConstructionIntent, SetResearchPathIntent,
+    WorkerManifest,
+};
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
     PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
@@ -932,6 +935,69 @@ impl PostgresGameRepository {
                 other => {
                     eprintln!(
                         "authoritative worker QueueConstruction transport/protocol failure: {other}"
+                    );
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
+    pub async fn execute_set_research_path(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let technology_name = match &envelope.command {
+            crate::GameCommand::SetResearchPath { technology_name } => technology_name.clone(),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let row = sqlx::query(
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(envelope.game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let actor_civilization_id: Option<String> = sqlx::query_scalar(
+            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
+        )
+        .bind(envelope.game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .flatten();
+        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let proposal = worker
+            .set_research_path(
+                &actor_account_id.to_string(),
+                &manifest,
+                envelope.expected_revision,
+                &snapshot,
+                SetResearchPathIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    technology_name: &technology_name,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!(
+                        "authoritative worker SetResearchPath transport/protocol failure: {other}"
                     );
                     CommitError::WorkerRevisionMismatch
                 }

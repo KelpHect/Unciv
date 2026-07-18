@@ -47,6 +47,8 @@ sealed interface GameCommand {
         val cityId: String,
         val constructionName: String,
     ) : GameCommand
+
+    data class SetResearchPath(val technologyName: String) : GameCommand
 }
 
 sealed interface CommandEnvelopeValidation {

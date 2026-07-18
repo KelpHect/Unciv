@@ -994,3 +994,48 @@ The projection currently gives blocker identities, not the private legal
 options or server-issued tokens needed to resolve them. Technology, policy,
 religion, espionage, and vote commands remain missing, so v3 still fails closed
 and is not generally playable.
+
+## Projection v4 and server-derived research paths
+
+Implemented:
+
+- The player projection now carries current research, the ordered research
+  queue, server-derived legal destination technologies, and the separately
+  identified legal free-technology choices. Projection compatibility advanced
+  from 3 to 4 across Kotlin, Rust, capabilities, OpenAPI, and the shared closed
+  fixture.
+- Public API v3 accepts only a bounded destination technology in the closed
+  `set_research_path` command. The authenticated account and assigned
+  civilization come from server membership, and the Kotlin worker reuses
+  `TechManager.getRequiredTechsToDestination` to derive and order every
+  prerequisite from canonical state.
+- A normal research command cannot consume a free-technology grant; that case
+  fails closed until a dedicated typed command is implemented. Unknown,
+  already-completed, unreachable, off-turn, or actor-mismatched selections do
+  not produce a canonical result.
+- The Rust transaction path preserves the existing per-game lock, expected
+  revision, idempotency, immutable snapshot, canonical hash, command journal,
+  and outbox commit boundary. The client command bus permits only targets from
+  its current projection and reconciles through HTTP after the response.
+
+Verification:
+
+```text
+cargo fmt --all
+cargo clippy --all-targets -- -D warnings
+cargo test --all-targets
+cargo run -- --write-openapi
+.\gradlew.bat :tests:test --tests <focused authoritative research and contract tests> :server:test --no-daemon --no-build-cache --rerun-tasks
+git diff --check
+```
+
+Rust passed 14 library tests and seven HTTP/OpenAPI tests; eight PostgreSQL
+integration tests remain separately gated by `UNCIV_V3_DATABASE_URL`. The
+forced JDK 21 focused run rebuilt all affected Kotlin modules and passed the
+headless-engine, projection-contract, command-bus, session, and server tests.
+
+This is a typed end-to-end research slice, not complete research migration.
+`TechPickerScreen.kt` still mutates the disposable local game and is not yet
+routed into the v3 command bus. Free-technology selection, queue removal and
+reordering, research progress/cost projection, and public research events also
+remain. API v3 therefore remains opt-in and not generally playable.

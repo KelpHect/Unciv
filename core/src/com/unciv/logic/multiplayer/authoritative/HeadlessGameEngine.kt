@@ -124,6 +124,34 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Selects a destination technology. The client cannot author a research
+     * queue: the shared rules engine derives and orders every prerequisite. */
+    fun setResearchPath(
+        game: GameInfo,
+        actorCivilizationId: String,
+        technologyName: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot select research outside their turn"
+        }
+        require(technologyName.isNotBlank() && technologyName.length <= 128) {
+            "Technology name is invalid"
+        }
+        require(actorCivilization.tech.freeTechs == 0) {
+            "A free technology requires the dedicated free-technology command"
+        }
+        val technology = game.ruleset.technologies[technologyName]
+            ?: error("Technology is unavailable in the pinned ruleset")
+        val path = actorCivilization.tech.getRequiredTechsToDestination(technology)
+        require(path.isNotEmpty()) { "Technology cannot be selected for research" }
+        actorCivilization.tech.techsToResearch = ArrayList(path.map { it.name })
+        actorCivilization.tech.updateResearchProgress()
+        return result(game)
+    }
+
     fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId

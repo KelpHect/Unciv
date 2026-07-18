@@ -52,6 +52,25 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun researchPathUsesOnlyAProjectedDestination() = runBlocking {
+        val initial = projection(0, "hash-0")
+        val committed = projection(1, "hash-1")
+        val transport = FakeTransport(initial).apply {
+            onSetResearchPath = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "research-command" }
+        bus.refresh()
+
+        val outcome = bus.setResearchPath("Writing")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("Writing", transport.researchRequests.single().technologyName)
+    }
+
+    @Test
     fun freshClientReconstructsFromServerProjection() = runBlocking {
         val transport = FakeTransport(projection(4, "hash-4"))
         val bus = AuthoritativeGameCommandBus(gameId, transport)
@@ -152,6 +171,7 @@ class AuthoritativeGameCommandBusTests {
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
             pendingTurnActions = emptyList(),
+            research = ProjectedResearch(null, emptyList(), listOf("Writing"), emptyList()),
             gold = 0,
             knownCivilizations = emptyList(),
             ownCities = if (cityQueue == null) emptyList() else listOf(ProjectedCity(
@@ -184,10 +204,14 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
+        val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onQueueConstruction: suspend (ApiV3QueueConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
 
@@ -222,6 +246,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             queueRequests += request
             return onQueueConstruction(request)
+        }
+        override suspend fun setResearchPath(
+            gameId: String,
+            request: ApiV3SetResearchPathRequest,
+        ): ApiV3CommandAccepted {
+            researchRequests += request
+            return onSetResearchPath(request)
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")

@@ -103,6 +103,29 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals("Rome", game.currentPlayer)
     }
 
+    @Test
+    fun serverDerivesResearchQueueFromProjectedDestination() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val construction = city.getRuleset().buildings.values
+            .first { city.cityConstructions.canAddToQueue(it) }.name
+        engine.queueConstruction(game, "Rome", city.id, construction)
+        val before = engine.playerProjection(game, "Rome")
+        val targetName = before.research.selectableTargets.last()
+        val target = game.ruleset.technologies[targetName]!!
+        val expectedQueue = rome.tech.getRequiredTechsToDestination(target).map { it.name }
+
+        val result = engine.setResearchPath(game, "Rome", targetName)
+        val after = engine.playerProjection(result.game, "Rome")
+
+        Assert.assertEquals(expectedQueue, after.research.queue)
+        Assert.assertEquals(expectedQueue.firstOrNull(), after.research.currentTechnology)
+        Assert.assertFalse(PendingEndTurnAction.PickTechnology in after.pendingTurnActions)
+        Assert.assertFalse(PendingEndTurnAction.PickConstruction in after.pendingTurnActions)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotEndAnotherCivilizationsTurn() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

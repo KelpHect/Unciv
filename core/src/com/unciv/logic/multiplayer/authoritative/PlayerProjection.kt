@@ -19,6 +19,7 @@ data class PlayerProjection(
     val currentPlayerCivilizationId: String,
     val isCurrentTurn: Boolean,
     val pendingTurnActions: List<PendingEndTurnAction>,
+    val research: ProjectedResearch,
     val gold: Int,
     val knownCivilizations: List<String>,
     val ownCities: List<ProjectedCity>,
@@ -27,7 +28,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 3
+        const val CURRENT_PROJECTION_VERSION = 4
     }
 }
 
@@ -41,6 +42,14 @@ data class ProjectedCity(
     val health: Int,
     val constructionQueue: List<String>,
     val availableConstructions: List<String>,
+)
+
+@Serializable
+data class ProjectedResearch(
+    val currentTechnology: String?,
+    val queue: List<String>,
+    val selectableTargets: List<String>,
+    val freeTechnologyChoices: List<String>,
 )
 
 @Serializable
@@ -78,6 +87,7 @@ object PlayerProjectionBuilder {
             currentPlayerCivilizationId = game.currentPlayer,
             isCurrentTurn = game.currentPlayer == actor.civID,
             pendingTurnActions = AuthoritativeTurnReadiness.pendingActions(actor),
+            research = researchProjection(actor),
             gold = actor.gold,
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
             ownCities = actor.cities.map {
@@ -114,6 +124,25 @@ object PlayerProjectionBuilder {
         health = unit.health,
         currentMovement = unit.currentMovement,
     )
+
+    private fun researchProjection(civilization: Civilization): ProjectedResearch {
+        val technologies = civilization.gameInfo.ruleset.technologies.values
+        return ProjectedResearch(
+            currentTechnology = civilization.tech.currentTechnologyName(),
+            queue = civilization.tech.techsToResearch.toList(),
+            selectableTargets = technologies.asSequence()
+                .filter { civilization.tech.getRequiredTechsToDestination(it).isNotEmpty() }
+                .map { it.name }
+                .sorted()
+                .toList(),
+            freeTechnologyChoices = if (civilization.tech.freeTechs == 0) emptyList() else
+                technologies.asSequence()
+                    .filter { civilization.tech.canBeResearched(it.name) }
+                    .map { it.name }
+                    .sorted()
+                    .toList(),
+        )
+    }
 }
 
 /** Canonical blockers only. Idle-unit and automation reminders are client

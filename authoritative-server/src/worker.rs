@@ -82,6 +82,13 @@ enum WorkerOperation<'a> {
         #[serde(rename = "constructionName")]
         construction_name: &'a str,
     },
+    SetResearchPath {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "technologyName")]
+        technology_name: &'a str,
+    },
     ProjectState {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -129,6 +136,11 @@ pub struct QueueConstructionIntent<'a> {
     pub construction_name: &'a str,
 }
 
+pub struct SetResearchPathIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub technology_name: &'a str,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkerCapabilities {
     pub engine_build: String,
@@ -173,6 +185,37 @@ impl EngineWorkerClient {
                     actor_civilization_id: intent.actor_civilization_id,
                     city_id: intent.city_id,
                     construction_name: intent.construction_name,
+                },
+            )
+            .await?;
+        Ok(CommitProposal {
+            previous_revision,
+            snapshot: response
+                .snapshot
+                .ok_or(WorkerClientError::Incomplete)?
+                .into_bytes(),
+            canonical_state_hash: response
+                .canonical_state_hash
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
+    pub async fn set_research_path(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetResearchPathIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetResearchPath {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    technology_name: intent.technology_name,
                 },
             )
             .await?;

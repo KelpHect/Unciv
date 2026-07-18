@@ -19,6 +19,7 @@ class PlayerProjectionContractTests {
 
         assertEquals(3, projection.protocolVersion)
         assertEquals(listOf(PendingEndTurnAction.PickPolicy), projection.pendingTurnActions)
+        assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
         assertEquals(
             json.parseToJsonElement(fixture),
@@ -51,6 +52,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v3.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v4.fixture.json") }
         .first { it.isFile }
 }

@@ -227,6 +227,7 @@ class AuthoritativeMultiplayerSessionTests {
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
             pendingTurnActions = emptyList(),
+            research = ProjectedResearch(null, emptyList(), emptyList(), emptyList()),
             gold = 0,
             knownCivilizations = emptyList(),
             ownCities = emptyList(),
@@ -298,6 +299,10 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun queueConstruction(
             gameId: String,
             request: ApiV3QueueConstructionRequest,
+        ) = unsupported()
+        override suspend fun setResearchPath(
+            gameId: String,
+            request: ApiV3SetResearchPathRequest,
         ) = unsupported()
         override suspend fun endTurn(
             gameId: String,

@@ -18,6 +18,7 @@ interface ApiV3Transport {
     suspend fun projection(gameId: String): ApiV3GameProjection
     suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted
     suspend fun queueConstruction(gameId: String, request: ApiV3QueueConstructionRequest): ApiV3CommandAccepted
+    suspend fun setResearchPath(gameId: String, request: ApiV3SetResearchPathRequest): ApiV3CommandAccepted
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
     fun notifications(): Flow<ApiV3RevisionNotification>
 }

@@ -47,6 +47,13 @@ sealed interface PendingAuthoritativeCommand {
         val cityId: String,
         val constructionName: String,
     ) : PendingAuthoritativeCommand
+
+    data class SetResearchPath(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val technologyName: String,
+    ) : PendingAuthoritativeCommand
 }
 
 sealed interface AuthoritativeCommandOutcome {
@@ -115,6 +122,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setResearchPath(technologyName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(technologyName in current.projection.research.selectableTargets) {
+            "Technology is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetResearchPath(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            technologyName = technologyName,
+        ), current)
+    }
+
     suspend fun retryPending(): AuthoritativeCommandOutcome = mutex.withLock {
         val retryable = state as? AuthoritativeSyncState.Retryable
             ?: error("There is no ambiguous command to retry")
@@ -178,6 +198,15 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                         pending.cityId,
                         pending.constructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(
+                    gameId,
+                    ApiV3SetResearchPathRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.technologyName,
                     ),
                 )
             }

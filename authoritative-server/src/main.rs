@@ -46,7 +46,7 @@ struct HealthResponse {
 struct CapabilitiesResponse {
     protocol_version: u16,
     projection_version: u16,
-    commands: [&'static str; 4],
+    commands: [&'static str; 5],
     whole_state_upload: bool,
     websocket_notifications: bool,
 }
@@ -147,6 +147,15 @@ struct QueueConstructionRequest {
     construction_name: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct SetResearchPathRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
+    technology_name: String,
+}
+
 #[derive(Serialize, ToSchema)]
 struct ErrorResponse {
     code: &'static str,
@@ -183,7 +192,8 @@ struct ApiError {
         join_game,
         end_turn,
         move_unit,
-        queue_construction
+        queue_construction,
+        set_research_path
     ),
     components(schemas(
         HealthResponse,
@@ -200,6 +210,7 @@ struct ApiError {
         JoinGameRequest,
         MoveUnitRequest,
         QueueConstructionRequest,
+        SetResearchPathRequest,
         ErrorResponse,
         unciv_authoritative_server::CommandAccepted,
         unciv_authoritative_server::postgres::GameSummary,
@@ -322,7 +333,13 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
     Json(CapabilitiesResponse {
         protocol_version: PROTOCOL_VERSION,
         projection_version: PROJECTION_VERSION,
-        commands: ["join_game", "move_unit", "queue_construction", "end_turn"],
+        commands: [
+            "join_game",
+            "move_unit",
+            "queue_construction",
+            "set_research_path",
+            "end_turn",
+        ],
         whole_state_upload: false,
         websocket_notifications: true,
     })
@@ -1129,6 +1146,54 @@ async fn queue_construction(
     Ok(Json(accepted))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/set-research-path",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = SetResearchPathRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+async fn set_research_path(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<SetResearchPathRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.technology_name.is_empty() || request.technology_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_set_research_path(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::SetResearchPath {
+                    technology_name: request.technology_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 async fn authenticated_account(state: &AppState, headers: &HeaderMap) -> Result<Account, ApiError> {
     let bearer_token = bearer_token(headers).ok_or_else(ApiError::unauthorized)?;
     state
@@ -1325,6 +1390,10 @@ async fn main() {
             "/api/v3/games/{game_id}/commands/queue-construction",
             post(queue_construction),
         )
+        .route(
+            "/api/v3/games/{game_id}/commands/set-research-path",
+            post(set_research_path),
+        )
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,
@@ -1378,6 +1447,7 @@ mod tests {
             "/api/v3/games/{game_id}/commands/end-turn",
             "/api/v3/games/{game_id}/commands/move-unit",
             "/api/v3/games/{game_id}/commands/queue-construction",
+            "/api/v3/games/{game_id}/commands/set-research-path",
         ];
         assert_eq!(paths.len(), expected_paths.len());
         for path in expected_paths {
@@ -1445,6 +1515,7 @@ mod tests {
         assert!(!response.0.whole_state_upload);
         assert!(response.0.commands.contains(&"move_unit"));
         assert!(response.0.commands.contains(&"queue_construction"));
+        assert!(response.0.commands.contains(&"set_research_path"));
     }
 
     #[test]

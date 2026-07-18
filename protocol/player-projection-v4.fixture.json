@@ -5,6 +5,12 @@
   "currentPlayerCivilizationId": "Rome",
   "isCurrentTurn": true,
   "pendingTurnActions": ["pick_policy"],
+  "research": {
+    "currentTechnology": "Pottery",
+    "queue": ["Pottery", "Writing"],
+    "selectableTargets": ["Archery", "Writing"],
+    "freeTechnologyChoices": []
+  },
   "gold": 321,
   "knownCivilizations": ["Greece"],
   "ownCities": [

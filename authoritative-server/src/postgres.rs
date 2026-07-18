@@ -40,6 +40,22 @@ pub struct GameMetadata {
     pub civilization_id: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct GameSummary {
+    pub game_id: Uuid,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+    pub role: String,
+    pub civilization_id: Option<String>,
+    pub available: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct GamePage {
+    pub games: Vec<GameSummary>,
+    pub next_cursor: Option<Uuid>,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct GameProjection {
     pub game_id: Uuid,
@@ -358,6 +374,46 @@ impl PostgresGameRepository {
             role,
             civilization_id,
         })
+    }
+
+    /// Lists only games represented by server-side membership records. The
+    /// page contains revision metadata, never snapshots or player projections;
+    /// clients bootstrap an available game through its scoped projection.
+    pub async fn list_games(
+        &self,
+        actor_account_id: Uuid,
+        after: Option<Uuid>,
+        limit: u32,
+    ) -> Result<GamePage, CommitError> {
+        if !(1..=100).contains(&limit) {
+            return Err(CommitError::InvalidCommand);
+        }
+        let fetch_limit = i64::from(limit) + 1;
+        let rows = sqlx::query(
+            "SELECT g.id AS game_id, g.head_revision, r.canonical_state_hash, gm.role, gm.civilization_id, g.unavailable_at IS NULL AS available FROM game_members gm JOIN games g ON g.id=gm.game_id JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision WHERE gm.account_id=$1 AND ($2::uuid IS NULL OR g.id>$2) ORDER BY g.id LIMIT $3",
+        )
+        .bind(actor_account_id)
+        .bind(after)
+        .bind(fetch_limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(CommitError::storage)?;
+        let has_more = rows.len() > limit as usize;
+        let games = rows
+            .into_iter()
+            .take(limit as usize)
+            .map(|row| GameSummary {
+                game_id: row.get("game_id"),
+                committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
+                    .expect("revision is non-negative"),
+                canonical_state_hash: row.get("canonical_state_hash"),
+                role: row.get("role"),
+                civilization_id: row.get("civilization_id"),
+                available: row.get("available"),
+            })
+            .collect::<Vec<_>>();
+        let next_cursor = has_more.then(|| games.last().expect("non-empty limited page").game_id);
+        Ok(GamePage { games, next_cursor })
     }
 
     /// Builds a player-scoped view from one consistent canonical head. The
@@ -1297,6 +1353,82 @@ mod integration_tests {
             .await
             .unwrap();
         assert_eq!(head_revision, 0);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+    async fn game_discovery_is_membership_scoped_paginated_and_quarantine_aware() {
+        let repository = PostgresGameRepository::connect(&database_url())
+            .await
+            .unwrap();
+        repository.migrate().await.unwrap();
+        let (account, first_game) = seed_repository(&repository).await;
+        let manifest_hash = "a".repeat(64);
+        let second_game = Uuid::new_v4();
+        repository
+            .create_game(NewGame {
+                game_id: second_game,
+                owner_account_id: account,
+                ruleset_manifest_hash: manifest_hash.clone(),
+                snapshot: b"second-game".to_vec(),
+                owner_civilization_id: "second-civilization".to_owned(),
+            })
+            .await
+            .unwrap();
+        let outsider = Uuid::new_v4();
+        sqlx::query("INSERT INTO accounts (id, username_normalized, password_hash) VALUES ($1, $2, 'test-hash')")
+            .bind(outsider)
+            .bind(format!("account-{outsider}"))
+            .execute(&repository.pool)
+            .await
+            .unwrap();
+        repository
+            .create_game(NewGame {
+                game_id: Uuid::new_v4(),
+                owner_account_id: outsider,
+                ruleset_manifest_hash: manifest_hash,
+                snapshot: b"outsider-game".to_vec(),
+                owner_civilization_id: "hidden-civilization".to_owned(),
+            })
+            .await
+            .unwrap();
+        sqlx::query("UPDATE games SET unavailable_at=now(), unavailable_reason='restore_required' WHERE id=$1")
+            .bind(second_game)
+            .execute(&repository.pool)
+            .await
+            .unwrap();
+
+        let first_page = repository.list_games(account, None, 1).await.unwrap();
+        assert_eq!(first_page.games.len(), 1);
+        assert!(first_page.next_cursor.is_some());
+        let second_page = repository
+            .list_games(account, first_page.next_cursor, 1)
+            .await
+            .unwrap();
+        assert_eq!(second_page.games.len(), 1);
+        assert_eq!(second_page.next_cursor, None);
+        let mut discovered = first_page
+            .games
+            .into_iter()
+            .chain(second_page.games)
+            .collect::<Vec<_>>();
+        discovered.sort_by_key(|game| game.game_id);
+        let mut expected_ids = vec![first_game, second_game];
+        expected_ids.sort();
+        assert_eq!(
+            discovered
+                .iter()
+                .map(|game| game.game_id)
+                .collect::<Vec<_>>(),
+            expected_ids
+        );
+        assert!(
+            !discovered
+                .iter()
+                .find(|game| game.game_id == second_game)
+                .unwrap()
+                .available
+        );
     }
 
     #[tokio::test]

@@ -20,9 +20,11 @@ API v3 currently exposes `JoinGame`, `MoveUnit`, `QueueConstruction`, and
 `EndTurn`. The production `Multiplayer` owner can now install one
 `AuthoritativeMultiplayerSession`, which negotiates capabilities, restores or
 creates an authenticated session, opens per-game command buses from an HTTP
-projection, and reconciles WebSocket hints through HTTP. No production
-world-screen action is routed through that lifecycle yet. API-v3 game creation
-and projection reads are implemented outside the gameplay command union.
+projection, reconciles WebSocket hints through HTTP, and pages through the
+authenticated account's server-owned game memberships. No production
+world-screen action is routed through that lifecycle yet. API-v3 game creation,
+discovery, and projection reads are implemented outside the gameplay command
+union.
 
 Status meanings:
 

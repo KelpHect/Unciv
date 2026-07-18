@@ -1,5 +1,49 @@
 # Authoritative multiplayer v3 status
 
+## Authenticated game discovery
+
+Implemented on 2026-07-18:
+
+- `GET /api/v3/games` now enumerates only games linked to the authenticated
+  account by server-side membership records. It returns game ID, head revision
+  and hash, role, assigned civilization, and availability; it never returns a
+  canonical snapshot or player projection.
+- Discovery is bounded to 1-100 entries per request, defaults to 50, uses stable
+  UUID ordering and an opaque-compatible `next_cursor`, and rejects invalid
+  limits with `400 invalid_page_limit`. Malformed cursors receive the stable
+  `400 invalid_page_cursor` response. Quarantined memberships remain visible as
+  unavailable so clients can show maintenance state without exposing an
+  internal quarantine reason.
+- The shared Kotlin transport and `AuthoritativeMultiplayerSession` carry the
+  same paginated contract. A fresh authenticated client can now enumerate its
+  server-owned games and open each available game through the existing HTTP
+  player-projection bootstrap without consulting local multiplayer saves.
+
+Verification:
+
+```text
+cargo fmt --manifest-path authoritative-server/Cargo.toml -- --check
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:postgres@localhost:55451/unciv_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib postgres::integration_tests:: -- --ignored --test-threads=1
+JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot \
+  .\gradlew.bat :tests:test --no-daemon --no-build-cache
+git diff --check
+```
+
+Result: Rust reported 12 passing library tests with seven PostgreSQL tests
+ignored by default and five passing HTTP/error-contract tests. All seven
+PostgreSQL integration tests passed serially against an owned disposable
+PostgreSQL 16 instance, including outsider exclusion, pagination, and
+quarantine availability. The shared Kotlin module reported 752 tests, zero
+failures/errors, and 13 intentionally skipped.
+
+This closes server-owned membership discovery, not the client UI: account/game
+list screens, secure platform token stores, and projection-only rendering remain
+pending. The repository still has no generated or checked-in OpenAPI artifact,
+so public API-v3 OpenAPI generation remains an explicit foundation gap.
+
 ## Production-owned authoritative client lifecycle
 
 Implemented on 2026-07-18:
@@ -42,8 +86,8 @@ notification suppression, forced resync, and logout cleanup. The active Java
 the installed JDK 21 toolchain.
 
 This is the lifecycle prerequisite, not UI migration: account screens, secure
-platform token-store implementations, v3 game discovery, projection-only game
-rendering, and the first production world-screen command route remain pending.
+platform token-store implementations, projection-only game rendering, and the
+first production world-screen command route remain pending.
 
 ## Canonical snapshot integrity and quarantine
 

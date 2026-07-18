@@ -45,6 +45,22 @@ data class ApiV3GameMetadata(
 )
 
 @Serializable
+data class ApiV3GameSummary(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    val role: String,
+    @SerialName("civilization_id") val civilizationId: String? = null,
+    val available: Boolean,
+)
+
+@Serializable
+data class ApiV3GamePage(
+    val games: List<ApiV3GameSummary>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
 data class ApiV3JoinGameRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

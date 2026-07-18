@@ -61,6 +61,11 @@ class AuthoritativeMultiplayerSession(
         transport.refreshSession()
     }
 
+    suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage {
+        requireAuthenticated()
+        return transport.listGames(after, limit)
+    }
+
     suspend fun openGame(gameId: String): AuthoritativeGameCommandBus {
         requireAuthenticated()
         require(gameId.isNotBlank()) { "gameId must not be blank" }

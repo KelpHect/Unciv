@@ -12,6 +12,7 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -30,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
+import java.util.UUID
 
 class ApiV3Client(
     baseUrl: String,
@@ -74,6 +76,18 @@ class ApiV3Client(
         if (!response.status.isSuccess()) throw response.toApiException()
         sessionToken = null
         tokenStore.clear()
+    }
+
+    override suspend fun listGames(after: String?, limit: Int): ApiV3GamePage {
+        require(limit in 1..100) { "API v3 game page limit must be between 1 and 100" }
+        require(after == null || runCatching { UUID.fromString(after) }.isSuccess) {
+            "API v3 game page cursor must be a UUID"
+        }
+        return decode(client.get("api/v3/games") {
+            authenticate()
+            parameter("limit", limit)
+            after?.let { parameter("after", it) }
+        })
     }
 
     override suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata =

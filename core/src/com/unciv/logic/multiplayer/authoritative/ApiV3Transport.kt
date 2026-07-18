@@ -9,6 +9,7 @@ interface ApiV3Transport {
     suspend fun login(username: String, password: String): ApiV3Account
     suspend fun refreshSession()
     suspend fun logout()
+    suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
     suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection

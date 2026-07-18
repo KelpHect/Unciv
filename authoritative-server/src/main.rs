@@ -6,7 +6,7 @@ use std::{
 use axum::{
     Json, Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    extract::{ConnectInfo, DefaultBodyLimit, Path, State},
+    extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -90,6 +90,13 @@ struct GameMetadataResponse {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ListGamesQuery {
+    after: Option<String>,
+    limit: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EndTurnRequest {
     command_id: uuid::Uuid,
     expected_revision: u64,
@@ -132,6 +139,7 @@ struct ErrorResponse {
     current_revision: Option<u64>,
 }
 
+#[derive(Debug)]
 struct ApiError {
     status: StatusCode,
     code: &'static str,
@@ -506,6 +514,38 @@ async fn game_metadata(
     Ok(Json(game_metadata_response(metadata)))
 }
 
+async fn list_games(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<ListGamesQuery>,
+) -> Result<Json<unciv_authoritative_server::postgres::GamePage>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let limit = game_page_limit(query.limit)?;
+    let after = game_page_cursor(query.after.as_deref())?;
+    let page = state
+        .repository
+        .list_games(actor.id, after, limit)
+        .await
+        .map_err(game_error)?;
+    Ok(Json(page))
+}
+
+fn game_page_cursor(requested: Option<&str>) -> Result<Option<uuid::Uuid>, ApiError> {
+    requested
+        .map(uuid::Uuid::parse_str)
+        .transpose()
+        .map_err(|_| ApiError::bad_request("invalid_page_cursor"))
+}
+
+fn game_page_limit(requested: Option<u32>) -> Result<u32, ApiError> {
+    let limit = requested.unwrap_or(50);
+    if (1..=100).contains(&limit) {
+        Ok(limit)
+    } else {
+        Err(ApiError::bad_request("invalid_page_limit"))
+    }
+}
+
 async fn game_projection(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -838,7 +878,7 @@ async fn main() {
         .route("/api/v3/auth/login", post(login))
         .route("/api/v3/auth/refresh", post(refresh_session))
         .route("/api/v3/auth/logout", post(logout))
-        .route("/api/v3/games", post(create_game))
+        .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
         .route("/api/v3/games/{game_id}/projection", get(game_projection))
         .route("/api/v3/games/{game_id}/join", post(join_game))
@@ -911,5 +951,21 @@ mod tests {
         assert_eq!(error.status, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(error.code, "game_unavailable");
         assert_eq!(error.current_revision, None);
+    }
+
+    #[test]
+    fn game_discovery_page_limits_are_bounded_and_stable() {
+        assert_eq!(game_page_limit(None).unwrap(), 50);
+        assert_eq!(game_page_limit(Some(100)).unwrap(), 100);
+        for invalid in [0, 101, u32::MAX] {
+            let error = game_page_limit(Some(invalid)).unwrap_err();
+            assert_eq!(error.status, StatusCode::BAD_REQUEST);
+            assert_eq!(error.code, "invalid_page_limit");
+        }
+        assert_eq!(game_page_cursor(None).unwrap(), None);
+        assert!(game_page_cursor(Some("00000000-0000-0000-0000-000000000001")).is_ok());
+        let error = game_page_cursor(Some("not-a-uuid")).unwrap_err();
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(error.code, "invalid_page_cursor");
     }
 }

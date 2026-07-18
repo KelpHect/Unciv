@@ -90,6 +90,35 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun gameDiscoveryRequiresAuthenticationAndPreservesServerPagination() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        assertThrows<IllegalStateException> { session.listGames() }
+        session.restore()
+
+        val page = session.listGames(after = GAME_ID, limit = 25)
+
+        assertEquals(listOf(GAME_ID to 25), transport.listCalls)
+        assertEquals(GAME_ID, page.games.single().gameId)
+        assertEquals(NEXT_GAME_ID, page.nextCursor)
+        session.close()
+    }
+
+    @Test
+    fun apiClientRejectsMalformedPagingBeforeNetworkAccess() = runBlocking {
+        val client = ApiV3Client(
+            "http://127.0.0.1:1",
+            InMemoryApiV3SessionTokenStore(),
+        )
+        try {
+            assertThrows<IllegalArgumentException> { client.listGames(limit = 0) }
+            assertThrows<IllegalArgumentException> { client.listGames(after = "not-a-uuid") }
+        } finally {
+            client.close()
+        }
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -145,6 +174,7 @@ class AuthoritativeMultiplayerSessionTests {
         @Volatile
         var projectionCalls = 0
         var logoutCalls = 0
+        val listCalls = mutableListOf<Pair<String?, Int>>()
         @Volatile
         var current = projection(7, "hash-7")
         val notifications = MutableSharedFlow<ApiV3RevisionNotification>(extraBufferCapacity = 8)
@@ -158,6 +188,13 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit
         override suspend fun logout() { logoutCalls++ }
+        override suspend fun listGames(after: String?, limit: Int): ApiV3GamePage {
+            listCalls += after to limit
+            return ApiV3GamePage(
+                listOf(ApiV3GameSummary(GAME_ID, 7, "hash-7", "owner", "Rome", true)),
+                NEXT_GAME_ID,
+            )
+        }
         override suspend fun createGame(rulesetManifestHash: String) =
             ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest) = unsupported()
@@ -178,5 +215,6 @@ class AuthoritativeMultiplayerSessionTests {
 
     companion object {
         private const val GAME_ID = "00000000-0000-0000-0000-000000000001"
+        private const val NEXT_GAME_ID = "00000000-0000-0000-0000-000000000002"
     }
 }

@@ -4,6 +4,7 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.ReligionState
 import com.unciv.logic.map.mapunit.MapUnit
+import com.unciv.models.ruleset.PerpetualConstruction
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -112,7 +113,10 @@ object PlayerProjectionBuilder {
                     constructionQueue = it.cityConstructions.constructionQueue.toList(),
                     availableConstructions = (
                         it.cityConstructions.getBuildableBuildings().map { construction -> construction.name } +
-                            it.cityConstructions.getConstructableUnits().map { construction -> construction.name }
+                            it.cityConstructions.getConstructableUnits().map { construction -> construction.name } +
+                            PerpetualConstruction.perpetualConstructionsMap.values
+                                .filter { construction -> construction.shouldBeDisplayed(it.cityConstructions) }
+                                .map { construction -> construction.name }
                     ).sorted().toList(),
                 )
             }.sortedBy { it.id },

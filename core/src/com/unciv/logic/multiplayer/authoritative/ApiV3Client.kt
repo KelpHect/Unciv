@@ -196,6 +196,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun buyCityTile(
+        gameId: String,
+        request: ApiV3BuyCityTileRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/buy-city-tile") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

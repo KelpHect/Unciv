@@ -242,6 +242,28 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun buyCityTile(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        coordinates: HexCoord,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        val tile = game.tileMap.getOrNull(coordinates.x, coordinates.y)
+            ?: error("Tile coordinates are outside the canonical map")
+        require(city.expansion.canBuyTile(tile)) {
+            "Tile cannot be purchased by this city"
+        }
+        val canonicalCost = city.expansion.getGoldCostOfTile(tile)
+        val previousGold = city.civ.gold
+        city.expansion.buyTile(tile)
+        check(tile.owningCity == city) { "Purchased tile ownership was not committed" }
+        check(city.civ.gold == previousGold - canonicalCost) {
+            "Canonical tile price was not applied"
+        }
+        return result(game)
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,

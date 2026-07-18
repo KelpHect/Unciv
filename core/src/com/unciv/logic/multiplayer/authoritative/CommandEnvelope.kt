@@ -73,6 +73,12 @@ sealed interface GameCommand {
         val queueIndex: Int? = null,
     ) : GameCommand
 
+    data class BuyCityTile(
+        val cityId: String,
+        val x: Int,
+        val y: Int,
+    ) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

@@ -26,6 +26,7 @@ use super::*;
         remove_construction,
         move_construction,
         purchase_construction,
+        buy_city_tile,
         set_research_path,
         adopt_policy,
         choose_free_technology
@@ -49,6 +50,7 @@ use super::*;
         RemoveConstructionRequest,
         MoveConstructionRequest,
         PurchaseConstructionRequest,
+        BuyCityTileRequest,
         SetResearchPathRequest,
         AdoptPolicyRequest,
         ChooseFreeTechnologyRequest,
@@ -108,6 +110,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "remove_construction",
             "move_construction",
             "purchase_construction",
+            "buy_city_tile",
             "set_research_path",
             "adopt_policy",
             "choose_free_technology",

@@ -361,6 +361,23 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(city.cityConstructions.isBuilt(construction))
     }
 
+    @Test
+    fun authoritativeTilePurchaseRecomputesCanonicalCostAndOwnership() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        rome.addGold(100_000)
+        val tile = city.tilesInRange.first { city.expansion.canBuyTile(it) }
+        val expectedCost = city.expansion.getGoldCostOfTile(tile)
+        val previousGold = rome.gold
+
+        engine.buyCityTile(game, "Rome", city.id, tile.position)
+
+        Assert.assertEquals(city, tile.owningCity)
+        Assert.assertEquals(previousGold - expectedCost, rome.gold)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

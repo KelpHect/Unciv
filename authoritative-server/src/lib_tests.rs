@@ -198,6 +198,35 @@ fn purchase_construction_contract_excludes_actor_and_price() {
 }
 
 #[test]
+fn buy_city_tile_contract_excludes_actor_and_price() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "buy_city_tile",
+        "city_id": "city-1",
+        "x": 2,
+        "y": -1
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::BuyCityTile {
+            city_id: "city-1".to_owned(),
+            x: 2,
+            y: -1,
+        }
+    );
+    for untrusted in ["actor_id", "price"] {
+        let mut value = serde_json::json!({
+            "type": "buy_city_tile", "city_id": "city-1", "x": 2, "y": -1
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

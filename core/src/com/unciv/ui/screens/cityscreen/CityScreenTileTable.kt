@@ -68,7 +68,8 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
                 buyTileButton.disable()
                 cityScreen.askToBuyTile(selectedTile)
             }
-            buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
+            if (!cityScreen.isAuthoritativeGame())
+                buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
             buyTileButton.isEnabled = cityScreen.canChangeState && city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)
             innerTable.add(buyTileButton).padTop(5f).row()
         }

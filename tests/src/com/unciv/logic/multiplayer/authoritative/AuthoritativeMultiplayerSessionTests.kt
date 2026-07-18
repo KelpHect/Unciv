@@ -406,6 +406,35 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun authoritativeTilePurchaseRetryRetainsCommandId() = runBlocking {
+        val projectedCity = ProjectedCity(
+            "city-1", "Rome", 0, 0, 1, 200, emptyList(), emptyList(),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            tilePurchaseFailuresRemaining = 1
+            current = current.copy(projection = current.projection.copy(
+                ownCities = listOf(projectedCity),
+                exploredTiles = listOf(ProjectedTileVisibility(2, 0, true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.buyCityTileIfOpen(
+            GAME_ID, "city-1", 2, 0,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.buyCityTileIfOpen(
+            GAME_ID, "city-1", 2, 0,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.tilePurchaseCommandIds.size)
+        assertEquals(transport.tilePurchaseCommandIds[0], transport.tilePurchaseCommandIds[1])
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -481,7 +510,9 @@ class AuthoritativeMultiplayerSessionTests {
         val removedConstructions = mutableListOf<ApiV3RemoveConstructionRequest>()
         val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
         val purchaseCommandIds = mutableListOf<String>()
+        val tilePurchaseCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
+        var tilePurchaseFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -638,6 +669,25 @@ class AuthoritativeMultiplayerSessionTests {
             )
             return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
                 current.committedRevision, current.canonicalStateHash)
+        }
+        override suspend fun buyCityTile(
+            gameId: String,
+            request: ApiV3BuyCityTileRequest,
+        ): ApiV3CommandAccepted {
+            tilePurchaseCommandIds += request.commandId
+            if (tilePurchaseFailuresRemaining > 0) {
+                tilePurchaseFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                request.expectedRevision + 1, "hash-8",
+            )
         }
         override suspend fun setResearchPath(
             gameId: String,

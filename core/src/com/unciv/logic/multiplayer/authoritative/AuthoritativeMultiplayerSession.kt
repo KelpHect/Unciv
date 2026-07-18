@@ -320,6 +320,30 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun buyCityTileIfOpen(
+        gameId: String,
+        cityId: String,
+        x: Int,
+        y: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.BuyCityTile &&
+                    current.pending.cityId == cityId &&
+                    current.pending.x == x && current.pending.y == y) {
+                    "Resolve the pending authoritative command before buying another tile"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.buyCityTile(cityId, x, y)
+            else -> {
+                bus.refresh()
+                bus.buyCityTile(cityId, x, y)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

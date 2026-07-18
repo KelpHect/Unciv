@@ -9,6 +9,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.automation.Automation
 import com.unciv.logic.city.City
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
@@ -42,6 +43,8 @@ import com.unciv.ui.popups.closeAllPopups
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.utils.Concurrency
+import kotlinx.coroutines.CancellationException
 import kotlin.math.max
 
 class CityScreen(
@@ -85,6 +88,7 @@ class CityScreen(
      *  in a Table holder on TOP LEFT, and available constructions in a ScrollPane BOTTOM LEFT.
      */
     private var constructionsTable = CityConstructionsTable(this)
+    private var authoritativeTilePurchaseSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -447,11 +451,63 @@ class CityScreen(
             true,
             restoreDefault = { update() }
         ) {
-            SoundPlayer.play(UncivSound.Coin)
-            city.expansion.buyTile(selectedTile)
-            // preselect the next tile on city screen rebuild so bulk buying can go faster
-            UncivGame.Current.replaceCurrentScreen(CityScreen(city, initSelectedTile = city.expansion.chooseNewTileToOwn()))
+            if (isAuthoritativeGame()) submitAuthoritativeTilePurchase(selectedTile)
+            else {
+                SoundPlayer.play(UncivSound.Coin)
+                city.expansion.buyTile(selectedTile)
+                // preselect the next tile on city screen rebuild so bulk buying can go faster
+                UncivGame.Current.replaceCurrentScreen(CityScreen(city, initSelectedTile = city.expansion.chooseNewTileToOwn()))
+            }
         }.open()
+    }
+
+    private fun submitAuthoritativeTilePurchase(selectedTile: Tile) {
+        if (authoritativeTilePurchaseSubmissionInProgress) return
+        authoritativeTilePurchaseSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Buy authoritative city tile") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.buyCityTileIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    selectedTile.position.x,
+                    selectedTile.position.y,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeTilePurchaseSubmissionInProgress = false
+                    ToastPopup("Could not submit tile purchase: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        SoundPlayer.play(UncivSound.Coin)
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Tile purchase committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - tile was not purchased", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup("Server rejected tile purchase: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before tile purchase", this@CityScreen)
+                    }
+                }
+            }
+        }
     }
 
 

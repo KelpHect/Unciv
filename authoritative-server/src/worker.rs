@@ -128,6 +128,15 @@ enum WorkerOperation<'a> {
         #[serde(rename = "queueIndex")]
         queue_index: Option<u32>,
     },
+    BuyCityTile {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        x: i32,
+        y: i32,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -225,6 +234,13 @@ pub struct PurchaseConstructionIntent<'a> {
     pub queue_index: Option<u32>,
 }
 
+pub struct BuyCityTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub x: i32,
+    pub y: i32,
+}
+
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
@@ -283,6 +299,30 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
+    pub async fn buy_city_tile(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: BuyCityTileIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::BuyCityTile {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    x: intent.x,
+                    y: intent.y,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn set_perpetual_construction(
         &self,
         actor_id: &str,

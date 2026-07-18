@@ -36,6 +36,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/remove-construction",
         "/api/v3/games/{game_id}/commands/move-construction",
         "/api/v3/games/{game_id}/commands/purchase-construction",
+        "/api/v3/games/{game_id}/commands/buy-city-tile",
         "/api/v3/games/{game_id}/commands/set-research-path",
         "/api/v3/games/{game_id}/commands/adopt-policy",
         "/api/v3/games/{game_id}/commands/choose-free-technology",
@@ -74,6 +75,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "RemoveConstructionRequest",
         "MoveConstructionRequest",
         "PurchaseConstructionRequest",
+        "BuyCityTileRequest",
     ] {
         assert_eq!(
             document["components"]["schemas"][schema]["additionalProperties"], false,
@@ -114,6 +116,7 @@ async fn capabilities_forbid_whole_state_uploads() {
     assert!(response.0.commands.contains(&"remove_construction"));
     assert!(response.0.commands.contains(&"move_construction"));
     assert!(response.0.commands.contains(&"purchase_construction"));
+    assert!(response.0.commands.contains(&"buy_city_tile"));
     assert!(response.0.commands.contains(&"set_research_path"));
     assert!(response.0.commands.contains(&"adopt_policy"));
     assert!(response.0.commands.contains(&"choose_free_technology"));

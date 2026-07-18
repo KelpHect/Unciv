@@ -36,6 +36,11 @@ pub enum GameCommand {
         currency_name: String,
         queue_index: Option<u32>,
     },
+    BuyCityTile {
+        city_id: String,
+        x: i32,
+        y: i32,
+    },
     SetResearchPath {
         technology_name: String,
     },

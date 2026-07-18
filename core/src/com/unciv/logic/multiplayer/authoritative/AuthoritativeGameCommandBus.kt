@@ -85,6 +85,15 @@ sealed interface PendingAuthoritativeCommand {
         val queueIndex: Int?,
     ) : PendingAuthoritativeCommand
 
+    data class BuyCityTile(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val x: Int,
+        val y: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -240,6 +249,20 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun buyCityTile(cityId: String, x: Int, y: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
+            "Tile is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.BuyCityTile(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, x, y,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -390,6 +413,13 @@ class AuthoritativeGameCommandBus(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.constructionName, pending.currencyName,
                         pending.queueIndex,
+                    ),
+                )
+                is PendingAuthoritativeCommand.BuyCityTile -> transport.buyCityTile(
+                    gameId,
+                    ApiV3BuyCityTileRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.x, pending.y,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

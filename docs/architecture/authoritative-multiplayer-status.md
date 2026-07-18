@@ -1294,7 +1294,35 @@ tests with zero failures/errors and 13 intentional skips. Rust passed 26
 executable unit/API tests, strict Clippy with warnings denied, and formatting.
 The command repository now loads canonical snapshot/manifest state and derives
 the actor civilization through two shared typed helpers, removing the repeated
-SQL/membership prelude from all eleven worker-backed gameplay operations.
+SQL/membership prelude from worker-backed gameplay operations.
+
+## Authoritative city tile purchase
+
+Single-tile acquisition now crosses the complete API-v3 boundary as
+`BuyCityTile(cityId, x, y)`. The request deliberately omits actor identity and
+price. Rust derives the account/civilization from authenticated membership; the
+Kotlin worker resolves the coordinate in canonical map state, verifies the
+owned current-turn city and shared `canBuyTile` rules, recomputes the gold cost,
+and invokes `CityExpansionManager.buyTile`. Postconditions prove both canonical
+ownership and the exact server-calculated treasury deduction.
+
+For explicitly opened v3 games, `CityScreen.askToBuyTile` submits the command
+without mutating cached `GameInfo`. The local ring-purchase context menu is
+disabled because a multi-tile purchase needs its own bounded typed batch and
+server-side sequential price calculation. Client display may still show an
+estimated price, but it is never transmitted or trusted.
+
+Focused tests cover canonical cost/ownership, the actorless and price-free wire
+shape, projection-coordinate gating, and lost-response command-ID reuse. All
+eight persistence tests passed serially against the sole pinned PostgreSQL 19
+Beta 2 digest; the disposable database container was stopped and removed.
+
+The complete JDK 21 regression passed 784 shared tests and four server tests
+with zero failures/errors and 13 intentional skips. Rust passed 27 executable
+unit/API tests, formatting, and strict Clippy with warnings denied. Player
+projection construction choices now include canonically buildable perpetual
+choices as well as ordinary buildings and units, closing the UI-to-command
+discovery gap exposed while testing the preceding milestone.
 
 Remaining production-queue gaps are add-to-top/all-cities batches, perpetual
 construction policy, tile-targeted buildings, purchases, and richer projected

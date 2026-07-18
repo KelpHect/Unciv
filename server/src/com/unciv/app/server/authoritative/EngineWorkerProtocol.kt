@@ -122,6 +122,15 @@ sealed interface WorkerOperation {
         val queueIndex: Int? = null,
     ) : WorkerOperation
 
+    @Serializable @SerialName("buy_city_tile")
+    data class BuyCityTile(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val x: Int,
+        val y: Int,
+    ) : WorkerOperation
+
     @Serializable @SerialName("set_research_path")
     data class SetResearchPath(
         val snapshot: String,
@@ -273,6 +282,16 @@ class AuthoritativeEngineWorker {
                     operation.constructionName,
                     operation.currencyName,
                     operation.queueIndex,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.BuyCityTile -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.buyCityTile(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    HexCoord(operation.x, operation.y),
                 )
                 responseForGame(engine, result.game)
             }

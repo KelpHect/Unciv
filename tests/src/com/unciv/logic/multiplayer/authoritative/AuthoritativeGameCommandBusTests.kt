@@ -138,6 +138,37 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("civilization"))
     }
 
+    @Test
+    fun tilePurchaseSendsCoordinatesWithoutClientPriceOrActor() = runBlocking {
+        val initial = projection(
+            3, "hash-3", cityQueue = emptyList(),
+            exploredTiles = listOf(ProjectedTileVisibility(2, 0, true)),
+        )
+        val committed = projection(
+            4, "hash-4", cityQueue = emptyList(),
+            exploredTiles = listOf(ProjectedTileVisibility(2, 0, true)),
+        )
+        val transport = FakeTransport(initial).apply {
+            onBuyCityTile = { request ->
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "tile-command" }
+        bus.refresh()
+
+        assertTrue(bus.buyCityTile("city-1", 2, 0) is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.buyCityTileRequests.single()
+        assertEquals(ApiV3BuyCityTileRequest(
+            "tile-command", 3, "hash-3", "city-1", 2, 0,
+        ), request)
+        val encoded = Json.encodeToString(ApiV3BuyCityTileRequest.serializer(), request)
+        assertTrue(!encoded.contains("price"))
+        assertTrue(!encoded.contains("cost"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -301,6 +332,7 @@ class AuthoritativeGameCommandBusTests {
         cityQueue: List<String>? = null,
         freeTechnologyChoices: List<String> = emptyList(),
         availableConstructions: List<String> = listOf("Monument"),
+        exploredTiles: List<ProjectedTileVisibility> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -328,7 +360,7 @@ class AuthoritativeGameCommandBusTests {
                 availableConstructions = availableConstructions,
             )),
             ownUnits = emptyList(),
-            exploredTiles = emptyList(),
+            exploredTiles = exploredTiles,
             visibleForeignUnits = emptyList(),
         ),
     )
@@ -351,6 +383,7 @@ class AuthoritativeGameCommandBusTests {
         val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
         val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
+        val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -370,6 +403,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onPurchaseConstruction: suspend (ApiV3PurchaseConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onBuyCityTile: suspend (ApiV3BuyCityTileRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -441,6 +477,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             purchaseConstructionRequests += request
             return onPurchaseConstruction(request)
+        }
+        override suspend fun buyCityTile(
+            gameId: String,
+            request: ApiV3BuyCityTileRequest,
+        ): ApiV3CommandAccepted {
+            buyCityTileRequests += request
+            return onBuyCityTile(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

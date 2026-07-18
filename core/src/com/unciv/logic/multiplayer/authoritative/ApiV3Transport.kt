@@ -1,5 +1,7 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import kotlinx.coroutines.flow.Flow
+
 interface ApiV3Transport {
     suspend fun capabilities(): ApiV3Capabilities
     suspend fun register(username: String, password: String): ApiV3Account
@@ -11,6 +13,7 @@ interface ApiV3Transport {
     suspend fun projection(gameId: String): ApiV3GameProjection
     suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
+    fun notifications(): Flow<ApiV3RevisionNotification>
 }
 
 /** Platform implementations must protect this value with the OS credential

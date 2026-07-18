@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub mod auth;
+pub mod notifications;
 pub mod postgres;
 pub mod worker;
 

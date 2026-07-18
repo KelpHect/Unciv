@@ -7,6 +7,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -17,8 +19,17 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import io.ktor.http.appendPathSegments
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 
 class ApiV3Client(
     baseUrl: String,
@@ -26,6 +37,7 @@ class ApiV3Client(
     private val client: HttpClient = defaultClient(baseUrl),
 ) : ApiV3Transport, AutoCloseable {
     private var sessionToken: String? = null
+    private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
     suspend fun restoreSession(): Boolean {
         sessionToken = tokenStore.load()
@@ -101,6 +113,38 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
+        var retryDelayMillis = 250L
+        while (currentCoroutineContext().isActive) {
+            val session = try {
+                client.webSocketSession {
+                    url { appendPathSegments("api", "v3", "notifications") }
+                    authenticate()
+                }
+            } catch (_: Throwable) {
+                delay(retryDelayMillis)
+                retryDelayMillis = (retryDelayMillis * 2).coerceAtMost(10_000L)
+                continue
+            }
+            try {
+                retryDelayMillis = 250L
+                for (frame in session.incoming) {
+                    if (frame !is Frame.Text) continue
+                    val notification = json.decodeFromString(
+                        ApiV3RevisionNotification.serializer(),
+                        frame.readText(),
+                    )
+                    if (notification.protocolVersion == CommandEnvelope.CURRENT_PROTOCOL_VERSION) {
+                        emit(notification)
+                    }
+                }
+            } finally {
+                session.close()
+            }
+            if (currentCoroutineContext().isActive) delay(retryDelayMillis)
+        }
+    }
+
     private fun io.ktor.client.request.HttpRequestBuilder.authenticate() {
         bearerAuth(sessionToken ?: error("API v3 session is not available"))
     }
@@ -123,6 +167,7 @@ class ApiV3Client(
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = false; encodeDefaults = true })
             }
+            install(WebSockets)
             install(HttpTimeout) {
                 requestTimeoutMillis = 30_000
                 connectTimeoutMillis = 10_000

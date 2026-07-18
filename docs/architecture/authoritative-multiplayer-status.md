@@ -438,3 +438,54 @@ secure token stores, login/account screens, game-list discovery, world-screen
 command routing, lifecycle reconnect wiring, WebSocket notifications, full
 projection rendering, and removal of v3 access to legacy upload code remain
 pending. Single-player and hotseat paths have not been changed.
+
+## Durable revision notifications and HTTP convergence
+
+Implemented:
+
+- Migration `0004_outbox_delivery_leases.sql` adds bounded dispatch leases,
+  claim tokens, attempt counts, retry availability, and truncated last-error
+  diagnostics. PostgreSQL claims ordered batches with `FOR UPDATE SKIP LOCKED`;
+  an expired lease can be reclaimed, and only the current claim token can
+  acknowledge delivery.
+- The Rust process runs a bounded outbox dispatcher and an account-scoped
+  notification hub. It resolves recipients from current server memberships,
+  sends only game ID, committed revision, and canonical state hash, then
+  acknowledges the row. A crash after socket send but before acknowledgement
+  may duplicate a hint; a crash before acknowledgement cannot permanently
+  strand the row.
+- `GET /api/v3/notifications` upgrades only an authenticated bearer session to
+  WebSocket. It has no client-controlled game subscription or actor identity;
+  the server sends events only for games where that account is a member. A
+  lagged in-process receiver gets `resync_required` rather than fabricated
+  revision history.
+- The shared Kotlin client exposes a reconnecting notification flow. The
+  command bus ignores duplicate and older hints, refreshes future or
+  hash-mismatched revisions over authenticated HTTP, and never treats the
+  WebSocket as canonical state.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:uncivtest@127.0.0.1:55450/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+.\gradlew.bat :tests:test --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests --no-daemon --no-build-cache
+```
+
+Rust unit tests passed, and all four PostgreSQL integration tests passed against
+an owned disposable PostgreSQL 16 container. The lease test proved exclusive
+claiming, timeout reclaim with a new token, rejection of the obsolete token,
+and final acknowledgement. Kotlin tests prove duplicate/lost/reordered hints
+converge without rolling a newer projection backward.
+
+A fresh PostgreSQL/Kotlin worker/Rust API smoke authenticated a WebSocket,
+committed a legal `MoveUnit`, received `revision_committed` revision `1`, then
+fetched HTTP projection revision `1` with the same canonical hash and verified
+the outbox row was acknowledged. All disposable services and data were removed.
+
+The current hub is appropriate for the documented single-Rust-process VPS
+target. A multi-instance deployment will require a shared fan-out transport or
+connection affinity; database CAS and HTTP reconciliation remain correct even
+without it. Metrics, connection limits, heartbeat policy, and load testing are
+still pending.

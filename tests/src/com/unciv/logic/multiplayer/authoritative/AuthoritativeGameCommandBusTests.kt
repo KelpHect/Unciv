@@ -1,6 +1,8 @@
 package com.unciv.logic.multiplayer.authoritative
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -99,6 +101,23 @@ class AuthoritativeGameCommandBusTests {
         assertSame(cached, (bus.state as AuthoritativeSyncState.Rejected).current)
     }
 
+    @Test
+    fun duplicateLostAndReorderedNotificationsConvergeThroughHttp() = runBlocking {
+        val revision5 = projection(5, "hash-5")
+        val revision6 = projection(6, "hash-6")
+        val transport = FakeTransport(revision5)
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+
+        assertEquals(null, bus.reconcile(notification(5, "hash-5")))
+        assertEquals(null, bus.reconcile(notification(4, "hash-4")))
+        transport.current = revision6
+        assertEquals(revision6, bus.reconcile(notification(6, "hash-6")))
+        // A delayed duplicate of revision 5 cannot roll the projection back.
+        assertEquals(null, bus.reconcile(notification(5, "hash-5")))
+        assertEquals(revision6, (bus.state as AuthoritativeSyncState.Synchronized).current)
+    }
+
     private fun projection(revision: Long, hash: String) = ApiV3GameProjection(
         gameId = gameId,
         committedRevision = revision,
@@ -120,6 +139,14 @@ class AuthoritativeGameCommandBusTests {
 
     private fun accepted(commandId: String, previous: Long, committed: Long, hash: String) =
         ApiV3CommandAccepted(gameId, commandId, previous, committed, hash)
+
+    private fun notification(revision: Long, hash: String) = ApiV3RevisionNotification(
+        type = "revision_committed",
+        protocolVersion = 3,
+        gameId = gameId,
+        committedRevision = revision,
+        canonicalStateHash = hash,
+    )
 
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
@@ -143,5 +170,6 @@ class AuthoritativeGameCommandBusTests {
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
+        override fun notifications(): Flow<ApiV3RevisionNotification> = emptyFlow()
     }
 }

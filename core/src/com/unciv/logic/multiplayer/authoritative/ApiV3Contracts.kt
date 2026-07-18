@@ -92,6 +92,15 @@ data class ApiV3ErrorResponse(
     @SerialName("current_revision") val currentRevision: Long? = null,
 )
 
+@Serializable
+data class ApiV3RevisionNotification(
+    val type: String,
+    @SerialName("protocol_version") val protocolVersion: Int,
+    @SerialName("game_id") val gameId: String? = null,
+    @SerialName("committed_revision") val committedRevision: Long? = null,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String? = null,
+)
+
 class ApiV3Exception(
     val httpStatus: Int,
     val error: ApiV3ErrorResponse,

@@ -97,6 +97,29 @@ class AuthoritativeGameCommandBus(
         submitLocked(retryable.pending, retryable.current)
     }
 
+    /** Returns a refreshed projection only when this hint proves the cached
+     * view may be stale. Duplicate and older hints are intentionally ignored. */
+    suspend fun reconcile(notification: ApiV3RevisionNotification): ApiV3GameProjection? =
+        mutex.withLock {
+            val current = cachedProjection()
+            when (notification.type) {
+                "resync_required" -> refreshLocked(current)
+                "revision_committed" -> {
+                    if (notification.gameId != gameId) return@withLock null
+                    val notifiedRevision = notification.committedRevision ?: return@withLock null
+                    if (current != null && notifiedRevision < current.committedRevision) {
+                        return@withLock null
+                    }
+                    if (current != null
+                        && notifiedRevision == current.committedRevision
+                        && notification.canonicalStateHash == current.canonicalStateHash
+                    ) return@withLock null
+                    refreshLocked(current)
+                }
+                else -> null
+            }
+        }
+
     private suspend fun submitLocked(
         pending: PendingAuthoritativeCommand,
         current: ApiV3GameProjection,

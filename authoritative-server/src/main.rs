@@ -2,15 +2,18 @@ use std::{net::SocketAddr, time::Duration};
 
 use axum::{
     Json, Router,
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{DefaultBodyLimit, Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use unciv_authoritative_server::{
     CommandEnvelope, CommitError, GameCommand, PROTOCOL_VERSION,
     auth::{Account, AuthError},
+    notifications::{NotificationHub, run_outbox_dispatcher},
     postgres::{GameMetadata, PostgresGameRepository},
     worker::EngineWorkerClient,
 };
@@ -19,6 +22,7 @@ use unciv_authoritative_server::{
 struct AppState {
     repository: PostgresGameRepository,
     worker: EngineWorkerClient,
+    notifications: NotificationHub,
 }
 
 #[derive(Serialize)]
@@ -181,7 +185,7 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
         projection_version: 1,
         commands: ["join_game", "move_unit", "end_turn"],
         whole_state_upload: false,
-        websocket_notifications: false,
+        websocket_notifications: true,
     })
 }
 
@@ -308,6 +312,52 @@ async fn game_projection(
         .await
         .map_err(game_error)?;
     Ok(Json(projection))
+}
+
+async fn websocket_notifications(
+    websocket: WebSocketUpgrade,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let receiver = state.notifications.subscribe(actor.id).await;
+    Ok(websocket.on_upgrade(move |socket| serve_websocket(socket, receiver)))
+}
+
+async fn serve_websocket(
+    socket: WebSocket,
+    mut receiver: tokio::sync::broadcast::Receiver<
+        unciv_authoritative_server::notifications::RevisionNotification,
+    >,
+) {
+    let (mut sender, mut incoming) = socket.split();
+    loop {
+        tokio::select! {
+            notification = receiver.recv() => match notification {
+                Ok(notification) => {
+                    let payload = serde_json::to_string(&notification)
+                        .expect("revision notification is serializable");
+                    if sender.send(Message::Text(payload.into())).await.is_err() {
+                        break;
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    // Exact missed revisions do not matter: this explicitly
+                    // instructs the client to fetch its latest HTTP projection.
+                    if sender.send(Message::Text(
+                        r#"{"type":"resync_required","protocol_version":3}"#.into()
+                    )).await.is_err() {
+                        break;
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            },
+            message = incoming.next() => match message {
+                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                _ => {}
+            }
+        }
+    }
 }
 
 async fn join_game(
@@ -506,9 +556,15 @@ async fn main() {
         .unwrap_or_else(|_| "127.0.0.1:43170".to_owned())
         .parse::<SocketAddr>()
         .expect("UNCIV_ENGINE_WORKER_ADDR must be a socket address");
+    let notifications = NotificationHub::default();
+    tokio::spawn(run_outbox_dispatcher(
+        repository.clone(),
+        notifications.clone(),
+    ));
     let app = Router::new()
         .route("/healthz", get(health))
         .route("/api/v3/capabilities", get(capabilities))
+        .route("/api/v3/notifications", get(websocket_notifications))
         .route("/api/v3/auth/register", post(register))
         .route("/api/v3/auth/login", post(login))
         .route("/api/v3/auth/refresh", post(refresh_session))
@@ -526,6 +582,7 @@ async fn main() {
         .with_state(AppState {
             repository,
             worker: EngineWorkerClient::new(worker_address, Duration::from_secs(30)),
+            notifications,
         });
     let listener = tokio::net::TcpListener::bind(address)
         .await

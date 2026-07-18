@@ -10,6 +10,8 @@ Completed on 2026-07-18:
 - Selected the Rust control-plane/Kotlin headless-worker architecture in ADR
   0001; no alternate rules engine will be introduced.
 - Added repository guardrails in `AGENTS.md`.
+- Added the versioned API-v3 command envelope and closed initial `EndTurn` /
+  `MoveUnit` command union, with contract tests. No endpoint consumes it yet.
 
 Verification attempted:
 

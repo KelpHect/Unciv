@@ -7,8 +7,8 @@ validation test, client command-bus call site, and projection effect.
 | Mutation family | Command | Status |
 | --- | --- | --- |
 | Create game | `CreateGame` | Not started |
-| End turn and AI | `EndTurn` | Not started |
-| Unit movement, combat, actions | TBD closed union | Not started |
+| End turn and AI | `EndTurn` | Protocol defined; engine handler not started |
+| Unit movement, combat, actions | `MoveUnit` (first slice) | Protocol defined; engine handler not started |
 | City production, purchases, founding, conquest | TBD closed union | Not started |
 | Research, policies, religion | TBD closed union | Not started |
 | Diplomacy, trades, war, votes | TBD closed union | Not started |

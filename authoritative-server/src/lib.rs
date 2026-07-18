@@ -9,6 +9,8 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+pub mod postgres;
+
 pub const PROTOCOL_VERSION: u16 = 3;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -69,6 +71,14 @@ pub enum CommitError {
     WorkerRevisionMismatch,
     #[error("snapshot hash does not match its payload")]
     InvalidSnapshotHash,
+    #[error("authenticated account is not allowed to mutate this game")]
+    Unauthorized,
+    #[error("database storage failure")]
+    Storage,
+}
+
+impl CommitError {
+    fn storage(_: sqlx::Error) -> Self { Self::Storage }
 }
 
 impl InMemoryGameRepository {

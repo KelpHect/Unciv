@@ -76,6 +76,10 @@ In progress:
 - The Rust binary now provides a loopback-only-by-default `/healthz` endpoint;
   API-v3 game routes stay absent until authentication and PostgreSQL-backed
   authorization can enforce their invariants.
+- `PostgresGameRepository` now locks the canonical game row and atomically
+  writes the accepted command, immutable snapshot, revision, head update, and
+  outbox notification. It derives the actor from the API caller and accepts
+  only owner/player/admin memberships at this layer.
 
 Verification:
 
@@ -83,6 +87,19 @@ Verification:
 cargo test --manifest-path authoritative-server/Cargo.toml
 ```
 
-Result: `3 passed; 0 failed`. These are control-plane contract tests only; the
-repository is still an in-memory test double until the PostgreSQL implementation
-and private Kotlin worker protocol are connected.
+Result: `3 passed; 0 failed`. The in-memory repository remains a fast contract
+test double; `PostgresGameRepository` is now the durable implementation. The
+private Kotlin worker protocol is still not connected.
+
+PostgreSQL integration verification used an owned disposable container, not an
+unrelated local service:
+
+```text
+docker run --detach --name unciv-v3-postgres-test --publish 127.0.0.1:55432:5432 \
+  --env POSTGRES_USER=unciv --env POSTGRES_PASSWORD=unciv-test-only \
+  --env POSTGRES_DB=unciv_v3_test postgres:18-alpine
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55432/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored
+```
+
+Result: `1 passed; 0 failed`; the test container was removed afterward.

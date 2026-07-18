@@ -2,7 +2,9 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.civilization.managers.ReligionState
 import com.unciv.logic.map.mapunit.MapUnit
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -16,6 +18,7 @@ data class PlayerProjection(
     val turn: Int,
     val currentPlayerCivilizationId: String,
     val isCurrentTurn: Boolean,
+    val pendingTurnActions: List<PendingEndTurnAction>,
     val gold: Int,
     val knownCivilizations: List<String>,
     val ownCities: List<ProjectedCity>,
@@ -24,7 +27,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 2
+        const val CURRENT_PROJECTION_VERSION = 3
     }
 }
 
@@ -74,6 +77,7 @@ object PlayerProjectionBuilder {
             turn = game.turns,
             currentPlayerCivilizationId = game.currentPlayer,
             isCurrentTurn = game.currentPlayer == actor.civID,
+            pendingTurnActions = AuthoritativeTurnReadiness.pendingActions(actor),
             gold = actor.gold,
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
             ownCities = actor.cities.map {
@@ -110,4 +114,43 @@ object PlayerProjectionBuilder {
         health = unit.health,
         currentMovement = unit.currentMovement,
     )
+}
+
+/** Canonical blockers only. Idle-unit and automation reminders are client
+ * conveniences; these choices mutate state or consume a one-shot grant. */
+internal object AuthoritativeTurnReadiness {
+    fun pendingActions(civilization: Civilization) = buildList {
+        if (civilization.cities.any {
+                !it.isPuppet && it.cityConstructions.currentConstructionName().isEmpty()
+            }) add(PendingEndTurnAction.PickConstruction)
+        if (civilization.shouldOpenTechPicker()) add(PendingEndTurnAction.PickTechnology)
+        if (civilization.policies.shouldShowPolicyPicker()) add(PendingEndTurnAction.PickPolicy)
+        if (civilization.gameInfo.isEspionageEnabled()
+            && civilization.espionageManager.shouldShowMoveSpies()
+        ) add(PendingEndTurnAction.MoveSpies)
+        when {
+            civilization.religionManager.religionState == ReligionState.FoundingReligion ->
+                add(PendingEndTurnAction.FoundReligion)
+            civilization.religionManager.religionState == ReligionState.EnhancingReligion ->
+                add(PendingEndTurnAction.EnhanceReligion)
+            civilization.religionManager.hasFreeBeliefs() ->
+                add(PendingEndTurnAction.ReformReligion)
+            civilization.religionManager.canFoundOrExpandPantheon() ->
+                add(PendingEndTurnAction.FoundOrExpandPantheon)
+        }
+        if (civilization.mayVoteForDiplomaticVictory()) add(PendingEndTurnAction.CastDiplomaticVote)
+    }
+}
+
+@Serializable
+enum class PendingEndTurnAction(val wireName: String) {
+    @SerialName("pick_construction") PickConstruction("pick_construction"),
+    @SerialName("pick_technology") PickTechnology("pick_technology"),
+    @SerialName("pick_policy") PickPolicy("pick_policy"),
+    @SerialName("move_spies") MoveSpies("move_spies"),
+    @SerialName("found_or_expand_pantheon") FoundOrExpandPantheon("found_or_expand_pantheon"),
+    @SerialName("found_religion") FoundReligion("found_religion"),
+    @SerialName("enhance_religion") EnhanceReligion("enhance_religion"),
+    @SerialName("reform_religion") ReformReligion("reform_religion"),
+    @SerialName("cast_diplomatic_vote") CastDiplomaticVote("cast_diplomatic_vote"),
 }

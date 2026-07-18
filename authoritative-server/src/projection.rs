@@ -12,6 +12,7 @@ pub struct PlayerProjection {
     pub turn: i32,
     pub current_player_civilization_id: String,
     pub is_current_turn: bool,
+    pub pending_turn_actions: Vec<PendingEndTurnAction>,
     pub gold: i32,
     pub known_civilizations: Vec<String>,
     pub own_cities: Vec<ProjectedCity>,
@@ -31,6 +32,20 @@ pub struct ProjectedCity {
     pub health: i32,
     pub construction_queue: Vec<String>,
     pub available_constructions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PendingEndTurnAction {
+    PickConstruction,
+    PickTechnology,
+    PickPolicy,
+    MoveSpies,
+    FoundOrExpandPantheon,
+    FoundReligion,
+    EnhanceReligion,
+    ReformReligion,
+    CastDiplomaticVote,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -59,15 +74,25 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v2.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v3.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
+        assert_eq!(
+            projection.pending_turn_actions,
+            [PendingEndTurnAction::PickPolicy]
+        );
         assert_eq!(projection.own_cities[0].construction_queue, ["Monument"]);
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;
         unknown["canonicalGameInfo"] = serde_json::json!({"secret": true});
         assert!(serde_json::from_value::<PlayerProjection>(unknown).is_err());
+
+        let unknown_action = serde_json::from_str::<serde_json::Value>(fixture)
+            .unwrap()
+            .to_string()
+            .replace("pick_policy", "replace_canonical_state");
+        assert!(serde_json::from_str::<PlayerProjection>(&unknown_action).is_err());
     }
 }

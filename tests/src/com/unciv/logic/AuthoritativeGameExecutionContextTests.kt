@@ -5,6 +5,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
@@ -85,10 +86,18 @@ class AuthoritativeGameExecutionContextTests {
         val rome = game.getCivilization("Rome")
         rome.addCity(rome.units.getCivUnits().first().getTile().position)
         val hashBefore = engine.stateHash(game)
+        val projection = engine.playerProjection(game, "Rome")
 
         val rejection = Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.endTurn(game, "Rome")
         }
+        Assert.assertEquals(
+            listOf(
+                PendingEndTurnAction.PickConstruction,
+                PendingEndTurnAction.PickTechnology,
+            ),
+            projection.pendingTurnActions,
+        )
         Assert.assertTrue(rejection.message!!.contains("pick_construction"))
         Assert.assertEquals(hashBefore, engine.stateHash(game))
         Assert.assertEquals("Rome", game.currentPlayer)

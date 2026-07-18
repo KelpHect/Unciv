@@ -16,7 +16,7 @@ pub mod projection;
 pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 2;
+pub const PROJECTION_VERSION: u16 = 3;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

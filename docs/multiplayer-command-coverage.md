@@ -85,14 +85,17 @@ acceptance, rejection, stale conflict, reconnect, or notification.
 
 ## Projection gaps blocking command migration
 
-The initial projection supports own gold, cities, stable unit IDs/positions,
+The current projection supports own gold, cities, stable unit IDs/positions,
 explored/visible coordinates, known civilizations, and visibility-filtered
-foreign units. It is sufficient for the vertical-slice `MoveUnit`, but not for
-most rows above. Missing projection contracts include terrain and legally known
+foreign units. Projection v3 also exposes the ordered server-derived names of
+pending turn actions, so a client can explain why `EndTurn` is blocked without
+receiving canonical state. It is sufficient for the vertical-slice `MoveUnit`,
+but not for most rows above. Missing projection contracts include terrain and legally known
 resources/improvements; movement/action availability; city yields, production
 progress, purchase costs and tile-specific choices; research/policies/religion; diplomacy, trades and
 private prompts; espionage; votes; notifications/history; server-issued choice
-tokens; spectator views; and structured public events/deltas.
+tokens and the legal payload options needed to resolve projected blockers;
+spectator views; and structured public events/deltas.
 
 ## Completion gate
 

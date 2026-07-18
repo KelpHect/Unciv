@@ -151,6 +151,7 @@ class AuthoritativeGameCommandBusTests {
             turn = 0,
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
+            pendingTurnActions = emptyList(),
             gold = 0,
             knownCivilizations = emptyList(),
             ownCities = if (cityQueue == null) emptyList() else listOf(ProjectedCity(
@@ -191,7 +192,13 @@ class AuthoritativeGameCommandBusTests {
         }
 
         override suspend fun restoreSession() = true
-        override suspend fun capabilities() = ApiV3Capabilities(3, 2, emptyList(), false, false)
+        override suspend fun capabilities() = ApiV3Capabilities(
+            3,
+            PlayerProjection.CURRENT_PROJECTION_VERSION,
+            emptyList(),
+            false,
+            false,
+        )
         override suspend fun register(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit

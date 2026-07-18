@@ -4,6 +4,7 @@
   "turn": 12,
   "currentPlayerCivilizationId": "Rome",
   "isCurrentTurn": true,
+  "pendingTurnActions": ["pick_policy"],
   "gold": 321,
   "knownCivilizations": ["Greece"],
   "ownCities": [

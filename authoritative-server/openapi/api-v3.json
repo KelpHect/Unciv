@@ -1628,6 +1628,20 @@
         },
         "additionalProperties": false
       },
+      "PendingEndTurnAction": {
+        "type": "string",
+        "enum": [
+          "pick_construction",
+          "pick_technology",
+          "pick_policy",
+          "move_spies",
+          "found_or_expand_pantheon",
+          "found_religion",
+          "enhance_religion",
+          "reform_religion",
+          "cast_diplomatic_vote"
+        ]
+      },
       "PlayerProjection": {
         "type": "object",
         "description": "Player-scoped state returned by the authoritative worker. This deliberately\nis not a redacted canonical game: fields absent here cannot cross the public\nRust API boundary.",
@@ -1637,6 +1651,7 @@
           "turn",
           "currentPlayerCivilizationId",
           "isCurrentTurn",
+          "pendingTurnActions",
           "gold",
           "knownCivilizations",
           "ownCities",
@@ -1680,6 +1695,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedUnit"
+            }
+          },
+          "pendingTurnActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingEndTurnAction"
             }
           },
           "protocolVersion": {

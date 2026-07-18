@@ -217,7 +217,7 @@ class AuthoritativeMultiplayerSessionTests {
 
     private fun projection(revision: Long, hash: String) = ApiV3GameProjection(
         gameId = GAME_ID,
-        projectionVersion = 2,
+        projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
         committedRevision = revision,
         canonicalStateHash = hash,
         projectionHash = "projection-$revision",
@@ -226,6 +226,7 @@ class AuthoritativeMultiplayerSessionTests {
             turn = revision.toInt(),
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
+            pendingTurnActions = emptyList(),
             gold = 0,
             knownCivilizations = emptyList(),
             ownCities = emptyList(),
@@ -236,7 +237,13 @@ class AuthoritativeMultiplayerSessionTests {
     )
 
     private inner class FakeTransport : ApiV3Transport {
-        var capabilities = ApiV3Capabilities(3, 2, listOf("end_turn"), false, true)
+        var capabilities = ApiV3Capabilities(
+            3,
+            PlayerProjection.CURRENT_PROJECTION_VERSION,
+            listOf("end_turn"),
+            false,
+            true,
+        )
         var restored = false
         var restoreCalls = 0
         @Volatile

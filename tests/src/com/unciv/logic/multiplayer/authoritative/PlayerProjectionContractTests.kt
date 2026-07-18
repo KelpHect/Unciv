@@ -18,6 +18,7 @@ class PlayerProjectionContractTests {
         val projection = json.decodeFromString(PlayerProjection.serializer(), fixture)
 
         assertEquals(3, projection.protocolVersion)
+        assertEquals(listOf(PendingEndTurnAction.PickPolicy), projection.pendingTurnActions)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
         assertEquals(
             json.parseToJsonElement(fixture),
@@ -36,9 +37,20 @@ class PlayerProjectionContractTests {
         }.isFailure)
     }
 
+    @Test
+    fun unknownPendingTurnActionsCannotCrossTheProjectionContract() {
+        val fixture = projectionFixture().readText().replace(
+            "pick_policy",
+            "replace_canonical_state",
+        )
+        assertTrue(runCatching {
+            json.decodeFromString(PlayerProjection.serializer(), fixture)
+        }.isFailure)
+    }
+
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v2.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v3.fixture.json") }
         .first { it.isFile }
 }

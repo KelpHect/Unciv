@@ -1,10 +1,13 @@
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 
 use axum::{
     Json, Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    extract::{DefaultBodyLimit, Path, State},
-    http::{HeaderMap, StatusCode},
+    extract::{ConnectInfo, DefaultBodyLimit, Path, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
@@ -116,6 +119,7 @@ struct ApiError {
     status: StatusCode,
     code: &'static str,
     current_revision: Option<u64>,
+    retry_after_seconds: Option<u64>,
 }
 
 impl ApiError {
@@ -124,6 +128,7 @@ impl ApiError {
             status: StatusCode::BAD_REQUEST,
             code,
             current_revision: None,
+            retry_after_seconds: None,
         }
     }
 
@@ -132,6 +137,7 @@ impl ApiError {
             status: StatusCode::UNAUTHORIZED,
             code: "invalid_credentials",
             current_revision: None,
+            retry_after_seconds: None,
         }
     }
 
@@ -140,6 +146,7 @@ impl ApiError {
             status: StatusCode::CONFLICT,
             code,
             current_revision: None,
+            retry_after_seconds: None,
         }
     }
 
@@ -148,20 +155,37 @@ impl ApiError {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: "internal_error",
             current_revision: None,
+            retry_after_seconds: None,
+        }
+    }
+
+    const fn rate_limited(retry_after_seconds: u64) -> Self {
+        Self {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            code: "rate_limited",
+            current_revision: None,
+            retry_after_seconds: Some(retry_after_seconds),
         }
     }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        let mut response = (
             self.status,
             Json(ErrorResponse {
                 code: self.code,
                 current_revision: self.current_revision,
             }),
         )
-            .into_response()
+            .into_response();
+        if let Some(seconds) = self.retry_after_seconds {
+            response.headers_mut().insert(
+                header::RETRY_AFTER,
+                HeaderValue::from_str(&seconds.to_string()).expect("retry delay is a valid header"),
+            );
+        }
+        response
     }
 }
 
@@ -191,23 +215,106 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
 
 async fn register(
     State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
     Json(credentials): Json<CredentialsRequest>,
 ) -> Result<(StatusCode, Json<AccountResponse>), ApiError> {
-    let account = state
+    let source_prefix = source_prefix(source.ip());
+    let identity = credentials.username.trim().to_ascii_lowercase();
+    enforce_rate_limit(
+        &state,
+        &format!("register:source:{source_prefix}"),
+        3_600,
+        5,
+        3_600,
+        "registration",
+        &source_prefix,
+        Some(&identity),
+    )
+    .await?;
+    let result = state
         .repository
         .register_account(&credentials.username, &credentials.password)
-        .await
-        .map_err(register_error)?;
-    Ok((StatusCode::CREATED, Json(account_response(account))))
+        .await;
+    match result {
+        Ok(account) => {
+            audit_security(
+                &state,
+                Some(account.id),
+                "registration",
+                "success",
+                &source_prefix,
+                Some(&identity),
+            )
+            .await;
+            Ok((StatusCode::CREATED, Json(account_response(account))))
+        }
+        Err(error) => {
+            audit_security(
+                &state,
+                None,
+                "registration",
+                "rejected",
+                &source_prefix,
+                Some(&identity),
+            )
+            .await;
+            Err(register_error(error))
+        }
+    }
 }
 
 async fn login(
     State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
     Json(credentials): Json<CredentialsRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
-    let account = state
+    let source_prefix = source_prefix(source.ip());
+    let identity = credentials.username.trim().to_ascii_lowercase();
+    enforce_rate_limit(
+        &state,
+        &format!("login:source:{source_prefix}"),
+        60,
+        30,
+        60,
+        "login",
+        &source_prefix,
+        Some(&identity),
+    )
+    .await?;
+    let identity_bucket = format!("login:identity:{source_prefix}:{identity}");
+    enforce_rate_limit(
+        &state,
+        &identity_bucket,
+        900,
+        5,
+        900,
+        "login",
+        &source_prefix,
+        Some(&identity),
+    )
+    .await?;
+    let account = match state
         .repository
         .authenticate_account(&credentials.username, &credentials.password)
+        .await
+    {
+        Ok(account) => account,
+        Err(error) => {
+            audit_security(
+                &state,
+                None,
+                "login",
+                "rejected",
+                &source_prefix,
+                Some(&identity),
+            )
+            .await;
+            return Err(login_error(error));
+        }
+    };
+    state
+        .repository
+        .clear_rate_limit(&identity_bucket)
         .await
         .map_err(login_error)?;
     let credential = state
@@ -215,10 +322,84 @@ async fn login(
         .issue_session(account.id)
         .await
         .map_err(|_| ApiError::internal())?;
+    audit_security(
+        &state,
+        Some(account.id),
+        "login",
+        "success",
+        &source_prefix,
+        Some(&identity),
+    )
+    .await;
     Ok(Json(LoginResponse {
         account: account_response(account),
         session_token: credential.token,
     }))
+}
+
+async fn enforce_rate_limit(
+    state: &AppState,
+    bucket: &str,
+    window_seconds: i32,
+    max_requests: i32,
+    block_seconds: i32,
+    event_type: &str,
+    source_prefix: &str,
+    identity: Option<&str>,
+) -> Result<(), ApiError> {
+    match state
+        .repository
+        .consume_rate_limit(bucket, window_seconds, max_requests, block_seconds)
+        .await
+    {
+        Ok(()) => Ok(()),
+        Err(AuthError::RateLimited) => {
+            audit_security(
+                state,
+                None,
+                event_type,
+                "rate_limited",
+                source_prefix,
+                identity,
+            )
+            .await;
+            Err(ApiError::rate_limited(block_seconds as u64))
+        }
+        Err(_) => Err(ApiError::internal()),
+    }
+}
+
+async fn audit_security(
+    state: &AppState,
+    account_id: Option<uuid::Uuid>,
+    event_type: &str,
+    outcome: &str,
+    source_prefix: &str,
+    identity: Option<&str>,
+) {
+    if let Err(error) = state
+        .repository
+        .record_security_audit(account_id, event_type, outcome, source_prefix, identity)
+        .await
+    {
+        eprintln!("authoritative security audit write failed: {error}");
+    }
+}
+
+fn source_prefix(address: IpAddr) -> String {
+    match address {
+        IpAddr::V4(address) => {
+            let [a, b, c, _] = address.octets();
+            format!("{a}.{b}.{c}.0/24")
+        }
+        IpAddr::V6(address) => {
+            let segments = address.segments();
+            format!(
+                "{:x}:{:x}:{:x}:{:x}::/64",
+                segments[0], segments[1], segments[2], segments[3]
+            )
+        }
+    }
 }
 
 async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
@@ -478,6 +659,7 @@ fn register_error(error: AuthError) -> ApiError {
             ApiError::bad_request("invalid_registration")
         }
         AuthError::UsernameTaken => ApiError::conflict("username_taken"),
+        AuthError::RateLimited => ApiError::rate_limited(60),
         AuthError::Storage => ApiError::internal(),
         AuthError::InvalidCredentials | AuthError::AccountDisabled => ApiError::internal(),
     }
@@ -489,6 +671,7 @@ fn login_error(error: AuthError) -> ApiError {
         | AuthError::AccountDisabled
         | AuthError::InvalidUsername(_) => ApiError::unauthorized(),
         AuthError::Storage => ApiError::internal(),
+        AuthError::RateLimited => ApiError::rate_limited(60),
         AuthError::InvalidPassword(_) | AuthError::UsernameTaken => ApiError::internal(),
     }
 }
@@ -500,21 +683,25 @@ fn game_error(error: CommitError) -> ApiError {
             status: StatusCode::NOT_FOUND,
             code: "not_found",
             current_revision: None,
+            retry_after_seconds: None,
         },
         CommitError::Unauthorized => ApiError {
             status: StatusCode::FORBIDDEN,
             code: "forbidden",
             current_revision: None,
+            retry_after_seconds: None,
         },
         CommitError::Stale { actual, .. } => ApiError {
             status: StatusCode::CONFLICT,
             code: "stale_revision",
             current_revision: Some(actual),
+            retry_after_seconds: None,
         },
         CommitError::InvalidCommand => ApiError {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             code: "invalid_command",
             current_revision: None,
+            retry_after_seconds: None,
         },
         CommitError::UnsupportedProtocol(_) => ApiError::bad_request("unsupported_protocol"),
         CommitError::WorkerRejected(reason) => {
@@ -526,12 +713,14 @@ fn game_error(error: CommitError) -> ApiError {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: "invalid_command",
                 current_revision: None,
+                retry_after_seconds: None,
             }
         }
         CommitError::InvalidSnapshotHash | CommitError::WorkerRevisionMismatch => ApiError {
             status: StatusCode::BAD_GATEWAY,
             code: "worker_rejected",
             current_revision: None,
+            retry_after_seconds: None,
         },
         CommitError::Storage => ApiError::internal(),
     }
@@ -587,9 +776,12 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(address)
         .await
         .expect("failed to bind UNCIV_V3_BIND");
-    axum::serve(listener, app)
-        .await
-        .expect("authoritative API server failed");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("authoritative API server failed");
 }
 
 #[cfg(test)]
@@ -613,5 +805,17 @@ mod tests {
         assert_eq!(response.0.protocol_version, PROTOCOL_VERSION);
         assert!(!response.0.whole_state_upload);
         assert!(response.0.commands.contains(&"move_unit"));
+    }
+
+    #[test]
+    fn rate_limit_response_and_network_prefixes_are_stable() {
+        let response = ApiError::rate_limited(900).into_response();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(response.headers()[header::RETRY_AFTER], "900");
+        assert_eq!(source_prefix("192.0.2.99".parse().unwrap()), "192.0.2.0/24");
+        assert_eq!(
+            source_prefix("2001:db8:abcd:1234:ffff::1".parse().unwrap()),
+            "2001:db8:abcd:1234::/64"
+        );
     }
 }

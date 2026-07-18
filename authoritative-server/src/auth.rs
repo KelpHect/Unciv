@@ -46,6 +46,8 @@ pub enum AuthError {
     InvalidCredentials,
     #[error("account is disabled")]
     AccountDisabled,
+    #[error("authentication request rate limit exceeded")]
+    RateLimited,
     #[error("authentication storage failure")]
     Storage,
 }

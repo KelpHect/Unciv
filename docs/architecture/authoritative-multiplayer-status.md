@@ -489,3 +489,50 @@ target. A multi-instance deployment will require a shared fan-out transport or
 connection affinity; database CAS and HTTP reconciliation remain correct even
 without it. Metrics, connection limits, heartbeat policy, and load testing are
 still pending.
+
+## Durable authentication throttling and security audit
+
+Implemented:
+
+- Migration `0005_auth_rate_limits_and_audit.sql` adds PostgreSQL-backed,
+  atomic fixed-window request buckets and append-only security audit events.
+  Buckets store only SHA-256 composite keys, never raw usernames, passwords,
+  bearer tokens, or request bodies.
+- Registration is limited to five attempts per source `/24` or `/64` per hour.
+  Login has a source limit of 30 attempts per minute and a source-plus-identity
+  limit of five attempts per 15 minutes. Exceeded limits return stable HTTP
+  `429 {"code":"rate_limited"}` with `Retry-After`; successful authentication
+  clears the identity backoff while leaving the broader source-abuse bucket.
+- The HTTP boundary derives the source from the socket rather than a caller
+  header. IPv4 audit addresses are reduced to `/24` and IPv6 to `/64`.
+  Registration/login success, rejection, and rate limiting are audited with a
+  one-way identity hash and optional account ID. Audit write failures never log
+  credentials or tokens.
+- Wrong username, wrong password, and disabled-account login continue to expose
+  the same generic public `invalid_credentials` response.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:uncivtest@127.0.0.1:55452/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+```
+
+All five PostgreSQL integration tests passed. The rate-limit test proved atomic
+exhaustion, durable rejection, explicit reset, 64-character bucket/identity
+hashes, and stored `192.0.2.0/24` rather than a host address.
+
+A live Rust/PostgreSQL HTTP run returned five generic `401` login failures and
+then `429 rate_limited` with `Retry-After: 900`; a successful login on a second
+identity reset its identity bucket, so the next failure was again generic
+`401`. The sixth registration from the same source returned `429`. Eighteen
+audit rows had valid identity-hash lengths and only `127.0.0.0/24` as their
+source. A separate minimal run confirmed the exact `rate_limited` JSON body.
+Disposable databases and processes were removed.
+
+Production reverse-proxy deployment must preserve the real peer address only
+through an explicitly trusted proxy configuration; the service intentionally
+does not trust arbitrary forwarded-address headers. Distributed rate limiting
+is correct because PostgreSQL is the source of truth, though retention cleanup
+and operator-configurable thresholds remain pending.

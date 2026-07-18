@@ -124,3 +124,10 @@ Verification:
 Result: `BUILD SUCCESSFUL` (17.5s) on Temurin `21.0.11`. Rust has not yet
 connected this private worker to PostgreSQL commits, so this is not an end-to-
 end authoritative game flow yet.
+
+The Rust control plane now has a matching bounded, timed worker client. It sends
+only an actor ID, pinned ruleset manifest, and `EndTurn` intent, then translates
+the worker response into a `CommitProposal`. PostgreSQL remains responsible for
+hash validation and the only canonical commit. `cargo test --manifest-path
+authoritative-server/Cargo.toml` remains successful (3 passed; 1 PostgreSQL test
+ignored unless explicitly configured).

@@ -10,6 +10,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub mod postgres;
+pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
 

@@ -1,5 +1,45 @@
 # Authoritative multiplayer v3 status
 
+## Canonical snapshot integrity and quarantine
+
+Implemented on 2026-07-18:
+
+- Migration `0006_snapshot_integrity_and_quarantine.sql` records the snapshot
+  protocol version, validation status, exact compressed and uncompressed byte
+  counts, and a durable game-unavailable marker. Database constraints and the
+  Rust repository enforce a 16 MiB maximum; the currently supported `identity`
+  codec must have identical declared and stored sizes.
+- Every worker-facing canonical snapshot read now validates the codec, protocol,
+  status, non-empty and bounded payload, declared sizes, payload hash, snapshot
+  state hash, revision state hash, and UTF-8 encoding before invoking Kotlin.
+- A corrupt canonical head is transactionally marked `corrupt`, and its game is
+  quarantined with reason `corrupt_canonical_snapshot`. Metadata reads, commands,
+  and attempted client-side repair commits then fail with the stable
+  `503 game_unavailable` response while the canonical revision remains unchanged.
+- `validate_canonical_head` exposes the same validation path for administrative
+  integrity checks and restore drills instead of maintaining a weaker parallel
+  decoder.
+
+Verification:
+
+```text
+cargo fmt --manifest-path authoritative-server/Cargo.toml -- --check
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:postgres@localhost:55450/unciv_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib postgres::integration_tests:: -- --ignored --test-threads=1
+git diff --check
+```
+
+Result: 12 default library tests and four HTTP tests passed. All six PostgreSQL
+integration tests passed serially against an owned disposable PostgreSQL 16
+database, including deliberate canonical-payload corruption, durable quarantine,
+stable unavailability, rejected repair, and unchanged-head assertions.
+
+This milestone deliberately marks an invalid canonical head unavailable instead
+of serving it. Bounded journal replay/fallback recovery, actual snapshot
+compression, and retention/compaction policies remain to be implemented.
+
 ## First city command: QueueConstruction
 
 Implemented on 2026-07-18:

@@ -1,5 +1,8 @@
 use serde_json::json;
-use sqlx::{PgPool, Row, postgres::PgPoolOptions};
+use sqlx::{
+    PgPool, Row,
+    postgres::{PgPoolOptions, PgRow},
+};
 use uuid::Uuid;
 
 use crate::auth::{
@@ -7,8 +10,8 @@ use crate::auth::{
 };
 use crate::worker::{EngineWorkerClient, MoveUnitIntent, QueueConstructionIntent, WorkerManifest};
 use crate::{
-    CommandAccepted, CommandEnvelope, CommitError, CommitProposal, PROJECTION_VERSION,
-    PROTOCOL_VERSION, state_hash,
+    CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
+    PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
 #[derive(Clone)]
@@ -57,6 +60,71 @@ pub struct ClaimedOutboxEvent {
 }
 
 impl PostgresGameRepository {
+    async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {
+        if row.get::<bool, _>("is_unavailable") {
+            return Err(CommitError::GameUnavailable);
+        }
+        let payload: Vec<u8> = row.get("payload");
+        let snapshot_revision: i64 = row.get("snapshot_revision");
+        let declared_compressed_size: i64 = row.get("compressed_size");
+        let declared_uncompressed_size: i64 = row.get("uncompressed_size");
+        let codec: String = row.get("codec");
+        let protocol_version: i32 = row.get("snapshot_protocol_version");
+        let validation_status: String = row.get("validation_status");
+        let payload_hash: String = row.get("payload_hash");
+        let snapshot_state_hash: String = row.get("snapshot_state_hash");
+        let revision_state_hash: String = row.get("revision_state_hash");
+        let actual_hash = state_hash(&payload);
+        let valid = codec == "identity"
+            && protocol_version == i32::from(PROTOCOL_VERSION)
+            && validation_status == "valid"
+            && !payload.is_empty()
+            && payload.len() <= MAX_SNAPSHOT_BYTES
+            && declared_compressed_size == payload.len() as i64
+            && declared_uncompressed_size == payload.len() as i64
+            && payload_hash == actual_hash
+            && snapshot_state_hash == actual_hash
+            && revision_state_hash == actual_hash
+            && std::str::from_utf8(&payload).is_ok();
+        if !valid {
+            let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
+            sqlx::query(
+                "UPDATE game_snapshots SET validation_status='corrupt' WHERE game_id=$1 AND revision=$2",
+            )
+            .bind(game_id)
+            .bind(snapshot_revision)
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            sqlx::query(
+                "UPDATE games SET unavailable_at=COALESCE(unavailable_at, now()), unavailable_reason=COALESCE(unavailable_reason, 'corrupt_canonical_snapshot') WHERE id=$1",
+            )
+            .bind(game_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            tx.commit().await.map_err(CommitError::storage)?;
+            return Err(CommitError::GameUnavailable);
+        }
+        Ok(String::from_utf8(payload).expect("UTF-8 was validated"))
+    }
+
+    /// Revalidates the canonical head without invoking a worker. Operators and
+    /// restore drills can use this to prove stored bytes match every recorded
+    /// integrity field. A failure quarantines the game instead of falling back
+    /// to client state or silently rewriting history.
+    pub async fn validate_canonical_head(&self, game_id: Uuid) -> Result<(), CommitError> {
+        let row = sqlx::query(
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision WHERE g.id=$1",
+        )
+        .bind(game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        self.validated_snapshot(game_id, &row).await.map(|_| ())
+    }
+
     /// Consumes one durable fixed-window bucket. Only the SHA-256 bucket hash
     /// is stored, so usernames and composite source identifiers are not
     /// recoverable from the rate-limit table.
@@ -221,6 +289,9 @@ impl PostgresGameRepository {
             .await
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let proposal = created.proposal;
+        if proposal.snapshot.is_empty() || proposal.snapshot.len() > MAX_SNAPSHOT_BYTES {
+            return Err(CommitError::SnapshotTooLarge);
+        }
         if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
             return Err(CommitError::InvalidSnapshotHash);
         }
@@ -232,7 +303,6 @@ impl PostgresGameRepository {
             owner_civilization_id: created.owner_civilization_id,
         })
         .await
-        .map_err(CommitError::storage)
     }
 
     /// Returns a safe metadata projection. It deliberately excludes the
@@ -270,13 +340,16 @@ impl PostgresGameRepository {
         let role: String = membership.get("role");
         let civilization_id: Option<String> = membership.get("civilization_id");
         let row = sqlx::query(
-            "SELECT g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
         )
         .bind(game_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
+        if row.get::<bool, _>("is_unavailable") {
+            return Err(CommitError::GameUnavailable);
+        }
         Ok(GameMetadata {
             game_id,
             committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
@@ -297,7 +370,7 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<GameProjection, CommitError> {
         let row = sqlx::query(
-            "SELECT g.head_revision, r.canonical_state_hash, s.payload, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .bind(actor_account_id)
@@ -311,8 +384,7 @@ impl PostgresGameRepository {
         }
         let actor_civilization_id: Option<String> = row.get("civilization_id");
         let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
-        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = self.validated_snapshot(game_id, &row).await?;
         let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let projected = worker
@@ -337,7 +409,7 @@ impl PostgresGameRepository {
             projection_version: PROJECTION_VERSION,
             committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
                 .expect("revision is non-negative"),
-            canonical_state_hash: row.get("canonical_state_hash"),
+            canonical_state_hash: row.get("revision_state_hash"),
             projection_hash: state_hash(
                 &serde_json::to_vec(&projected.projection)
                     .expect("worker projection JSON value is serializable"),
@@ -516,14 +588,12 @@ impl PostgresGameRepository {
             return Ok(accepted);
         }
         let row = sqlx::query(
-            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         ).bind(envelope.game_id).fetch_optional(&self.pool).await.map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
-        let snapshot: Vec<u8> = row.get("payload");
         let manifest: serde_json::Value = row.get("manifest");
         let manifest: WorkerManifest =
             serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let snapshot =
-            String::from_utf8(snapshot).map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
         let actor_civilization_id: Option<String> = sqlx::query_scalar(
             "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
         )
@@ -576,15 +646,14 @@ impl PostgresGameRepository {
             return Ok(accepted);
         }
         let row = sqlx::query(
-            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(envelope.game_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
-        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
         let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let actor_civilization_id: Option<String> = sqlx::query_scalar(
@@ -643,15 +712,14 @@ impl PostgresGameRepository {
             return Ok(accepted);
         }
         let row = sqlx::query(
-            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(envelope.game_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
-        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
         let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let actor_civilization_id: Option<String> = sqlx::query_scalar(
@@ -712,15 +780,14 @@ impl PostgresGameRepository {
             return Ok(accepted);
         }
         let row = sqlx::query(
-            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(envelope.game_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
-        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
         let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let assigned = worker
@@ -799,19 +866,24 @@ impl PostgresGameRepository {
     /// Creates revision zero atomically. The caller must have already stored a
     /// content-addressed ruleset manifest and account; the public API will do
     /// that through authenticated setup rather than accepting a save upload.
-    pub async fn create_game(&self, game: NewGame) -> Result<(), sqlx::Error> {
+    pub async fn create_game(&self, game: NewGame) -> Result<(), CommitError> {
+        if game.snapshot.is_empty() || game.snapshot.len() > MAX_SNAPSHOT_BYTES {
+            return Err(CommitError::SnapshotTooLarge);
+        }
         let payload_hash = state_hash(&game.snapshot);
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
         let engine_build: String =
             sqlx::query_scalar("SELECT engine_build FROM ruleset_manifests WHERE hash = $1")
                 .bind(&game.ruleset_manifest_hash)
                 .fetch_one(&mut *tx)
-                .await?;
+                .await
+                .map_err(CommitError::storage)?;
         sqlx::query("INSERT INTO games (id, ruleset_manifest_hash) VALUES ($1, $2)")
             .bind(game.game_id)
             .bind(&game.ruleset_manifest_hash)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(CommitError::storage)?;
         sqlx::query(
             "INSERT INTO game_members (game_id, account_id, role, civilization_id) VALUES ($1, $2, 'owner', $3)",
         )
@@ -819,7 +891,8 @@ impl PostgresGameRepository {
         .bind(game.owner_account_id)
         .bind(game.owner_civilization_id)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(CommitError::storage)?;
         sqlx::query(
             "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, 0, $2, $3, 'identity', $4, $4, $5, $5, $6)",
         )
@@ -830,15 +903,17 @@ impl PostgresGameRepository {
         .bind(&payload_hash)
         .bind(&game.snapshot)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(CommitError::storage)?;
         sqlx::query(
             "INSERT INTO game_revisions (game_id, revision, parent_revision, command_id, snapshot_revision, canonical_state_hash) VALUES ($1, 0, NULL, NULL, 0, $2)",
         )
         .bind(game.game_id)
         .bind(&payload_hash)
         .execute(&mut *tx)
-        .await?;
-        tx.commit().await
+        .await
+        .map_err(CommitError::storage)?;
+        tx.commit().await.map_err(CommitError::storage)
     }
 
     /// Commits only a server-worker result. `FOR UPDATE` makes the database
@@ -863,6 +938,9 @@ impl PostgresGameRepository {
     ) -> Result<CommandAccepted, CommitError> {
         if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(CommitError::UnsupportedProtocol(envelope.protocol_version));
+        }
+        if proposal.snapshot.is_empty() || proposal.snapshot.len() > MAX_SNAPSHOT_BYTES {
+            return Err(CommitError::SnapshotTooLarge);
         }
         if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
             return Err(CommitError::InvalidSnapshotHash);
@@ -895,13 +973,16 @@ impl PostgresGameRepository {
         }
 
         let head = sqlx::query(
-            "SELECT g.head_revision, g.ruleset_manifest_hash, m.engine_build FROM games g JOIN ruleset_manifests m ON m.hash = g.ruleset_manifest_hash WHERE g.id = $1 FOR UPDATE",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, g.ruleset_manifest_hash, m.engine_build FROM games g JOIN ruleset_manifests m ON m.hash = g.ruleset_manifest_hash WHERE g.id = $1 FOR UPDATE",
         )
         .bind(envelope.game_id)
         .fetch_optional(&mut *tx)
         .await
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
+        if head.get::<bool, _>("is_unavailable") {
+            return Err(CommitError::GameUnavailable);
+        }
         let current_revision = u64::try_from(head.get::<i64, _>("head_revision"))
             .expect("head revision is non-negative");
         if envelope.expected_revision != current_revision {
@@ -1155,6 +1236,67 @@ mod integration_tests {
                 .await
                 .unwrap();
         assert_eq!(outbox_count, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+    async fn corrupt_canonical_snapshot_quarantines_game_without_advancing_head() {
+        let repository = PostgresGameRepository::connect(&database_url())
+            .await
+            .unwrap();
+        repository.migrate().await.unwrap();
+        let (account, game) = seed_repository(&repository).await;
+        repository.validate_canonical_head(game).await.unwrap();
+
+        sqlx::query("UPDATE game_snapshots SET payload_hash=$2 WHERE game_id=$1 AND revision=0")
+            .bind(game)
+            .bind("b".repeat(64))
+            .execute(&repository.pool)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            repository.validate_canonical_head(game).await,
+            Err(CommitError::GameUnavailable)
+        );
+        assert_eq!(
+            repository.game_metadata(account, game).await,
+            Err(CommitError::GameUnavailable)
+        );
+        assert_eq!(
+            repository
+                .commit(
+                    account,
+                    command(game, Uuid::new_v4(), 0),
+                    proposal(0, b"client-repair-must-not-commit"),
+                )
+                .await,
+            Err(CommitError::GameUnavailable)
+        );
+        let quarantine_reason: Option<String> =
+            sqlx::query_scalar("SELECT unavailable_reason FROM games WHERE id=$1")
+                .bind(game)
+                .fetch_one(&repository.pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            quarantine_reason.as_deref(),
+            Some("corrupt_canonical_snapshot")
+        );
+        let validation_status: String = sqlx::query_scalar(
+            "SELECT validation_status FROM game_snapshots WHERE game_id=$1 AND revision=0",
+        )
+        .bind(game)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+        assert_eq!(validation_status, "corrupt");
+        let head_revision: i64 = sqlx::query_scalar("SELECT head_revision FROM games WHERE id=$1")
+            .bind(game)
+            .fetch_one(&repository.pool)
+            .await
+            .unwrap();
+        assert_eq!(head_revision, 0);
     }
 
     #[tokio::test]

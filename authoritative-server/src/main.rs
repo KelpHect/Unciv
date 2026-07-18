@@ -777,9 +777,17 @@ fn game_error(error: CommitError) -> ApiError {
                 retry_after_seconds: None,
             }
         }
-        CommitError::InvalidSnapshotHash | CommitError::WorkerRevisionMismatch => ApiError {
+        CommitError::InvalidSnapshotHash
+        | CommitError::SnapshotTooLarge
+        | CommitError::WorkerRevisionMismatch => ApiError {
             status: StatusCode::BAD_GATEWAY,
             code: "worker_rejected",
+            current_revision: None,
+            retry_after_seconds: None,
+        },
+        CommitError::GameUnavailable => ApiError {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: "game_unavailable",
             current_revision: None,
             retry_after_seconds: None,
         },
@@ -895,5 +903,13 @@ mod tests {
             source_prefix("2001:db8:abcd:1234:ffff::1".parse().unwrap()),
             "2001:db8:abcd:1234::/64"
         );
+    }
+
+    #[test]
+    fn corrupt_games_fail_closed_with_stable_unavailable_semantics() {
+        let error = game_error(CommitError::GameUnavailable);
+        assert_eq!(error.status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(error.code, "game_unavailable");
+        assert_eq!(error.current_revision, None);
     }
 }

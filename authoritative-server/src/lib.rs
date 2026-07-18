@@ -16,6 +16,7 @@ pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
 pub const PROJECTION_VERSION: u16 = 2;
+pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -86,6 +87,10 @@ pub enum CommitError {
     WorkerRejected(String),
     #[error("snapshot hash does not match its payload")]
     InvalidSnapshotHash,
+    #[error("snapshot exceeded the authoritative size limit")]
+    SnapshotTooLarge,
+    #[error("game is unavailable pending operator recovery")]
+    GameUnavailable,
     #[error("authenticated account is not allowed to mutate this game")]
     Unauthorized,
     #[error("command is not valid for the canonical game state")]
@@ -102,6 +107,9 @@ impl CommitError {
 
 impl InMemoryGameRepository {
     pub async fn create_game(&self, game_id: Uuid, snapshot: Vec<u8>) -> Result<(), CommitError> {
+        if snapshot.is_empty() || snapshot.len() > MAX_SNAPSHOT_BYTES {
+            return Err(CommitError::SnapshotTooLarge);
+        }
         let hash = state_hash(&snapshot);
         let mut games = self.games.lock().await;
         games.insert(
@@ -126,6 +134,9 @@ impl InMemoryGameRepository {
     ) -> Result<CommandAccepted, CommitError> {
         if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(CommitError::UnsupportedProtocol(envelope.protocol_version));
+        }
+        if proposal.snapshot.is_empty() || proposal.snapshot.len() > MAX_SNAPSHOT_BYTES {
+            return Err(CommitError::SnapshotTooLarge);
         }
         if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
             return Err(CommitError::InvalidSnapshotHash);
@@ -255,6 +266,29 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn oversized_snapshot_is_rejected_before_commit() {
+        let repository = InMemoryGameRepository::default();
+        let game = Uuid::new_v4();
+        repository
+            .create_game(game, b"revision-0".to_vec())
+            .await
+            .unwrap();
+        let oversized = vec![b'x'; MAX_SNAPSHOT_BYTES + 1];
+        let result = repository
+            .commit(
+                command(game, Uuid::new_v4(), 0),
+                CommitProposal {
+                    previous_revision: 0,
+                    canonical_state_hash: String::new(),
+                    snapshot: oversized,
+                },
+            )
+            .await;
+
+        assert_eq!(result, Err(CommitError::SnapshotTooLarge));
     }
 
     #[tokio::test]

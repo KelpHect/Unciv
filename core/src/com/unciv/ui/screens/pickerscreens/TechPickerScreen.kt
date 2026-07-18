@@ -11,6 +11,7 @@ import com.unciv.Constants
 import com.unciv.GUI
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.TechManager
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.tech.Technology
 import com.unciv.models.ruleset.unique.UniqueType
@@ -28,6 +29,7 @@ import com.unciv.ui.components.input.onDoubleClick
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.utils.Concurrency
+import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import kotlin.math.abs
 
@@ -46,6 +48,9 @@ class TechPickerScreen(
     private var lines = NonTransformGroup()
     private var orderIndicators = NonTransformGroup()
     private var eraLabels = ArrayList<Label>()
+
+    private fun isAuthoritativeGame() = civInfo.gameInfo.gameParameters.isOnlineMultiplayer &&
+        game.onlineMultiplayer.authoritativeSession?.isGameOpen(civInfo.gameInfo.gameId) == true
 
     /** We need this to be a separate table, and NOT the topTable, because *inhales*
      * When call setConnectingLines we need to pack() the table so that the lines will align correctly, BUT
@@ -114,6 +119,61 @@ class TechPickerScreen(
 
 
     private fun tryExit() {
+        if (!freeTechPick && isAuthoritativeGame()) {
+            val technologyName = selectedTech?.name ?: return
+            rightSideButton.disable()
+            Concurrency.runOnNonDaemonThreadPool("Set authoritative research") {
+                val outcome = try {
+                    game.onlineMultiplayer.authoritativeSession?.setResearchPathIfOpen(
+                        civInfo.gameInfo.gameId,
+                        technologyName,
+                    )
+                } catch (ex: Exception) {
+                    if (ex is CancellationException) throw ex
+                    Concurrency.runOnGLThread {
+                        setButtonsInfo()
+                        ToastPopup(
+                            "Could not submit authoritative research: [${ex.message ?: "Unknown"}]",
+                            this@TechPickerScreen,
+                        )
+                    }
+                    return@runOnNonDaemonThreadPool
+                }
+                Concurrency.runOnGLThread {
+                    if (outcome == null) {
+                        setButtonsInfo()
+                        ToastPopup("Authoritative game was closed before research could be submitted", this@TechPickerScreen)
+                        return@runOnGLThread
+                    }
+                    when (outcome) {
+                        is AuthoritativeCommandOutcome.Accepted -> {
+                            civInfo.gameInfo.isUpToDate = false
+                            game.settings.addCompletedTutorialTask("Pick technology")
+                            game.popScreen()
+                            ToastPopup("Research committed by the authoritative server", GUI.getWorldScreen())
+                        }
+                        is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                            civInfo.gameInfo.isUpToDate = false
+                            game.popScreen()
+                            ToastPopup("Game changed on the server - research was not submitted", GUI.getWorldScreen())
+                        }
+                        is AuthoritativeCommandOutcome.Rejected -> {
+                            setButtonsInfo()
+                            ToastPopup("Server rejected research: [${outcome.code}]", this@TechPickerScreen)
+                        }
+                        AuthoritativeCommandOutcome.RetryRequired -> {
+                            setButtonsInfo()
+                            ToastPopup("Server response was lost - retry will use the same command", this@TechPickerScreen)
+                        }
+                    }
+                }
+            }
+            return
+        }
+        finishLocalSelection()
+    }
+
+    private fun finishLocalSelection() {
         if (freeTechPick) {
             val freeTech = selectedTech!!.name
             // More evil people fast-clicking to cheat - #4977
@@ -199,7 +259,9 @@ class TechPickerScreen(
                     table.add(techButton)
                     techNameToButton[tech.name] = techButton
                     techButton.onClick { selectTechnology(tech, queue = false, center = false) }
-                    techButton.onRightClick { selectTechnology(tech, queue = true, center = false) }
+                    techButton.onRightClick {
+                        selectTechnology(tech, queue = !isAuthoritativeGame(), center = false)
+                    }
                     techButton.onDoubleClick(UncivSound.Paper) { tryExit() }
                     techTable.add(table).fillX()
                 }

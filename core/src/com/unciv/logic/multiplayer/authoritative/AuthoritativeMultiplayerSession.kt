@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Owns one authenticated API-v3 client lifecycle. UI code opens a game here
@@ -24,6 +25,7 @@ class AuthoritativeMultiplayerSession(
     private val mutex = Mutex()
     private val lifecycleMutex = Mutex()
     private val games = mutableMapOf<String, AuthoritativeGameCommandBus>()
+    private val openedGameIds = ConcurrentHashMap.newKeySet<String>()
     private var notificationJob: Job? = null
     @Volatile
     private var negotiated = false
@@ -39,6 +41,7 @@ class AuthoritativeMultiplayerSession(
             notificationJob?.cancel()
             notificationJob = null
             mutex.withLock { games.clear() }
+            openedGameIds.clear()
         }
         return authenticated
     }
@@ -96,8 +99,11 @@ class AuthoritativeMultiplayerSession(
             games.getOrPut(gameId) { AuthoritativeGameCommandBus(gameId, transport) }
         }
         bus.refresh()
+        openedGameIds += gameId
         return bus
     }
+
+    fun isGameOpen(gameId: String): Boolean = gameId in openedGameIds
 
     /** Routes a production action only when this exact game was explicitly
      * opened through API v3. A merely installed session must never capture a
@@ -120,8 +126,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    /** Selects research only for a game explicitly opened through API v3.
+     * Legacy and local callers receive null and retain their existing path. */
+    suspend fun setResearchPathIfOpen(
+        gameId: String,
+        technologyName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetResearchPath &&
+                    current.pending.technologyName == technologyName) {
+                    "Resolve the pending authoritative command before changing research"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setResearchPath(technologyName)
+            else -> {
+                bus.refresh()
+                bus.setResearchPath(technologyName)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
+        openedGameIds -= gameId
     }
 
     suspend fun logout() {
@@ -134,6 +164,7 @@ class AuthoritativeMultiplayerSession(
         notificationJob?.cancel()
         notificationJob = null
         mutex.withLock { games.clear() }
+        openedGameIds.clear()
     }
 
     private suspend fun negotiate() = lifecycleMutex.withLock {

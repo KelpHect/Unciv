@@ -187,6 +187,31 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun researchRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(
+                        selectableTargets = listOf("Writing"),
+                    ),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setResearchPathIfOpen(GAME_ID, "Writing"))
+        session.openGame(GAME_ID)
+        val outcome = session.setResearchPathIfOpen(GAME_ID, "Writing")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf("Writing"), transport.researchTargets)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -252,6 +277,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnCalls = 0
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
+        val researchTargets = mutableListOf<String>()
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -303,7 +329,27 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun setResearchPath(
             gameId: String,
             request: ApiV3SetResearchPathRequest,
-        ) = unsupported()
+        ): ApiV3CommandAccepted {
+            researchTargets += request.technologyName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(
+                        currentTechnology = request.technologyName,
+                        queue = listOf(request.technologyName),
+                    ),
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
         override suspend fun endTurn(
             gameId: String,
             request: ApiV3EndTurnRequest,

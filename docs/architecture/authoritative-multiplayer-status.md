@@ -1035,7 +1035,38 @@ forced JDK 21 focused run rebuilt all affected Kotlin modules and passed the
 headless-engine, projection-contract, command-bus, session, and server tests.
 
 This is a typed end-to-end research slice, not complete research migration.
-`TechPickerScreen.kt` still mutates the disposable local game and is not yet
-routed into the v3 command bus. Free-technology selection, queue removal and
-reordering, research progress/cost projection, and public research events also
-remain. API v3 therefore remains opt-in and not generally playable.
+Free-technology selection, queue removal and reordering, research progress/cost
+projection, and public research events remain. API v3 therefore remains opt-in
+and not generally playable.
+
+## First production research-picker route
+
+Implemented:
+
+- `TechPickerScreen` recognizes only games explicitly opened by the API-v3
+  session. A normal research choice for such a game submits
+  `set_research_path` asynchronously and never assigns the local
+  `TechManager.techsToResearch` list.
+- Accepted results mark the disposable local game stale and return to the world
+  screen. Conflicts, rule rejection, lost responses, and transport failures are
+  distinct UI outcomes; an ambiguous retry retains the original command ID.
+- Right-click queue append is deliberately changed to destination selection for
+  an opened v3 game because queue append does not yet have a typed command.
+  Single-player, hotseat, and legacy online games keep the original local queue
+  and free-technology behavior.
+- Session lifecycle tracks explicitly opened game IDs independently of merely
+  having an authenticated session and clears that routing state on close,
+  logout, failed restore, disable, or delete.
+
+Verification:
+
+```text
+.\gradlew.bat :core:compileKotlin :tests:test \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests \
+  --no-daemon --no-build-cache
+git diff --check
+```
+
+The focused JDK 21 build compiled the production picker and passed all session
+lifecycle tests, including proof that an unopened game stays on its legacy
+path and the same game routes research only after explicit v3 opening.

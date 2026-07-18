@@ -19,7 +19,10 @@ pub const PROTOCOL_VERSION: u16 = 3;
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GameCommand {
     EndTurn,
-    MoveUnit { unit_id: String, destination_tile_id: String },
+    MoveUnit {
+        unit_id: String,
+        destination_tile_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -71,6 +74,8 @@ pub enum CommitError {
     Stale { expected: u64, actual: u64 },
     #[error("worker proposal did not start from the canonical head")]
     WorkerRevisionMismatch,
+    #[error("worker rejected the command")]
+    WorkerRejected(String),
     #[error("snapshot hash does not match its payload")]
     InvalidSnapshotHash,
     #[error("authenticated account is not allowed to mutate this game")]
@@ -80,19 +85,24 @@ pub enum CommitError {
 }
 
 impl CommitError {
-    fn storage(_: sqlx::Error) -> Self { Self::Storage }
+    fn storage(_: sqlx::Error) -> Self {
+        Self::Storage
+    }
 }
 
 impl InMemoryGameRepository {
     pub async fn create_game(&self, game_id: Uuid, snapshot: Vec<u8>) -> Result<(), CommitError> {
         let hash = state_hash(&snapshot);
         let mut games = self.games.lock().await;
-        games.insert(game_id, GameHead {
-            revision: 0,
-            snapshot,
-            canonical_state_hash: hash,
-            committed_commands: HashMap::new(),
-        });
+        games.insert(
+            game_id,
+            GameHead {
+                revision: 0,
+                snapshot,
+                canonical_state_hash: hash,
+                committed_commands: HashMap::new(),
+            },
+        );
         Ok(())
     }
 
@@ -112,12 +122,17 @@ impl InMemoryGameRepository {
         }
 
         let mut games = self.games.lock().await;
-        let head = games.get_mut(&envelope.game_id).ok_or(CommitError::NotFound)?;
+        let head = games
+            .get_mut(&envelope.game_id)
+            .ok_or(CommitError::NotFound)?;
         if let Some(previous) = head.committed_commands.get(&envelope.command_id) {
             return Ok(previous.clone());
         }
         if envelope.expected_revision != head.revision {
-            return Err(CommitError::Stale { expected: envelope.expected_revision, actual: head.revision });
+            return Err(CommitError::Stale {
+                expected: envelope.expected_revision,
+                actual: head.revision,
+            });
         }
         if proposal.previous_revision != head.revision {
             return Err(CommitError::WorkerRevisionMismatch);
@@ -133,13 +148,17 @@ impl InMemoryGameRepository {
         head.revision = accepted.committed_revision;
         head.snapshot = proposal.snapshot;
         head.canonical_state_hash = proposal.canonical_state_hash;
-        head.committed_commands.insert(envelope.command_id, accepted.clone());
+        head.committed_commands
+            .insert(envelope.command_id, accepted.clone());
         Ok(accepted)
     }
 }
 
 pub fn state_hash(snapshot: &[u8]) -> String {
-    Sha256::digest(snapshot).iter().map(|byte| format!("{byte:02x}")).collect()
+    Sha256::digest(snapshot)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 #[cfg(test)]
@@ -170,10 +189,22 @@ mod tests {
         let repository = InMemoryGameRepository::default();
         let game = Uuid::new_v4();
         let command_id = Uuid::new_v4();
-        repository.create_game(game, b"revision-0".to_vec()).await.unwrap();
+        repository
+            .create_game(game, b"revision-0".to_vec())
+            .await
+            .unwrap();
 
-        let first = repository.commit(command(game, command_id, 0), proposal(0, b"revision-1")).await.unwrap();
-        let retried = repository.commit(command(game, command_id, 0), proposal(0, b"malicious-replacement")).await.unwrap();
+        let first = repository
+            .commit(command(game, command_id, 0), proposal(0, b"revision-1"))
+            .await
+            .unwrap();
+        let retried = repository
+            .commit(
+                command(game, command_id, 0),
+                proposal(0, b"malicious-replacement"),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(first, retried);
         assert_eq!(first.committed_revision, 1);
@@ -183,21 +214,48 @@ mod tests {
     async fn stale_command_cannot_replace_the_head() {
         let repository = InMemoryGameRepository::default();
         let game = Uuid::new_v4();
-        repository.create_game(game, b"revision-0".to_vec()).await.unwrap();
-        repository.commit(command(game, Uuid::new_v4(), 0), proposal(0, b"revision-1")).await.unwrap();
+        repository
+            .create_game(game, b"revision-0".to_vec())
+            .await
+            .unwrap();
+        repository
+            .commit(command(game, Uuid::new_v4(), 0), proposal(0, b"revision-1"))
+            .await
+            .unwrap();
 
-        let error = repository.commit(command(game, Uuid::new_v4(), 0), proposal(0, b"replacement")).await.unwrap_err();
+        let error = repository
+            .commit(
+                command(game, Uuid::new_v4(), 0),
+                proposal(0, b"replacement"),
+            )
+            .await
+            .unwrap_err();
 
-        assert_eq!(error, CommitError::Stale { expected: 0, actual: 1 });
+        assert_eq!(
+            error,
+            CommitError::Stale {
+                expected: 0,
+                actual: 1
+            }
+        );
     }
 
     #[tokio::test]
     async fn concurrent_commands_have_one_canonical_commit() {
         let repository = InMemoryGameRepository::default();
         let game = Uuid::new_v4();
-        repository.create_game(game, b"revision-0".to_vec()).await.unwrap();
-        let first = repository.commit(command(game, Uuid::new_v4(), 0), proposal(0, b"revision-1a"));
-        let second = repository.commit(command(game, Uuid::new_v4(), 0), proposal(0, b"revision-1b"));
+        repository
+            .create_game(game, b"revision-0".to_vec())
+            .await
+            .unwrap();
+        let first = repository.commit(
+            command(game, Uuid::new_v4(), 0),
+            proposal(0, b"revision-1a"),
+        );
+        let second = repository.commit(
+            command(game, Uuid::new_v4(), 0),
+            proposal(0, b"revision-1b"),
+        );
         let (first, second) = tokio::join!(first, second);
 
         assert!(first.is_ok() ^ second.is_ok());

@@ -278,6 +278,15 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
+        // A lost response is retried after the head may already have moved.
+        // Return its durable original result before contacting the worker, so
+        // a duplicate can neither re-run turn processing nor fail as stale.
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
         let row = sqlx::query(
             "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         ).bind(envelope.game_id).fetch_optional(&self.pool).await.map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
@@ -295,8 +304,43 @@ impl PostgresGameRepository {
                 &snapshot,
             )
             .await
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker EndTurn transport/protocol failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
         self.commit(actor_account_id, envelope, proposal).await
+    }
+
+    async fn committed_command(
+        &self,
+        game_id: Uuid,
+        command_id: Uuid,
+    ) -> Result<Option<CommandAccepted>, CommitError> {
+        let row = sqlx::query(
+            "SELECT c.revision, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
+        )
+        .bind(game_id)
+        .bind(command_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?;
+        Ok(row.map(|row| {
+            let committed_revision: i64 = row.get("revision");
+            CommandAccepted {
+                game_id,
+                command_id,
+                previous_revision: u64::try_from(committed_revision - 1)
+                    .expect("command revisions are positive"),
+                committed_revision: u64::try_from(committed_revision)
+                    .expect("revision is non-negative"),
+                canonical_state_hash: row.get("canonical_state_hash"),
+            }
+        }))
     }
     pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
         let pool = PgPoolOptions::new()

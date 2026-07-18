@@ -65,6 +65,17 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(engine.stateHash(created), engine.stateHash(reloaded))
     }
 
+    @Test
+    fun aReloadedCanonicalSnapshotCanRunTheServerTurnEngine() {
+        val engine = HeadlessGameEngine(serverContext { serverTime + 5_000L })
+        val created = engine.createGame(testSetup()).game
+        val reloaded = engine.loadSnapshot(engine.serializeSnapshot(created))
+
+        engine.endTurn(reloaded)
+
+        Assert.assertEquals(serverTime + 5_000L, reloaded.currentTurnStartTime)
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

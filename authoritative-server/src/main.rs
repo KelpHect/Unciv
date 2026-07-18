@@ -9,7 +9,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use unciv_authoritative_server::{
-    CommitError, PROTOCOL_VERSION,
+    CommandEnvelope, CommitError, GameCommand, PROTOCOL_VERSION,
     auth::{Account, AuthError},
     postgres::{GameMetadata, PostgresGameRepository},
     worker::EngineWorkerClient,
@@ -61,6 +61,13 @@ struct GameMetadataResponse {
     committed_revision: u64,
     canonical_state_hash: String,
     role: String,
+}
+
+#[derive(Deserialize)]
+struct EndTurnRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -234,6 +241,35 @@ async fn game_metadata(
     Ok(Json(game_metadata_response(metadata)))
 }
 
+/// The first public gameplay mutation. The payload is intentionally closed:
+/// an authenticated member can request only `EndTurn`, never submit a state
+/// replacement or generic object patch.
+async fn end_turn(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<EndTurnRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_end_turn(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::EndTurn,
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 async fn authenticated_account(state: &AppState, headers: &HeaderMap) -> Result<Account, ApiError> {
     let bearer_token = bearer_token(headers).ok_or_else(ApiError::unauthorized)?;
     state
@@ -282,6 +318,7 @@ fn login_error(error: AuthError) -> ApiError {
 }
 
 fn game_error(error: CommitError) -> ApiError {
+    eprintln!("authoritative game command failed: {error}");
     match error {
         CommitError::NotFound => ApiError {
             status: StatusCode::NOT_FOUND,
@@ -293,6 +330,16 @@ fn game_error(error: CommitError) -> ApiError {
         },
         CommitError::Stale { .. } => ApiError::conflict("stale_revision"),
         CommitError::UnsupportedProtocol(_) => ApiError::bad_request("unsupported_protocol"),
+        CommitError::WorkerRejected(reason) => {
+            // Worker errors are deliberately reduced to a stable public code.
+            // The local service log retains the diagnostic without logging a
+            // snapshot, credentials, or a player projection.
+            eprintln!("authoritative worker rejected command: {reason}");
+            ApiError {
+                status: StatusCode::BAD_GATEWAY,
+                code: "worker_rejected",
+            }
+        }
         CommitError::InvalidSnapshotHash | CommitError::WorkerRevisionMismatch => ApiError {
             status: StatusCode::BAD_GATEWAY,
             code: "worker_rejected",
@@ -328,6 +375,7 @@ async fn main() {
         .route("/api/v3/auth/logout", post(logout))
         .route("/api/v3/games", post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
+        .route("/api/v3/games/{game_id}/commands/end-turn", post(end_turn))
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,

@@ -13,6 +13,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.security.MessageDigest
 
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
@@ -75,11 +76,11 @@ class AuthoritativeEngineWorker {
                 setup.gameParameters.isOnlineMultiplayer = true
                 setup.gameParameters.multiplayerServerUrl = null
                 val result = engine.createGame(setup)
-                WorkerResponse(snapshot = engine.serializeSnapshot(result.game), canonicalStateHash = result.canonicalStateHash)
+                responseForGame(engine, result.game)
             }
             is WorkerOperation.EndTurn -> {
                 val result = engine.endTurn(engine.loadSnapshot(operation.snapshot))
-                WorkerResponse(snapshot = engine.serializeSnapshot(result.game), canonicalStateHash = result.canonicalStateHash)
+                responseForGame(engine, result.game)
             }
         }
     } catch (exception: Exception) {
@@ -91,6 +92,15 @@ class AuthoritativeEngineWorker {
         ContentAddressedRuleset(baseRuleset.name, baseRuleset.sha256),
         mods.map { ContentAddressedRuleset(it.name, it.sha256) },
     )
+
+    /** Hash exactly the bytes returned over the worker protocol. Serializing a
+     * mutable game twice is not a valid canonical-hash operation. */
+    private fun responseForGame(engine: HeadlessGameEngine, game: com.unciv.logic.GameInfo): WorkerResponse {
+        val snapshot = engine.serializeSnapshot(game)
+        val hash = MessageDigest.getInstance("SHA-256").digest(snapshot.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return WorkerResponse(snapshot = snapshot, canonicalStateHash = hash)
+    }
 }
 
 class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker()) {

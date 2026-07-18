@@ -217,3 +217,34 @@ HTTP, persisted revision `0`, fetched owner metadata, and verified a second
 authenticated non-member received HTTP `403`. The test container and worker
 processes were removed afterward. Joining/assignment, player projections, and
 typed non-turn gameplay commands are still pending.
+
+## Authenticated EndTurn command
+
+Implemented:
+
+- `POST /api/v3/games/{game_id}/commands/end-turn` accepts only a typed
+  idempotency key, expected revision, and diagnostic observed hash. It derives
+  the actor from the bearer session and delegates turn processing to Kotlin;
+  it cannot accept a save, object patch, or caller-selected actor.
+- The control plane now checks a durable command result before invoking the
+  worker, so a lost-response retry returns the original accepted revision
+  rather than attempting turn processing again after the head advanced.
+- Worker responses now SHA-256 hash the exact serialized snapshot bytes sent
+  over the private protocol. This fixed a serialization-twice mismatch that
+  correctly caused Rust to reject a candidate commit.
+- A regression test verifies that a canonical serialize/reload cycle can still
+  run the server turn engine.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+Both passed. The owned PostgreSQL/Kotlin/Rust HTTP smoke run proved create,
+EndTurn commit to revision `1`, duplicate retry returning the identical result,
+and a new command with expected revision `0` receiving HTTP `409`. Civilization
+turn ownership is not yet enforced: the current authorization gate is game
+membership role only. Player assignment, per-civilization authorization, and
+additional typed gameplay commands remain pending.

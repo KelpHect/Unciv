@@ -36,6 +36,15 @@ pub struct GameMetadata {
     pub civilization_id: Option<String>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GameProjection {
+    pub game_id: Uuid,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+    pub projection_hash: String,
+    pub projection: serde_json::Value,
+}
+
 impl PostgresGameRepository {
     /// Creates a new canonical game exclusively through the private Kotlin
     /// worker. The caller supplies a previously stored manifest hash; it cannot
@@ -126,6 +135,64 @@ impl PostgresGameRepository {
             canonical_state_hash: row.get("canonical_state_hash"),
             role,
             civilization_id,
+        })
+    }
+
+    /// Builds a player-scoped view from one consistent canonical head. The
+    /// full snapshot crosses only the private worker boundary and is never
+    /// returned by this public repository operation.
+    pub async fn game_projection(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+    ) -> Result<GameProjection, CommitError> {
+        let row = sqlx::query(
+            "SELECT g.head_revision, r.canonical_state_hash, s.payload, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::Unauthorized)?;
+        let role: String = row.get("role");
+        if !matches!(role.as_str(), "owner" | "player") {
+            return Err(CommitError::Unauthorized);
+        }
+        let actor_civilization_id: Option<String> = row.get("civilization_id");
+        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let projected = worker
+            .project_state(
+                &actor_account_id.to_string(),
+                &manifest,
+                &snapshot,
+                &actor_civilization_id,
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker projection failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        Ok(GameProjection {
+            game_id,
+            committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
+                .expect("revision is non-negative"),
+            canonical_state_hash: row.get("canonical_state_hash"),
+            projection_hash: state_hash(
+                &serde_json::to_vec(&projected.projection)
+                    .expect("worker projection JSON value is serializable"),
+            ),
+            projection: projected.projection,
         })
     }
 

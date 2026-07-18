@@ -5,6 +5,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.models.metadata.GameParameters
@@ -17,6 +18,7 @@ import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.serialization.json.Json
 
 @RunWith(GdxTestRunner::class)
 class AuthoritativeGameExecutionContextTests {
@@ -159,6 +161,26 @@ class AuthoritativeGameExecutionContextTests {
         creator.endTurn(game, "Rome")
 
         otherPlayer.moveUnit(game, "Greece", romanUnit.id, destination.position)
+    }
+
+    @Test
+    fun playerProjectionStructurallyExcludesForeignSecrets() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val otherCivilization = game.getCivilization("Greece")
+        otherCivilization.playerId = "SENTINEL_OTHER_ACCOUNT"
+        otherCivilization.flagsCountdown["SENTINEL_SECRET_PLAN"] = 999
+        otherCivilization.units.getCivUnits().first().instanceName = "SENTINEL_HIDDEN_UNIT_NAME"
+
+        val projection = engine.playerProjection(game, "Rome")
+        val serialized = Json.encodeToString(PlayerProjection.serializer(), projection)
+
+        Assert.assertEquals("Rome", projection.civilizationId)
+        Assert.assertTrue(projection.ownUnits.isNotEmpty())
+        Assert.assertTrue(projection.exploredTiles.isNotEmpty())
+        Assert.assertFalse(serialized.contains("SENTINEL_OTHER_ACCOUNT"))
+        Assert.assertFalse(serialized.contains("SENTINEL_SECRET_PLAN"))
+        Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
     }
 
     private fun testSetup(): GameSetupInfo {

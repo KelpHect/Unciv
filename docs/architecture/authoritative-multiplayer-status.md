@@ -355,3 +355,44 @@ smoke moved canonical unit `2` from `(11,1)` to `(10,1)`, committed revision
 `1`, replayed the same command ID as revision `1`, rejected an authenticated
 non-member with HTTP `403`, and retained head revision `1`. The disposable
 services and database were removed afterward.
+
+## Initial player-scoped projection and HTTP reconciliation
+
+Implemented:
+
+- `GET /api/v3/games/{game_id}/projection` authenticates the account, resolves
+  its server membership and civilization, reads one consistent canonical head,
+  and asks the private worker to build an allow-listed player DTO.
+- The response carries committed revision, canonical state hash, a hash of the
+  stable JSON value emitted by the Rust public boundary, and the projection. It never returns or
+  redacts `GameInfo`; canonical `tileMap`, civilization objects, player IDs,
+  rulesets, private queues, diplomacy state, notifications, and RNG state are
+  structurally absent.
+- The initial DTO includes own gold/cities/units, explored tile coordinates and
+  current visibility, known civilization IDs, and foreign units only when the
+  canonical visibility/invisibility rules allow them. Stable own unit IDs and
+  coordinates are sufficient to construct `MoveUnit` commands after a fresh
+  fetch.
+- A serialized sentinel test confirms another civilization's account ID,
+  private state key, and hidden unit instance name do not occur in the player's
+  projection.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --no-daemon --no-build-cache
+.\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+All passed. A fresh PostgreSQL 16/Kotlin worker/Rust API reconciliation smoke
+fetched projection revision `0`, selected permitted unit `1` at `(-13,-6)`,
+submitted a legal move using only projection data, and fetched revision `1`
+with the unit at `(-12,-6)` and a changed projection hash. Exact canonical
+field names were absent and a non-member received HTTP `403`. Disposable
+services and the database were removed.
+
+This is a partial projection schema, not a claim that the v3 client can render
+the whole game or that anti-cheat work is complete. Terrain presentation,
+legally known resources/improvements, diplomacy, notifications/events,
+spectator policy, compact deltas, and broader sentinel fixtures remain pending.

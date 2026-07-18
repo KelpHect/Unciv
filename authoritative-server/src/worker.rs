@@ -70,6 +70,11 @@ enum WorkerOperation<'a> {
         #[serde(rename = "destinationY")]
         destination_y: i32,
     },
+    ProjectState {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+    },
 }
 
 #[derive(Deserialize)]
@@ -79,6 +84,7 @@ struct WorkerResponse {
     snapshot: Option<String>,
     canonical_state_hash: Option<String>,
     actor_civilization_id: Option<String>,
+    player_projection: Option<serde_json::Value>,
     error: Option<WorkerError>,
 }
 
@@ -90,6 +96,10 @@ pub struct CreatedGame {
 pub struct AssignedPlayer {
     pub proposal: CommitProposal,
     pub civilization_id: String,
+}
+
+pub struct ProjectedState {
+    pub projection: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -113,6 +123,30 @@ pub enum WorkerClientError {
 }
 
 impl EngineWorkerClient {
+    pub async fn project_state(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        snapshot: &str,
+        actor_civilization_id: &str,
+    ) -> Result<ProjectedState, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::ProjectState {
+                    snapshot,
+                    actor_civilization_id,
+                },
+            )
+            .await?;
+        Ok(ProjectedState {
+            projection: response
+                .player_projection
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub async fn move_unit(
         &self,
         actor_id: &str,

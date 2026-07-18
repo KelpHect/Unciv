@@ -88,6 +88,13 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        return PlayerProjectionBuilder.build(game, actorCivilization)
+    }
+
     /**
      * Rebuilds the ruleset-dependent transient graph from a canonical snapshot.
      * Snapshot validation, size limits, and version selection belong to the

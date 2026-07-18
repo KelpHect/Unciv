@@ -4,6 +4,7 @@ import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
 import com.unciv.models.metadata.GameSetupInfo
@@ -66,6 +67,12 @@ sealed interface WorkerOperation {
         val destinationX: Int,
         val destinationY: Int,
     ) : WorkerOperation
+
+    @Serializable @SerialName("project_state")
+    data class ProjectState(
+        val snapshot: String,
+        val actorCivilizationId: String,
+    ) : WorkerOperation
 }
 
 @Serializable
@@ -74,6 +81,7 @@ data class WorkerResponse(
     val snapshot: String? = null,
     val canonicalStateHash: String? = null,
     val actorCivilizationId: String? = null,
+    val playerProjection: PlayerProjection? = null,
     val error: WorkerError? = null,
 )
 
@@ -122,6 +130,11 @@ class AuthoritativeEngineWorker {
                 )
                 responseForGame(engine, result.game)
             }
+            is WorkerOperation.ProjectState -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val projection = engine.playerProjection(game, operation.actorCivilizationId)
+                WorkerResponse(playerProjection = projection)
+            }
         }
     } catch (exception: Exception) {
         WorkerResponse(error = WorkerError("engine_rejected", exception.message ?: "Engine execution failed"))
@@ -141,14 +154,17 @@ class AuthoritativeEngineWorker {
         actorCivilizationId: String? = null,
     ): WorkerResponse {
         val snapshot = engine.serializeSnapshot(game)
-        val hash = MessageDigest.getInstance("SHA-256").digest(snapshot.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        val hash = sha256(snapshot.toByteArray(Charsets.UTF_8))
         return WorkerResponse(
             snapshot = snapshot,
             canonicalStateHash = hash,
             actorCivilizationId = actorCivilizationId,
         )
     }
+
+    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256")
+        .digest(bytes)
+        .joinToString("") { "%02x".format(it) }
 }
 
 class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker()) {

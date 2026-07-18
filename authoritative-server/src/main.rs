@@ -263,6 +263,20 @@ async fn game_metadata(
     Ok(Json(game_metadata_response(metadata)))
 }
 
+async fn game_projection(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+) -> Result<Json<unciv_authoritative_server::postgres::GameProjection>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let projection = state
+        .repository
+        .game_projection(&state.worker, actor.id, game_id)
+        .await
+        .map_err(game_error)?;
+    Ok(Json(projection))
+}
+
 async fn join_game(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -458,6 +472,7 @@ async fn main() {
         .route("/api/v3/auth/logout", post(logout))
         .route("/api/v3/games", post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
+        .route("/api/v3/games/{game_id}/projection", get(game_projection))
         .route("/api/v3/games/{game_id}/join", post(join_game))
         .route("/api/v3/games/{game_id}/commands/end-turn", post(end_turn))
         .route(

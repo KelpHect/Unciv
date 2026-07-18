@@ -275,6 +275,30 @@ class AuthoritativeGameExecutionContextTests {
         engine.queueConstruction(game, "Rome", city.id, construction)
     }
 
+    @Test
+    fun authoritativeQueueRemovalAndMovementRequireTheProjectedEntry() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val constructions = city.getRuleset().units.values
+            .filter { city.cityConstructions.canAddToQueue(it) }
+            .take(2)
+            .map { it.name }
+        Assert.assertEquals(2, constructions.size)
+        constructions.forEach { engine.queueConstruction(game, "Rome", city.id, it) }
+
+        engine.moveConstruction(game, "Rome", city.id, 1, 0, constructions[1])
+        Assert.assertEquals(listOf(constructions[1], constructions[0]),
+            city.cityConstructions.constructionQueue)
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.removeConstruction(game, "Rome", city.id, 0, constructions[0])
+        }
+        engine.removeConstruction(game, "Rome", city.id, 0, constructions[1])
+        Assert.assertEquals(listOf(constructions[0]), city.cityConstructions.constructionQueue)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

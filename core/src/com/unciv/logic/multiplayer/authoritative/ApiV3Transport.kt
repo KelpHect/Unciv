@@ -18,6 +18,8 @@ interface ApiV3Transport {
     suspend fun projection(gameId: String): ApiV3GameProjection
     suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted
     suspend fun queueConstruction(gameId: String, request: ApiV3QueueConstructionRequest): ApiV3CommandAccepted
+    suspend fun removeConstruction(gameId: String, request: ApiV3RemoveConstructionRequest): ApiV3CommandAccepted
+    suspend fun moveConstruction(gameId: String, request: ApiV3MoveConstructionRequest): ApiV3CommandAccepted
     suspend fun setResearchPath(gameId: String, request: ApiV3SetResearchPathRequest): ApiV3CommandAccepted
     suspend fun adoptPolicy(gameId: String, request: ApiV3AdoptPolicyRequest): ApiV3CommandAccepted
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted

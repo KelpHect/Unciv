@@ -33,6 +33,17 @@ pub enum GameCommand {
         city_id: String,
         construction_name: String,
     },
+    RemoveConstruction {
+        city_id: String,
+        queue_index: u32,
+        expected_construction_name: String,
+    },
+    MoveConstruction {
+        city_id: String,
+        from_index: u32,
+        to_index: u32,
+        expected_construction_name: String,
+    },
     SetResearchPath {
         technology_name: String,
     },
@@ -273,6 +284,52 @@ mod tests {
                 "city_id": "city-1",
                 "construction_name": "Monument",
                 "gold_cost": 1,
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn construction_queue_mutations_are_typed_and_closed() {
+        let remove: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "remove_construction",
+            "city_id": "city-1",
+            "queue_index": 2,
+            "expected_construction_name": "Warrior"
+        }))
+        .unwrap();
+        assert_eq!(
+            remove,
+            GameCommand::RemoveConstruction {
+                city_id: "city-1".to_owned(),
+                queue_index: 2,
+                expected_construction_name: "Warrior".to_owned(),
+            }
+        );
+        let move_command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "move_construction",
+            "city_id": "city-1",
+            "from_index": 2,
+            "to_index": 1,
+            "expected_construction_name": "Warrior"
+        }))
+        .unwrap();
+        assert_eq!(
+            move_command,
+            GameCommand::MoveConstruction {
+                city_id: "city-1".to_owned(),
+                from_index: 2,
+                to_index: 1,
+                expected_construction_name: "Warrior".to_owned(),
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "remove_construction",
+                "city_id": "city-1",
+                "queue_index": 2,
+                "expected_construction_name": "Warrior",
+                "actor_id": "client-controlled"
             }))
             .is_err()
         );

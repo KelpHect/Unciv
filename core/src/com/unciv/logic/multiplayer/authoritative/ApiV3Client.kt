@@ -160,6 +160,24 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun removeConstruction(
+        gameId: String,
+        request: ApiV3RemoveConstructionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/remove-construction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun moveConstruction(
+        gameId: String,
+        request: ApiV3MoveConstructionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/move-construction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

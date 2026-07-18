@@ -85,6 +85,25 @@ sealed interface WorkerOperation {
         val constructionName: String,
     ) : WorkerOperation
 
+    @Serializable @SerialName("remove_construction")
+    data class RemoveConstruction(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val queueIndex: Int,
+        val expectedConstructionName: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("move_construction")
+    data class MoveConstruction(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val fromIndex: Int,
+        val toIndex: Int,
+        val expectedConstructionName: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("set_research_path")
     data class SetResearchPath(
         val snapshot: String,
@@ -191,6 +210,29 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.cityId,
                     operation.constructionName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.RemoveConstruction -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.removeConstruction(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.queueIndex,
+                    operation.expectedConstructionName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.MoveConstruction -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.moveConstruction(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.fromIndex,
+                    operation.toIndex,
+                    operation.expectedConstructionName,
                 )
                 responseForGame(engine, result.game)
             }

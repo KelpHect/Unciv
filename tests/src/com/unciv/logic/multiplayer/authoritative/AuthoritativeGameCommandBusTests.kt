@@ -52,6 +52,45 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun queueRemovalAndMovementBindToTheProjectedEntry() = runBlocking {
+        val initial = projection(4, "hash-4", cityQueue = listOf("Monument", "Warrior"))
+        val afterMove = projection(5, "hash-5", cityQueue = listOf("Warrior", "Monument"))
+        val afterRemove = projection(6, "hash-6", cityQueue = listOf("Monument"))
+        val transport = FakeTransport(initial).apply {
+            onMoveConstruction = { request ->
+                current = afterMove
+                accepted(request.commandId, 4, 5, "hash-5")
+            }
+            onRemoveConstruction = { request ->
+                current = afterRemove
+                accepted(request.commandId, 5, 6, "hash-6")
+            }
+        }
+        val ids = ArrayDeque(listOf("move-command", "remove-command"))
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { ids.removeFirst() }
+        bus.refresh()
+
+        assertTrue(bus.moveConstruction("city-1", 1, 0, "Warrior") is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(bus.removeConstruction("city-1", 0, "Warrior") is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(ApiV3MoveConstructionRequest("move-command", 4, "hash-4", "city-1", 1, 0, "Warrior"),
+            transport.moveConstructionRequests.single())
+        assertEquals(ApiV3RemoveConstructionRequest("remove-command", 5, "hash-5", "city-1", 0, "Warrior"),
+            transport.removeConstructionRequests.single())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(projection(4, "hash-4", cityQueue = listOf("Monument"))),
+        )
+        bus.refresh()
+        bus.removeConstruction("city-1", 0, "Warrior")
+        Unit
+    }
+
+    @Test
     fun researchPathUsesOnlyAProjectedDestination() = runBlocking {
         val initial = projection(0, "hash-0")
         val committed = projection(1, "hash-1")
@@ -248,6 +287,8 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
+        val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
+        val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -255,6 +296,12 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onQueueConstruction: suspend (ApiV3QueueConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onRemoveConstruction: suspend (ApiV3RemoveConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onMoveConstruction: suspend (ApiV3MoveConstructionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -298,6 +345,20 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             queueRequests += request
             return onQueueConstruction(request)
+        }
+        override suspend fun removeConstruction(
+            gameId: String,
+            request: ApiV3RemoveConstructionRequest,
+        ): ApiV3CommandAccepted {
+            removeConstructionRequests += request
+            return onRemoveConstruction(request)
+        }
+        override suspend fun moveConstruction(
+            gameId: String,
+            request: ApiV3MoveConstructionRequest,
+        ): ApiV3CommandAccepted {
+            moveConstructionRequests += request
+            return onMoveConstruction(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

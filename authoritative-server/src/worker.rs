@@ -82,6 +82,30 @@ enum WorkerOperation<'a> {
         #[serde(rename = "constructionName")]
         construction_name: &'a str,
     },
+    RemoveConstruction {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "queueIndex")]
+        queue_index: u32,
+        #[serde(rename = "expectedConstructionName")]
+        expected_construction_name: &'a str,
+    },
+    MoveConstruction {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "fromIndex")]
+        from_index: u32,
+        #[serde(rename = "toIndex")]
+        to_index: u32,
+        #[serde(rename = "expectedConstructionName")]
+        expected_construction_name: &'a str,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -150,6 +174,21 @@ pub struct QueueConstructionIntent<'a> {
     pub construction_name: &'a str,
 }
 
+pub struct RemoveConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub queue_index: u32,
+    pub expected_construction_name: &'a str,
+}
+
+pub struct MoveConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub from_index: u32,
+    pub to_index: u32,
+    pub expected_construction_name: &'a str,
+}
+
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
@@ -191,7 +230,72 @@ pub enum WorkerClientError {
     Incomplete,
 }
 
+fn commit_proposal(
+    previous_revision: u64,
+    response: WorkerResponse,
+) -> Result<CommitProposal, WorkerClientError> {
+    Ok(CommitProposal {
+        previous_revision,
+        snapshot: response
+            .snapshot
+            .ok_or(WorkerClientError::Incomplete)?
+            .into_bytes(),
+        canonical_state_hash: response
+            .canonical_state_hash
+            .ok_or(WorkerClientError::Incomplete)?,
+    })
+}
+
 impl EngineWorkerClient {
+    pub async fn remove_construction(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: RemoveConstructionIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::RemoveConstruction {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    queue_index: intent.queue_index,
+                    expected_construction_name: intent.expected_construction_name,
+                },
+            )
+            .await?;
+        Ok(commit_proposal(previous_revision, response)?)
+    }
+
+    pub async fn move_construction(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: MoveConstructionIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::MoveConstruction {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    from_index: intent.from_index,
+                    to_index: intent.to_index,
+                    expected_construction_name: intent.expected_construction_name,
+                },
+            )
+            .await?;
+        Ok(commit_proposal(previous_revision, response)?)
+    }
+
     pub async fn queue_construction(
         &self,
         actor_id: &str,

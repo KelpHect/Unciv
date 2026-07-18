@@ -175,12 +175,15 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     private fun updateButtons(construction: IConstruction?) {
         if (!cityScreen.canChangeState) return
         buttonsTable.clear()
-        if (cityScreen.isAuthoritativeGame()) return
+        val authoritative = cityScreen.isAuthoritativeGame()
         /** [UniqueType.MayBuyConstructionsInPuppets] support - we need a buy button for civs that could buy items in puppets */
-        if (cityScreen.city.isPuppet && !cityScreen.city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any()) return
+        if (!authoritative && cityScreen.city.isPuppet &&
+            !cityScreen.city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any()) return
 
-        for (button in buyButtonFactory.getBuyButtons(construction)) {
-            buttonsTable.add(button).width(120f).padRight(10f)
+        if (!authoritative) {
+            for (button in buyButtonFactory.getBuyButtons(construction)) {
+                buttonsTable.add(button).width(120f).padRight(10f)
+            }
         }
         // priority buttons and remove button
         val queue = cityScreen.city.cityConstructions.constructionQueue
@@ -446,15 +449,15 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         table.add(text.toLabel()).expandX().fillX().left()
 
         if (queueExpander.isOpen) {
-            if (constructionQueueIndex > 0 && cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()){
+            if (constructionQueueIndex > 0 && cityScreen.canCityBeChanged()){
                 table.add(getRaisePriorityButton(constructionQueueIndex, constructionName, city)).right()}
             else table.add().right()
-            if (constructionQueueIndex != cityConstructions.constructionQueue.lastIndex && cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame())
+            if (constructionQueueIndex != cityConstructions.constructionQueue.lastIndex && cityScreen.canCityBeChanged())
                 table.add(getLowerPriorityButton(constructionQueueIndex, constructionName, city)).right()
             else table.add().right()
         }
 
-        if (cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()) table.add(getRemoveFromQueueButton(constructionQueueIndex, city)).right()
+        if (cityScreen.canCityBeChanged()) table.add(getRemoveFromQueueButton(constructionQueueIndex, city)).right()
         else table.add().right()
 
         table.touchable = Touchable.enabled
@@ -776,6 +779,20 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         // Don't bind the queue reordering keys here - those should affect only the selected entry, not all of them
         button.onActivation {
             button.touchable = Touchable.disabled
+            if (cityScreen.isAuthoritativeGame()) {
+                val toIndex = if (arrowDirection == Align.top) constructionQueueIndex - 1
+                    else constructionQueueIndex + 1
+                submitAuthoritativeQueueMutation("reorder production") {
+                    cityScreen.game.onlineMultiplayer.authoritativeSession?.moveConstructionIfOpen(
+                        cityScreen.city.civ.gameInfo.gameId,
+                        cityScreen.city.id,
+                        constructionQueueIndex,
+                        toIndex,
+                        name,
+                    )
+                }
+                return@onActivation
+            }
             selectedQueueEntry = movePriority(constructionQueueIndex)
             // Selection display may need to update as I can click the button of a non-selected entry.
             cityScreen.selectConstruction(name)
@@ -804,6 +821,22 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         tab.touchable = Touchable.enabled
         tab.onClick {
             tab.touchable = Touchable.disabled
+            if (cityScreen.isAuthoritativeGame()) {
+                val expectedName = city.cityConstructions.constructionQueue.getOrNull(constructionQueueIndex)
+                if (expectedName == null) {
+                    ToastPopup("Construction queue changed before it could be removed", cityScreen)
+                    return@onClick
+                }
+                submitAuthoritativeQueueMutation("remove production") {
+                    cityScreen.game.onlineMultiplayer.authoritativeSession?.removeConstructionIfOpen(
+                        city.civ.gameInfo.gameId,
+                        city.id,
+                        constructionQueueIndex,
+                        expectedName,
+                    )
+                }
+                return@onClick
+            }
             city.cityConstructions.removeFromQueue(constructionQueueIndex, false)
             cityScreen.clearSelection()
             cityScreen.city.reassignPopulation()
@@ -812,6 +845,53 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             selectQueueEntry(constructionQueueIndex.coerceAtMost(city.cityConstructions.constructionQueue.lastIndex)) { }
         }
         return tab
+    }
+
+    private fun submitAuthoritativeQueueMutation(
+        description: String,
+        submit: suspend () -> AuthoritativeCommandOutcome?,
+    ) {
+        if (authoritativeQueueSubmissionInProgress) return
+        authoritativeQueueSubmissionInProgress = true
+        val city = cityScreen.city
+        Concurrency.runOnNonDaemonThreadPool("Authoritative city production mutation") {
+            val outcome = try {
+                submit()
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeQueueSubmissionInProgress = false
+                    ToastPopup("Could not $description: [${ex.message ?: "Unknown"}]", cityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.popScreen()
+                        ToastPopup("City production committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.popScreen()
+                        ToastPopup("Game changed on the server - production was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeQueueSubmissionInProgress = false
+                        ToastPopup("Server rejected production change: [${outcome.code}]", cityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeQueueSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
+                    }
+                    null -> {
+                        authoritativeQueueSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before production could be changed", cityScreen)
+                    }
+                }
+            }
+        }
     }
 
     private fun getHeader(title: String): Table {

@@ -1218,3 +1218,59 @@ accepted and reconciled.
 This resolves only ordinary append. Queue removal/reordering/top insertion,
 perpetual construction policy, multi-city batches, purchases, and buildings
 requiring a target tile remain separate typed-command and projection work.
+
+## Typed production removal and reordering
+
+City queue removal and one-position reordering now cross the complete API-v3
+authority boundary. The Kotlin client sends `remove_construction` or
+`move_construction`; the Rust service derives the actor civilization from
+PostgreSQL membership; the private Kotlin worker validates ownership, current
+turn, queue bounds, and the projected entry name before calling the shared
+city-construction model. The existing transactional commit path supplies CAS,
+idempotency, immutable revision snapshots, and outbox recording.
+
+Both requests bind the integer position to `expected_construction_name`. A
+stale or malicious position/name pair is rejected rather than removing or
+moving whichever entry happens to occupy that position in canonical state.
+The city screen restores only removal and adjacent priority controls for an
+explicitly opened v3 game. It does not optimistically mutate the disposable
+`GameInfo`; accepted or stale outcomes close the city screen and force normal
+projection reconciliation. Purchase and unsupported batch/context-menu paths
+remain fail closed.
+
+Verification:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://postgres:unciv_test@127.0.0.1:55456/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+.\gradlew.bat :tests:test \
+  --tests com.unciv.logic.AuthoritativeGameExecutionContextTests.authoritativeQueueRemovalAndMovementRequireTheProjectedEntry \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.queueRemovalAndMovementBindToTheProjectedEntry \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.queueMutationRejectsAnEntryThatDoesNotMatchTheProjection \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests.authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame \
+  :server:test --no-daemon --no-build-cache
+```
+
+The Rust run passed 24 executable unit/API tests; eight database tests remained
+explicitly gated in that command. All eight separately passed against the
+pinned `postgres:19beta2-alpine` image, including atomic CAS/idempotency,
+corrupt-snapshot quarantine, durable rate limits, account lifecycle, and
+exclusive outbox claims. The focused Kotlin rule/client tests and all four
+worker protocol tests passed. The isolated PostgreSQL container was removed
+afterward.
+
+The complete JDK 21 regression then passed 774 shared tests and four server
+tests with zero failures/errors and 13 intentional skips:
+
+```text
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+```
+
+Remaining production-queue gaps are add-to-top/all-cities batches, perpetual
+construction policy, tile-targeted buildings, purchases, and richer projected
+cost/progress data. This milestone does not change the broader anti-cheat
+status: incomplete player projections and many other local gameplay mutation
+paths still prevent a cheat-resistant completion claim.

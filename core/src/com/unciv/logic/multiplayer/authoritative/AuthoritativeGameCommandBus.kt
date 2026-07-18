@@ -48,6 +48,25 @@ sealed interface PendingAuthoritativeCommand {
         val constructionName: String,
     ) : PendingAuthoritativeCommand
 
+    data class RemoveConstruction(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val queueIndex: Int,
+        val expectedConstructionName: String,
+    ) : PendingAuthoritativeCommand
+
+    data class MoveConstruction(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val fromIndex: Int,
+        val toIndex: Int,
+        val expectedConstructionName: String,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -134,6 +153,47 @@ class AuthoritativeGameCommandBus(
             cityId = cityId,
             constructionName = constructionName,
         ), current)
+    }
+
+    suspend fun removeConstruction(cityId: String, queueIndex: Int, expectedConstructionName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        requireProjectedQueueEntry(current, cityId, queueIndex, expectedConstructionName)
+        submitLocked(PendingAuthoritativeCommand.RemoveConstruction(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, queueIndex, expectedConstructionName,
+        ), current)
+    }
+
+    suspend fun moveConstruction(
+        cityId: String,
+        fromIndex: Int,
+        toIndex: Int,
+        expectedConstructionName: String,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = requireProjectedQueueEntry(current, cityId, fromIndex, expectedConstructionName)
+        require(toIndex in city.constructionQueue.indices && kotlin.math.abs(fromIndex - toIndex) == 1) {
+            "Construction destination is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.MoveConstruction(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, fromIndex, toIndex, expectedConstructionName,
+        ), current)
+    }
+
+    private fun requireProjectedQueueEntry(
+        current: ApiV3GameProjection,
+        cityId: String,
+        queueIndex: Int,
+        expectedConstructionName: String,
+    ): ProjectedCity {
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(queueIndex in city.constructionQueue.indices &&
+            city.constructionQueue[queueIndex] == expectedConstructionName) {
+            "Construction queue entry is absent from the current player projection"
+        }
+        return city
     }
 
     suspend fun setResearchPath(technologyName: String) = mutex.withLock {
@@ -238,6 +298,21 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                         pending.cityId,
                         pending.constructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.RemoveConstruction -> transport.removeConstruction(
+                    gameId,
+                    ApiV3RemoveConstructionRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.queueIndex, pending.expectedConstructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.MoveConstruction -> transport.moveConstruction(
+                    gameId,
+                    ApiV3MoveConstructionRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.fromIndex, pending.toIndex,
+                        pending.expectedConstructionName,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

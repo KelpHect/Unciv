@@ -214,6 +214,60 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun removeConstructionIfOpen(
+        gameId: String,
+        cityId: String,
+        queueIndex: Int,
+        expectedConstructionName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.RemoveConstruction &&
+                    current.pending.cityId == cityId &&
+                    current.pending.queueIndex == queueIndex &&
+                    current.pending.expectedConstructionName == expectedConstructionName) {
+                    "Resolve the pending authoritative command before changing production"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.removeConstruction(cityId, queueIndex, expectedConstructionName)
+            else -> {
+                bus.refresh()
+                bus.removeConstruction(cityId, queueIndex, expectedConstructionName)
+            }
+        }
+    }
+
+    suspend fun moveConstructionIfOpen(
+        gameId: String,
+        cityId: String,
+        fromIndex: Int,
+        toIndex: Int,
+        expectedConstructionName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.MoveConstruction &&
+                    current.pending.cityId == cityId &&
+                    current.pending.fromIndex == fromIndex &&
+                    current.pending.toIndex == toIndex &&
+                    current.pending.expectedConstructionName == expectedConstructionName) {
+                    "Resolve the pending authoritative command before changing production"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.moveConstruction(cityId, fromIndex, toIndex, expectedConstructionName)
+            else -> {
+                bus.refresh()
+                bus.moveConstruction(cityId, fromIndex, toIndex, expectedConstructionName)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

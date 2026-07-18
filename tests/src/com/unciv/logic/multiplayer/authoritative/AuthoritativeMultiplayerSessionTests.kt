@@ -324,6 +324,32 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
+        val projectedCity = ProjectedCity(
+            "city-1", "Rome", 0, 0, 1, 200,
+            listOf("Monument", "Warrior"), emptyList(),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownCities = listOf(projectedCity)))
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.moveConstructionIfOpen(
+            GAME_ID, "city-1", 1, 0, "Warrior",
+        ) is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(session.removeConstructionIfOpen(
+            GAME_ID, "city-1", 0, "Warrior",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(listOf("Monument"),
+            transport.current.projection.ownCities.single().constructionQueue)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -395,6 +421,8 @@ class AuthoritativeMultiplayerSessionTests {
         val freeTechnologyNames = mutableListOf<String>()
         val queuedConstructions = mutableListOf<Pair<String, String>>()
         val queueCommandIds = mutableListOf<String>()
+        val removedConstructions = mutableListOf<ApiV3RemoveConstructionRequest>()
+        val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -469,6 +497,40 @@ class AuthoritativeMultiplayerSessionTests {
                 current.committedRevision,
                 current.canonicalStateHash,
             )
+        }
+        override suspend fun removeConstruction(
+            gameId: String,
+            request: ApiV3RemoveConstructionRequest,
+        ): ApiV3CommandAccepted {
+            removedConstructions += request
+            val city = current.projection.ownCities.single { it.id == request.cityId }
+            val queue = city.constructionQueue.toMutableList()
+            check(queue[request.queueIndex] == request.expectedConstructionName)
+            queue.removeAt(request.queueIndex)
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(ownCities = listOf(city.copy(constructionQueue = queue))),
+            )
+            return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash)
+        }
+        override suspend fun moveConstruction(
+            gameId: String,
+            request: ApiV3MoveConstructionRequest,
+        ): ApiV3CommandAccepted {
+            movedConstructions += request
+            val city = current.projection.ownCities.single { it.id == request.cityId }
+            val queue = city.constructionQueue.toMutableList()
+            check(queue[request.fromIndex] == request.expectedConstructionName)
+            queue.add(request.toIndex, queue.removeAt(request.fromIndex))
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(ownCities = listOf(city.copy(constructionQueue = queue))),
+            )
+            return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash)
         }
         override suspend fun setResearchPath(
             gameId: String,

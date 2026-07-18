@@ -124,6 +124,71 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun removeConstruction(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        queueIndex: Int,
+        expectedConstructionName: String,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(expectedConstructionName.isNotBlank() && expectedConstructionName.length <= 128) {
+            "Expected construction name is invalid"
+        }
+        val queue = city.cityConstructions.constructionQueue
+        require(queueIndex in queue.indices) { "Construction queue position is invalid" }
+        require(queue[queueIndex] == expectedConstructionName) {
+            "Construction queue entry no longer matches the client projection"
+        }
+        val previousSize = queue.size
+        city.cityConstructions.removeFromQueue(queueIndex, false)
+        check(queue.size == previousSize - 1) { "Construction queue entry was not removed" }
+        return result(game)
+    }
+
+    fun moveConstruction(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        fromIndex: Int,
+        toIndex: Int,
+        expectedConstructionName: String,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(expectedConstructionName.isNotBlank() && expectedConstructionName.length <= 128) {
+            "Expected construction name is invalid"
+        }
+        val queue = city.cityConstructions.constructionQueue
+        require(fromIndex in queue.indices && toIndex in queue.indices) {
+            "Construction queue position is invalid"
+        }
+        require(kotlin.math.abs(fromIndex - toIndex) == 1) {
+            "Construction may move only one queue position per command"
+        }
+        require(queue[fromIndex] == expectedConstructionName) {
+            "Construction queue entry no longer matches the client projection"
+        }
+        if (toIndex < fromIndex) city.cityConstructions.raisePriority(fromIndex)
+        else city.cityConstructions.lowerPriority(fromIndex)
+        check(queue[toIndex] == expectedConstructionName) { "Construction queue was not reordered" }
+        return result(game)
+    }
+
+    private fun requireOwnedCurrentTurnCity(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+    ): com.unciv.logic.city.City {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change production outside their turn"
+        }
+        return actorCivilization.cities.firstOrNull { it.id == cityId }
+            ?: error("City is not controlled by the authenticated actor")
+    }
+
     /** Selects a destination technology. The client cannot author a research
      * queue: the shared rules engine derives and orders every prerequisite. */
     fun setResearchPath(

@@ -49,6 +49,8 @@ sealed interface GameCommand {
     ) : GameCommand
 
     data class SetResearchPath(val technologyName: String) : GameCommand
+
+    data class AdoptPolicy(val policyName: String) : GameCommand
 }
 
 sealed interface CommandEnvelopeValidation {

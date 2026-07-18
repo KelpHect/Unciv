@@ -20,6 +20,7 @@ data class PlayerProjection(
     val isCurrentTurn: Boolean,
     val pendingTurnActions: List<PendingEndTurnAction>,
     val research: ProjectedResearch,
+    val policies: ProjectedPolicies,
     val gold: Int,
     val knownCivilizations: List<String>,
     val ownCities: List<ProjectedCity>,
@@ -28,7 +29,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 4
+        const val CURRENT_PROJECTION_VERSION = 5
     }
 }
 
@@ -50,6 +51,15 @@ data class ProjectedResearch(
     val queue: List<String>,
     val selectableTargets: List<String>,
     val freeTechnologyChoices: List<String>,
+)
+
+@Serializable
+data class ProjectedPolicies(
+    val storedCulture: Int,
+    val cultureNeededForNextPolicy: Int,
+    val freePolicies: Int,
+    val adoptedPolicies: List<String>,
+    val selectablePolicies: List<String>,
 )
 
 @Serializable
@@ -88,6 +98,7 @@ object PlayerProjectionBuilder {
             isCurrentTurn = game.currentPlayer == actor.civID,
             pendingTurnActions = AuthoritativeTurnReadiness.pendingActions(actor),
             research = researchProjection(actor),
+            policies = policyProjection(actor),
             gold = actor.gold,
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
             ownCities = actor.cities.map {
@@ -138,6 +149,23 @@ object PlayerProjectionBuilder {
             freeTechnologyChoices = if (civilization.tech.freeTechs == 0) emptyList() else
                 technologies.asSequence()
                     .filter { civilization.tech.canBeResearched(it.name) }
+                    .map { it.name }
+                    .sorted()
+                    .toList(),
+        )
+    }
+
+    private fun policyProjection(civilization: Civilization): ProjectedPolicies {
+        val manager = civilization.policies
+        val canAdopt = manager.canAdoptPolicy()
+        return ProjectedPolicies(
+            storedCulture = manager.storedCulture,
+            cultureNeededForNextPolicy = manager.getCultureNeededForNextPolicy(),
+            freePolicies = manager.freePolicies,
+            adoptedPolicies = manager.getAdoptedPolicies().sorted(),
+            selectablePolicies = if (!canAdopt) emptyList() else
+                civilization.gameInfo.ruleset.policies.values.asSequence()
+                    .filter(manager::isAdoptable)
                     .map { it.name }
                     .sorted()
                     .toList(),

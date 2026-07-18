@@ -17,7 +17,8 @@
         { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "end_turn" } } },
         { "type": "object", "required": ["type", "unit_id", "destination_x", "destination_y"], "additionalProperties": false, "properties": { "type": { "const": "move_unit" }, "unit_id": { "type": "integer", "minimum": 0 }, "destination_x": { "type": "integer" }, "destination_y": { "type": "integer" } } },
         { "type": "object", "required": ["type", "city_id", "construction_name"], "additionalProperties": false, "properties": { "type": { "const": "queue_construction" }, "city_id": { "type": "string", "minLength": 1, "maxLength": 64 }, "construction_name": { "type": "string", "minLength": 1, "maxLength": 128 } } },
-        { "type": "object", "required": ["type", "technology_name"], "additionalProperties": false, "properties": { "type": { "const": "set_research_path" }, "technology_name": { "type": "string", "minLength": 1, "maxLength": 128 } } }
+        { "type": "object", "required": ["type", "technology_name"], "additionalProperties": false, "properties": { "type": { "const": "set_research_path" }, "technology_name": { "type": "string", "minLength": 1, "maxLength": 128 } } },
+        { "type": "object", "required": ["type", "policy_name"], "additionalProperties": false, "properties": { "type": { "const": "adopt_policy" }, "policy_name": { "type": "string", "minLength": 1, "maxLength": 128 } } }
       ]
     }
   }

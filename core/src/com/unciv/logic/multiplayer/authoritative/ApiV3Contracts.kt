@@ -123,6 +123,14 @@ data class ApiV3SetResearchPathRequest(
 )
 
 @Serializable
+data class ApiV3AdoptPolicyRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("policy_name") val policyName: String,
+)
+
+@Serializable
 data class ApiV3EndTurnRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

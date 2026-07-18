@@ -169,6 +169,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun adoptPolicy(
+        gameId: String,
+        request: ApiV3AdoptPolicyRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/adopt-policy") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun endTurn(
         gameId: String,
         request: ApiV3EndTurnRequest,

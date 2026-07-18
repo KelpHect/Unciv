@@ -46,7 +46,7 @@ struct HealthResponse {
 struct CapabilitiesResponse {
     protocol_version: u16,
     projection_version: u16,
-    commands: [&'static str; 5],
+    commands: [&'static str; 6],
     whole_state_upload: bool,
     websocket_notifications: bool,
 }
@@ -156,6 +156,15 @@ struct SetResearchPathRequest {
     technology_name: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct AdoptPolicyRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
+    policy_name: String,
+}
+
 #[derive(Serialize, ToSchema)]
 struct ErrorResponse {
     code: &'static str,
@@ -193,7 +202,8 @@ struct ApiError {
         end_turn,
         move_unit,
         queue_construction,
-        set_research_path
+        set_research_path,
+        adopt_policy
     ),
     components(schemas(
         HealthResponse,
@@ -211,6 +221,7 @@ struct ApiError {
         MoveUnitRequest,
         QueueConstructionRequest,
         SetResearchPathRequest,
+        AdoptPolicyRequest,
         ErrorResponse,
         unciv_authoritative_server::CommandAccepted,
         unciv_authoritative_server::postgres::GameSummary,
@@ -338,6 +349,7 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
             "move_unit",
             "queue_construction",
             "set_research_path",
+            "adopt_policy",
             "end_turn",
         ],
         whole_state_upload: false,
@@ -1194,6 +1206,54 @@ async fn set_research_path(
     Ok(Json(accepted))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/adopt-policy",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = AdoptPolicyRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+async fn adopt_policy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<AdoptPolicyRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.policy_name.is_empty() || request.policy_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_adopt_policy(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::AdoptPolicy {
+                    policy_name: request.policy_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 async fn authenticated_account(state: &AppState, headers: &HeaderMap) -> Result<Account, ApiError> {
     let bearer_token = bearer_token(headers).ok_or_else(ApiError::unauthorized)?;
     state
@@ -1394,6 +1454,10 @@ async fn main() {
             "/api/v3/games/{game_id}/commands/set-research-path",
             post(set_research_path),
         )
+        .route(
+            "/api/v3/games/{game_id}/commands/adopt-policy",
+            post(adopt_policy),
+        )
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,
@@ -1448,6 +1512,7 @@ mod tests {
             "/api/v3/games/{game_id}/commands/move-unit",
             "/api/v3/games/{game_id}/commands/queue-construction",
             "/api/v3/games/{game_id}/commands/set-research-path",
+            "/api/v3/games/{game_id}/commands/adopt-policy",
         ];
         assert_eq!(paths.len(), expected_paths.len());
         for path in expected_paths {
@@ -1516,6 +1581,7 @@ mod tests {
         assert!(response.0.commands.contains(&"move_unit"));
         assert!(response.0.commands.contains(&"queue_construction"));
         assert!(response.0.commands.contains(&"set_research_path"));
+        assert!(response.0.commands.contains(&"adopt_policy"));
     }
 
     #[test]

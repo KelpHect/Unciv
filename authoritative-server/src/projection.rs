@@ -14,6 +14,7 @@ pub struct PlayerProjection {
     pub is_current_turn: bool,
     pub pending_turn_actions: Vec<PendingEndTurnAction>,
     pub research: ProjectedResearch,
+    pub policies: ProjectedPolicies,
     pub gold: i32,
     pub known_civilizations: Vec<String>,
     pub own_cities: Vec<ProjectedCity>,
@@ -42,6 +43,16 @@ pub struct ProjectedResearch {
     pub queue: Vec<String>,
     pub selectable_targets: Vec<String>,
     pub free_technology_choices: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedPolicies {
+    pub stored_culture: i32,
+    pub culture_needed_for_next_policy: i32,
+    pub free_policies: i32,
+    pub adopted_policies: Vec<String>,
+    pub selectable_policies: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -84,7 +95,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v4.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v5.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -97,6 +108,7 @@ mod tests {
             projection.research.current_technology.as_deref(),
             Some("Pottery")
         );
+        assert_eq!(projection.policies.selectable_policies, ["Tradition"]);
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;

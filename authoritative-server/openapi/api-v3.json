@@ -652,6 +652,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/adopt-policy": {
+      "post": {
+        "tags": [],
+        "operationId": "adopt_policy",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/end-turn": {
       "post": {
         "tags": [],
@@ -1353,6 +1467,35 @@
           }
         }
       },
+      "AdoptPolicyRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "policy_name"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "policy_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CapabilitiesResponse": {
         "type": "object",
         "required": [
@@ -1767,6 +1910,7 @@
           "isCurrentTurn",
           "pendingTurnActions",
           "research",
+          "policies",
           "gold",
           "knownCivilizations",
           "ownCities",
@@ -1817,6 +1961,9 @@
             "items": {
               "$ref": "#/components/schemas/PendingEndTurnAction"
             }
+          },
+          "policies": {
+            "$ref": "#/components/schemas/ProjectedPolicies"
           },
           "protocolVersion": {
             "type": "integer",
@@ -1883,6 +2030,43 @@
             "format": "int32"
           },
           "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedPolicies": {
+        "type": "object",
+        "required": [
+          "storedCulture",
+          "cultureNeededForNextPolicy",
+          "freePolicies",
+          "adoptedPolicies",
+          "selectablePolicies"
+        ],
+        "properties": {
+          "adoptedPolicies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cultureNeededForNextPolicy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freePolicies": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "selectablePolicies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "storedCulture": {
             "type": "integer",
             "format": "int32"
           }

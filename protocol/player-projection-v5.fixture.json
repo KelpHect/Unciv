@@ -11,6 +11,13 @@
     "selectableTargets": ["Archery", "Writing"],
     "freeTechnologyChoices": []
   },
+  "policies": {
+    "storedCulture": 35,
+    "cultureNeededForNextPolicy": 25,
+    "freePolicies": 0,
+    "adoptedPolicies": [],
+    "selectablePolicies": ["Tradition"]
+  },
   "gold": 321,
   "knownCivilizations": ["Greece"],
   "ownCities": [

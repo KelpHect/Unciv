@@ -54,6 +54,13 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
         val technologyName: String,
     ) : PendingAuthoritativeCommand
+
+    data class AdoptPolicy(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val policyName: String,
+    ) : PendingAuthoritativeCommand
 }
 
 sealed interface AuthoritativeCommandOutcome {
@@ -135,6 +142,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun adoptPolicy(policyName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(policyName in current.projection.policies.selectablePolicies) {
+            "Policy is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.AdoptPolicy(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            policyName = policyName,
+        ), current)
+    }
+
     suspend fun retryPending(): AuthoritativeCommandOutcome = mutex.withLock {
         val retryable = state as? AuthoritativeSyncState.Retryable
             ?: error("There is no ambiguous command to retry")
@@ -207,6 +227,15 @@ class AuthoritativeGameCommandBus(
                         pending.expectedRevision,
                         pending.observedStateHash,
                         pending.technologyName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.AdoptPolicy -> transport.adoptPolicy(
+                    gameId,
+                    ApiV3AdoptPolicyRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.policyName,
                     ),
                 )
             }

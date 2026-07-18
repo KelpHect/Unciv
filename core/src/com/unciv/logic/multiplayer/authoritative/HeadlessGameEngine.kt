@@ -152,6 +152,30 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun adoptPolicy(
+        game: GameInfo,
+        actorCivilizationId: String,
+        policyName: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot adopt a policy outside their turn"
+        }
+        require(policyName.isNotBlank() && policyName.length <= 128) { "Policy name is invalid" }
+        val policy = game.ruleset.policies[policyName]
+            ?: error("Policy is unavailable in the pinned ruleset")
+        require(actorCivilization.policies.canAdoptPolicy()) {
+            "Civilization cannot afford or receive another policy"
+        }
+        require(actorCivilization.policies.isAdoptable(policy)) {
+            "Policy cannot be adopted in the canonical game state"
+        }
+        actorCivilization.policies.adopt(policy)
+        return result(game)
+    }
+
     fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId

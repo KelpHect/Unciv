@@ -126,6 +126,31 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(PendingEndTurnAction.PickConstruction in after.pendingTurnActions)
     }
 
+    @Test
+    fun serverAdoptsOnlyAProjectedCanonicalPolicy() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        rome.policies.freePolicies = 1
+        rome.policies.shouldOpenPolicyPicker = true
+        val before = engine.playerProjection(game, "Rome")
+        val policyName = before.policies.selectablePolicies.first()
+
+        val result = engine.adoptPolicy(game, "Rome", policyName)
+        val after = engine.playerProjection(result.game, "Rome")
+
+        Assert.assertTrue(policyName in after.policies.adoptedPolicies)
+        Assert.assertFalse(policyName in after.policies.selectablePolicies)
+        Assert.assertEquals(0, after.policies.freePolicies)
+        Assert.assertFalse(PendingEndTurnAction.PickPolicy in after.pendingTurnActions)
+
+        val hashAfter = engine.stateHash(result.game)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.adoptPolicy(result.game, "Rome", policyName)
+        }
+        Assert.assertEquals(hashAfter, engine.stateHash(result.game))
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotEndAnotherCivilizationsTurn() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

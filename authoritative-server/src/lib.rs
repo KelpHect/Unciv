@@ -16,7 +16,7 @@ pub mod projection;
 pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 4;
+pub const PROJECTION_VERSION: u16 = 5;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -35,6 +35,9 @@ pub enum GameCommand {
     },
     SetResearchPath {
         technology_name: String,
+    },
+    AdoptPolicy {
+        policy_name: String,
     },
 }
 
@@ -290,6 +293,29 @@ mod tests {
                 "type": "set_research_path",
                 "technology_name": "Writing",
                 "research_queue": ["Pottery", "Writing"]
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn adopt_policy_contract_is_typed_and_closed() {
+        let command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "adopt_policy",
+            "policy_name": "Tradition"
+        }))
+        .unwrap();
+        assert_eq!(
+            command,
+            GameCommand::AdoptPolicy {
+                policy_name: "Tradition".to_owned(),
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "adopt_policy",
+                "policy_name": "Tradition",
+                "free": true
             }))
             .is_err()
         );

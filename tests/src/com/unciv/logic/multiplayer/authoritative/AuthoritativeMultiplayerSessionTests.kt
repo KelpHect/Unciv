@@ -212,6 +212,31 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun policyRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(
+                projection = current.projection.copy(
+                    policies = current.projection.policies.copy(
+                        selectablePolicies = listOf("Tradition"),
+                    ),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.adoptPolicyIfOpen(GAME_ID, "Tradition"))
+        session.openGame(GAME_ID)
+        val outcome = session.adoptPolicyIfOpen(GAME_ID, "Tradition")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf("Tradition"), transport.policyNames)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -253,6 +278,7 @@ class AuthoritativeMultiplayerSessionTests {
             isCurrentTurn = true,
             pendingTurnActions = emptyList(),
             research = ProjectedResearch(null, emptyList(), emptyList(), emptyList()),
+            policies = ProjectedPolicies(0, 25, 0, emptyList(), emptyList()),
             gold = 0,
             knownCivilizations = emptyList(),
             ownCities = emptyList(),
@@ -278,6 +304,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
         val researchTargets = mutableListOf<String>()
+        val policyNames = mutableListOf<String>()
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -339,6 +366,30 @@ class AuthoritativeMultiplayerSessionTests {
                     research = current.projection.research.copy(
                         currentTechnology = request.technologyName,
                         queue = listOf(request.technologyName),
+                    ),
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
+        override suspend fun adoptPolicy(
+            gameId: String,
+            request: ApiV3AdoptPolicyRequest,
+        ): ApiV3CommandAccepted {
+            policyNames += request.policyName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    policies = current.projection.policies.copy(
+                        adoptedPolicies = listOf(request.policyName),
+                        selectablePolicies = emptyList(),
                     ),
                 ),
             )

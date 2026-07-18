@@ -1070,3 +1070,52 @@ git diff --check
 The focused JDK 21 build compiled the production picker and passed all session
 lifecycle tests, including proof that an unopened game stays on its legacy
 path and the same game routes research only after explicit v3 opening.
+
+## Projection v5 and authoritative policy adoption
+
+Implemented:
+
+- Projection compatibility advanced from 4 to 5 and now exposes only the
+  authenticated civilization's stored culture, next-policy cost, free-policy
+  balance, adopted policy names, and canonically selectable policy names.
+- The closed `adopt_policy` command accepts only a bounded policy name. Rust
+  derives the account and assigned civilization from membership, and the Kotlin
+  worker validates the current turn, pinned ruleset entry, culture/free-policy
+  balance, era, prerequisites, and availability through `PolicyManager` before
+  invoking its existing `adopt` method and all shared side effects.
+- PostgreSQL applies the command through the same expected-revision,
+  idempotency, immutable-snapshot, canonical-hash, journal, and transactional
+  outbox boundary as the other gameplay commands. No client-authored culture,
+  free-policy flag, prerequisite result, or resulting policy set is accepted.
+- `PolicyPickerScreen` routes both ordinary policy buttons and policy-branch
+  confirmation through the v3 session only for explicitly opened games.
+  Accepted commands mark the local game stale and return to the world screen;
+  conflicts, rejection, lost responses, and transport failures remain distinct.
+  Single-player, hotseat, and legacy multiplayer keep their local behavior.
+
+Verification:
+
+```text
+cargo run -- --write-openapi
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all-targets
+.\gradlew.bat :tests:test --tests <focused policy, projection, bus, and session tests> \
+  :server:test --no-daemon --no-build-cache --rerun-tasks
+git diff --check
+```
+
+Rust passed 15 active library tests and seven HTTP/OpenAPI tests. All eight
+database integration tests also passed serially against the composition's
+pinned PostgreSQL 19 Beta 2 image on port 55432, including atomic
+CAS/idempotency, persisted sessions, membership uniqueness, outbox leases,
+rate limits/audit, corrupt-snapshot quarantine, discovery, and account
+lifecycle. The forced JDK 21 focused run rebuilt every affected module and
+passed the canonical policy handler, closed projection fixture, command bus,
+explicit-session routing, and worker/server suites. The complete regression
+then passed four server tests and 765 shared tests with zero failures/errors
+and 13 intentional skips.
+
+This resolves the ordinary `pick_policy` end-turn blocker when one adoption is
+required. Ideology selection, ideology tenets with specialized UX, public
+policy/ideology events, and projection-only policy rendering remain incomplete.

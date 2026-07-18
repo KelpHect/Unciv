@@ -149,6 +149,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun adoptPolicyIfOpen(
+        gameId: String,
+        policyName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.AdoptPolicy &&
+                    current.pending.policyName == policyName) {
+                    "Resolve the pending authoritative command before adopting a policy"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.adoptPolicy(policyName)
+            else -> {
+                bus.refresh()
+                bus.adoptPolicy(policyName)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

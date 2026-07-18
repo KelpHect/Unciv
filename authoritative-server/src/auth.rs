@@ -2,8 +2,8 @@
 //! strings; session credentials are designed to be stored as digests.
 
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use rand_core::RngCore;
 use sha2::{Digest, Sha256};
@@ -26,10 +26,28 @@ pub enum PasswordError {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum UsernameError {
-    #[error("username must be between {MINIMUM_USERNAME_LENGTH} and {MAXIMUM_USERNAME_LENGTH} characters")]
+    #[error(
+        "username must be between {MINIMUM_USERNAME_LENGTH} and {MAXIMUM_USERNAME_LENGTH} characters"
+    )]
     InvalidLength,
     #[error("username may contain only lowercase letters, digits, underscores, and hyphens")]
     InvalidCharacters,
+}
+
+#[derive(Debug, Error)]
+pub enum AuthError {
+    #[error(transparent)]
+    InvalidUsername(#[from] UsernameError),
+    #[error(transparent)]
+    InvalidPassword(#[from] PasswordError),
+    #[error("username is already registered")]
+    UsernameTaken,
+    #[error("invalid credentials")]
+    InvalidCredentials,
+    #[error("account is disabled")]
+    AccountDisabled,
+    #[error("authentication storage failure")]
+    Storage,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,8 +142,8 @@ fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        normalize_username, token_digest, PasswordError, PasswordService, SessionCredential,
-        UsernameError,
+        PasswordError, PasswordService, SessionCredential, UsernameError, normalize_username,
+        token_digest,
     };
 
     #[test]

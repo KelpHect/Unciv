@@ -154,5 +154,33 @@ flows remain pending.
 
 The initial account namespace is now explicit and collation-independent:
 trimmed ASCII usernames normalize to lowercase and allow only letters, digits,
-`_`, and `-` (3-32 characters). Account persistence and public registration
-are the next pieces.
+`_`, and `-` (3-32 characters).
+
+## Authentication lifecycle
+
+Implemented:
+
+- `PostgresGameRepository` now transactionally persists normalized accounts
+  with Argon2id PHC hashes and maps the unique username constraint to a stable
+  conflict.
+- Login verifies stored hashes without revealing whether a username or password
+  was wrong. Sessions contain only a SHA-256 token digest, expire after 30
+  days, track use server-side, and can be revoked through logout.
+- The loopback-default Rust API now exposes bounded JSON endpoints for
+  `POST /api/v3/auth/register`, `login`, and `logout`. Login/logout failures
+  use the generic `invalid_credentials` response; no endpoint accepts a
+  caller-supplied account ID.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55433/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored
+```
+
+Result: seven unit tests passed and two PostgreSQL integration tests passed
+against an owned disposable PostgreSQL 18 container. A separate HTTP smoke run
+registered, logged in, logged out, and confirmed the revoked token received
+HTTP 401. Rate limits/backoff, session rotation, password changes, TLS proxy
+deployment, and client secure storage remain pending.

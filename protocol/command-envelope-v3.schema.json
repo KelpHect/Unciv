@@ -13,6 +13,7 @@
     "client_observed_state_hash": { "type": "string" },
     "command": {
       "oneOf": [
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "join_game" } } },
         { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "end_turn" } } },
         { "type": "object", "required": ["type", "unit_id", "destination_tile_id"], "additionalProperties": false, "properties": { "type": { "const": "move_unit" }, "unit_id": { "type": "string", "minLength": 1 }, "destination_tile_id": { "type": "string", "minLength": 1 } } }
       ]

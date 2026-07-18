@@ -3,6 +3,7 @@ package com.unciv.logic.multiplayer.authoritative
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
+import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSetupInfo
 import java.security.MessageDigest
@@ -25,6 +26,21 @@ class HeadlessGameEngine(
     fun createGame(setup: GameSetupInfo): EngineResult {
         val game = GameStarter.startNewGame(setup, executionContext)
         return result(game)
+    }
+
+    /** Assigns the authenticated actor to the first canonical unclaimed major
+     * civilization. Selection is server deterministic and accepts no client
+     * civilization input. The control plane restricts joining to revision 0. */
+    fun assignPlayer(game: GameInfo): PlayerAssignmentResult {
+        require(game.civilizations.none { it.playerId == executionContext.actorId }) {
+            "Authenticated actor is already assigned to this game"
+        }
+        val civilization = game.civilizations.firstOrNull {
+            it.isMajorCiv() && it.isAI() && it.playerId.isEmpty()
+        } ?: error("No unassigned civilization is available")
+        civilization.playerType = PlayerType.Human
+        civilization.playerId = executionContext.actorId!!
+        return PlayerAssignmentResult(result(game), civilization.civID)
     }
 
     /** Runs shared turn processing only for the authenticated civilization.
@@ -61,4 +77,9 @@ class HeadlessGameEngine(
 data class EngineResult(
     val game: GameInfo,
     val canonicalStateHash: String,
+)
+
+data class PlayerAssignmentResult(
+    val result: EngineResult,
+    val civilizationId: String,
 )

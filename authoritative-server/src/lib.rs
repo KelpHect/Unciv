@@ -18,6 +18,7 @@ pub const PROTOCOL_VERSION: u16 = 3;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GameCommand {
+    JoinGame,
     EndTurn,
     MoveUnit {
         unit_id: String,
@@ -80,6 +81,8 @@ pub enum CommitError {
     InvalidSnapshotHash,
     #[error("authenticated account is not allowed to mutate this game")]
     Unauthorized,
+    #[error("command is not valid for the canonical game state")]
+    InvalidCommand,
     #[error("database storage failure")]
     Storage,
 }

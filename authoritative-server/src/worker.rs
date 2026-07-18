@@ -51,6 +51,9 @@ enum WorkerOperation<'a> {
     CreateGame {
         setup: &'a str,
     },
+    AssignPlayer {
+        snapshot: &'a str,
+    },
     EndTurn {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -71,6 +74,11 @@ struct WorkerResponse {
 pub struct CreatedGame {
     pub proposal: CommitProposal,
     pub owner_civilization_id: String,
+}
+
+pub struct AssignedPlayer {
+    pub proposal: CommitProposal,
+    pub civilization_id: String,
 }
 
 #[derive(Deserialize)]
@@ -94,6 +102,37 @@ pub enum WorkerClientError {
 }
 
 impl EngineWorkerClient {
+    pub async fn assign_player(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+    ) -> Result<AssignedPlayer, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::AssignPlayer { snapshot },
+            )
+            .await?;
+        Ok(AssignedPlayer {
+            proposal: CommitProposal {
+                previous_revision,
+                snapshot: response
+                    .snapshot
+                    .ok_or(WorkerClientError::Incomplete)?
+                    .into_bytes(),
+                canonical_state_hash: response
+                    .canonical_state_hash
+                    .ok_or(WorkerClientError::Incomplete)?,
+            },
+            civilization_id: response
+                .actor_civilization_id
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub fn new(address: SocketAddr, request_timeout: Duration) -> Self {
         Self {
             address,

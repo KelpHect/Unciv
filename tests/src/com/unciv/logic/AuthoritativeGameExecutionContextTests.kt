@@ -93,6 +93,30 @@ class AuthoritativeGameExecutionContextTests {
         secondPlayerEngine.endTurn(game, "Greece")
     }
 
+    @Test
+    fun joiningActorIsAssignedAnUnclaimedCivilization() {
+        val creator = HeadlessGameEngine(serverContext { serverTime })
+        val game = creator.createGame(joinableSetup()).game
+        val joiningEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        val assignment = joiningEngine.assignPlayer(game)
+        val civilization = game.civilizations.single { it.civID == assignment.civilizationId }
+
+        Assert.assertEquals("Greece", assignment.civilizationId)
+        Assert.assertEquals(PlayerType.Human, civilization.playerType)
+        Assert.assertEquals("account-2", civilization.playerId)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun anAssignedActorCannotJoinTwice() {
+        val creator = HeadlessGameEngine(serverContext { serverTime })
+        val game = creator.createGame(joinableSetup()).game
+        val joiningEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        joiningEngine.assignPlayer(game)
+        joiningEngine.assignPlayer(game)
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0
@@ -105,6 +129,13 @@ class AuthoritativeGameExecutionContextTests {
             seed = 42L
         }
         return GameSetupInfo(parameters, mapParameters)
+    }
+
+    private fun joinableSetup(): GameSetupInfo {
+        val setup = testSetup()
+        setup.gameParameters.players[1].playerType = PlayerType.AI
+        setup.gameParameters.players[1].playerId = ""
+        return setup
     }
 
     private fun vanillaManifest() = RulesetManifest(

@@ -48,6 +48,9 @@ sealed interface WorkerOperation {
     @Serializable @SerialName("create_game")
     data class CreateGame(val setup: String) : WorkerOperation
 
+    @Serializable @SerialName("assign_player")
+    data class AssignPlayer(val snapshot: String) : WorkerOperation
+
     @Serializable @SerialName("end_turn")
     data class EndTurn(
         val snapshot: String,
@@ -88,6 +91,11 @@ class AuthoritativeEngineWorker {
                     it.playerId == request.actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
                 responseForGame(engine, result.game, ownerCivilization.civID)
+            }
+            is WorkerOperation.AssignPlayer -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val assignment = engine.assignPlayer(game)
+                responseForGame(engine, assignment.result.game, assignment.civilizationId)
             }
             is WorkerOperation.EndTurn -> {
                 val game = engine.loadSnapshot(operation.snapshot)

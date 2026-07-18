@@ -8,7 +8,7 @@ player projection effects are all complete.
 | --- | --- | --- | --- | --- |
 | Create game | `CreateGame` / Kotlin `GameStarter` | Session-derived owner; canonical owner/civilization persisted; cross-process smoke | No v3 client; metadata-only response | Server slice complete; client/projection pending |
 | End turn and AI | `EndTurn` / `HeadlessGameEngine.endTurn` | Membership-derived civilization; canonical `playerId` and current-turn checks; unit and HTTP rejection tests | No v3 client; metadata-only reconciliation | Server slice complete; client/projection pending |
-| Join and player assignment | TBD closed command | Must atomically bind account, membership, and canonical `playerId` | No client or projection | Not started |
+| Join and player assignment | `JoinGame` / `HeadlessGameEngine.assignPlayer` | Session-derived account; deterministic unclaimed civilization; membership, canonical `playerId`, revision, journal, and outbox commit atomically; unit and cross-process HTTP tests | No v3 client; metadata-only response | Server slice complete; client/projection pending |
 | Unit movement, combat, actions | `MoveUnit` schema placeholder; no handler | No canonical authorization or validation tests | No client or projection | Protocol placeholder only |
 | City production, purchases, founding, conquest | TBD closed union | None | None | Not started |
 | Research, policies, religion | TBD closed union | None | None | Not started |

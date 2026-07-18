@@ -10,8 +10,9 @@ Completed on 2026-07-18:
 - Selected the Rust control-plane/Kotlin headless-worker architecture in ADR
   0001; no alternate rules engine will be introduced.
 - Added repository guardrails in `AGENTS.md`.
-- Added the versioned API-v3 command envelope and closed initial `EndTurn` /
-  `MoveUnit` command union, with contract tests. No endpoint consumes it yet.
+- Added the versioned API-v3 command envelope and closed initial `JoinGame` /
+  `EndTurn` / `MoveUnit` command union. Later milestones below now consume the
+  first two variants through closed HTTP endpoints.
 
 Verification attempted:
 
@@ -245,8 +246,8 @@ cargo test --manifest-path authoritative-server/Cargo.toml
 Both passed. The owned PostgreSQL/Kotlin/Rust HTTP smoke run proved create,
 EndTurn commit to revision `1`, duplicate retry returning the identical result,
 and a new command with expected revision `0` receiving HTTP `409`. Civilization
-turn ownership is now enforced as described below. Additional player joining,
-player projections, and typed non-turn gameplay commands remain pending.
+turn ownership is now enforced as described below. Player projections and
+typed non-turn gameplay commands remain pending.
 
 ## Canonical owner assignment and turn authorization
 
@@ -281,9 +282,43 @@ game (`The Netherlands` in that seeded run), committed its valid EndTurn,
 rejected a non-member with HTTP `403`, and kept revision `1`. A malicious body
 containing caller-selected `actor_id` and `civilization_id` was rejected with
 HTTP `422`; the canonical revision remained `1`. Joining a second player still
-requires a worker-backed assignment command and remains the next slice.
+required the worker-backed assignment command implemented in the next section.
 
 Duplicate replay is also account-bound: the durable result is returned only to
 the account that originally committed the command. The PostgreSQL test submits
 the same `(game_id, command_id)` as another account and verifies
 `Unauthorized`, without worker execution or state change.
+
+## Authoritative player join and assignment
+
+Implemented:
+
+- `POST /api/v3/games/{game_id}/join` accepts only a command ID, expected
+  revision, and diagnostic observed hash. The bearer session supplies the
+  account; no request field can select an account or civilization.
+- `JoinGame` delegates canonical assignment to the Kotlin worker. The shared
+  engine deterministically selects the first unclaimed major AI civilization,
+  changes it to a human player, and records the authenticated actor ID in the
+  canonical snapshot.
+- Joining is restricted to revision zero. PostgreSQL locks the game head and
+  commits the worker snapshot, revision, command journal, outbox record, and
+  new player membership/civilization in one transaction. Competing joins from
+  the same head cannot both commit.
+- Duplicate command replay remains bound to the original account. Unknown join
+  fields are rejected by the closed request payload.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --no-daemon --no-build-cache
+.\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+All passed: the Kotlin suite includes assignment and repeat-assignment
+regressions, and Rust reported seven passing unit tests with three explicitly
+configured PostgreSQL tests ignored. A fresh PostgreSQL 16/Kotlin worker/Rust
+API smoke run created an owner assigned to Mongolia, assigned the joining
+account to Sweden, atomically committed revision `1`, returned revision `1`
+again for an idempotent retry, and rejected a third account's revision-zero
+join with HTTP `409`. All disposable processes and the database were removed.

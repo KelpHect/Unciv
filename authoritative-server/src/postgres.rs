@@ -23,6 +23,10 @@ pub struct NewGame {
     pub owner_civilization_id: String,
 }
 
+struct NewMemberAssignment {
+    civilization_id: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct GameMetadata {
     pub game_id: Uuid,
@@ -334,6 +338,68 @@ impl PostgresGameRepository {
         self.commit(actor_account_id, envelope, proposal).await
     }
 
+    /// Joins an authenticated account without accepting a civilization choice.
+    /// The worker deterministically assigns an unclaimed canonical civilization;
+    /// the snapshot revision and membership are committed atomically.
+    pub async fn execute_join(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        if !matches!(&envelope.command, crate::GameCommand::JoinGame)
+            || envelope.expected_revision != 0
+        {
+            return Err(CommitError::InvalidCommand);
+        }
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let row = sqlx::query(
+            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(envelope.game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let assigned = worker
+            .assign_player(
+                &actor_account_id.to_string(),
+                &manifest,
+                envelope.expected_revision,
+                &snapshot,
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!(
+                        "authoritative worker AssignPlayer transport/protocol failure: {other}"
+                    );
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit_internal(
+            actor_account_id,
+            envelope,
+            assigned.proposal,
+            Some(NewMemberAssignment {
+                civilization_id: assigned.civilization_id,
+            }),
+        )
+        .await
+    }
+
     async fn committed_command(
         &self,
         game_id: Uuid,
@@ -431,6 +497,17 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
     ) -> Result<CommandAccepted, CommitError> {
+        self.commit_internal(actor_account_id, envelope, proposal, None)
+            .await
+    }
+
+    async fn commit_internal(
+        &self,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+        proposal: CommitProposal,
+        new_member: Option<NewMemberAssignment>,
+    ) -> Result<CommandAccepted, CommitError> {
         if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(CommitError::UnsupportedProtocol(envelope.protocol_version));
         }
@@ -484,16 +561,42 @@ impl PostgresGameRepository {
             return Err(CommitError::WorkerRevisionMismatch);
         }
 
-        let role: Option<String> = sqlx::query_scalar(
-            "SELECT role FROM game_members WHERE game_id = $1 AND account_id = $2",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(CommitError::storage)?;
-        if !matches!(role.as_deref(), Some("owner" | "player" | "admin")) {
-            return Err(CommitError::Unauthorized);
+        if let Some(assignment) = new_member {
+            if !matches!(&envelope.command, crate::GameCommand::JoinGame) || current_revision != 0 {
+                return Err(CommitError::InvalidCommand);
+            }
+            let membership_exists: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id = $1 AND account_id = $2)",
+            )
+            .bind(envelope.game_id)
+            .bind(actor_account_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            if membership_exists {
+                return Err(CommitError::InvalidCommand);
+            }
+            sqlx::query(
+                "INSERT INTO game_members (game_id, account_id, role, civilization_id) VALUES ($1, $2, 'player', $3)",
+            )
+            .bind(envelope.game_id)
+            .bind(actor_account_id)
+            .bind(assignment.civilization_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+        } else {
+            let role: Option<String> = sqlx::query_scalar(
+                "SELECT role FROM game_members WHERE game_id = $1 AND account_id = $2",
+            )
+            .bind(envelope.game_id)
+            .bind(actor_account_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            if !matches!(role.as_deref(), Some("owner" | "player" | "admin")) {
+                return Err(CommitError::Unauthorized);
+            }
         }
 
         let next_revision = current_revision

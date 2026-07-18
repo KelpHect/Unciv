@@ -73,6 +73,14 @@ struct EndTurnRequest {
     client_observed_state_hash: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct JoinGameRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
+}
+
 #[derive(Serialize)]
 struct ErrorResponse {
     code: &'static str,
@@ -244,6 +252,32 @@ async fn game_metadata(
     Ok(Json(game_metadata_response(metadata)))
 }
 
+async fn join_game(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<JoinGameRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_join(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::JoinGame,
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 /// The first public gameplay mutation. The payload is intentionally closed:
 /// an authenticated member can request only `EndTurn`, never submit a state
 /// replacement or generic object patch.
@@ -333,6 +367,10 @@ fn game_error(error: CommitError) -> ApiError {
             code: "forbidden",
         },
         CommitError::Stale { .. } => ApiError::conflict("stale_revision"),
+        CommitError::InvalidCommand => ApiError {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            code: "invalid_command",
+        },
         CommitError::UnsupportedProtocol(_) => ApiError::bad_request("unsupported_protocol"),
         CommitError::WorkerRejected(reason) => {
             // Worker errors are deliberately reduced to a stable public code.
@@ -379,6 +417,7 @@ async fn main() {
         .route("/api/v3/auth/logout", post(logout))
         .route("/api/v3/games", post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
+        .route("/api/v3/games/{game_id}/join", post(join_game))
         .route("/api/v3/games/{game_id}/commands/end-turn", post(end_turn))
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {

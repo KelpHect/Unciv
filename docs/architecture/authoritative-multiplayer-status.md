@@ -1274,3 +1274,52 @@ construction policy, tile-targeted buildings, purchases, and richer projected
 cost/progress data. This milestone does not change the broader anti-cheat
 status: incomplete player projections and many other local gameplay mutation
 paths still prevent a cheat-resistant completion claim.
+
+## Authoritative construction purchases and Rust module boundaries
+
+Non-tile-targeted city purchases now cross the complete API-v3 authority
+boundary. The public request carries only the city, construction, currency,
+optional projected queue position, command ID, and expected revision. It has no
+actor or client-computed price. Rust derives the account and civilization from
+the authenticated membership, while the Kotlin worker loads canonical state,
+recomputes the cost, validates currency/resources and purchase availability,
+and calls the shared `CityConstructions.purchaseConstruction` logic. Explicitly
+opened v3 city screens submit this command without applying a local purchase;
+tile-targeted purchases remain unavailable until their typed coordinate/choice
+contract exists.
+
+The Rust control plane was also reorganized before further command expansion.
+`main.rs` is a six-line entry point and `lib.rs` is a 24-line facade. HTTP
+contracts, handlers, bootstrap, errors, OpenAPI and tests live in descriptive
+`api/` modules. The former 2,000-line PostgreSQL file is split into focused
+accounts, games, commands, outbox, security, repository-core and integration-
+test modules; the largest is under 700 lines. Visibility remains narrow and no
+transaction, authentication or worker boundary was weakened by the move.
+
+Verification used JDK 21 and the sole pinned PostgreSQL 19 Beta 2 image:
+
+```text
+cargo fmt --manifest-path authoritative-server/Cargo.toml
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55457/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+.\gradlew.bat tests:test \
+  --tests com.unciv.logic.AuthoritativeGameExecutionContextTests \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests
+```
+
+Rust passed 25 regular tests and all eight PostgreSQL integration tests. The
+strict warnings-as-errors Clippy gate passed, as did the focused Kotlin
+rule/client/session suite. The disposable PostgreSQL 19 Beta 2 container was
+stopped and automatically removed after the database run.
+
+The subsequent complete JDK 21 regression passed 778 shared tests and four
+server tests with zero failures/errors and 13 intentional skips:
+
+```text
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+```

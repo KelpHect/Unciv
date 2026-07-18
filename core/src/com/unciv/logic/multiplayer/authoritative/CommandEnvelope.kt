@@ -61,6 +61,13 @@ sealed interface GameCommand {
         val expectedConstructionName: String,
     ) : GameCommand
 
+    data class PurchaseConstruction(
+        val cityId: String,
+        val constructionName: String,
+        val currencyName: String,
+        val queueIndex: Int? = null,
+    ) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

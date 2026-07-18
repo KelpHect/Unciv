@@ -1,0 +1,181 @@
+use super::*;
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct HealthResponse {
+    pub(super) status: &'static str,
+    pub(super) protocol_version: u16,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct CapabilitiesResponse {
+    pub(super) protocol_version: u16,
+    pub(super) projection_version: u16,
+    pub(super) commands: [&'static str; 10],
+    pub(super) whole_state_upload: bool,
+    pub(super) websocket_notifications: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CredentialsRequest {
+    pub(super) username: String,
+    pub(super) password: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct AccountResponse {
+    pub(super) account_id: uuid::Uuid,
+    pub(super) username: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct LoginResponse {
+    pub(super) account: AccountResponse,
+    pub(super) session_token: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct SessionResponse {
+    pub(super) session_token: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ChangePasswordRequest {
+    pub(super) current_password: String,
+    pub(super) new_password: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ConfirmPasswordRequest {
+    pub(super) password: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CreateGameRequest {
+    pub(super) ruleset_manifest_hash: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct GameMetadataResponse {
+    pub(super) game_id: uuid::Uuid,
+    pub(super) committed_revision: u64,
+    pub(super) canonical_state_hash: String,
+    pub(super) role: String,
+    pub(super) civilization_id: Option<String>,
+}
+
+#[derive(Deserialize, utoipa::IntoParams)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ListGamesQuery {
+    pub(super) after: Option<String>,
+    pub(super) limit: Option<u32>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct EndTurnRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct JoinGameRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct MoveUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
+    pub(super) destination_x: i32,
+    pub(super) destination_y: i32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct QueueConstructionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) construction_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RemoveConstructionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) queue_index: u32,
+    pub(super) expected_construction_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct MoveConstructionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) from_index: u32,
+    pub(super) to_index: u32,
+    pub(super) expected_construction_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct PurchaseConstructionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) construction_name: String,
+    pub(super) currency_name: String,
+    pub(super) queue_index: Option<u32>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SetResearchPathRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) technology_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AdoptPolicyRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) policy_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ChooseFreeTechnologyRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) technology_name: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct ErrorResponse {
+    pub(super) code: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) current_revision: Option<u64>,
+}

@@ -1,0 +1,490 @@
+use super::*;
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/join",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = JoinGameRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn join_game(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<JoinGameRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_join(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::JoinGame,
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+/// The first public gameplay mutation. The payload is intentionally closed:
+/// an authenticated member can request only `EndTurn`, never submit a state
+/// replacement or generic object patch.
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/end-turn",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = EndTurnRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn end_turn(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<EndTurnRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_end_turn(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::EndTurn,
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/move-unit",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = MoveUnitRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn move_unit(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<MoveUnitRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_move_unit(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::MoveUnit {
+                    unit_id: request.unit_id,
+                    destination_x: request.destination_x,
+                    destination_y: request.destination_y,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/queue-construction",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = QueueConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn queue_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<QueueConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.construction_name.is_empty()
+        || request.construction_name.len() > 128
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_queue_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::QueueConstruction {
+                    city_id: request.city_id,
+                    construction_name: request.construction_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/remove-construction",
+    params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])),
+    request_body = RemoveConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse), (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn remove_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<RemoveConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.expected_construction_name.is_empty()
+        || request.expected_construction_name.len() > 128
+        || request.queue_index >= 100
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_remove_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::RemoveConstruction {
+                    city_id: request.city_id,
+                    queue_index: request.queue_index,
+                    expected_construction_name: request.expected_construction_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/move-construction",
+    params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])),
+    request_body = MoveConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse), (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn move_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<MoveConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.expected_construction_name.is_empty()
+        || request.expected_construction_name.len() > 128
+        || request.from_index >= 100
+        || request.to_index >= 100
+        || request.from_index.abs_diff(request.to_index) != 1
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_move_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::MoveConstruction {
+                    city_id: request.city_id,
+                    from_index: request.from_index,
+                    to_index: request.to_index,
+                    expected_construction_name: request.expected_construction_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/purchase-construction",
+    params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])),
+    request_body = PurchaseConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse), (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn purchase_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<PurchaseConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.construction_name.is_empty()
+        || request.construction_name.len() > 128
+        || request.currency_name.is_empty()
+        || request.currency_name.len() > 32
+        || request.queue_index.is_some_and(|index| index >= 100)
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_purchase_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::PurchaseConstruction {
+                    city_id: request.city_id,
+                    construction_name: request.construction_name,
+                    currency_name: request.currency_name,
+                    queue_index: request.queue_index,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/set-research-path",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = SetResearchPathRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn set_research_path(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<SetResearchPathRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.technology_name.is_empty() || request.technology_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_set_research_path(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::SetResearchPath {
+                    technology_name: request.technology_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/adopt-policy",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = AdoptPolicyRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn adopt_policy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<AdoptPolicyRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.policy_name.is_empty() || request.policy_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_adopt_policy(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::AdoptPolicy {
+                    policy_name: request.policy_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/choose-free-technology",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = ChooseFreeTechnologyRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn choose_free_technology(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<ChooseFreeTechnologyRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.technology_name.is_empty() || request.technology_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_choose_free_technology(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::ChooseFreeTechnology {
+                    technology_name: request.technology_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}

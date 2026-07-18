@@ -178,6 +178,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun purchaseConstruction(
+        gameId: String,
+        request: ApiV3PurchaseConstructionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/purchase-construction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

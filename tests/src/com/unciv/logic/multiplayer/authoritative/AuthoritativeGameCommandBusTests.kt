@@ -79,6 +79,33 @@ class AuthoritativeGameCommandBusTests {
             transport.removeConstructionRequests.single())
     }
 
+    @Test
+    fun purchaseIntentContainsNoClientPriceOrActor() = runBlocking {
+        val initial = projection(2, "hash-2", cityQueue = listOf("Monument"))
+        val committed = projection(3, "hash-3", cityQueue = emptyList())
+        val transport = FakeTransport(initial).apply {
+            onPurchaseConstruction = { request ->
+                current = committed
+                accepted(request.commandId, 2, 3, "hash-3")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "purchase-command" }
+        bus.refresh()
+
+        assertTrue(bus.purchaseConstruction(
+            "city-1", "Monument", "Gold", 0,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.purchaseConstructionRequests.single()
+        assertEquals(ApiV3PurchaseConstructionRequest(
+            "purchase-command", 2, "hash-2", "city-1", "Monument", "Gold", 0,
+        ), request)
+        val encoded = Json.encodeToString(ApiV3PurchaseConstructionRequest.serializer(), request)
+        assertTrue(!encoded.contains("cost"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("civilization"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -289,6 +316,7 @@ class AuthoritativeGameCommandBusTests {
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
         val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
+        val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -302,6 +330,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onMoveConstruction: suspend (ApiV3MoveConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onPurchaseConstruction: suspend (ApiV3PurchaseConstructionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -359,6 +390,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             moveConstructionRequests += request
             return onMoveConstruction(request)
+        }
+        override suspend fun purchaseConstruction(
+            gameId: String,
+            request: ApiV3PurchaseConstructionRequest,
+        ): ApiV3CommandAccepted {
+            purchaseConstructionRequests += request
+            return onPurchaseConstruction(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

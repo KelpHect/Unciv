@@ -7,6 +7,10 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameSetupInfo
+import com.unciv.models.ruleset.Building
+import com.unciv.models.ruleset.INonPerpetualConstruction
+import com.unciv.models.ruleset.unique.UniqueType
+import com.unciv.models.stats.Stat
 import java.security.MessageDigest
 
 /**
@@ -171,6 +175,45 @@ class HeadlessGameEngine(
         if (toIndex < fromIndex) city.cityConstructions.raisePriority(fromIndex)
         else city.cityConstructions.lowerPriority(fromIndex)
         check(queue[toIndex] == expectedConstructionName) { "Construction queue was not reordered" }
+        return result(game)
+    }
+
+    fun purchaseConstruction(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+        currencyName: String,
+        queueIndex: Int?,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Construction name is invalid"
+        }
+        val currency = Stat.entries.singleOrNull { it.name == currencyName }
+            ?: error("Purchase currency is invalid")
+        require(currency in Stat.statsUsableToBuy) { "Purchase currency is not supported" }
+        val construction = city.cityConstructions.getConstruction(constructionName)
+            as? INonPerpetualConstruction
+            ?: error("Construction cannot be purchased")
+        require(construction !is Building || !construction.hasUnique(UniqueType.CreatesOneImprovement)) {
+            "Tile-specific purchases require a dedicated command"
+        }
+        val cost = construction.getStatBuyCost(city, currency)
+            ?: error("Construction cannot be purchased with this currency")
+        require(city.cityConstructions.isConstructionPurchaseAllowed(construction, currency, cost)) {
+            "Construction purchase is not legal in the canonical game state"
+        }
+        val canonicalQueueIndex = queueIndex ?: -1
+        if (queueIndex != null) {
+            require(queueIndex in city.cityConstructions.constructionQueue.indices &&
+                city.cityConstructions.constructionQueue[queueIndex] == constructionName) {
+                "Construction queue entry no longer matches the client projection"
+            }
+        }
+        require(city.cityConstructions.purchaseConstruction(
+            construction, canonicalQueueIndex, false, currency,
+        )) { "Construction could not be placed" }
         return result(game)
     }
 

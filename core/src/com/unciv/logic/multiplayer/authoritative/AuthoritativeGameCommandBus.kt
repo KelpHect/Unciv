@@ -67,6 +67,16 @@ sealed interface PendingAuthoritativeCommand {
         val expectedConstructionName: String,
     ) : PendingAuthoritativeCommand
 
+    data class PurchaseConstruction(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+        val currencyName: String,
+        val queueIndex: Int?,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -178,6 +188,34 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.MoveConstruction(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             cityId, fromIndex, toIndex, expectedConstructionName,
+        ), current)
+    }
+
+    suspend fun purchaseConstruction(
+        cityId: String,
+        constructionName: String,
+        currencyName: String,
+        queueIndex: Int?,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        if (queueIndex == null) {
+            require(constructionName in city.availableConstructions) {
+                "Construction is absent from the current player projection"
+            }
+        } else {
+            require(queueIndex in city.constructionQueue.indices &&
+                city.constructionQueue[queueIndex] == constructionName) {
+                "Construction queue entry is absent from the current player projection"
+            }
+        }
+        require(currencyName.isNotBlank() && currencyName.length <= 32) {
+            "Purchase currency is invalid"
+        }
+        submitLocked(PendingAuthoritativeCommand.PurchaseConstruction(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, constructionName, currencyName, queueIndex,
         ), current)
     }
 
@@ -313,6 +351,14 @@ class AuthoritativeGameCommandBus(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.fromIndex, pending.toIndex,
                         pending.expectedConstructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.PurchaseConstruction -> transport.purchaseConstruction(
+                    gameId,
+                    ApiV3PurchaseConstructionRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.constructionName, pending.currencyName,
+                        pending.queueIndex,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

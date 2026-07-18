@@ -268,6 +268,34 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun purchaseConstructionIfOpen(
+        gameId: String,
+        cityId: String,
+        constructionName: String,
+        currencyName: String,
+        queueIndex: Int?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.PurchaseConstruction &&
+                    current.pending.cityId == cityId &&
+                    current.pending.constructionName == constructionName &&
+                    current.pending.currencyName == currencyName &&
+                    current.pending.queueIndex == queueIndex) {
+                    "Resolve the pending authoritative command before purchasing production"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.purchaseConstruction(cityId, constructionName, currencyName, queueIndex)
+            else -> {
+                bus.refresh()
+                bus.purchaseConstruction(cityId, constructionName, currencyName, queueIndex)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

@@ -14,6 +14,8 @@ import com.unciv.models.metadata.GameSettings
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
 import com.unciv.models.ruleset.RulesetCache
+import com.unciv.models.ruleset.unique.UniqueType
+import com.unciv.models.stats.Stat
 import com.unciv.testing.GdxTestRunner
 import org.junit.Assert
 import org.junit.Before
@@ -297,6 +299,45 @@ class AuthoritativeGameExecutionContextTests {
         }
         engine.removeConstruction(game, "Rome", city.id, 0, constructions[1])
         Assert.assertEquals(listOf(constructions[0]), city.cityConstructions.constructionQueue)
+    }
+
+    @Test
+    fun authoritativePurchaseRecomputesCanonicalPriceAndConsumesTheQueueEntry() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        rome.addGold(100_000)
+        val construction = city.getRuleset().buildings.values.first {
+            !it.hasUnique(UniqueType.CreatesOneImprovement) &&
+                it.getStatBuyCost(city, Stat.Gold)?.let { cost ->
+                    city.cityConstructions.isConstructionPurchaseAllowed(it, Stat.Gold, cost)
+                } == true && city.cityConstructions.canAddToQueue(it)
+        }
+        engine.queueConstruction(game, "Rome", city.id, construction.name)
+        val expectedCost = construction.getStatBuyCost(city, Stat.Gold)!!
+        val previousGold = rome.gold
+
+        engine.purchaseConstruction(game, "Rome", city.id, construction.name, Stat.Gold.name, 0)
+
+        Assert.assertTrue(city.cityConstructions.isBuilt(construction.name))
+        Assert.assertEquals(previousGold - expectedCost, rome.gold)
+        Assert.assertFalse(construction.name in city.cityConstructions.constructionQueue)
+    }
+
+    @Test
+    fun authoritativePurchaseRejectsClientCurrencyThatRulesDoNotSupport() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val construction = city.getRuleset().buildings.values
+            .first { !city.cityConstructions.isBuilt(it.name) }.name
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.purchaseConstruction(game, "Rome", city.id, construction, "Production", null)
+        }
+        Assert.assertFalse(city.cityConstructions.isBuilt(construction))
     }
 
     @Test(expected = IllegalStateException::class)

@@ -3,7 +3,9 @@ package com.unciv.ui.screens.cityscreen
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.Constants
+import com.unciv.GUI
 import com.unciv.logic.city.CityConstructions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.Religion
 import com.unciv.models.ruleset.Building
@@ -21,8 +23,11 @@ import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.KeyboardBinding
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.popups.Popup
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.popups.closeAllPopups
 import com.unciv.ui.screens.basescreen.BaseScreen
+import com.unciv.utils.Concurrency
+import kotlinx.coroutines.CancellationException
 
 /**
  * This class handles everything related to buying constructions. This includes
@@ -31,6 +36,7 @@ import com.unciv.ui.screens.basescreen.BaseScreen
 class BuyButtonFactory(val cityScreen: CityScreen) {
 
     private var preferredBuyStat = Stat.Gold  // Used for keyboard buy
+    private var authoritativePurchaseSubmissionInProgress = false
 
     fun hasBuyButtons(construction: IConstruction?): Boolean = getBuyButtons(construction).isNotEmpty()
     
@@ -48,6 +54,8 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
             return null
 
         val city = cityScreen.city
+        if (cityScreen.isAuthoritativeGame() && construction is Building &&
+            construction.hasCreateOneImprovementUnique()) return null
         val button = "".toTextButton()
 
         if (!isConstructionPurchaseShown(construction, stat)) {
@@ -165,6 +173,14 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         stat: Stat = Stat.Gold,
         tile: Tile? = null
     ) {
+        if (cityScreen.isAuthoritativeGame()) {
+            if (tile != null) {
+                ToastPopup("Tile-specific purchases are not yet available for authoritative games", cityScreen)
+                return
+            }
+            submitAuthoritativePurchase(construction, stat)
+            return
+        }
         SoundPlayer.play(stat.purchaseSound)
         val city = cityScreen.city
         if (!city.cityConstructions.purchaseConstruction(construction, cityScreen.selectedQueueEntry, false, stat, tile)) {
@@ -189,6 +205,61 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         }
         cityScreen.city.reassignPopulation()
         cityScreen.update()
+    }
+
+    private fun submitAuthoritativePurchase(
+        construction: INonPerpetualConstruction,
+        stat: Stat,
+    ) {
+        if (authoritativePurchaseSubmissionInProgress) return
+        authoritativePurchaseSubmissionInProgress = true
+        val city = cityScreen.city
+        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
+        Concurrency.runOnNonDaemonThreadPool("Purchase authoritative construction") {
+            val outcome = try {
+                cityScreen.game.onlineMultiplayer.authoritativeSession?.purchaseConstructionIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    construction.name,
+                    stat.name,
+                    queueIndex,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativePurchaseSubmissionInProgress = false
+                    ToastPopup("Could not submit purchase: [${ex.message ?: "Unknown"}]", cityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        SoundPlayer.play(stat.purchaseSound)
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.popScreen()
+                        ToastPopup("Purchase committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.popScreen()
+                        ToastPopup("Game changed on the server - purchase was not submitted", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativePurchaseSubmissionInProgress = false
+                        ToastPopup("Server rejected purchase: [${outcome.code}]", cityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativePurchaseSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
+                    }
+                    null -> {
+                        authoritativePurchaseSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before purchase could be submitted", cityScreen)
+                    }
+                }
+            }
+        }
     }
 
 }

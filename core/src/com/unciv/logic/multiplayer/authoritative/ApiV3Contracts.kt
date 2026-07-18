@@ -136,6 +136,17 @@ data class ApiV3MoveConstructionRequest(
 )
 
 @Serializable
+data class ApiV3PurchaseConstructionRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    @SerialName("construction_name") val constructionName: String,
+    @SerialName("currency_name") val currencyName: String,
+    @SerialName("queue_index") val queueIndex: Int? = null,
+)
+
+@Serializable
 data class ApiV3SetResearchPathRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

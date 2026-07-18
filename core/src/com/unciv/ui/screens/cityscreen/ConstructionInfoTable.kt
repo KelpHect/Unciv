@@ -92,7 +92,7 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
             descriptionLabel.wrap = true
             add(descriptionLabel).colspan(2).width(stage.width / if(cityScreen.isCrampedPortrait()) 3 else 4)
 
-            if (cityConstructions.isBuilt(construction.name)) {
+            if (cityConstructions.isBuilt(construction.name) && !cityScreen.isAuthoritativeGame()) {
                 showSellButton(construction)
             } else if (buyButtonFactory.hasBuyButtons(construction)) {
                 row()

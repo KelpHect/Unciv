@@ -180,10 +180,8 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         if (!authoritative && cityScreen.city.isPuppet &&
             !cityScreen.city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any()) return
 
-        if (!authoritative) {
-            for (button in buyButtonFactory.getBuyButtons(construction)) {
-                buttonsTable.add(button).width(120f).padRight(10f)
-            }
+        for (button in buyButtonFactory.getBuyButtons(construction)) {
+            buttonsTable.add(button).width(120f).padRight(10f)
         }
         // priority buttons and remove button
         val queue = cityScreen.city.cityConstructions.constructionQueue

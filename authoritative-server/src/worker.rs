@@ -106,6 +106,19 @@ enum WorkerOperation<'a> {
         #[serde(rename = "expectedConstructionName")]
         expected_construction_name: &'a str,
     },
+    PurchaseConstruction {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "constructionName")]
+        construction_name: &'a str,
+        #[serde(rename = "currencyName")]
+        currency_name: &'a str,
+        #[serde(rename = "queueIndex")]
+        queue_index: Option<u32>,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -189,6 +202,14 @@ pub struct MoveConstructionIntent<'a> {
     pub expected_construction_name: &'a str,
 }
 
+pub struct PurchaseConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub currency_name: &'a str,
+    pub queue_index: Option<u32>,
+}
+
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
@@ -247,6 +268,31 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
+    pub async fn purchase_construction(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: PurchaseConstructionIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::PurchaseConstruction {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    construction_name: intent.construction_name,
+                    currency_name: intent.currency_name,
+                    queue_index: intent.queue_index,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn remove_construction(
         &self,
         actor_id: &str,
@@ -268,7 +314,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(commit_proposal(previous_revision, response)?)
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn move_construction(
@@ -293,7 +339,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(commit_proposal(previous_revision, response)?)
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn queue_construction(

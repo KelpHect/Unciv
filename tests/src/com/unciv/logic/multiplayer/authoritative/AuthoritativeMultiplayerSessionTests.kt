@@ -350,6 +350,35 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun authoritativePurchaseRetryRetainsCommandAndNeverSendsPrice() = runBlocking {
+        val projectedCity = ProjectedCity(
+            "city-1", "Rome", 0, 0, 1, 200,
+            listOf("Monument"), listOf("Monument"),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            purchaseFailuresRemaining = 1
+            current = current.copy(projection = current.projection.copy(ownCities = listOf(projectedCity)))
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.purchaseConstructionIfOpen(
+            GAME_ID, "city-1", "Monument", "Gold", 0,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.purchaseConstructionIfOpen(
+            GAME_ID, "city-1", "Monument", "Gold", 0,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.purchaseCommandIds.size)
+        assertEquals(transport.purchaseCommandIds[0], transport.purchaseCommandIds[1])
+        assertEquals(emptyList<String>(),
+            transport.current.projection.ownCities.single().constructionQueue)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -423,6 +452,8 @@ class AuthoritativeMultiplayerSessionTests {
         val queueCommandIds = mutableListOf<String>()
         val removedConstructions = mutableListOf<ApiV3RemoveConstructionRequest>()
         val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
+        val purchaseCommandIds = mutableListOf<String>()
+        var purchaseFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -528,6 +559,32 @@ class AuthoritativeMultiplayerSessionTests {
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-${current.committedRevision + 1}",
                 projection = current.projection.copy(ownCities = listOf(city.copy(constructionQueue = queue))),
+            )
+            return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash)
+        }
+        override suspend fun purchaseConstruction(
+            gameId: String,
+            request: ApiV3PurchaseConstructionRequest,
+        ): ApiV3CommandAccepted {
+            purchaseCommandIds += request.commandId
+            if (purchaseFailuresRemaining > 0) {
+                purchaseFailuresRemaining--
+                throw IOException("lost response")
+            }
+            val city = current.projection.ownCities.single { it.id == request.cityId }
+            val queue = city.constructionQueue.toMutableList()
+            request.queueIndex?.let {
+                check(queue[it] == request.constructionName)
+                queue.removeAt(it)
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(
+                    gold = current.projection.gold - 10,
+                    ownCities = listOf(city.copy(constructionQueue = queue)),
+                ),
             )
             return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
                 current.committedRevision, current.canonicalStateHash)

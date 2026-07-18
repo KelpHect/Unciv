@@ -11,6 +11,7 @@ sourceSets {
 }
 
 val mainClassName = "com.unciv.app.server.UncivServer"
+val authoritativeWorkerMainClassName = "com.unciv.app.server.authoritative.EngineWorkerMain"
 val assetsDir = file("../android/assets")
 val deployFolder = file("../deploy")
 
@@ -41,6 +42,15 @@ tasks.register<JavaExec>("debug") {
     workingDir = assetsDir
     isIgnoreExitValue = true
     debug = true
+}
+
+/** Starts the private, headless rules worker used by the Rust API-v3 process. */
+tasks.register<JavaExec>("runAuthoritativeWorker") {
+    dependsOn(tasks.getByName("classes"))
+    mainClass.set(authoritativeWorkerMainClassName)
+    classpath = sourceSets.main.get().runtimeClasspath
+    workingDir = assetsDir
+    standardInput = System.`in`
 }
 
 tasks.register<Jar>("dist") { // Compiles the jar file

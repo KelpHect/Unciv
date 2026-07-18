@@ -131,6 +131,8 @@ project(":server") {
     dependencies {
         "implementation"(project(":core"))
         "implementation"(rootProject.libs.gdx.backend.headless)
+        // HeadlessApplication still loads the platform LibGDX native shim.
+        "runtimeOnly"(gdxNatives("desktop"))
         // For server-side
         "api"(rootProject.libs.bundles.ktor.server)
         "implementation"(rootProject.libs.logback)

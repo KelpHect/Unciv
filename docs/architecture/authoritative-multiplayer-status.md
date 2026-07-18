@@ -185,3 +185,35 @@ against an owned disposable PostgreSQL 18 container. A separate HTTP smoke run
 registered, logged in, logged out, and confirmed the revoked token received
 HTTP 401. Rate limits/backoff, password changes, TLS proxy deployment, and
 client secure storage remain pending.
+
+## Server-created game vertical slice
+
+Implemented:
+
+- Worker protocol v1 now has a `create_game` operation. Rust sends only a
+  pinned manifest and an empty/default setup intent; Kotlin deserializes that
+  setup and calls the existing `GameStarter` to produce canonical revision
+  zero. No create route accepts a `GameInfo` or save payload.
+- `POST /api/v3/games` authenticates the owner from its bearer session and
+  asks the private loopback Kotlin worker to create state. Rust validates the
+  returned hash, writes immutable revision zero, and adds the owner membership.
+- `GET /api/v3/games/{game_id}` returns a metadata-only member projection
+  (revision, canonical hash, role). It deliberately does not return the
+  canonical snapshot; a complete player projection remains future work.
+- The worker listener now discards malformed/abandoned loopback connections
+  instead of exiting on `EOFException`; a TCP readiness probe can no longer
+  kill the worker.
+
+Verification:
+
+```text
+.\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+Both compiled/passed. An owned PostgreSQL 18 plus Kotlin worker/Rust API smoke
+run registered an owner, inserted a test pinned manifest, created a game over
+HTTP, persisted revision `0`, fetched owner metadata, and verified a second
+authenticated non-member received HTTP `403`. The test container and worker
+processes were removed afterward. Joining/assignment, player projections, and
+typed non-turn gameplay commands are still pending.

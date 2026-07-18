@@ -22,7 +22,102 @@ pub struct NewGame {
     pub snapshot: Vec<u8>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct GameMetadata {
+    pub game_id: Uuid,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+    pub role: String,
+}
+
 impl PostgresGameRepository {
+    /// Creates a new canonical game exclusively through the private Kotlin
+    /// worker. The caller supplies a previously stored manifest hash; it cannot
+    /// upload a revision-zero save or choose an unpinned ruleset payload.
+    pub async fn create_authoritative_game(
+        &self,
+        worker: &EngineWorkerClient,
+        owner_account_id: Uuid,
+        game_id: Uuid,
+        ruleset_manifest_hash: String,
+    ) -> Result<(), CommitError> {
+        let manifest: serde_json::Value =
+            sqlx::query_scalar("SELECT manifest FROM ruleset_manifests WHERE hash = $1")
+                .bind(&ruleset_manifest_hash)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(CommitError::storage)?
+                .ok_or(CommitError::NotFound)?;
+        let manifest: WorkerManifest =
+            serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        // Defaults are a deliberately minimal setup intent. The worker is the
+        // sole component that turns it into a GameInfo through GameStarter.
+        let proposal = worker
+            .create_game(&owner_account_id.to_string(), &manifest, "{}")
+            .await
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
+            return Err(CommitError::InvalidSnapshotHash);
+        }
+        self.create_game(NewGame {
+            game_id,
+            owner_account_id,
+            ruleset_manifest_hash,
+            snapshot: proposal.snapshot,
+        })
+        .await
+        .map_err(CommitError::storage)
+    }
+
+    /// Returns a safe metadata projection. It deliberately excludes the
+    /// canonical snapshot: callers must later use a player-scoped projection
+    /// endpoint rather than receiving serialized `GameInfo`.
+    pub async fn game_metadata(
+        &self,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+    ) -> Result<GameMetadata, CommitError> {
+        let role: Option<String> = sqlx::query_scalar(
+            "SELECT role FROM game_members WHERE game_id = $1 AND account_id = $2",
+        )
+        .bind(game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?;
+        let role = match role {
+            Some(role) => role,
+            None => {
+                let game_exists: bool =
+                    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM games WHERE id = $1)")
+                        .bind(game_id)
+                        .fetch_one(&self.pool)
+                        .await
+                        .map_err(CommitError::storage)?;
+                return Err(if game_exists {
+                    CommitError::Unauthorized
+                } else {
+                    CommitError::NotFound
+                });
+            }
+        };
+        let row = sqlx::query(
+            "SELECT g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
+        )
+        .bind(game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        Ok(GameMetadata {
+            game_id,
+            committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
+                .expect("revision is non-negative"),
+            canonical_state_hash: row.get("canonical_state_hash"),
+            role,
+        })
+    }
+
     /// Creates an account with a normalized username and a per-password Argon2id
     /// hash. The transaction never writes a plaintext password or bearer token.
     pub async fn register_account(

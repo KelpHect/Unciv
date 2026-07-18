@@ -4,6 +4,8 @@ import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.json.json
+import com.unciv.models.metadata.GameSetupInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -40,6 +42,11 @@ data class WorkerRuleset(val name: String, val sha256: String)
 
 @Serializable
 sealed interface WorkerOperation {
+    /** A setup intent, never a client-created GameInfo. The worker invokes the
+     * shared GameStarter to create canonical revision zero. */
+    @Serializable @SerialName("create_game")
+    data class CreateGame(val setup: String) : WorkerOperation
+
     @Serializable @SerialName("end_turn")
     data class EndTurn(val snapshot: String) : WorkerOperation
 }
@@ -63,6 +70,13 @@ class AuthoritativeEngineWorker {
             rulesetManifest = request.rulesetManifest.toCore(),
         ))
         when (val operation = request.operation) {
+            is WorkerOperation.CreateGame -> {
+                val setup = json().fromJson(GameSetupInfo::class.java, operation.setup)
+                setup.gameParameters.isOnlineMultiplayer = true
+                setup.gameParameters.multiplayerServerUrl = null
+                val result = engine.createGame(setup)
+                WorkerResponse(snapshot = engine.serializeSnapshot(result.game), canonicalStateHash = result.canonicalStateHash)
+            }
             is WorkerOperation.EndTurn -> {
                 val result = engine.endTurn(engine.loadSnapshot(operation.snapshot))
                 WorkerResponse(snapshot = engine.serializeSnapshot(result.game), canonicalStateHash = result.canonicalStateHash)
@@ -81,7 +95,14 @@ class AuthoritativeEngineWorker {
 
 class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker()) {
     fun serve(port: Int) = ServerSocket(port, 50, java.net.InetAddress.getLoopbackAddress()).use { server ->
-        while (true) server.accept().use(::serveConnection)
+        while (true) {
+            server.accept().use { socket ->
+                // A readiness probe or a malformed local peer must not kill
+                // the long-lived worker process. Valid requests receive their
+                // structured engine result; invalid frames are simply dropped.
+                runCatching { serveConnection(socket) }
+            }
+        }
     }
 
     private fun serveConnection(socket: Socket) {

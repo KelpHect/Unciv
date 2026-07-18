@@ -866,13 +866,11 @@ references, revision CAS/idempotency, authorization, snapshot quarantine,
 outbox leases, discovery, and durable rate limiting. Gradle passed four server
 tests and 755 shared tests with zero failures or errors (13 intentional skips).
 
-PostgreSQL 18.4 is the current production baseline. PostgreSQL 19 Beta 2 is a
-required forward-compatibility lane so migrations and workloads can exercise
-its newer behavior, but it is not a production recommendation while PostgreSQL
-classifies version 19 as a prerelease. Move the production baseline to 19 after
-general availability and a successful backup/restore and load validation. The
-older PostgreSQL 16 entries above remain historical evidence, not the current
-deployment target.
+PostgreSQL 19 Beta 2 is now the sole production and test baseline by explicit
+project decision; no PostgreSQL 18 compatibility lane will be maintained. The
+accepted prerelease risk and mandatory upgrade/restore gate are documented in
+`docs/operations/authoritative-postgresql-19.md`. The older PostgreSQL 16/18
+entries above remain historical evidence, not current deployment targets.
 
 Platform credential-store implementations and account-management UI remain
 pending. Account deletion is deliberately soft/pseudonymous; retention-policy

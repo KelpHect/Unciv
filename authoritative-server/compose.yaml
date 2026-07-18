@@ -1,0 +1,35 @@
+name: unciv-authoritative-v3
+
+services:
+  postgres:
+    image: postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unciv_authoritative
+      POSTGRES_USER: unciv_authoritative
+      POSTGRES_PASSWORD: ${UNCIV_V3_POSTGRES_PASSWORD:?set UNCIV_V3_POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - io_method=worker
+      - -c
+      - io_min_workers=1
+      - -c
+      - io_max_workers=2
+      - -c
+      - io_max_concurrency=16
+      - -c
+      - autovacuum_max_parallel_workers=1
+    ports:
+      - "127.0.0.1:${UNCIV_V3_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - authoritative-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unciv_authoritative -d unciv_authoritative"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  authoritative-postgres-data:

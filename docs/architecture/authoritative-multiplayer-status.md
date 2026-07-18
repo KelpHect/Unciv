@@ -1,5 +1,25 @@
 # Authoritative multiplayer v3 status
 
+## Command-coverage inventory
+
+Added on 2026-07-18:
+
+- `docs/multiplayer-command-coverage.md` now inventories the online mutation
+  surface across unit combat/actions/orders, cities, research, policies,
+  religion, diplomacy/trades, city states, espionage, votes, automation,
+  captured-city choices, resignation, spectators, and administration.
+- The matrix distinguishes an implemented server handler from completed client
+  migration. `MoveUnit`, `EndTurn`, creation, and join remain partial because
+  production online UI paths still mutate a local `GameInfo` and use the
+  legacy whole-save upload flow.
+- Each row records the required closed command shape, current domain/UI call
+  sites, authorization/validation rules, projection needs, and honest status.
+  Projection gaps and the final direct-mutation search gate are explicit.
+
+Next executable command milestone: route one production world-screen action
+through the authoritative bus and projection reconciliation, while preserving
+the legacy path only for explicitly negotiated non-v3 games.
+
 ## Worker handshake and enforced engine/ruleset pins
 
 Implemented on 2026-07-18:

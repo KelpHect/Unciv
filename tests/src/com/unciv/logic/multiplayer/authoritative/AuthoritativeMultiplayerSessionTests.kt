@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.io.IOException
 
 class AuthoritativeMultiplayerSessionTests {
     @Test
@@ -119,6 +120,39 @@ class AuthoritativeMultiplayerSessionTests {
         }
     }
 
+    @Test
+    fun accountLifecycleRotatesCredentialsAndClearsAuthenticatedGameState() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        session.changePassword("old-password", "new-password")
+        assertEquals(listOf("old-password" to "new-password"), transport.passwordChanges)
+        session.disableAccount("new-password")
+        assertEquals(listOf("new-password"), transport.disableRequests)
+        assertThrows<IllegalStateException> { session.openGame(GAME_ID) }
+        session.close()
+
+        val deleteTransport = FakeTransport().apply { restored = true }
+        val deleteSession = session(deleteTransport)
+        deleteSession.restore()
+        deleteSession.deleteAccount("delete-password")
+        assertEquals(listOf("delete-password"), deleteTransport.deleteRequests)
+        assertThrows<IllegalStateException> { deleteSession.listGames() }
+        deleteSession.close()
+
+        val ambiguousTransport = FakeTransport().apply {
+            restored = true
+            disableFailure = IOException("lost response")
+        }
+        val ambiguousSession = session(ambiguousTransport)
+        ambiguousSession.restore()
+        assertThrows<IOException> { ambiguousSession.disableAccount("password") }
+        assertThrows<IllegalStateException> { ambiguousSession.listGames() }
+        ambiguousSession.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -175,6 +209,10 @@ class AuthoritativeMultiplayerSessionTests {
         var projectionCalls = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
+        val passwordChanges = mutableListOf<Pair<String, String>>()
+        val disableRequests = mutableListOf<String>()
+        val deleteRequests = mutableListOf<String>()
+        var disableFailure: Throwable? = null
         @Volatile
         var current = projection(7, "hash-7")
         val notifications = MutableSharedFlow<ApiV3RevisionNotification>(extraBufferCapacity = 8)
@@ -188,6 +226,16 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit
         override suspend fun logout() { logoutCalls++ }
+        override suspend fun changePassword(currentPassword: String, newPassword: String) {
+            passwordChanges += currentPassword to newPassword
+        }
+        override suspend fun disableAccount(password: String) {
+            disableRequests += password
+            disableFailure?.let { throw it }
+        }
+        override suspend fun deleteAccount(password: String) {
+            deleteRequests += password
+        }
         override suspend fun listGames(after: String?, limit: Int): ApiV3GamePage {
             listCalls += after to limit
             return ApiV3GamePage(

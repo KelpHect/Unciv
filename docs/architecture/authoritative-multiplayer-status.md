@@ -819,3 +819,61 @@ through an explicitly trusted proxy configuration; the service intentionally
 does not trust arbitrary forwarded-address headers. Distributed rate limiting
 is correct because PostgreSQL is the source of truth, though retention cleanup
 and operator-configurable thresholds remain pending.
+
+## Account lifecycle and PostgreSQL forward compatibility
+
+Implemented:
+
+- Migration `0007_account_lifecycle.sql` records password rotation time and
+  complete disable/delete state while preserving stable account UUIDs and
+  historical game memberships. Account deletion pseudonymizes the unique
+  username and invalidates the password rather than breaking revision history.
+- `POST /api/v3/account/password` verifies the current password, rejects reuse,
+  revokes every existing session, and atomically returns one replacement
+  session. `POST /api/v3/account/disable` and `DELETE /api/v3/account` verify the
+  password and revoke every session in the same transaction.
+- All three bearer-authenticated endpoints have durable per-account/source rate
+  limits and append success/rejection audit events without recording passwords
+  or tokens. The generated OpenAPI contract contains closed request schemas and
+  stable error responses.
+- The shared Kotlin transport and session expose all three operations. Password
+  rotation replaces the locally held token. Disable/delete clear local
+  authentication and authoritative game state even when the response is lost,
+  because retaining a possibly revoked credential would be unsafe.
+
+Verification on 2026-07-18:
+
+```text
+cargo fmt --manifest-path authoritative-server/Cargo.toml --check
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path authoritative-server/Cargo.toml
+
+UNCIV_V3_DATABASE_URL=postgres://postgres:unciv_test@127.0.0.1:55454/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+UNCIV_V3_DATABASE_URL=postgres://postgres:unciv_test@127.0.0.1:55455/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+
+.\gradlew.bat :server:test :tests:test --no-daemon
+```
+
+Rust formatting and warnings-as-errors linting passed. Default Rust tests passed
+with 13 library tests and seven HTTP/OpenAPI tests; eight database tests were
+explicitly ignored there. The complete eight-test database suite then passed
+independently against both `postgres:18.4-alpine` and
+`postgres:19beta2-alpine`. It covers account lifecycle, password reuse and
+wrong-password rejection, session revocation/replacement, preserved membership
+references, revision CAS/idempotency, authorization, snapshot quarantine,
+outbox leases, discovery, and durable rate limiting. Gradle passed four server
+tests and 755 shared tests with zero failures or errors (13 intentional skips).
+
+PostgreSQL 18.4 is the current production baseline. PostgreSQL 19 Beta 2 is a
+required forward-compatibility lane so migrations and workloads can exercise
+its newer behavior, but it is not a production recommendation while PostgreSQL
+classifies version 19 as a prerelease. Move the production baseline to 19 after
+general availability and a successful backup/restore and load validation. The
+older PostgreSQL 16 entries above remain historical evidence, not the current
+deployment target.
+
+Platform credential-store implementations and account-management UI remain
+pending. Account deletion is deliberately soft/pseudonymous; retention-policy
+and operator erasure procedures still need to be defined before production.

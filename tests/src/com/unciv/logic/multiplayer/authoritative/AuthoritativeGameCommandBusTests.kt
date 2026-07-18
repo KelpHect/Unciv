@@ -196,6 +196,9 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit
         override suspend fun logout() = Unit
+        override suspend fun changePassword(currentPassword: String, newPassword: String) = Unit
+        override suspend fun disableAccount(password: String) = Unit
+        override suspend fun deleteAccount(password: String) = Unit
         override suspend fun listGames(after: String?, limit: Int) = ApiV3GamePage(emptyList())
         override suspend fun createGame(rulesetManifestHash: String) =
             ApiV3GameMetadata(gameId, 0, "hash-0", "owner", "Rome")

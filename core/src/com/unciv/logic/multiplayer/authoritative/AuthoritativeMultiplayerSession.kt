@@ -61,6 +61,29 @@ class AuthoritativeMultiplayerSession(
         transport.refreshSession()
     }
 
+    suspend fun changePassword(currentPassword: String, newPassword: String) {
+        requireAuthenticated()
+        transport.changePassword(currentPassword, newPassword)
+    }
+
+    suspend fun disableAccount(password: String) {
+        requireAuthenticated()
+        try {
+            transport.disableAccount(password)
+        } finally {
+            clearAuthenticatedState()
+        }
+    }
+
+    suspend fun deleteAccount(password: String) {
+        requireAuthenticated()
+        try {
+            transport.deleteAccount(password)
+        } finally {
+            clearAuthenticatedState()
+        }
+    }
+
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage {
         requireAuthenticated()
         return transport.listGames(after, limit)
@@ -82,6 +105,10 @@ class AuthoritativeMultiplayerSession(
 
     suspend fun logout() {
         if (authenticated) transport.logout()
+        clearAuthenticatedState()
+    }
+
+    private suspend fun clearAuthenticatedState() {
         authenticated = false
         notificationJob?.cancel()
         notificationJob = null

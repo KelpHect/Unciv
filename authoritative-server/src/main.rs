@@ -9,7 +9,7 @@ use axum::{
     extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -73,6 +73,19 @@ struct LoginResponse {
 #[derive(Serialize, ToSchema)]
 struct SessionResponse {
     session_token: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct ConfirmPasswordRequest {
+    password: String,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -159,6 +172,9 @@ struct ApiError {
         login,
         refresh_session,
         logout,
+        change_password,
+        disable_account,
+        delete_account,
         list_games,
         create_game,
         game_metadata,
@@ -176,6 +192,8 @@ struct ApiError {
         AccountResponse,
         LoginResponse,
         SessionResponse,
+        ChangePasswordRequest,
+        ConfirmPasswordRequest,
         CreateGameRequest,
         GameMetadataResponse,
         EndTurnRequest,
@@ -581,6 +599,148 @@ async fn refresh_session(
     Ok(Json(SessionResponse {
         session_token: credential.token,
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/account/password",
+    security(("bearer_auth" = [])),
+    request_body = ChangePasswordRequest,
+    responses(
+        (status = 200, body = SessionResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+async fn change_password(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<ChangePasswordRequest>,
+) -> Result<Json<SessionResponse>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    let credential = match state
+        .repository
+        .change_password(actor.id, &request.current_password, &request.new_password)
+        .await
+    {
+        Ok(credential) => credential,
+        Err(error) => {
+            audit_account_lifecycle(&state, actor.id, "password_change", "rejected", source.ip())
+                .await;
+            return Err(account_change_error(error));
+        }
+    };
+    audit_account_lifecycle(&state, actor.id, "password_change", "success", source.ip()).await;
+    Ok(Json(SessionResponse {
+        session_token: credential.token,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/account/disable",
+    security(("bearer_auth" = [])),
+    request_body = ConfirmPasswordRequest,
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+async fn disable_account(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<ConfirmPasswordRequest>,
+) -> Result<StatusCode, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    if let Err(error) = state
+        .repository
+        .disable_account(actor.id, &request.password)
+        .await
+    {
+        audit_account_lifecycle(&state, actor.id, "account_disable", "rejected", source.ip()).await;
+        return Err(account_change_error(error));
+    }
+    audit_account_lifecycle(&state, actor.id, "account_disable", "success", source.ip()).await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v3/account",
+    security(("bearer_auth" = [])),
+    request_body = ConfirmPasswordRequest,
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+async fn delete_account(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<ConfirmPasswordRequest>,
+) -> Result<StatusCode, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    if let Err(error) = state
+        .repository
+        .delete_account(actor.id, &request.password)
+        .await
+    {
+        audit_account_lifecycle(&state, actor.id, "account_delete", "rejected", source.ip()).await;
+        return Err(account_change_error(error));
+    }
+    audit_account_lifecycle(&state, actor.id, "account_delete", "success", source.ip()).await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn enforce_account_security_rate_limit(
+    state: &AppState,
+    account_id: uuid::Uuid,
+    source: IpAddr,
+) -> Result<(), ApiError> {
+    let source_prefix = source_prefix(source);
+    enforce_rate_limit(
+        state,
+        &format!("account-security:{account_id}:{source_prefix}"),
+        RateLimitPolicy {
+            window_seconds: 900,
+            max_requests: 5,
+            block_seconds: 900,
+            event_type: "account_security",
+        },
+        &source_prefix,
+        None,
+    )
+    .await
+}
+
+async fn audit_account_lifecycle(
+    state: &AppState,
+    account_id: uuid::Uuid,
+    event_type: &str,
+    outcome: &str,
+    source: IpAddr,
+) {
+    audit_security(
+        state,
+        Some(account_id),
+        event_type,
+        outcome,
+        &source_prefix(source),
+        None,
+    )
+    .await;
 }
 
 #[utoipa::path(
@@ -1019,6 +1179,16 @@ fn login_error(error: AuthError) -> ApiError {
     }
 }
 
+fn account_change_error(error: AuthError) -> ApiError {
+    match error {
+        AuthError::InvalidPassword(_) => ApiError::bad_request("invalid_password"),
+        AuthError::InvalidCredentials | AuthError::AccountDisabled => ApiError::unauthorized(),
+        AuthError::RateLimited => ApiError::rate_limited(900),
+        AuthError::Storage => ApiError::internal(),
+        AuthError::InvalidUsername(_) | AuthError::UsernameTaken => ApiError::internal(),
+    }
+}
+
 fn game_error(error: CommitError) -> ApiError {
     eprintln!("authoritative game command failed: {error}");
     match error {
@@ -1139,6 +1309,9 @@ async fn main() {
         .route("/api/v3/auth/login", post(login))
         .route("/api/v3/auth/refresh", post(refresh_session))
         .route("/api/v3/auth/logout", post(logout))
+        .route("/api/v3/account/password", post(change_password))
+        .route("/api/v3/account/disable", post(disable_account))
+        .route("/api/v3/account", delete(delete_account))
         .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
         .route("/api/v3/games/{game_id}/projection", get(game_projection))
@@ -1195,6 +1368,9 @@ mod tests {
             "/api/v3/auth/login",
             "/api/v3/auth/refresh",
             "/api/v3/auth/logout",
+            "/api/v3/account/password",
+            "/api/v3/account/disable",
+            "/api/v3/account",
             "/api/v3/games",
             "/api/v3/games/{game_id}",
             "/api/v3/games/{game_id}/projection",

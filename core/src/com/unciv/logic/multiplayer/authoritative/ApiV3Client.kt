@@ -10,6 +10,7 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -73,6 +74,38 @@ class ApiV3Client(
 
     override suspend fun logout() {
         val response = client.post("api/v3/auth/logout") { authenticate() }
+        if (!response.status.isSuccess()) throw response.toApiException()
+        sessionToken = null
+        tokenStore.clear()
+    }
+
+    override suspend fun changePassword(currentPassword: String, newPassword: String) {
+        val response: ApiV3Session = decode(client.post("api/v3/account/password") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3ChangePasswordRequest(currentPassword, newPassword))
+        })
+        sessionToken = response.sessionToken
+        tokenStore.save(response.sessionToken)
+    }
+
+    override suspend fun disableAccount(password: String) {
+        val response = client.post("api/v3/account/disable") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3ConfirmPasswordRequest(password))
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+        sessionToken = null
+        tokenStore.clear()
+    }
+
+    override suspend fun deleteAccount(password: String) {
+        val response = client.delete("api/v3/account") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3ConfirmPasswordRequest(password))
+        }
         if (!response.status.isSuccess()) throw response.toApiException()
         sessionToken = null
         tokenStore.clear()

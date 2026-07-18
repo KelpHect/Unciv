@@ -18,6 +18,8 @@ const MAXIMUM_USERNAME_LENGTH: usize = 32;
 pub enum PasswordError {
     #[error("password must be at least {MINIMUM_PASSWORD_LENGTH} characters")]
     TooShort,
+    #[error("new password must differ from the current password")]
+    Unchanged,
     #[error("stored password hash is malformed")]
     InvalidStoredHash,
     #[error("password hashing failed")]

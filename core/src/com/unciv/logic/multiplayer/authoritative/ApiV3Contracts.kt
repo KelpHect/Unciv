@@ -31,6 +31,15 @@ data class ApiV3Login(
 data class ApiV3Session(@SerialName("session_token") val sessionToken: String)
 
 @Serializable
+data class ApiV3ChangePasswordRequest(
+    @SerialName("current_password") val currentPassword: String,
+    @SerialName("new_password") val newPassword: String,
+)
+
+@Serializable
+data class ApiV3ConfirmPasswordRequest(val password: String)
+
+@Serializable
 data class ApiV3CreateGameRequest(
     @SerialName("ruleset_manifest_hash") val rulesetManifestHash: String,
 )

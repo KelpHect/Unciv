@@ -6,7 +6,8 @@ use sqlx::{
 use uuid::Uuid;
 
 use crate::auth::{
-    Account, AuthError, PasswordService, SessionCredential, normalize_username, token_digest,
+    Account, AuthError, PasswordError, PasswordService, SessionCredential, normalize_username,
+    token_digest,
 };
 use crate::projection::PlayerProjection;
 use crate::worker::{EngineWorkerClient, MoveUnitIntent, QueueConstructionIntent, WorkerManifest};
@@ -624,6 +625,128 @@ impl PostgresGameRepository {
             .map_err(|_| AuthError::Storage)?;
         tx.commit().await.map_err(|_| AuthError::Storage)?;
         Ok(credential)
+    }
+
+    /// Replaces a password only after re-verifying it under an account row
+    /// lock. Every existing session is revoked atomically and one replacement
+    /// credential is issued so a stolen token cannot survive the change.
+    pub async fn change_password(
+        &self,
+        account_id: Uuid,
+        current_password: &str,
+        new_password: &str,
+    ) -> Result<SessionCredential, AuthError> {
+        let new_hash = PasswordService.hash(new_password)?;
+        let replacement = SessionCredential::generate();
+        let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
+        let row = sqlx::query(
+            "SELECT password_hash, disabled_at IS NOT NULL AS disabled FROM accounts WHERE id=$1 FOR UPDATE",
+        )
+        .bind(account_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?
+        .ok_or(AuthError::InvalidCredentials)?;
+        if row.get::<bool, _>("disabled") {
+            return Err(AuthError::AccountDisabled);
+        }
+        let stored_hash: String = row.get("password_hash");
+        if !PasswordService
+            .verify(current_password, &stored_hash)
+            .map_err(|_| AuthError::InvalidCredentials)?
+        {
+            return Err(AuthError::InvalidCredentials);
+        }
+        if current_password == new_password {
+            return Err(AuthError::InvalidPassword(PasswordError::Unchanged));
+        }
+        sqlx::query("UPDATE accounts SET password_hash=$2, password_changed_at=now() WHERE id=$1")
+            .bind(account_id)
+            .bind(new_hash)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| AuthError::Storage)?;
+        sqlx::query(
+            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()) WHERE account_id=$1",
+        )
+        .bind(account_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        sqlx::query("INSERT INTO sessions (id, account_id, token_digest, expires_at) VALUES ($1, $2, $3, now() + interval '30 days')")
+            .bind(Uuid::new_v4())
+            .bind(account_id)
+            .bind(&replacement.digest)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| AuthError::Storage)?;
+        tx.commit().await.map_err(|_| AuthError::Storage)?;
+        Ok(replacement)
+    }
+
+    /// Disables login and revokes every session without deleting immutable
+    /// game history or membership foreign keys.
+    pub async fn disable_account(&self, account_id: Uuid, password: &str) -> Result<(), AuthError> {
+        self.close_account(account_id, password, false).await
+    }
+
+    /// Pseudonymizes the username and destroys the login credential while
+    /// retaining the stable UUID required by command/audit history.
+    pub async fn delete_account(&self, account_id: Uuid, password: &str) -> Result<(), AuthError> {
+        self.close_account(account_id, password, true).await
+    }
+
+    async fn close_account(
+        &self,
+        account_id: Uuid,
+        password: &str,
+        delete: bool,
+    ) -> Result<(), AuthError> {
+        let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
+        let row = sqlx::query(
+            "SELECT password_hash, disabled_at IS NOT NULL AS disabled FROM accounts WHERE id=$1 FOR UPDATE",
+        )
+        .bind(account_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?
+        .ok_or(AuthError::InvalidCredentials)?;
+        if row.get::<bool, _>("disabled") {
+            return Err(AuthError::AccountDisabled);
+        }
+        let stored_hash: String = row.get("password_hash");
+        if !PasswordService
+            .verify(password, &stored_hash)
+            .map_err(|_| AuthError::InvalidCredentials)?
+        {
+            return Err(AuthError::InvalidCredentials);
+        }
+        if delete {
+            sqlx::query(
+                "UPDATE accounts SET username_normalized=$2, password_hash='!deleted!', disabled_at=now(), disabled_reason='self_deleted', deleted_at=now() WHERE id=$1",
+            )
+            .bind(account_id)
+            .bind(format!("deleted-{account_id}"))
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| AuthError::Storage)?;
+        } else {
+            sqlx::query(
+                "UPDATE accounts SET disabled_at=now(), disabled_reason='self_disabled' WHERE id=$1",
+            )
+            .bind(account_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| AuthError::Storage)?;
+        }
+        sqlx::query(
+            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()) WHERE account_id=$1",
+        )
+        .bind(account_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        tx.commit().await.map_err(|_| AuthError::Storage)
     }
 
     /// Loads the canonical head, delegates rule execution to Kotlin, then uses
@@ -1633,6 +1756,147 @@ mod integration_tests {
         repository.revoke_session(&rotated.token).await.unwrap();
         assert!(matches!(
             repository.authenticate_session(&rotated.token).await,
+            Err(AuthError::InvalidCredentials)
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+    async fn account_lifecycle_revokes_sessions_and_preserves_history_references() {
+        let repository = PostgresGameRepository::connect(&database_url())
+            .await
+            .unwrap();
+        repository.migrate().await.unwrap();
+        seed_repository(&repository).await;
+
+        let account = repository
+            .register_account("password-owner", "original-password")
+            .await
+            .unwrap();
+        let first = repository.issue_session(account.id).await.unwrap();
+        let second = repository.issue_session(account.id).await.unwrap();
+        assert!(matches!(
+            repository
+                .change_password(account.id, "original-password", "original-password")
+                .await,
+            Err(AuthError::InvalidPassword(PasswordError::Unchanged))
+        ));
+        repository.authenticate_session(&first.token).await.unwrap();
+        let replacement = repository
+            .change_password(account.id, "original-password", "replacement-password")
+            .await
+            .unwrap();
+        assert!(matches!(
+            repository.authenticate_session(&first.token).await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert!(matches!(
+            repository.authenticate_session(&second.token).await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert_eq!(
+            repository
+                .authenticate_session(&replacement.token)
+                .await
+                .unwrap(),
+            account
+        );
+        assert!(matches!(
+            repository
+                .authenticate_account("password-owner", "original-password")
+                .await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        repository
+            .authenticate_account("password-owner", "replacement-password")
+            .await
+            .unwrap();
+        let active_sessions: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM sessions WHERE account_id=$1 AND revoked_at IS NULL",
+        )
+        .bind(account.id)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+        assert_eq!(active_sessions, 1);
+
+        let disabled = repository
+            .register_account("disable-me", "disable-password")
+            .await
+            .unwrap();
+        let disabled_session = repository.issue_session(disabled.id).await.unwrap();
+        assert!(matches!(
+            repository
+                .disable_account(disabled.id, "wrong-password")
+                .await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        repository
+            .authenticate_session(&disabled_session.token)
+            .await
+            .unwrap();
+        repository
+            .disable_account(disabled.id, "disable-password")
+            .await
+            .unwrap();
+        assert!(matches!(
+            repository
+                .authenticate_session(&disabled_session.token)
+                .await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert!(matches!(
+            repository
+                .authenticate_account("disable-me", "disable-password")
+                .await,
+            Err(AuthError::AccountDisabled)
+        ));
+
+        let deleted = repository
+            .register_account("delete-me", "delete-password")
+            .await
+            .unwrap();
+        let deleted_game = Uuid::new_v4();
+        repository
+            .create_game(NewGame {
+                game_id: deleted_game,
+                owner_account_id: deleted.id,
+                ruleset_manifest_hash: "a".repeat(64),
+                snapshot: b"deletion-history".to_vec(),
+                owner_civilization_id: "deleted-civilization".to_owned(),
+            })
+            .await
+            .unwrap();
+        repository
+            .delete_account(deleted.id, "delete-password")
+            .await
+            .unwrap();
+        let deleted_row = sqlx::query(
+            "SELECT username_normalized, disabled_at IS NOT NULL AS disabled, deleted_at IS NOT NULL AS deleted FROM accounts WHERE id=$1",
+        )
+        .bind(deleted.id)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            deleted_row.get::<String, _>("username_normalized"),
+            format!("deleted-{}", deleted.id)
+        );
+        assert!(deleted_row.get::<bool, _>("disabled"));
+        assert!(deleted_row.get::<bool, _>("deleted"));
+        let membership_survived: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id=$1 AND account_id=$2)",
+        )
+        .bind(deleted_game)
+        .bind(deleted.id)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+        assert!(membership_survived);
+        assert!(matches!(
+            repository
+                .authenticate_account("delete-me", "delete-password")
+                .await,
             Err(AuthError::InvalidCredentials)
         ));
     }

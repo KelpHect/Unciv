@@ -149,6 +149,35 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
     }
 
+    @Test
+    fun queueConstructionUsesCanonicalCityOwnershipAndBuildability() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val construction = city.getRuleset().buildings.values
+            .first { city.cityConstructions.canAddToQueue(it) }.name
+
+        val result = engine.queueConstruction(game, "Rome", city.id, construction)
+        val projectedCity = engine.playerProjection(result.game, "Rome").ownCities.single { it.id == city.id }
+
+        Assert.assertEquals(listOf(construction), city.cityConstructions.constructionQueue)
+        Assert.assertEquals(listOf(construction), projectedCity.constructionQueue)
+        Assert.assertTrue(construction in projectedCity.availableConstructions)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun actorCannotQueueConstructionInAnotherCivilizationsCity() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val greece = game.getCivilization("Greece")
+        val city = greece.addCity(greece.units.getCivUnits().first().getTile().position)
+        val construction = city.getRuleset().buildings.values
+            .first { city.cityConstructions.canAddToQueue(it) }.name
+
+        engine.queueConstruction(game, "Rome", city.id, construction)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

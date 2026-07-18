@@ -39,6 +39,14 @@ sealed interface PendingAuthoritativeCommand {
         override val expectedRevision: Long,
         override val observedStateHash: String,
     ) : PendingAuthoritativeCommand
+
+    data class QueueConstruction(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+    ) : PendingAuthoritativeCommand
 }
 
 sealed interface AuthoritativeCommandOutcome {
@@ -88,6 +96,22 @@ class AuthoritativeGameCommandBus(
             commandId = commandIdFactory(),
             expectedRevision = current.committedRevision,
             observedStateHash = current.canonicalStateHash,
+        ), current)
+    }
+
+    suspend fun queueConstruction(cityId: String, constructionName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(constructionName in city.availableConstructions) {
+            "Construction is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.QueueConstruction(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            cityId = cityId,
+            constructionName = constructionName,
         ), current)
     }
 
@@ -146,6 +170,16 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                     ),
                 )
+                is PendingAuthoritativeCommand.QueueConstruction -> transport.queueConstruction(
+                    gameId,
+                    ApiV3QueueConstructionRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.cityId,
+                        pending.constructionName,
+                    ),
+                )
             }
         } catch (exception: ApiV3Exception) {
             if (exception.httpStatus == 409 && exception.error.code == "stale_revision") {
@@ -184,6 +218,9 @@ class AuthoritativeGameCommandBus(
         state = AuthoritativeSyncState.Refreshing(cached)
         val refreshed = transport.projection(gameId)
         check(refreshed.gameId == gameId) { "Server returned a projection for a different game" }
+        check(refreshed.projectionVersion == PlayerProjection.CURRENT_PROJECTION_VERSION) {
+            "Server returned an incompatible projection version"
+        }
         state = AuthoritativeSyncState.Synchronized(refreshed)
         return refreshed
     }

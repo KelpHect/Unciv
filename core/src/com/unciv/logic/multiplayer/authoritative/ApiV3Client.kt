@@ -104,6 +104,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun queueConstruction(
+        gameId: String,
+        request: ApiV3QueueConstructionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/queue-construction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun endTurn(
         gameId: String,
         request: ApiV3EndTurnRequest,

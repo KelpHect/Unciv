@@ -73,6 +73,15 @@ enum WorkerOperation<'a> {
         #[serde(rename = "destinationY")]
         destination_y: i32,
     },
+    QueueConstruction {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "constructionName")]
+        construction_name: &'a str,
+    },
     ProjectState {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -114,6 +123,12 @@ pub struct MoveUnitIntent<'a> {
     pub destination_y: i32,
 }
 
+pub struct QueueConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkerCapabilities {
     pub engine_build: String,
@@ -141,6 +156,38 @@ pub enum WorkerClientError {
 }
 
 impl EngineWorkerClient {
+    pub async fn queue_construction(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: QueueConstructionIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::QueueConstruction {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    construction_name: intent.construction_name,
+                },
+            )
+            .await?;
+        Ok(CommitProposal {
+            previous_revision,
+            snapshot: response
+                .snapshot
+                .ok_or(WorkerClientError::Incomplete)?
+                .into_bytes(),
+            canonical_state_hash: response
+                .canonical_state_hash
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub async fn handshake(&self) -> Result<WorkerCapabilities, WorkerClientError> {
         let response = self
             .execute_request(WorkerRequest {

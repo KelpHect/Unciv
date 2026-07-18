@@ -42,6 +42,11 @@ sealed interface GameCommand {
         val destinationX: Int,
         val destinationY: Int,
     ) : GameCommand
+
+    data class QueueConstruction(
+        val cityId: String,
+        val constructionName: String,
+    ) : GameCommand
 }
 
 sealed interface CommandEnvelopeValidation {

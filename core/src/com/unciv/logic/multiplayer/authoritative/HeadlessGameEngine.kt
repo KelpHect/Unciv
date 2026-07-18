@@ -88,6 +88,38 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Adds one explicitly named construction to a city owned by the
+     * authenticated civilization. The shared construction model remains the
+     * source of truth for prerequisites, queue capacity, and uniqueness. */
+    fun queueConstruction(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change production outside their turn"
+        }
+        val city = actorCivilization.cities.firstOrNull { it.id == cityId }
+            ?: error("City is not controlled by the authenticated actor")
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Construction name is invalid"
+        }
+        val construction = city.cityConstructions.getConstruction(constructionName)
+        require(city.cityConstructions.canAddToQueue(construction)) {
+            "Construction cannot be added to this city"
+        }
+        val previousSize = city.cityConstructions.constructionQueue.size
+        city.cityConstructions.addToQueue(construction)
+        check(city.cityConstructions.constructionQueue.size == previousSize + 1) {
+            "Construction queue was not updated"
+        }
+        return result(game)
+    }
+
     fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId

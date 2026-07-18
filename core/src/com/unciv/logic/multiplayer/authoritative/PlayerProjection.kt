@@ -22,7 +22,11 @@ data class PlayerProjection(
     val ownUnits: List<ProjectedUnit>,
     val exploredTiles: List<ProjectedTileVisibility>,
     val visibleForeignUnits: List<ProjectedUnit>,
-)
+) {
+    companion object {
+        const val CURRENT_PROJECTION_VERSION = 2
+    }
+}
 
 @Serializable
 data class ProjectedCity(
@@ -32,6 +36,8 @@ data class ProjectedCity(
     val y: Int,
     val population: Int,
     val health: Int,
+    val constructionQueue: List<String>,
+    val availableConstructions: List<String>,
 )
 
 @Serializable
@@ -78,6 +84,11 @@ object PlayerProjectionBuilder {
                     y = it.location.y,
                     population = it.population.population,
                     health = it.health,
+                    constructionQueue = it.cityConstructions.constructionQueue.toList(),
+                    availableConstructions = (
+                        it.cityConstructions.getBuildableBuildings().map { construction -> construction.name } +
+                            it.cityConstructions.getConstructableUnits().map { construction -> construction.name }
+                    ).sorted().toList(),
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,

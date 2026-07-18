@@ -30,6 +30,28 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun queueConstructionUsesOnlyProjectedCityAndConstructionIds() = runBlocking {
+        val initial = projection(0, "hash-0", cityQueue = emptyList())
+        val committed = projection(1, "hash-1", cityQueue = listOf("Monument"))
+        val transport = FakeTransport(initial).apply {
+            onQueueConstruction = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "queue-command" }
+        bus.refresh()
+
+        val outcome = bus.queueConstruction("city-1", "Monument")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("city-1", transport.queueRequests.single().cityId)
+        assertEquals("Monument", transport.queueRequests.single().constructionName)
+        assertEquals(listOf("Monument"),
+            (bus.state as AuthoritativeSyncState.Synchronized).current.projection.ownCities.single().constructionQueue)
+    }
+
+    @Test
     fun freshClientReconstructsFromServerProjection() = runBlocking {
         val transport = FakeTransport(projection(4, "hash-4"))
         val bus = AuthoritativeGameCommandBus(gameId, transport)
@@ -118,8 +140,9 @@ class AuthoritativeGameCommandBusTests {
         assertEquals(revision6, (bus.state as AuthoritativeSyncState.Synchronized).current)
     }
 
-    private fun projection(revision: Long, hash: String) = ApiV3GameProjection(
+    private fun projection(revision: Long, hash: String, cityQueue: List<String>? = null) = ApiV3GameProjection(
         gameId = gameId,
+        projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
         committedRevision = revision,
         canonicalStateHash = hash,
         projectionHash = "projection-$revision",
@@ -130,7 +153,16 @@ class AuthoritativeGameCommandBusTests {
             isCurrentTurn = true,
             gold = 0,
             knownCivilizations = emptyList(),
-            ownCities = emptyList(),
+            ownCities = if (cityQueue == null) emptyList() else listOf(ProjectedCity(
+                id = "city-1",
+                name = "Rome",
+                x = 0,
+                y = 0,
+                population = 1,
+                health = 200,
+                constructionQueue = cityQueue,
+                availableConstructions = listOf("Monument"),
+            )),
             ownUnits = emptyList(),
             exploredTiles = emptyList(),
             visibleForeignUnits = emptyList(),
@@ -150,7 +182,11 @@ class AuthoritativeGameCommandBusTests {
 
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
+        val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onQueueConstruction: suspend (ApiV3QueueConstructionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
 
@@ -167,6 +203,13 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted {
             moveRequests += request
             return onMove(request)
+        }
+        override suspend fun queueConstruction(
+            gameId: String,
+            request: ApiV3QueueConstructionRequest,
+        ): ApiV3CommandAccepted {
+            queueRequests += request
+            return onQueueConstruction(request)
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")

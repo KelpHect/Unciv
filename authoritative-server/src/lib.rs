@@ -15,6 +15,7 @@ pub mod postgres;
 pub mod worker;
 
 pub const PROTOCOL_VERSION: u16 = 3;
+pub const PROJECTION_VERSION: u16 = 2;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -25,6 +26,10 @@ pub enum GameCommand {
         unit_id: i32,
         destination_x: i32,
         destination_y: i32,
+    },
+    QueueConstruction {
+        city_id: String,
+        construction_name: String,
     },
 }
 
@@ -221,6 +226,32 @@ mod tests {
                 "destination_x": -3,
                 "destination_y": 7,
                 "actor_id": "attacker-controlled"
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn queue_construction_contract_is_typed_and_closed() {
+        let command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "queue_construction",
+            "city_id": "city-1",
+            "construction_name": "Monument"
+        }))
+        .unwrap();
+        assert_eq!(
+            command,
+            GameCommand::QueueConstruction {
+                city_id: "city-1".to_owned(),
+                construction_name: "Monument".to_owned(),
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "queue_construction",
+                "city_id": "city-1",
+                "construction_name": "Monument",
+                "gold_cost": 1,
             }))
             .is_err()
         );

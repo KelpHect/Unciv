@@ -14,7 +14,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use unciv_authoritative_server::{
-    CommandEnvelope, CommitError, GameCommand, PROTOCOL_VERSION,
+    CommandEnvelope, CommitError, GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION,
     auth::{Account, AuthError},
     notifications::{NotificationHub, run_outbox_dispatcher},
     postgres::{GameMetadata, PostgresGameRepository},
@@ -45,7 +45,7 @@ struct HealthResponse {
 struct CapabilitiesResponse {
     protocol_version: u16,
     projection_version: u16,
-    commands: [&'static str; 3],
+    commands: [&'static str; 4],
     whole_state_upload: bool,
     websocket_notifications: bool,
 }
@@ -113,6 +113,16 @@ struct MoveUnitRequest {
     unit_id: i32,
     destination_x: i32,
     destination_y: i32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QueueConstructionRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
+    city_id: String,
+    construction_name: String,
 }
 
 #[derive(Serialize)]
@@ -213,8 +223,8 @@ async fn health() -> Json<HealthResponse> {
 async fn capabilities() -> Json<CapabilitiesResponse> {
     Json(CapabilitiesResponse {
         protocol_version: PROTOCOL_VERSION,
-        projection_version: 1,
-        commands: ["join_game", "move_unit", "end_turn"],
+        projection_version: PROJECTION_VERSION,
+        commands: ["join_game", "move_unit", "queue_construction", "end_turn"],
         whole_state_upload: false,
         websocket_notifications: true,
     })
@@ -641,6 +651,42 @@ async fn move_unit(
     Ok(Json(accepted))
 }
 
+async fn queue_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<QueueConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.construction_name.is_empty()
+        || request.construction_name.len() > 128
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_queue_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::QueueConstruction {
+                    city_id: request.city_id,
+                    construction_name: request.construction_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 async fn authenticated_account(state: &AppState, headers: &HeaderMap) -> Result<Account, ApiError> {
     let bearer_token = bearer_token(headers).ok_or_else(ApiError::unauthorized)?;
     state
@@ -793,6 +839,10 @@ async fn main() {
             "/api/v3/games/{game_id}/commands/move-unit",
             post(move_unit),
         )
+        .route(
+            "/api/v3/games/{game_id}/commands/queue-construction",
+            post(queue_construction),
+        )
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,
@@ -829,8 +879,10 @@ mod tests {
     async fn capabilities_forbid_whole_state_uploads() {
         let response = capabilities().await;
         assert_eq!(response.0.protocol_version, PROTOCOL_VERSION);
+        assert_eq!(response.0.projection_version, PROJECTION_VERSION);
         assert!(!response.0.whole_state_upload);
         assert!(response.0.commands.contains(&"move_unit"));
+        assert!(response.0.commands.contains(&"queue_construction"));
     }
 
     #[test]

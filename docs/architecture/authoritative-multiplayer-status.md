@@ -1,5 +1,45 @@
 # Authoritative multiplayer v3 status
 
+## First city command: QueueConstruction
+
+Implemented on 2026-07-18:
+
+- `QueueConstruction(city_id, construction_name)` is now a closed API-v3
+  command across the JSON Schema, Rust request/router/repository, private worker
+  protocol, Kotlin shared engine, shared client transport, and revision-aware
+  command bus. Unknown fields such as a client-computed cost are rejected.
+- Rust derives the account and civilization from the bearer session and game
+  membership. The Kotlin engine verifies current turn, canonical city
+  ownership, bounded construction identity, queue capacity, and shared Unciv
+  `isBuildable` rules before `CityConstructions.addToQueue` executes.
+- The allowlisted player projection exposes each owned city's queue and current
+  constructable building/unit names. It still exposes no foreign city queue or
+  canonical `GameInfo`, and the command bus refuses identifiers absent from its
+  current projection before sending.
+- This additive DTO change advances the advertised and per-response projection
+  version to `2`; the shared command bus rejects any incompatible version.
+- Accepted commands use the existing PostgreSQL revision lock/CAS, immutable
+  snapshot, command journal, idempotency, and outbox transaction, followed by
+  HTTP projection reconciliation.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests :server:test --no-daemon --no-build-cache
+```
+
+Result: Rust reported 14 passing default tests and five PostgreSQL tests ignored
+unless explicitly configured. The focused Kotlin engine/client suites and all
+server worker tests passed. Coverage includes canonical buildability and city
+ownership, cross-civilization rejection, closed wire shape, projected queue
+reconciliation, and content-addressed worker validation.
+
+This row remains partial: remove/reorder/perpetual/tile-specific construction,
+purchases, production progress/cost projections, and production UI migration
+are not implemented. Legacy online city screens still mutate local state and
+upload a whole save.
+
 ## Command-coverage inventory
 
 Added on 2026-07-18:

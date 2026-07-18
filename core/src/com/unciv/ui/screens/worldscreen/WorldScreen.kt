@@ -16,6 +16,7 @@ import com.unciv.logic.event.EventBus
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapVisualization
 import com.unciv.logic.multiplayer.MultiplayerGameUpdated
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
 import com.unciv.logic.trade.TradeEvaluation
@@ -71,6 +72,7 @@ import com.unciv.utils.launchOnGLThread
 import com.unciv.utils.launchOnThreadPool
 import com.unciv.utils.withGLContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import yairm210.purity.annotations.Readonly
@@ -586,6 +588,45 @@ class WorldScreen(
             debug("Next turn starting")
             val startTime = System.currentTimeMillis()
             val originalGameInfo = gameInfo
+            val authoritativeOutcome = try {
+                if (originalGameInfo.gameParameters.isOnlineMultiplayer) {
+                    game.onlineMultiplayer.authoritativeSession?.endTurnIfOpen(originalGameInfo.gameId)
+                } else null
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                launchOnGLThread {
+                    progressBar.remove()
+                    isPlayersTurn = true
+                    shouldUpdate = true
+                    ToastPopup("Could not submit authoritative turn: [${ex.message ?: "Unknown"}]", this@WorldScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            if (authoritativeOutcome != null) {
+                launchOnGLThread {
+                    progressBar.remove()
+                    when (authoritativeOutcome) {
+                        is AuthoritativeCommandOutcome.Accepted -> {
+                            originalGameInfo.isUpToDate = false
+                            ToastPopup("Turn committed by the authoritative server", this@WorldScreen)
+                        }
+                        is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                            isPlayersTurn = authoritativeOutcome.current.projection.isCurrentTurn
+                            ToastPopup("Game changed on the server - refreshed before ending turn", this@WorldScreen)
+                        }
+                        is AuthoritativeCommandOutcome.Rejected -> {
+                            isPlayersTurn = true
+                            ToastPopup("Server rejected end turn: [${authoritativeOutcome.code}]", this@WorldScreen)
+                        }
+                        AuthoritativeCommandOutcome.RetryRequired -> {
+                            isPlayersTurn = true
+                            ToastPopup("Server response was lost - retry will use the same command", this@WorldScreen)
+                        }
+                    }
+                    shouldUpdate = true
+                }
+                return@runOnNonDaemonThreadPool
+            }
             val gameInfoClone = originalGameInfo.clone()
             gameInfoClone.setTransients()  // this can get expensive on large games, not the clone itself
 

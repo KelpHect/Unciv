@@ -153,6 +153,40 @@ class AuthoritativeMultiplayerSessionTests {
         ambiguousSession.close()
     }
 
+    @Test
+    fun endTurnRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.endTurnIfOpen(GAME_ID))
+        session.openGame(GAME_ID)
+        val outcome = session.endTurnIfOpen(GAME_ID)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(1, transport.endTurnCalls)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
+    @Test
+    fun authoritativeEndTurnRetryRetainsItsCommandId() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            endTurnFailuresRemaining = 1
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.endTurnIfOpen(GAME_ID) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.endTurnIfOpen(GAME_ID) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.endTurnCommandIds.size)
+        assertEquals(transport.endTurnCommandIds[0], transport.endTurnCommandIds[1])
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -207,6 +241,9 @@ class AuthoritativeMultiplayerSessionTests {
         var restoreCalls = 0
         @Volatile
         var projectionCalls = 0
+        var endTurnCalls = 0
+        var endTurnFailuresRemaining = 0
+        val endTurnCommandIds = mutableListOf<String>()
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -255,7 +292,33 @@ class AuthoritativeMultiplayerSessionTests {
             gameId: String,
             request: ApiV3QueueConstructionRequest,
         ) = unsupported()
-        override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) = unsupported()
+        override suspend fun endTurn(
+            gameId: String,
+            request: ApiV3EndTurnRequest,
+        ): ApiV3CommandAccepted {
+            endTurnCalls++
+            endTurnCommandIds += request.commandId
+            if (endTurnFailuresRemaining > 0) {
+                endTurnFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    turn = current.projection.turn + 1,
+                    isCurrentTurn = false,
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
         override fun notifications(): Flow<ApiV3RevisionNotification> = notifications
 
         private fun unsupported(): Nothing = error("not used by this lifecycle test")

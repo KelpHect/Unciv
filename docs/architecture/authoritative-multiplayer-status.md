@@ -877,3 +877,44 @@ deployment target.
 Platform credential-store implementations and account-management UI remain
 pending. Account deletion is deliberately soft/pseudonymous; retention-policy
 and operator erasure procedures still need to be defined before production.
+
+## First production world-screen command route
+
+Implemented:
+
+- `WorldScreen.nextTurn()` checks whether its exact game was explicitly opened
+  through the installed API-v3 session. If so, it submits the typed `EndTurn`
+  command before the legacy clone, local `GameInfo.nextTurn()`, or whole-save
+  upload path can execute.
+- Merely installing an authenticated session does not capture other online
+  games. Single-player, hotseat, and explicitly legacy online games retain
+  their existing paths. This avoids silently changing old game semantics.
+- Accepted commands leave the disposable local `GameInfo` stale and keep player
+  input disabled; canonical revision/hash and turn ownership come from the
+  refreshed server projection. Stale/rejected responses are visible, and an
+  ambiguous retry reuses the original command ID through the command bus.
+- Session-level tests prove an unopened game does not route, an opened game
+  does route, and a retry after a lost response sends the identical idempotency
+  key rather than creating a second command.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests \
+  --no-daemon
+.\gradlew.bat :server:test :tests:test --no-daemon
+git diff --check
+```
+
+The focused authoritative lifecycle/command-bus run passed 16 tests with no
+failures or skips. The complete JDK 21 Gradle run passed both server and shared
+test modules: four server tests and 757 shared tests, with zero failures or
+errors and 13 intentional skips.
+
+This is the first real production mutation boundary, not completion of the v3
+game UI. A projection-only world renderer and v3 game-list/open flow are still
+required before ordinary users can enter this path without integration wiring.
+Most mandatory pre-end-turn choices are not commands yet, so API v3 must remain
+opt-in and must not be advertised as generally playable.

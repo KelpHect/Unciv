@@ -99,6 +99,27 @@ class AuthoritativeMultiplayerSession(
         return bus
     }
 
+    /** Routes a production action only when this exact game was explicitly
+     * opened through API v3. A merely installed session must never capture a
+     * legacy online game's turn. Ambiguous retries retain the original command
+     * ID through the command bus. */
+    suspend fun endTurnIfOpen(gameId: String): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.EndTurn) {
+                    "Resolve the pending authoritative command before ending the turn"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.endTurn()
+            else -> {
+                bus.refresh()
+                bus.endTurn()
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
     }

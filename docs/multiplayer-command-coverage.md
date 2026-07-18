@@ -21,10 +21,11 @@ API v3 currently exposes `JoinGame`, `MoveUnit`, `QueueConstruction`, and
 `AuthoritativeMultiplayerSession`, which negotiates capabilities, restores or
 creates an authenticated session, opens per-game command buses from an HTTP
 projection, reconciles WebSocket hints through HTTP, and pages through the
-authenticated account's server-owned game memberships. No production
-world-screen action is routed through that lifecycle yet. API-v3 game creation,
-discovery, and projection reads are implemented outside the gameplay command
-union.
+authenticated account's server-owned game memberships. For an explicitly
+opened v3 game, `WorldScreen.nextTurn()` now submits through that lifecycle
+before cloning or advancing local state and never uploads the result. No other
+production world-screen action is routed yet. API-v3 game creation, discovery,
+and projection reads are implemented outside the gameplay command union.
 
 Status meanings:
 
@@ -59,7 +60,7 @@ Status meanings:
 | Espionage | `MoveSpy`, `SetSpyAction`, `RigElection`, `Coup`, `StealTechnology` only where player-selected | espionage manager; `EspionageOverviewScreen.kt` | Spy ownership; destination known; travel/cooldown; city/action legality; authoritative RNG for outcomes | Own spy identities/status, permitted foreign city info, private results | `EspionageOverviewScreen.kt` selects/moves spies against local state | **Missing** |
 | Diplomatic/world-congress votes | `CastDiplomaticVote` and future congress proposal/vote variants | victory/diplomacy vote state from `DiplomaticVotePickerScreen.kt` | Eligible voter; active ballot; legal target; exact vote allowance; one ballot/revision | Own submitted ballot; unrevealed other votes absent; results public only when resolved | `DiplomaticVotePickerScreen.kt` writes local vote selection | **Missing** |
 | Golden age and other civilization choices | Explicit commands for spending a great person, starting optional golden age, choosing rewards, ruins/options, and mod-defined choice prompts | alert/picker/domain-specific handlers | Pending server-issued choice token; actor; allowlisted option; one-shot resolution | Private pending choices and resulting public/private events | `AlertPopup.kt` and picker screens resolve canonical choices locally | **Missing** |
-| End turn | `EndTurn` | `GameInfo.nextTurn(executionContext)` through `HeadlessGameEngine.endTurn` | Current actor from membership; current civilization; pending mandatory choices; server clock/RNG | New revision, turn metadata, AI/rotation effects, next-player notification, refreshed projection | v3 handler/worker/idempotency tests exist, but `WorldScreen.nextTurn()` still clones, advances, and uploads a full save | **Partial** |
+| End turn | `EndTurn` | `GameInfo.nextTurn(executionContext)` through `HeadlessGameEngine.endTurn` | Current actor from membership; current civilization; pending mandatory choices; server clock/RNG | New revision, turn metadata, AI/rotation effects, next-player notification, refreshed projection | An explicitly opened v3 game routes `WorldScreen.nextTurn()` through the command bus before any clone/local advance/upload; legacy games retain their negotiated path. Projection-only world rendering and prerequisite-choice commands remain incomplete | **Partial** |
 | Resign and force-resign | `Resign`, privileged/time-gated `ForceResign` | `Multiplayer.resignPlayer`; `MultiplayerScreen.kt` | Self for resign; server inactivity threshold and role/policy for force-resign; target from membership; audit | Membership/player-type/turn changes and public event | `MultiplayerScreen.kt` downloads, mutates, advances, and uploads legacy state | **Missing** |
 | Spectator join/visibility | `JoinAsSpectator`, `LeaveGame`; reads use a spectator projection, not a gameplay mutation | No v3 spectator projection policy/handler | Game policy/invite; spectator role; no civilization; explicit admin distinction | Fog/public-only or delayed/omniscient policy must be explicit and leak-tested | Schema permits spectator role, but v3 join assigns a player and projection requires civilization | **Missing** |
 | Game administration | `KickMember`, `TransferOwnership`, `CloseGame`, `ArchiveGame` as separate privileged resource operations | No v3 admin handlers | Owner/admin role; cannot impersonate actor; auditable; safe turn/member consequences | Membership/game metadata and public events | Legacy delete/rename UI exists; authoritative admin lifecycle absent | **Missing** |

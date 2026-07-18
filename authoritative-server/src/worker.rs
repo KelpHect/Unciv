@@ -18,7 +18,7 @@ pub struct EngineWorkerClient {
     request_timeout: Duration,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkerManifest {
     pub engine_build: String,
@@ -26,7 +26,7 @@ pub struct WorkerManifest {
     pub mods: Vec<WorkerRuleset>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorkerRuleset { pub name: String, pub sha256: String }
 
 #[derive(Serialize)]

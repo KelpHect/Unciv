@@ -131,3 +131,9 @@ the worker response into a `CommitProposal`. PostgreSQL remains responsible for
 hash validation and the only canonical commit. `cargo test --manifest-path
 authoritative-server/Cargo.toml` remains successful (3 passed; 1 PostgreSQL test
 ignored unless explicitly configured).
+
+`PostgresGameRepository.execute_end_turn()` now loads the canonical head
+snapshot and stored worker manifest, delegates only `EndTurn` to the private
+Kotlin worker, then submits its result through the revision-CAS commit method.
+It never accepts a client replacement snapshot; a concurrent change becomes a
+stale conflict.

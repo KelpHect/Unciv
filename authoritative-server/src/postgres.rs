@@ -3,6 +3,7 @@ use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use uuid::Uuid;
 
 use crate::{CommandAccepted, CommandEnvelope, CommitError, CommitProposal, PROTOCOL_VERSION, state_hash};
+use crate::worker::{EngineWorkerClient, WorkerManifest};
 
 #[derive(Clone)]
 pub struct PostgresGameRepository {
@@ -17,6 +18,23 @@ pub struct NewGame {
 }
 
 impl PostgresGameRepository {
+    /// Loads the canonical head, delegates rule execution to Kotlin, then uses
+    /// the normal CAS commit path. A competing commit becomes a stale conflict;
+    /// it can never merge or overwrite this result.
+    pub async fn execute_end_turn(
+        &self, worker: &EngineWorkerClient, actor_account_id: Uuid, envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let row = sqlx::query(
+            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        ).bind(envelope.game_id).fetch_optional(&self.pool).await.map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
+        let snapshot: Vec<u8> = row.get("payload");
+        let manifest: serde_json::Value = row.get("manifest");
+        let manifest: WorkerManifest = serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let snapshot = String::from_utf8(snapshot).map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let proposal = worker.end_turn(&actor_account_id.to_string(), &manifest, envelope.expected_revision, &snapshot)
+            .await.map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
     pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
         let pool = PgPoolOptions::new().max_connections(10).connect(database_url).await?;
         Ok(Self { pool })

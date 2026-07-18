@@ -48,8 +48,14 @@ struct WorkerRequest<'a> {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum WorkerOperation<'a> {
-    CreateGame { setup: &'a str },
-    EndTurn { snapshot: &'a str },
+    CreateGame {
+        setup: &'a str,
+    },
+    EndTurn {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+    },
 }
 
 #[derive(Deserialize)]
@@ -58,7 +64,13 @@ struct WorkerResponse {
     protocol_version: u16,
     snapshot: Option<String>,
     canonical_state_hash: Option<String>,
+    actor_civilization_id: Option<String>,
     error: Option<WorkerError>,
+}
+
+pub struct CreatedGame {
+    pub proposal: CommitProposal,
+    pub owner_civilization_id: String,
 }
 
 #[derive(Deserialize)]
@@ -95,12 +107,16 @@ impl EngineWorkerClient {
         manifest: &WorkerManifest,
         previous_revision: u64,
         snapshot: &str,
+        actor_civilization_id: &str,
     ) -> Result<CommitProposal, WorkerClientError> {
         let request = WorkerRequest {
             protocol_version: WORKER_PROTOCOL_VERSION,
             actor_id,
             ruleset_manifest: manifest,
-            operation: WorkerOperation::EndTurn { snapshot },
+            operation: WorkerOperation::EndTurn {
+                snapshot,
+                actor_civilization_id,
+            },
         };
         let payload = serde_json::to_vec(&request).map_err(|_| WorkerClientError::Transport)?;
         if payload.len() > MAX_FRAME_BYTES {
@@ -167,9 +183,25 @@ impl EngineWorkerClient {
         actor_id: &str,
         manifest: &WorkerManifest,
         setup: &str,
-    ) -> Result<CommitProposal, WorkerClientError> {
-        self.execute(actor_id, manifest, WorkerOperation::CreateGame { setup }, 0)
-            .await
+    ) -> Result<CreatedGame, WorkerClientError> {
+        let response = self
+            .execute(actor_id, manifest, WorkerOperation::CreateGame { setup })
+            .await?;
+        Ok(CreatedGame {
+            proposal: CommitProposal {
+                previous_revision: 0,
+                snapshot: response
+                    .snapshot
+                    .ok_or(WorkerClientError::Incomplete)?
+                    .into_bytes(),
+                canonical_state_hash: response
+                    .canonical_state_hash
+                    .ok_or(WorkerClientError::Incomplete)?,
+            },
+            owner_civilization_id: response
+                .actor_civilization_id
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
     }
 
     async fn execute(
@@ -177,8 +209,7 @@ impl EngineWorkerClient {
         actor_id: &str,
         manifest: &WorkerManifest,
         operation: WorkerOperation<'_>,
-        previous_revision: u64,
-    ) -> Result<CommitProposal, WorkerClientError> {
+    ) -> Result<WorkerResponse, WorkerClientError> {
         let request = WorkerRequest {
             protocol_version: WORKER_PROTOCOL_VERSION,
             actor_id,
@@ -231,15 +262,6 @@ impl EngineWorkerClient {
                 error.code, error.message
             )));
         }
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        Ok(response)
     }
 }

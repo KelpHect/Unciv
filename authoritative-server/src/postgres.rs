@@ -20,6 +20,7 @@ pub struct NewGame {
     pub owner_account_id: Uuid,
     pub ruleset_manifest_hash: String,
     pub snapshot: Vec<u8>,
+    pub owner_civilization_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -28,6 +29,7 @@ pub struct GameMetadata {
     pub committed_revision: u64,
     pub canonical_state_hash: String,
     pub role: String,
+    pub civilization_id: Option<String>,
 }
 
 impl PostgresGameRepository {
@@ -52,10 +54,11 @@ impl PostgresGameRepository {
             serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
         // Defaults are a deliberately minimal setup intent. The worker is the
         // sole component that turns it into a GameInfo through GameStarter.
-        let proposal = worker
+        let created = worker
             .create_game(&owner_account_id.to_string(), &manifest, "{}")
             .await
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let proposal = created.proposal;
         if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
             return Err(CommitError::InvalidSnapshotHash);
         }
@@ -64,6 +67,7 @@ impl PostgresGameRepository {
             owner_account_id,
             ruleset_manifest_hash,
             snapshot: proposal.snapshot,
+            owner_civilization_id: created.owner_civilization_id,
         })
         .await
         .map_err(CommitError::storage)
@@ -77,16 +81,16 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         game_id: Uuid,
     ) -> Result<GameMetadata, CommitError> {
-        let role: Option<String> = sqlx::query_scalar(
-            "SELECT role FROM game_members WHERE game_id = $1 AND account_id = $2",
+        let membership = sqlx::query(
+            "SELECT role, civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2",
         )
         .bind(game_id)
         .bind(actor_account_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?;
-        let role = match role {
-            Some(role) => role,
+        let membership = match membership {
+            Some(membership) => membership,
             None => {
                 let game_exists: bool =
                     sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM games WHERE id = $1)")
@@ -101,6 +105,8 @@ impl PostgresGameRepository {
                 });
             }
         };
+        let role: String = membership.get("role");
+        let civilization_id: Option<String> = membership.get("civilization_id");
         let row = sqlx::query(
             "SELECT g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
         )
@@ -115,6 +121,7 @@ impl PostgresGameRepository {
                 .expect("revision is non-negative"),
             canonical_state_hash: row.get("canonical_state_hash"),
             role,
+            civilization_id,
         })
     }
 
@@ -282,7 +289,7 @@ impl PostgresGameRepository {
         // Return its durable original result before contacting the worker, so
         // a duplicate can neither re-run turn processing nor fail as stale.
         if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id)
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
             .await?
         {
             return Ok(accepted);
@@ -296,12 +303,23 @@ impl PostgresGameRepository {
             serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let snapshot =
             String::from_utf8(snapshot).map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let actor_civilization_id: Option<String> = sqlx::query_scalar(
+            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
+        )
+        .bind(envelope.game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .flatten();
+        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
         let proposal = worker
             .end_turn(
                 &actor_account_id.to_string(),
                 &manifest,
                 envelope.expected_revision,
                 &snapshot,
+                &actor_civilization_id,
             )
             .await
             .map_err(|error| match error {
@@ -320,18 +338,22 @@ impl PostgresGameRepository {
         &self,
         game_id: Uuid,
         command_id: Uuid,
+        actor_account_id: Uuid,
     ) -> Result<Option<CommandAccepted>, CommitError> {
         let row = sqlx::query(
-            "SELECT c.revision, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
+            "SELECT c.revision, c.account_id, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
         )
         .bind(game_id)
         .bind(command_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?;
-        Ok(row.map(|row| {
+        row.map(|row| {
+            if row.get::<Uuid, _>("account_id") != actor_account_id {
+                return Err(CommitError::Unauthorized);
+            }
             let committed_revision: i64 = row.get("revision");
-            CommandAccepted {
+            Ok(CommandAccepted {
                 game_id,
                 command_id,
                 previous_revision: u64::try_from(committed_revision - 1)
@@ -339,8 +361,9 @@ impl PostgresGameRepository {
                 committed_revision: u64::try_from(committed_revision)
                     .expect("revision is non-negative"),
                 canonical_state_hash: row.get("canonical_state_hash"),
-            }
-        }))
+            })
+        })
+        .transpose()
     }
     pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
         let pool = PgPoolOptions::new()
@@ -371,10 +394,11 @@ impl PostgresGameRepository {
             .execute(&mut *tx)
             .await?;
         sqlx::query(
-            "INSERT INTO game_members (game_id, account_id, role) VALUES ($1, $2, 'owner')",
+            "INSERT INTO game_members (game_id, account_id, role, civilization_id) VALUES ($1, $2, 'owner', $3)",
         )
         .bind(game.game_id)
         .bind(game.owner_account_id)
+        .bind(game.owner_civilization_id)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
@@ -416,7 +440,7 @@ impl PostgresGameRepository {
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
 
         let duplicate = sqlx::query(
-            "SELECT c.revision, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
+            "SELECT c.revision, c.account_id, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
         )
         .bind(envelope.game_id)
         .bind(envelope.command_id)
@@ -424,6 +448,9 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         if let Some(row) = duplicate {
+            if row.get::<Uuid, _>("account_id") != actor_account_id {
+                return Err(CommitError::Unauthorized);
+            }
             let committed_revision: i64 = row.get("revision");
             let canonical_state_hash: String = row.get("canonical_state_hash");
             return Ok(CommandAccepted {
@@ -580,6 +607,7 @@ mod integration_tests {
                 owner_account_id: account,
                 ruleset_manifest_hash: manifest_hash,
                 snapshot: b"revision-0".to_vec(),
+                owner_civilization_id: "test-civilization".to_owned(),
             })
             .await
             .unwrap();
@@ -631,6 +659,21 @@ mod integration_tests {
             )
             .await
             .unwrap();
+        let outsider = Uuid::new_v4();
+        sqlx::query("INSERT INTO accounts (id, username_normalized, password_hash) VALUES ($1, $2, 'test-hash')")
+            .bind(outsider)
+            .bind(format!("account-{outsider}"))
+            .execute(&repository.pool)
+            .await
+            .unwrap();
+        let unauthorized_duplicate = repository
+            .commit(
+                outsider,
+                command(game, command_id, 0),
+                proposal(0, b"revision-1"),
+            )
+            .await
+            .unwrap_err();
         let stale = repository
             .commit(
                 account,
@@ -641,6 +684,7 @@ mod integration_tests {
             .unwrap_err();
 
         assert_eq!(accepted, duplicate);
+        assert_eq!(unauthorized_duplicate, CommitError::Unauthorized);
         assert_eq!(
             stale,
             CommitError::Stale {
@@ -655,6 +699,33 @@ mod integration_tests {
                 .await
                 .unwrap();
         assert_eq!(outbox_count, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+    async fn one_civilization_cannot_be_assigned_to_two_accounts() {
+        let repository = PostgresGameRepository::connect(&database_url())
+            .await
+            .unwrap();
+        repository.migrate().await.unwrap();
+        let (_owner, game) = seed_repository(&repository).await;
+        let second_account = Uuid::new_v4();
+        sqlx::query("INSERT INTO accounts (id, username_normalized, password_hash) VALUES ($1, $2, 'test-hash')")
+            .bind(second_account)
+            .bind(format!("account-{second_account}"))
+            .execute(&repository.pool)
+            .await
+            .unwrap();
+
+        let duplicate = sqlx::query(
+            "INSERT INTO game_members (game_id, account_id, role, civilization_id) VALUES ($1, $2, 'player', 'test-civilization')",
+        )
+        .bind(game)
+        .bind(second_account)
+        .execute(&repository.pool)
+        .await;
+
+        assert!(duplicate.is_err());
     }
 
     #[tokio::test]

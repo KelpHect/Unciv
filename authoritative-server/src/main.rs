@@ -51,6 +51,7 @@ struct SessionResponse {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CreateGameRequest {
     ruleset_manifest_hash: String,
 }
@@ -61,9 +62,11 @@ struct GameMetadataResponse {
     committed_revision: u64,
     canonical_state_hash: String,
     role: String,
+    civilization_id: Option<String>,
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EndTurnRequest {
     command_id: uuid::Uuid,
     expected_revision: u64,
@@ -285,6 +288,7 @@ fn game_metadata_response(metadata: GameMetadata) -> GameMetadataResponse {
         committed_revision: metadata.committed_revision,
         canonical_state_hash: metadata.canonical_state_hash,
         role: metadata.role,
+        civilization_id: metadata.civilization_id,
     }
 }
 

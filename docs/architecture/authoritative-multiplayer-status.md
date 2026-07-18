@@ -245,6 +245,45 @@ cargo test --manifest-path authoritative-server/Cargo.toml
 Both passed. The owned PostgreSQL/Kotlin/Rust HTTP smoke run proved create,
 EndTurn commit to revision `1`, duplicate retry returning the identical result,
 and a new command with expected revision `0` receiving HTTP `409`. Civilization
-turn ownership is not yet enforced: the current authorization gate is game
-membership role only. Player assignment, per-civilization authorization, and
-additional typed gameplay commands remain pending.
+turn ownership is now enforced as described below. Additional player joining,
+player projections, and typed non-turn gameplay commands remain pending.
+
+## Canonical owner assignment and turn authorization
+
+Implemented:
+
+- `GameStarter` creation assigns the authenticated owner ID inside canonical
+  `GameInfo`; the worker returns the resulting civilization ID and PostgreSQL
+  persists it on the owner membership in revision-zero creation.
+- Migration `0003_unique_civilization_assignments.sql` prevents two accounts
+  from controlling the same civilization in one game.
+- `EndTurn` derives the civilization from authenticated membership. The shared
+  `HeadlessGameEngine` verifies that canonical `playerId` matches the account
+  and that the civilization is the canonical current player before it calls
+  `nextTurn()`.
+- Game metadata exposes the caller's assigned civilization but never the
+  canonical snapshot. Unknown command fields are rejected, so a modified
+  client cannot smuggle an actor or civilization override into `EndTurn`.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --no-daemon --no-build-cache
+.\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55441/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml -- --ignored --test-threads=1
+```
+
+All passed, including all three PostgreSQL integration tests. A fresh
+PostgreSQL/Kotlin/Rust HTTP run created an owner-assigned
+game (`The Netherlands` in that seeded run), committed its valid EndTurn,
+rejected a non-member with HTTP `403`, and kept revision `1`. A malicious body
+containing caller-selected `actor_id` and `civilization_id` was rejected with
+HTTP `422`; the canonical revision remained `1`. Joining a second player still
+requires a worker-backed assignment command and remains the next slice.
+
+Duplicate replay is also account-bound: the durable result is returned only to
+the account that originally committed the command. The PostgreSQL test submits
+the same `(game_id, command_id)` as another account and verifies
+`Unauthorized`, without worker execution or state change.

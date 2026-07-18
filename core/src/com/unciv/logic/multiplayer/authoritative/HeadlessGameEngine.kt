@@ -27,8 +27,15 @@ class HeadlessGameEngine(
         return result(game)
     }
 
-    /** Runs shared turn processing, including AI/turn rotation, in the worker. */
-    fun endTurn(game: GameInfo): EngineResult {
+    /** Runs shared turn processing only for the authenticated civilization.
+     * The civilization ID comes from server membership, never the client. */
+    fun endTurn(game: GameInfo, actorCivilizationId: String): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot end another civilization's turn"
+        }
         game.nextTurn(executionContext = executionContext)
         return result(game)
     }

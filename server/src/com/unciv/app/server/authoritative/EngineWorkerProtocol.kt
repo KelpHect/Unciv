@@ -49,7 +49,10 @@ sealed interface WorkerOperation {
     data class CreateGame(val setup: String) : WorkerOperation
 
     @Serializable @SerialName("end_turn")
-    data class EndTurn(val snapshot: String) : WorkerOperation
+    data class EndTurn(
+        val snapshot: String,
+        val actorCivilizationId: String,
+    ) : WorkerOperation
 }
 
 @Serializable
@@ -57,6 +60,7 @@ data class WorkerResponse(
     val protocolVersion: Int = EngineWorkerProtocol.VERSION,
     val snapshot: String? = null,
     val canonicalStateHash: String? = null,
+    val actorCivilizationId: String? = null,
     val error: WorkerError? = null,
 )
 
@@ -75,11 +79,19 @@ class AuthoritativeEngineWorker {
                 val setup = json().fromJson(GameSetupInfo::class.java, operation.setup)
                 setup.gameParameters.isOnlineMultiplayer = true
                 setup.gameParameters.multiplayerServerUrl = null
+                val owner = setup.gameParameters.players.firstOrNull()
+                    ?: error("Game setup requires at least one player")
+                owner.playerType = com.unciv.logic.civilization.PlayerType.Human
+                owner.playerId = request.actorId
                 val result = engine.createGame(setup)
-                responseForGame(engine, result.game)
+                val ownerCivilization = result.game.civilizations.singleOrNull {
+                    it.playerId == request.actorId
+                } ?: error("GameStarter did not assign the authenticated owner")
+                responseForGame(engine, result.game, ownerCivilization.civID)
             }
             is WorkerOperation.EndTurn -> {
-                val result = engine.endTurn(engine.loadSnapshot(operation.snapshot))
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.endTurn(game, operation.actorCivilizationId)
                 responseForGame(engine, result.game)
             }
         }
@@ -95,11 +107,19 @@ class AuthoritativeEngineWorker {
 
     /** Hash exactly the bytes returned over the worker protocol. Serializing a
      * mutable game twice is not a valid canonical-hash operation. */
-    private fun responseForGame(engine: HeadlessGameEngine, game: com.unciv.logic.GameInfo): WorkerResponse {
+    private fun responseForGame(
+        engine: HeadlessGameEngine,
+        game: com.unciv.logic.GameInfo,
+        actorCivilizationId: String? = null,
+    ): WorkerResponse {
         val snapshot = engine.serializeSnapshot(game)
         val hash = MessageDigest.getInstance("SHA-256").digest(snapshot.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
-        return WorkerResponse(snapshot = snapshot, canonicalStateHash = hash)
+        return WorkerResponse(
+            snapshot = snapshot,
+            canonicalStateHash = hash,
+            actorCivilizationId = actorCivilizationId,
+        )
     }
 }
 

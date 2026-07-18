@@ -50,7 +50,7 @@ class AuthoritativeGameExecutionContextTests {
         val engine = HeadlessGameEngine(serverContext { serverTime + 5_000L })
         val game = engine.createGame(testSetup()).game
 
-        engine.endTurn(game)
+        engine.endTurn(game, "Rome")
 
         Assert.assertEquals(serverTime + 5_000L, game.currentTurnStartTime)
     }
@@ -71,17 +71,34 @@ class AuthoritativeGameExecutionContextTests {
         val created = engine.createGame(testSetup()).game
         val reloaded = engine.loadSnapshot(engine.serializeSnapshot(created))
 
-        engine.endTurn(reloaded)
+        engine.endTurn(reloaded, "Rome")
 
         Assert.assertEquals(serverTime + 5_000L, reloaded.currentTurnStartTime)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun actorCannotEndAnotherCivilizationsTurn() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+
+        engine.endTurn(game, "Greece")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun assignedActorCannotEndOutsideTheirTurn() {
+        val creator = HeadlessGameEngine(serverContext { serverTime })
+        val game = creator.createGame(testSetup()).game
+        val secondPlayerEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        secondPlayerEngine.endTurn(game, "Greece")
     }
 
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0
             players.clear()
-            players.add(Player("Rome", PlayerType.Human))
-            players.add(Player("Greece"))
+            players.add(Player("Rome", PlayerType.Human, "account-1"))
+            players.add(Player("Greece", PlayerType.Human, "account-2"))
         }
         val mapParameters = MapParameters().apply {
             mapSize = MapSize.Tiny
@@ -95,8 +112,11 @@ class AuthoritativeGameExecutionContextTests {
         baseRuleset = ContentAddressedRuleset("Civ V - Vanilla", "0".repeat(64)),
     )
 
-    private fun serverContext(clock: () -> Long) = GameExecutionContext.authoritative(
-        actorId = "account-1",
+    private fun serverContext(
+        actorId: String = "account-1",
+        clock: () -> Long,
+    ) = GameExecutionContext.authoritative(
+        actorId = actorId,
         rulesetManifest = vanillaManifest(),
         clockMillis = clock,
     )

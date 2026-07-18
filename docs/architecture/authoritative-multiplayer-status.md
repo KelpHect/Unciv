@@ -141,3 +141,8 @@ stale conflict.
 Authentication foundation: migration `0002_revocable_sessions.sql` adds hashed,
 rotating, revocable server-side session records. Registration/login handlers and
 Argon2id verification are still pending.
+
+`PasswordService` now produces and verifies Argon2id PHC password hashes and
+rejects passwords shorter than 12 characters. Password storage remains limited
+to the PHC value; registration/login endpoints, rate limits, and session-token
+issuance still need to be wired to the PostgreSQL account/session tables.

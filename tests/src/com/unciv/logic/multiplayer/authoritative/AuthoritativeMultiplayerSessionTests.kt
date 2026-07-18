@@ -262,6 +262,68 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun constructionRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val projectedCity = ProjectedCity(
+            id = "city-1",
+            name = "Rome",
+            x = 0,
+            y = 0,
+            population = 1,
+            health = 200,
+            constructionQueue = emptyList(),
+            availableConstructions = listOf("Monument"),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(
+                projection = current.projection.copy(ownCities = listOf(projectedCity)),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.queueConstructionIfOpen(GAME_ID, "city-1", "Monument"))
+        session.openGame(GAME_ID)
+        val outcome = session.queueConstructionIfOpen(GAME_ID, "city-1", "Monument")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf("city-1" to "Monument"), transport.queuedConstructions)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
+    @Test
+    fun authoritativeConstructionRetryRetainsItsCommandId() = runBlocking {
+        val projectedCity = ProjectedCity(
+            id = "city-1",
+            name = "Rome",
+            x = 0,
+            y = 0,
+            population = 1,
+            health = 200,
+            constructionQueue = emptyList(),
+            availableConstructions = listOf("Monument"),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            queueFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(ownCities = listOf(projectedCity)),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.queueConstructionIfOpen(GAME_ID, "city-1", "Monument") is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.queueConstructionIfOpen(GAME_ID, "city-1", "Monument") is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.queueCommandIds.size)
+        assertEquals(transport.queueCommandIds[0], transport.queueCommandIds[1])
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -331,6 +393,9 @@ class AuthoritativeMultiplayerSessionTests {
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
         val freeTechnologyNames = mutableListOf<String>()
+        val queuedConstructions = mutableListOf<Pair<String, String>>()
+        val queueCommandIds = mutableListOf<String>()
+        var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -378,7 +443,33 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun queueConstruction(
             gameId: String,
             request: ApiV3QueueConstructionRequest,
-        ) = unsupported()
+        ): ApiV3CommandAccepted {
+            queuedConstructions += request.cityId to request.constructionName
+            queueCommandIds += request.commandId
+            if (queueFailuresRemaining > 0) {
+                queueFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownCities = current.projection.ownCities.map { city ->
+                        if (city.id == request.cityId)
+                            city.copy(constructionQueue = city.constructionQueue + request.constructionName)
+                        else city
+                    },
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
         override suspend fun setResearchPath(
             gameId: String,
             request: ApiV3SetResearchPathRequest,

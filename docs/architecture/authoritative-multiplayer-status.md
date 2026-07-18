@@ -1169,3 +1169,52 @@ intentional skips.
 Research queue append/removal/reordering, research progress/cost/history, and
 public research events remain incomplete. The ordinary and free-technology
 picker paths no longer directly mutate authoritative v3 games.
+
+## First production city-construction route
+
+Implemented:
+
+- `CityConstructionsTable` recognizes only games explicitly opened through the
+  authenticated API-v3 session. Selecting an ordinary projected construction
+  submits the existing `queue_construction` command asynchronously and never
+  calls `CityConstructions.addToQueue` on the disposable local game.
+- The session routes only an explicitly opened game, validates city and
+  construction identifiers against its current player projection through the
+  command bus, preserves the same command ID for an ambiguous retry, and
+  reconciles the accepted revision through HTTP.
+- Accepted commands mark the local game stale and return to the world screen.
+  Stale conflicts, rule rejection, lost responses, and transport failures are
+  distinct UI outcomes, with duplicate clicks bounded while a request is in
+  flight.
+- Queue reorder/removal buttons and construction context menus are suppressed
+  for opened v3 games because their typed commands do not exist yet. Purchase
+  controls and tile-specific construction also fail closed instead of mutating
+  the local queue. Single-player, hotseat, and legacy multiplayer preserve all
+  existing queue, context-menu, purchase, and tile-selection behavior.
+
+Verification:
+
+```text
+.\gradlew.bat :core:compileKotlin :tests:test \
+  --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests.constructionRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame \
+  --no-daemon --no-build-cache --rerun-tasks
+git diff --check
+```
+
+The forced JDK 21 run rebuilt production city UI and shared client code, then
+proved an unopened game performs no API-v3 request while the same explicitly
+opened game commits the projected city/construction pair and reconciles to the
+next revision.
+
+The complete regression passed four server tests and 769 shared tests with
+zero failures/errors and 13 intentional skips. A post-test mutation search
+confirmed the remaining UI `addToQueue` calls are either behind the normal
+v3 routing branch, behind the tile-specific fail-closed guard, or reachable
+only from context menus suppressed for opened v3 games.
+An additional lost-response regression submits construction twice and proves
+both attempts use the identical command ID before the second response is
+accepted and reconciled.
+
+This resolves only ordinary append. Queue removal/reordering/top insertion,
+perpetual construction policy, multi-city batches, purchases, and buildings
+requiring a target tile remain separate typed-command and projection work.

@@ -13,6 +13,7 @@ import com.unciv.Constants
 import com.unciv.GUI
 import com.unciv.logic.city.City
 import com.unciv.logic.city.CityConstructions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
@@ -48,9 +49,11 @@ import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.adjustContextMenuIndicators
 import com.unciv.ui.popups.CityScreenConstructionMenu
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
+import kotlinx.coroutines.CancellationException
 import kotlin.math.max
 import kotlin.math.min
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
@@ -89,6 +92,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     private val stageHeight = cityScreen.stage.height
 
     private val highlightColor = Color.GREEN.darken(0.4f)
+    private var authoritativeQueueSubmissionInProgress = false
 
     /** Gets or sets visibility of [both widgets][CityConstructionsTable] */
     var isVisible: Boolean
@@ -170,9 +174,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
 
     private fun updateButtons(construction: IConstruction?) {
         if (!cityScreen.canChangeState) return
+        buttonsTable.clear()
+        if (cityScreen.isAuthoritativeGame()) return
         /** [UniqueType.MayBuyConstructionsInPuppets] support - we need a buy button for civs that could buy items in puppets */
         if (cityScreen.city.isPuppet && !cityScreen.city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any()) return
-        buttonsTable.clear()
 
         for (button in buyButtonFactory.getBuyButtons(construction)) {
             buttonsTable.add(button).width(120f).padRight(10f)
@@ -441,21 +446,21 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         table.add(text.toLabel()).expandX().fillX().left()
 
         if (queueExpander.isOpen) {
-            if (constructionQueueIndex > 0 && cityScreen.canCityBeChanged()){
+            if (constructionQueueIndex > 0 && cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()){
                 table.add(getRaisePriorityButton(constructionQueueIndex, constructionName, city)).right()}
             else table.add().right()
-            if (constructionQueueIndex != cityConstructions.constructionQueue.lastIndex && cityScreen.canCityBeChanged())
+            if (constructionQueueIndex != cityConstructions.constructionQueue.lastIndex && cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame())
                 table.add(getLowerPriorityButton(constructionQueueIndex, constructionName, city)).right()
             else table.add().right()
         }
 
-        if (cityScreen.canCityBeChanged()) table.add(getRemoveFromQueueButton(constructionQueueIndex, city)).right()
+        if (cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()) table.add(getRemoveFromQueueButton(constructionQueueIndex, city)).right()
         else table.add().right()
 
         table.touchable = Touchable.enabled
 
         table.onClick { selectQueueEntry(constructionQueueIndex) }
-        if (cityScreen.canCityBeChanged()) {
+        if (cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()) {
             table.addContextMenu {
                 selectQueueEntry(constructionQueueIndex) {
                     CityScreenConstructionMenu(cityScreen.stage, table, cityScreen.city, construction) {
@@ -594,7 +599,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             cityScreen.update()
         }
 
-        if (!cityScreen.canCityBeChanged()) return pickConstructionButton
+        if (!cityScreen.canCityBeChanged() || cityScreen.isAuthoritativeGame()) return pickConstructionButton
 
         pickConstructionButton.addContextMenu {
             if (cityScreen.selectedConstruction != construction) {
@@ -668,10 +673,19 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
 
         // UniqueType.CreatesOneImprovement support - don't add yet, postpone until target tile for the improvement is selected
         if (construction is Building && construction.hasCreateOneImprovementUnique()) {
+            if (cityScreen.isAuthoritativeGame()) {
+                ToastPopup("Tile-specific construction is not yet available for authoritative games", cityScreen)
+                return
+            }
             cityScreen.startPickTileForCreatesOneImprovement(construction, Stat.Gold, false)
             return
         }
         cityScreen.stopPickTileForCreatesOneImprovement()
+
+        if (cityScreen.isAuthoritativeGame()) {
+            submitAuthoritativeConstruction(construction)
+            return
+        }
 
         SoundPlayer.play(getConstructionSound(construction))
 
@@ -681,6 +695,60 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         cityScreen.city.reassignPopulation()
         cityScreen.update()
         cityScreen.game.settings.addCompletedTutorialTask("Pick construction")
+    }
+
+    private fun submitAuthoritativeConstruction(construction: IConstruction) {
+        if (authoritativeQueueSubmissionInProgress) return
+        authoritativeQueueSubmissionInProgress = true
+        val city = cityScreen.city
+        Concurrency.runOnNonDaemonThreadPool("Queue authoritative construction") {
+            val outcome = try {
+                cityScreen.game.onlineMultiplayer.authoritativeSession?.queueConstructionIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    construction.name,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeQueueSubmissionInProgress = false
+                    ToastPopup(
+                        "Could not submit authoritative construction: [${ex.message ?: "Unknown"}]",
+                        cityScreen,
+                    )
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                if (outcome == null) {
+                    authoritativeQueueSubmissionInProgress = false
+                    ToastPopup("Authoritative game was closed before construction could be submitted", cityScreen)
+                    return@runOnGLThread
+                }
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        SoundPlayer.play(getConstructionSound(construction))
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.settings.addCompletedTutorialTask("Pick construction")
+                        cityScreen.game.popScreen()
+                        ToastPopup("Construction committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        cityScreen.game.popScreen()
+                        ToastPopup("Game changed on the server - construction was not submitted", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeQueueSubmissionInProgress = false
+                        ToastPopup("Server rejected construction: [${outcome.code}]", cityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeQueueSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
+                    }
+                }
+            }
+        }
     }
 
     private fun getConstructionSound(construction: IConstruction): UncivSound {

@@ -75,6 +75,9 @@ class CityScreen(
     /** Toggles or adds/removes all state changing buttons */
     val canChangeState = GUI.isAllowedChangeState() && !isSpying
 
+    internal fun isAuthoritativeGame() = city.civ.gameInfo.gameParameters.isOnlineMultiplayer &&
+        game.onlineMultiplayer.authoritativeSession?.isGameOpen(city.civ.gameInfo.gameId) == true
+
     // Clockwise from the top-left
 
     /** Displays current production, production queue and available productions list
@@ -478,7 +481,9 @@ class CityScreen(
             val improvement = pickTileData.improvement
             if (city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
                 
-                if (pickTileData.isBuying) {
+                if (isAuthoritativeGame()) {
+                    ToastPopup("Tile-specific construction and purchases are not yet available for authoritative games", this)
+                } else if (pickTileData.isBuying) {
                     BuyButtonFactory(this).askToBuyConstruction(pickTileData.building, pickTileData.buyStat, tileInfo)
                 } else {
                     city.cityConstructions.addToQueue(pickTileData.building, tile = tileInfo)

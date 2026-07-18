@@ -129,6 +129,8 @@ project(":server") {
     apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
 
     dependencies {
+        "implementation"(project(":core"))
+        "implementation"(rootProject.libs.gdx.backend.headless)
         // For server-side
         "api"(rootProject.libs.bundles.ktor.server)
         "implementation"(rootProject.libs.logback)

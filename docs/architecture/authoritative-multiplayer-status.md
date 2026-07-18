@@ -103,3 +103,24 @@ UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55432/unciv_v3_
 ```
 
 Result: `1 passed; 0 failed`; the test container was removed afterward.
+
+## Private worker transport
+
+In progress:
+
+- The `server` Gradle module now depends on `core` and LibGDX headless.
+- `EngineWorkerMain` initializes a headless Unciv runtime and rulesets, then
+  starts a dedicated loopback-only worker. It is separate from `UncivServer`.
+- `LoopbackEngineWorkerServer` accepts one bounded length-prefixed JSON frame,
+  decodes a versioned request, and routes `EndTurn` through
+  `HeadlessGameEngine`; no network request can provide a `GameInfo` patch.
+
+Verification:
+
+```text
+.\\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+```
+
+Result: `BUILD SUCCESSFUL` (17.5s) on Temurin `21.0.11`. Rust has not yet
+connected this private worker to PostgreSQL commits, so this is not an end-to-
+end authoritative game flow yet.

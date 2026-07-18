@@ -117,6 +117,50 @@ class AuthoritativeGameExecutionContextTests {
         joiningEngine.assignPlayer(game)
     }
 
+    @Test
+    fun moveUnitUsesCanonicalOwnershipAndMovementRules() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val unit = game.getCivilization("Rome").units.getCivUnits().first()
+        val destination = unit.movement.getDistanceToTiles().keys.first {
+            it != unit.getTile() && unit.movement.canMoveTo(it)
+        }
+
+        engine.moveUnit(game, "Rome", unit.id, destination.position)
+
+        Assert.assertEquals(destination.position, unit.getTile().position)
+    }
+
+    @Test
+    fun theSameMoveFromTheSameSnapshotHasTheSameCanonicalHash() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val created = engine.createGame(testSetup()).game
+        val unit = created.getCivilization("Rome").units.getCivUnits().first()
+        val destination = unit.movement.getDistanceToTiles().keys.first {
+            it != unit.getTile() && unit.movement.canMoveTo(it)
+        }.position
+        val snapshot = engine.serializeSnapshot(created)
+
+        val first = engine.moveUnit(engine.loadSnapshot(snapshot), "Rome", unit.id, destination)
+        val second = engine.moveUnit(engine.loadSnapshot(snapshot), "Rome", unit.id, destination)
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun actorCannotMoveAnotherCivilizationsUnit() {
+        val creator = HeadlessGameEngine(serverContext { serverTime })
+        val game = creator.createGame(testSetup()).game
+        val romanUnit = game.getCivilization("Rome").units.getCivUnits().first()
+        val destination = romanUnit.movement.getDistanceToTiles().keys.first {
+            it != romanUnit.getTile() && romanUnit.movement.canMoveTo(it)
+        }
+        val otherPlayer = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        creator.endTurn(game, "Rome")
+
+        otherPlayer.moveUnit(game, "Greece", romanUnit.id, destination.position)
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

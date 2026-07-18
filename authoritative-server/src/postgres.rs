@@ -338,6 +338,72 @@ impl PostgresGameRepository {
         self.commit(actor_account_id, envelope, proposal).await
     }
 
+    pub async fn execute_move_unit(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (unit_id, destination_x, destination_y) = match &envelope.command {
+            crate::GameCommand::MoveUnit {
+                unit_id,
+                destination_x,
+                destination_y,
+            } => (*unit_id, *destination_x, *destination_y),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let row = sqlx::query(
+            "SELECT s.payload, m.manifest FROM games g JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(envelope.game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let snapshot = String::from_utf8(row.get::<Vec<u8>, _>("payload"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let actor_civilization_id: Option<String> = sqlx::query_scalar(
+            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
+        )
+        .bind(envelope.game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .flatten();
+        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let proposal = worker
+            .move_unit(
+                &actor_account_id.to_string(),
+                &manifest,
+                envelope.expected_revision,
+                &snapshot,
+                &actor_civilization_id,
+                unit_id,
+                destination_x,
+                destination_y,
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker MoveUnit transport/protocol failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
     /// Joins an authenticated account without accepting a civilization choice.
     /// The worker deterministically assigns an unclaimed canonical civilization;
     /// the snapshot revision and membership are committed atomically.

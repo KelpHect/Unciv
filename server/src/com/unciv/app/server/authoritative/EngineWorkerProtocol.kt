@@ -4,6 +4,7 @@ import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
 import com.unciv.models.metadata.GameSetupInfo
 import kotlinx.serialization.SerialName
@@ -56,6 +57,15 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
     ) : WorkerOperation
+
+    @Serializable @SerialName("move_unit")
+    data class MoveUnit(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
+    ) : WorkerOperation
 }
 
 @Serializable
@@ -100,6 +110,16 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.EndTurn -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val result = engine.endTurn(game, operation.actorCivilizationId)
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.MoveUnit -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.moveUnit(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                    HexCoord(operation.destinationX, operation.destinationY),
+                )
                 responseForGame(engine, result.game)
             }
         }

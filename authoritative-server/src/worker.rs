@@ -59,6 +59,17 @@ enum WorkerOperation<'a> {
         #[serde(rename = "actorCivilizationId")]
         actor_civilization_id: &'a str,
     },
+    MoveUnit {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        #[serde(rename = "destinationX")]
+        destination_x: i32,
+        #[serde(rename = "destinationY")]
+        destination_y: i32,
+    },
 }
 
 #[derive(Deserialize)]
@@ -102,6 +113,42 @@ pub enum WorkerClientError {
 }
 
 impl EngineWorkerClient {
+    pub async fn move_unit(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        actor_civilization_id: &str,
+        unit_id: i32,
+        destination_x: i32,
+        destination_y: i32,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::MoveUnit {
+                    snapshot,
+                    actor_civilization_id,
+                    unit_id,
+                    destination_x,
+                    destination_y,
+                },
+            )
+            .await?;
+        Ok(CommitProposal {
+            previous_revision,
+            snapshot: response
+                .snapshot
+                .ok_or(WorkerClientError::Incomplete)?
+                .into_bytes(),
+            canonical_state_hash: response
+                .canonical_state_hash
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub async fn assign_player(
         &self,
         actor_id: &str,

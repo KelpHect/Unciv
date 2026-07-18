@@ -38,8 +38,9 @@ sealed interface GameCommand {
     /** First non-turn vertical-slice command. The authoritative engine still
      * validates ownership, visibility, movement points, and destination. */
     data class MoveUnit(
-        val unitId: String,
-        val destinationTileId: String,
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
     ) : GameCommand
 }
 

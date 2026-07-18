@@ -16,13 +16,14 @@ pub mod worker;
 pub const PROTOCOL_VERSION: u16 = 3;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GameCommand {
     JoinGame,
     EndTurn,
     MoveUnit {
-        unit_id: String,
-        destination_tile_id: String,
+        unit_id: i32,
+        destination_x: i32,
+        destination_y: i32,
     },
 }
 
@@ -185,6 +186,43 @@ mod tests {
             snapshot: snapshot.to_vec(),
             canonical_state_hash: state_hash(snapshot),
         }
+    }
+
+    #[test]
+    fn move_unit_contract_is_typed_and_closed() {
+        let command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "move_unit",
+            "unit_id": 42,
+            "destination_x": -3,
+            "destination_y": 7
+        }))
+        .unwrap();
+        assert_eq!(
+            command,
+            GameCommand::MoveUnit {
+                unit_id: 42,
+                destination_x: -3,
+                destination_y: 7,
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "move_unit",
+                "unit_id": "42",
+                "destination_tile_id": "-3,7"
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "move_unit",
+                "unit_id": 42,
+                "destination_x": -3,
+                "destination_y": 7,
+                "actor_id": "attacker-controlled"
+            }))
+            .is_err()
+        );
     }
 
     #[tokio::test]

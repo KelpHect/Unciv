@@ -5,6 +5,7 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
+import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameSetupInfo
 import java.security.MessageDigest
 
@@ -53,6 +54,37 @@ class HeadlessGameEngine(
             "Authenticated actor cannot end another civilization's turn"
         }
         game.nextTurn(executionContext = executionContext)
+        return result(game)
+    }
+
+    /** Applies one exact movement intent through Unciv's canonical movement
+     * implementation. Actor, unit ownership, turn, bounds, and legality are
+     * all derived from the loaded server state. */
+    fun moveUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        destination: HexCoord,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot move a unit outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(destination in game.tileMap) { "Destination is outside the canonical map" }
+        val destinationTile = game.tileMap[destination]
+        require(destinationTile != unit.getTile()) { "Unit is already at the destination" }
+        require(unit.movement.canReachInCurrentTurn(destinationTile)) {
+            "Destination is not reachable this turn"
+        }
+        require(unit.movement.canMoveTo(destinationTile)) {
+            "Unit cannot enter the destination"
+        }
+        unit.movement.moveToTile(destinationTile)
+        check(unit.getTile() == destinationTile) { "Movement did not reach the requested destination" }
         return result(game)
     }
 

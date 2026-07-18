@@ -322,3 +322,36 @@ API smoke run created an owner assigned to Mongolia, assigned the joining
 account to Sweden, atomically committed revision `1`, returned revision `1`
 again for an idempotent retry, and rejected a third account's revision-zero
 join with HTTP `409`. All disposable processes and the database were removed.
+
+## First non-turn gameplay command: MoveUnit
+
+Implemented:
+
+- The placeholder `MoveUnit` shape is now a closed typed command using Unciv's
+  durable integer unit ID and explicit canonical hex coordinates. The public
+  request rejects unknown fields and cannot carry an actor or civilization.
+- `POST /api/v3/games/{game_id}/commands/move-unit` derives the account and
+  civilization from the bearer session and membership, loads only the current
+  canonical snapshot, and delegates execution to the private Kotlin worker.
+- `HeadlessGameEngine.moveUnit` verifies canonical actor assignment, current
+  turn, unit ownership, map bounds, current-turn reachability, and destination
+  enterability before calling the shared `UnitMovement.moveToTile` domain
+  logic. Illegal gameplay requests return stable HTTP `422 invalid_command`;
+  worker transport/protocol failures remain distinct gateway failures.
+- The resulting snapshot uses the same PostgreSQL lock/CAS, immutable revision,
+  idempotency, journal, and outbox transaction as `EndTurn`.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test --tests com.unciv.logic.AuthoritativeGameExecutionContextTests --no-daemon --no-build-cache
+.\gradlew.bat :server:compileKotlin --no-daemon --no-build-cache
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+The Kotlin suite passed with movement legality, cross-civilization denial, and
+fresh-load deterministic-hash coverage. A PostgreSQL 16/Kotlin worker/Rust API
+smoke moved canonical unit `2` from `(11,1)` to `(10,1)`, committed revision
+`1`, replayed the same command ID as revision `1`, rejected an authenticated
+non-member with HTTP `403`, and retained head revision `1`. The disposable
+services and database were removed afterward.

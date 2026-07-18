@@ -140,6 +140,40 @@ impl PostgresGameRepository {
         Ok(())
     }
 
+    /// Rotates a live session atomically. The successor keeps a parent pointer
+    /// for audit/revocation chains while the presented credential is revoked
+    /// before the transaction becomes visible.
+    pub async fn rotate_session(&self, bearer_token: &str) -> Result<SessionCredential, AuthError> {
+        let digest = token_digest(bearer_token);
+        let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
+        let account_id: Uuid = sqlx::query_scalar(
+            "SELECT account_id FROM sessions WHERE token_digest = $1 AND revoked_at IS NULL AND expires_at > now() FOR UPDATE",
+        )
+        .bind(&digest)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?
+        .ok_or(AuthError::InvalidCredentials)?;
+        let credential = SessionCredential::generate();
+        sqlx::query(
+            "INSERT INTO sessions (id, account_id, token_digest, parent_session_id, expires_at) SELECT $1, $2, $3, id, now() + interval '30 days' FROM sessions WHERE token_digest = $4",
+        )
+        .bind(Uuid::new_v4())
+        .bind(account_id)
+        .bind(&credential.digest)
+        .bind(&digest)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        sqlx::query("UPDATE sessions SET revoked_at = now() WHERE token_digest = $1")
+            .bind(&digest)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| AuthError::Storage)?;
+        tx.commit().await.map_err(|_| AuthError::Storage)?;
+        Ok(credential)
+    }
+
     /// Loads the canonical head, delegates rule execution to Kotlin, then uses
     /// the normal CAS commit path. A competing commit becomes a stale conflict;
     /// it can never merge or overwrite this result.
@@ -536,9 +570,30 @@ mod integration_tests {
             account
         );
 
-        repository.revoke_session(&session.token).await.unwrap();
+        let rotated = repository.rotate_session(&session.token).await.unwrap();
         assert!(matches!(
             repository.authenticate_session(&session.token).await,
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert_eq!(
+            repository
+                .authenticate_session(&rotated.token)
+                .await
+                .unwrap(),
+            account
+        );
+        let parent_is_set: bool = sqlx::query_scalar(
+            "SELECT parent_session_id IS NOT NULL FROM sessions WHERE token_digest = $1",
+        )
+        .bind(&rotated.digest)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+        assert!(parent_is_set);
+
+        repository.revoke_session(&rotated.token).await.unwrap();
+        assert!(matches!(
+            repository.authenticate_session(&rotated.token).await,
             Err(AuthError::InvalidCredentials)
         ));
     }

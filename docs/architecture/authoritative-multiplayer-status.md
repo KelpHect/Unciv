@@ -165,7 +165,8 @@ Implemented:
   conflict.
 - Login verifies stored hashes without revealing whether a username or password
   was wrong. Sessions contain only a SHA-256 token digest, expire after 30
-  days, track use server-side, and can be revoked through logout.
+  days, track use server-side, can be revoked through logout, and rotate
+  atomically through `POST /api/v3/auth/refresh` with an auditable parent link.
 - The loopback-default Rust API now exposes bounded JSON endpoints for
   `POST /api/v3/auth/register`, `login`, and `logout`. Login/logout failures
   use the generic `invalid_credentials` response; no endpoint accepts a
@@ -182,5 +183,5 @@ UNCIV_V3_DATABASE_URL=postgres://unciv:unciv-test-only@127.0.0.1:55433/unciv_v3_
 Result: seven unit tests passed and two PostgreSQL integration tests passed
 against an owned disposable PostgreSQL 18 container. A separate HTTP smoke run
 registered, logged in, logged out, and confirmed the revoked token received
-HTTP 401. Rate limits/backoff, session rotation, password changes, TLS proxy
-deployment, and client secure storage remain pending.
+HTTP 401. Rate limits/backoff, password changes, TLS proxy deployment, and
+client secure storage remain pending.

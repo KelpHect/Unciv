@@ -44,6 +44,11 @@ struct LoginResponse {
 }
 
 #[derive(Serialize)]
+struct SessionResponse {
+    session_token: String,
+}
+
+#[derive(Serialize)]
 struct ErrorResponse {
     code: &'static str,
 }
@@ -152,6 +157,21 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Result<Sta
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn refresh_session(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<SessionResponse>, ApiError> {
+    let bearer_token = bearer_token(&headers).ok_or_else(ApiError::unauthorized)?;
+    let credential = state
+        .repository
+        .rotate_session(bearer_token)
+        .await
+        .map_err(login_error)?;
+    Ok(Json(SessionResponse {
+        session_token: credential.token,
+    }))
+}
+
 fn bearer_token(headers: &HeaderMap) -> Option<&str> {
     headers
         .get("authorization")?
@@ -200,6 +220,7 @@ async fn main() {
         .route("/healthz", get(health))
         .route("/api/v3/auth/register", post(register))
         .route("/api/v3/auth/login", post(login))
+        .route("/api/v3/auth/refresh", post(refresh_session))
         .route("/api/v3/auth/logout", post(logout))
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState { repository });

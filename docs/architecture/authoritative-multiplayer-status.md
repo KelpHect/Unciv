@@ -151,3 +151,8 @@ Session issuance now has a 256-bit opaque bearer credential primitive. It
 returns the raw token only to the caller and the SHA-256 digest intended for
 `sessions.token_digest`; the persistence, rotation, expiry, and revocation API
 flows remain pending.
+
+The initial account namespace is now explicit and collation-independent:
+trimmed ASCII usernames normalize to lowercase and allow only letters, digits,
+`_`, and `-` (3-32 characters). Account persistence and public registration
+are the next pieces.

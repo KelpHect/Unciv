@@ -8,8 +8,11 @@ use argon2::{
 use rand_core::RngCore;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
+use uuid::Uuid;
 
 const MINIMUM_PASSWORD_LENGTH: usize = 12;
+const MINIMUM_USERNAME_LENGTH: usize = 3;
+const MAXIMUM_USERNAME_LENGTH: usize = 32;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PasswordError {
@@ -19,6 +22,20 @@ pub enum PasswordError {
     InvalidStoredHash,
     #[error("password hashing failed")]
     HashingFailed,
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum UsernameError {
+    #[error("username must be between {MINIMUM_USERNAME_LENGTH} and {MAXIMUM_USERNAME_LENGTH} characters")]
+    InvalidLength,
+    #[error("username may contain only lowercase letters, digits, underscores, and hyphens")]
+    InvalidCharacters,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Account {
+    pub id: Uuid,
+    pub username_normalized: String,
 }
 
 /// Produces and verifies Argon2id PHC strings. The RustCrypto default is
@@ -70,6 +87,23 @@ pub fn token_digest(token: &str) -> String {
     hex_encode(&Sha256::digest(token.as_bytes()))
 }
 
+/// Canonicalizes the deliberately small initial username character set. This
+/// makes database uniqueness and login matching deterministic without relying
+/// on database collation or Unicode case-folding behavior.
+pub fn normalize_username(username: &str) -> Result<String, UsernameError> {
+    let normalized = username.trim().to_ascii_lowercase();
+    let length = normalized.chars().count();
+    if !(MINIMUM_USERNAME_LENGTH..=MAXIMUM_USERNAME_LENGTH).contains(&length) {
+        return Err(UsernameError::InvalidLength);
+    }
+    if !normalized.bytes().all(|byte| {
+        byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+    }) {
+        return Err(UsernameError::InvalidCharacters);
+    }
+    Ok(normalized)
+}
+
 fn validate_password(password: &str) -> Result<(), PasswordError> {
     if password.chars().count() < MINIMUM_PASSWORD_LENGTH {
         return Err(PasswordError::TooShort);
@@ -89,7 +123,10 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{token_digest, PasswordError, PasswordService, SessionCredential};
+    use super::{
+        normalize_username, token_digest, PasswordError, PasswordService, SessionCredential,
+        UsernameError,
+    };
 
     #[test]
     fn argon2id_hashes_and_verifies_passwords() {
@@ -126,5 +163,18 @@ mod tests {
         assert_eq!(first.digest, token_digest(&first.token));
         assert_ne!(first.token, second.token);
         assert_ne!(first.digest, second.digest);
+    }
+
+    #[test]
+    fn usernames_are_normalized_into_a_collation_independent_namespace() {
+        assert_eq!(normalize_username("  Player-One ").unwrap(), "player-one");
+        assert_eq!(
+            normalize_username("ab").unwrap_err(),
+            UsernameError::InvalidLength
+        );
+        assert_eq!(
+            normalize_username("player one").unwrap_err(),
+            UsernameError::InvalidCharacters
+        );
     }
 }

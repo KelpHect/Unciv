@@ -27,6 +27,15 @@ struct HealthResponse {
     protocol_version: u16,
 }
 
+#[derive(Serialize)]
+struct CapabilitiesResponse {
+    protocol_version: u16,
+    projection_version: u16,
+    commands: [&'static str; 3],
+    whole_state_upload: bool,
+    websocket_notifications: bool,
+}
+
 #[derive(Deserialize)]
 struct CredentialsRequest {
     username: String,
@@ -95,11 +104,14 @@ struct MoveUnitRequest {
 #[derive(Serialize)]
 struct ErrorResponse {
     code: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_revision: Option<u64>,
 }
 
 struct ApiError {
     status: StatusCode,
     code: &'static str,
+    current_revision: Option<u64>,
 }
 
 impl ApiError {
@@ -107,6 +119,7 @@ impl ApiError {
         Self {
             status: StatusCode::BAD_REQUEST,
             code,
+            current_revision: None,
         }
     }
 
@@ -114,6 +127,7 @@ impl ApiError {
         Self {
             status: StatusCode::UNAUTHORIZED,
             code: "invalid_credentials",
+            current_revision: None,
         }
     }
 
@@ -121,6 +135,7 @@ impl ApiError {
         Self {
             status: StatusCode::CONFLICT,
             code,
+            current_revision: None,
         }
     }
 
@@ -128,13 +143,21 @@ impl ApiError {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: "internal_error",
+            current_revision: None,
         }
     }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(ErrorResponse { code: self.code })).into_response()
+        (
+            self.status,
+            Json(ErrorResponse {
+                code: self.code,
+                current_revision: self.current_revision,
+            }),
+        )
+            .into_response()
     }
 }
 
@@ -149,6 +172,16 @@ async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
         protocol_version: PROTOCOL_VERSION,
+    })
+}
+
+async fn capabilities() -> Json<CapabilitiesResponse> {
+    Json(CapabilitiesResponse {
+        protocol_version: PROTOCOL_VERSION,
+        projection_version: 1,
+        commands: ["join_game", "move_unit", "end_turn"],
+        whole_state_upload: false,
+        websocket_notifications: false,
     })
 }
 
@@ -416,15 +449,22 @@ fn game_error(error: CommitError) -> ApiError {
         CommitError::NotFound => ApiError {
             status: StatusCode::NOT_FOUND,
             code: "not_found",
+            current_revision: None,
         },
         CommitError::Unauthorized => ApiError {
             status: StatusCode::FORBIDDEN,
             code: "forbidden",
+            current_revision: None,
         },
-        CommitError::Stale { .. } => ApiError::conflict("stale_revision"),
+        CommitError::Stale { actual, .. } => ApiError {
+            status: StatusCode::CONFLICT,
+            code: "stale_revision",
+            current_revision: Some(actual),
+        },
         CommitError::InvalidCommand => ApiError {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             code: "invalid_command",
+            current_revision: None,
         },
         CommitError::UnsupportedProtocol(_) => ApiError::bad_request("unsupported_protocol"),
         CommitError::WorkerRejected(reason) => {
@@ -435,11 +475,13 @@ fn game_error(error: CommitError) -> ApiError {
             ApiError {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: "invalid_command",
+                current_revision: None,
             }
         }
         CommitError::InvalidSnapshotHash | CommitError::WorkerRevisionMismatch => ApiError {
             status: StatusCode::BAD_GATEWAY,
             code: "worker_rejected",
+            current_revision: None,
         },
         CommitError::Storage => ApiError::internal(),
     }
@@ -466,6 +508,7 @@ async fn main() {
         .expect("UNCIV_ENGINE_WORKER_ADDR must be a socket address");
     let app = Router::new()
         .route("/healthz", get(health))
+        .route("/api/v3/capabilities", get(capabilities))
         .route("/api/v3/auth/register", post(register))
         .route("/api/v3/auth/login", post(login))
         .route("/api/v3/auth/refresh", post(refresh_session))
@@ -490,4 +533,28 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("authoritative API server failed");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_errors_expose_the_canonical_revision() {
+        let error = game_error(CommitError::Stale {
+            expected: 3,
+            actual: 5,
+        });
+        assert_eq!(error.status, StatusCode::CONFLICT);
+        assert_eq!(error.code, "stale_revision");
+        assert_eq!(error.current_revision, Some(5));
+    }
+
+    #[tokio::test]
+    async fn capabilities_forbid_whole_state_uploads() {
+        let response = capabilities().await;
+        assert_eq!(response.0.protocol_version, PROTOCOL_VERSION);
+        assert!(!response.0.whole_state_upload);
+        assert!(response.0.commands.contains(&"move_unit"));
+    }
 }

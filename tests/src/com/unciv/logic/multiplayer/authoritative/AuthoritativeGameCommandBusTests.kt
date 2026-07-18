@@ -1,0 +1,147 @@
+package com.unciv.logic.multiplayer.authoritative
+
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.IOException
+
+class AuthoritativeGameCommandBusTests {
+    private val gameId = "00000000-0000-0000-0000-000000000001"
+
+    @Test
+    fun moveRequestWireShapeContainsNoActorOrStatePayload() {
+        val encoded = Json.encodeToString(
+            ApiV3MoveUnitRequest.serializer(),
+            ApiV3MoveUnitRequest("command", 7, "hash", 42, -3, 8),
+        )
+
+        assertTrue(encoded.contains("\"command_id\":\"command\""))
+        assertTrue(encoded.contains("\"expected_revision\":7"))
+        assertTrue(encoded.contains("\"unit_id\":42"))
+        assertTrue(encoded.contains("\"destination_x\":-3"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("civilization"))
+        assertTrue(!encoded.contains("GameInfo"))
+    }
+
+    @Test
+    fun freshClientReconstructsFromServerProjection() = runBlocking {
+        val transport = FakeTransport(projection(4, "hash-4"))
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+
+        val reconstructed = bus.refresh()
+
+        assertEquals(4, reconstructed.committedRevision)
+        assertEquals(reconstructed, (bus.state as AuthoritativeSyncState.Synchronized).current)
+    }
+
+    @Test
+    fun staleCommandRefreshesWithoutMergingOrReplaying() = runBlocking {
+        val old = projection(3, "hash-3")
+        val canonical = projection(4, "hash-4")
+        val transport = FakeTransport(old).apply {
+            onMove = {
+                current = canonical
+                throw ApiV3Exception(409, ApiV3ErrorResponse("stale_revision", 4))
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "stale-command" }
+        bus.refresh()
+
+        val outcome = bus.moveUnit(1, 2, 3)
+
+        assertEquals(canonical, (outcome as AuthoritativeCommandOutcome.StaleRefreshed).current)
+        assertEquals(1, transport.moveRequests.size)
+        assertEquals(canonical, (bus.state as AuthoritativeSyncState.Synchronized).current)
+    }
+
+    @Test
+    fun lostResponseRetriesTheExactIdempotencyKey() = runBlocking {
+        val initial = projection(0, "hash-0")
+        val committed = projection(1, "hash-1")
+        val transport = FakeTransport(initial)
+        var first = true
+        transport.onMove = { request ->
+            if (first) {
+                first = false
+                transport.current = committed
+                throw IOException("response lost after commit")
+            }
+            accepted(request.commandId, 0, 1, "hash-1")
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "stable-command-id" }
+        bus.refresh()
+
+        assertTrue(bus.moveUnit(1, 2, 3) is AuthoritativeCommandOutcome.RetryRequired)
+        val outcome = bus.retryPending()
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf("stable-command-id", "stable-command-id"),
+            transport.moveRequests.map { it.commandId })
+        assertEquals(committed, (bus.state as AuthoritativeSyncState.Synchronized).current)
+    }
+
+    @Test
+    fun rejectedCommandLeavesCachedProjectionUntouched() = runBlocking {
+        val initial = projection(2, "hash-2")
+        val transport = FakeTransport(initial).apply {
+            onMove = { throw ApiV3Exception(422, ApiV3ErrorResponse("invalid_command")) }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "illegal-command" }
+        val cached = bus.refresh()
+
+        val outcome = bus.moveUnit(99, 2, 3)
+
+        assertEquals("invalid_command", (outcome as AuthoritativeCommandOutcome.Rejected).code)
+        assertSame(cached, (bus.state as AuthoritativeSyncState.Rejected).current)
+    }
+
+    private fun projection(revision: Long, hash: String) = ApiV3GameProjection(
+        gameId = gameId,
+        committedRevision = revision,
+        canonicalStateHash = hash,
+        projectionHash = "projection-$revision",
+        projection = PlayerProjection(
+            civilizationId = "Rome",
+            turn = 0,
+            currentPlayerCivilizationId = "Rome",
+            isCurrentTurn = true,
+            gold = 0,
+            knownCivilizations = emptyList(),
+            ownCities = emptyList(),
+            ownUnits = emptyList(),
+            exploredTiles = emptyList(),
+            visibleForeignUnits = emptyList(),
+        ),
+    )
+
+    private fun accepted(commandId: String, previous: Long, committed: Long, hash: String) =
+        ApiV3CommandAccepted(gameId, commandId, previous, committed, hash)
+
+    private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
+        val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
+        var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+
+        override suspend fun capabilities() = ApiV3Capabilities(3, 1, emptyList(), false, false)
+        override suspend fun register(username: String, password: String) = ApiV3Account("account", username)
+        override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
+        override suspend fun refreshSession() = Unit
+        override suspend fun logout() = Unit
+        override suspend fun createGame(rulesetManifestHash: String) =
+            ApiV3GameMetadata(gameId, 0, "hash-0", "owner", "Rome")
+        override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest) =
+            accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
+        override suspend fun projection(gameId: String) = current
+        override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted {
+            moveRequests += request
+            return onMove(request)
+        }
+        override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
+            accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
+    }
+}

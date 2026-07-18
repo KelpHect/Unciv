@@ -396,3 +396,45 @@ This is a partial projection schema, not a claim that the v3 client can render
 the whole game or that anti-cheat work is complete. Terrain presentation,
 legally known resources/improvements, diplomacy, notifications/events,
 spectator policy, compact deltas, and broader sentinel fixtures remain pending.
+
+## Shared API-v3 client and revision-aware command bus
+
+Implemented:
+
+- The Rust service exposes `GET /api/v3/capabilities`, advertising protocol and
+  projection versions, its closed command set, the absence of whole-state
+  upload, and current WebSocket support. Stale conflicts now include the
+  canonical `current_revision` alongside stable `stale_revision` semantics.
+- The shared Kotlin core has typed v3 contracts and a Ktor transport for
+  capability negotiation, registration, login, session rotation/logout,
+  server game creation, joining, projection fetches, `MoveUnit`, and `EndTurn`.
+  Bearer tokens are abstracted behind `ApiV3SessionTokenStore`; the core never
+  persists a password. The included in-memory store is for tests/development,
+  not a substitute for Android/Desktop OS credential-store implementations.
+- `ApiVersion.detect` prefers authoritative v3 capabilities when a migration
+  server also exposes legacy endpoints, and rejects a purported v3 capability
+  document that permits whole-state upload.
+- `AuthoritativeGameCommandBus` serializes local command submission, tracks
+  revision/hash from the latest permitted projection, refreshes without merge
+  on a stale conflict, retains the exact idempotency key across an ambiguous
+  lost response, and reconciles the accepted revision/hash through HTTP. It
+  does not optimistically mutate its cached server projection, so rejection
+  rollback is lossless.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+.\gradlew.bat :tests:test --tests com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests --no-daemon --no-build-cache
+```
+
+The Rust suite covers capability safety and stale metadata. Kotlin tests cover
+fresh-device reconstruction from a projection, stale refresh without replay,
+lost-response retry with the identical command ID, rejected-command cache
+preservation, and the closed snake-case movement request shape.
+
+This is a shared client foundation, not UI migration completion. Platform
+secure token stores, login/account screens, game-list discovery, world-screen
+command routing, lifecycle reconnect wiring, WebSocket notifications, full
+projection rendering, and removal of v3 access to legacy upload code remain
+pending. Single-player and hotseat paths have not been changed.

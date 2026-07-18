@@ -5,7 +5,9 @@ import com.unciv.json.json
 import com.unciv.logic.multiplayer.ApiVersion.APIv0
 import com.unciv.logic.multiplayer.ApiVersion.APIv1
 import com.unciv.logic.multiplayer.ApiVersion.APIv2
+import com.unciv.logic.multiplayer.ApiVersion.APIv3
 import com.unciv.logic.multiplayer.apiv2.DEFAULT_CONNECT_TIMEOUT
+import com.unciv.logic.multiplayer.authoritative.ApiV3Capabilities
 import com.unciv.logic.multiplayer.apiv2.UncivNetworkException
 import com.unciv.logic.multiplayer.apiv2.VersionResponse
 import com.unciv.utils.Log
@@ -36,6 +38,8 @@ import kotlinx.serialization.json.Json
  * the heavily extended REST-like HTTP API in combination with a WebSocket
  * functionality for communication. Examples thereof include:
  *   - https://github.com/hopfenspace/runciv
+ * [APIv3] is the authenticated command/projection protocol. It never accepts
+ * whole authoritative state uploads.
  *
  * A particular server may implement multiple interfaces simultaneously.
  * There's a server version check in the constructor of [Multiplayer]
@@ -44,7 +48,7 @@ import kotlinx.serialization.json.Json
  * @see [Multiplayer.determineServerAPI]
  */
 enum class ApiVersion {
-    APIv0, APIv1, APIv2;
+    APIv0, APIv1, APIv2, APIv3;
 
     companion object {
         /**
@@ -86,6 +90,31 @@ enum class ApiVersion {
                 }
                 defaultRequest {
                     url(fixedBaseUrl)
+                }
+            }
+
+            // Prefer the authoritative command/projection API when a server
+            // exposes legacy endpoints alongside it during staged rollout.
+            val response3 = try {
+                client.get("api/v3/capabilities")
+            } catch (e: Exception) {
+                Log.debug("Failed to fetch '/api/v3/capabilities' at %s: %s", fixedBaseUrl, e.localizedMessage)
+                if (!suppress) {
+                    client.close()
+                    throw UncivNetworkException(e)
+                }
+                null
+            }
+            if (response3?.status?.isSuccess() == true) {
+                try {
+                    val capabilities: ApiV3Capabilities = response3.body()
+                    if (capabilities.protocolVersion == 3 && !capabilities.wholeStateUpload) {
+                        Log.debug("Detected authoritative APIv3 at %s", fixedBaseUrl)
+                        client.close()
+                        return APIv3
+                    }
+                } catch (e: Exception) {
+                    Log.debug("Invalid APIv3 capabilities at %s: %s", fixedBaseUrl, e.localizedMessage)
                 }
             }
 

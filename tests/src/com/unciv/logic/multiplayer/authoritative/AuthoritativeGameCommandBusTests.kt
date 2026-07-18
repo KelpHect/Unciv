@@ -52,6 +52,38 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun perpetualConstructionHasItsOwnClosedIntent() = runBlocking {
+        val initial = projection(
+            0, "hash-0", cityQueue = listOf("Monument"),
+            availableConstructions = listOf("Nothing"),
+        )
+        val committed = projection(
+            1, "hash-1", cityQueue = listOf("Nothing"),
+            availableConstructions = listOf("Nothing"),
+        )
+        val transport = FakeTransport(initial).apply {
+            onSetPerpetualConstruction = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "perpetual-command" }
+        bus.refresh()
+
+        assertTrue(bus.setPerpetualConstruction(
+            "city-1", "Nothing",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.perpetualRequests.single()
+        assertEquals(ApiV3SetPerpetualConstructionRequest(
+            "perpetual-command", 0, "hash-0", "city-1", "Nothing",
+        ), request)
+        val encoded = Json.encodeToString(ApiV3SetPerpetualConstructionRequest.serializer(), request)
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("queue"))
+    }
+
+    @Test
     fun queueRemovalAndMovementBindToTheProjectedEntry() = runBlocking {
         val initial = projection(4, "hash-4", cityQueue = listOf("Monument", "Warrior"))
         val afterMove = projection(5, "hash-5", cityQueue = listOf("Warrior", "Monument"))
@@ -268,6 +300,7 @@ class AuthoritativeGameCommandBusTests {
         hash: String,
         cityQueue: List<String>? = null,
         freeTechnologyChoices: List<String> = emptyList(),
+        availableConstructions: List<String> = listOf("Monument"),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -292,7 +325,7 @@ class AuthoritativeGameCommandBusTests {
                 population = 1,
                 health = 200,
                 constructionQueue = cityQueue,
-                availableConstructions = listOf("Monument"),
+                availableConstructions = availableConstructions,
             )),
             ownUnits = emptyList(),
             exploredTiles = emptyList(),
@@ -314,6 +347,7 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
+        val perpetualRequests = mutableListOf<ApiV3SetPerpetualConstructionRequest>()
         val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
         val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
@@ -324,6 +358,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onQueueConstruction: suspend (ApiV3QueueConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetPerpetualConstruction: suspend (ApiV3SetPerpetualConstructionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onRemoveConstruction: suspend (ApiV3RemoveConstructionRequest) -> ApiV3CommandAccepted = {
@@ -376,6 +413,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             queueRequests += request
             return onQueueConstruction(request)
+        }
+        override suspend fun setPerpetualConstruction(
+            gameId: String,
+            request: ApiV3SetPerpetualConstructionRequest,
+        ): ApiV3CommandAccepted {
+            perpetualRequests += request
+            return onSetPerpetualConstruction(request)
         }
         override suspend fun removeConstruction(
             gameId: String,

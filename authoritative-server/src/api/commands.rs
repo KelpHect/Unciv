@@ -188,6 +188,55 @@ pub(super) async fn queue_construction(
 
 #[utoipa::path(
     post,
+    path = "/api/v3/games/{game_id}/commands/set-perpetual-construction",
+    params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])),
+    request_body = SetPerpetualConstructionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse), (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn set_perpetual_construction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<SetPerpetualConstructionRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.city_id.is_empty()
+        || request.city_id.len() > 64
+        || request.construction_name.is_empty()
+        || request.construction_name.len() > 128
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_set_perpetual_construction(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::SetPerpetualConstruction {
+                    city_id: request.city_id,
+                    construction_name: request.construction_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
+#[utoipa::path(
+    post,
     path = "/api/v3/games/{game_id}/commands/remove-construction",
     params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])),
     request_body = RemoveConstructionRequest,

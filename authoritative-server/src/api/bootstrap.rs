@@ -78,6 +78,10 @@ pub(crate) async fn run() {
             post(queue_construction),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-perpetual-construction",
+            post(set_perpetual_construction),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/remove-construction",
             post(remove_construction),
         )

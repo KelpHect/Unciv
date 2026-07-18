@@ -84,6 +84,32 @@ fn queue_construction_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn perpetual_construction_contract_is_typed_and_closed() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_perpetual_construction",
+        "city_id": "city-1",
+        "construction_name": "Nothing"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetPerpetualConstruction {
+            city_id: "city-1".to_owned(),
+            construction_name: "Nothing".to_owned(),
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_perpetual_construction",
+            "city_id": "city-1",
+            "construction_name": "Nothing",
+            "actor_id": "client-controlled"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn construction_queue_mutations_are_typed_and_closed() {
     let remove: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "remove_construction",

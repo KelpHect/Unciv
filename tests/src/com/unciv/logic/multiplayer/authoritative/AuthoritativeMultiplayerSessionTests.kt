@@ -379,6 +379,33 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun authoritativePerpetualConstructionRoutesOnlyForAnOpenedGame() = runBlocking {
+        val projectedCity = ProjectedCity(
+            "city-1", "Rome", 0, 0, 1, 200,
+            listOf("Monument"), listOf("Nothing"),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownCities = listOf(projectedCity)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setPerpetualConstructionIfOpen(
+            GAME_ID, "city-1", "Nothing",
+        ))
+        session.openGame(GAME_ID)
+        assertTrue(session.setPerpetualConstructionIfOpen(
+            GAME_ID, "city-1", "Nothing",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(listOf("city-1" to "Nothing"), transport.perpetualConstructions)
+        assertEquals(listOf("Nothing"),
+            transport.current.projection.ownCities.single().constructionQueue)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -449,6 +476,7 @@ class AuthoritativeMultiplayerSessionTests {
         val policyNames = mutableListOf<String>()
         val freeTechnologyNames = mutableListOf<String>()
         val queuedConstructions = mutableListOf<Pair<String, String>>()
+        val perpetualConstructions = mutableListOf<Pair<String, String>>()
         val queueCommandIds = mutableListOf<String>()
         val removedConstructions = mutableListOf<ApiV3RemoveConstructionRequest>()
         val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
@@ -527,6 +555,28 @@ class AuthoritativeMultiplayerSessionTests {
                 request.expectedRevision,
                 current.committedRevision,
                 current.canonicalStateHash,
+            )
+        }
+        override suspend fun setPerpetualConstruction(
+            gameId: String,
+            request: ApiV3SetPerpetualConstructionRequest,
+        ): ApiV3CommandAccepted {
+            perpetualConstructions += request.cityId to request.constructionName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownCities = current.projection.ownCities.map { city ->
+                        if (city.id == request.cityId)
+                            city.copy(constructionQueue = city.constructionQueue.dropLast(1) + request.constructionName)
+                        else city
+                    },
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                request.expectedRevision + 1, "hash-8",
             )
         }
         override suspend fun removeConstruction(

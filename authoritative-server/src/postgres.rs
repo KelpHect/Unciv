@@ -13,7 +13,7 @@ use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, ChooseFreeTechnologyIntent, EngineWorkerClient, MoveConstructionIntent,
     MoveUnitIntent, PurchaseConstructionIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    SetResearchPathIntent, WorkerManifest,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

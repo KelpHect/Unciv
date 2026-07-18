@@ -160,6 +160,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setPerpetualConstruction(
+        gameId: String,
+        request: ApiV3SetPerpetualConstructionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-perpetual-construction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun removeConstruction(
         gameId: String,
         request: ApiV3RemoveConstructionRequest,

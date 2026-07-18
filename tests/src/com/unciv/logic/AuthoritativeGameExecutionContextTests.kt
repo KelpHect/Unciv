@@ -14,6 +14,7 @@ import com.unciv.models.metadata.GameSettings
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
 import com.unciv.models.ruleset.RulesetCache
+import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
 import com.unciv.testing.GdxTestRunner
@@ -299,6 +300,26 @@ class AuthoritativeGameExecutionContextTests {
         }
         engine.removeConstruction(game, "Rome", city.id, 0, constructions[1])
         Assert.assertEquals(listOf(constructions[0]), city.cityConstructions.constructionQueue)
+    }
+
+    @Test
+    fun authoritativePerpetualConstructionUsesTheSharedReplacementRules() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+
+        engine.setPerpetualConstruction(
+            game, "Rome", city.id, PerpetualConstruction.Idle.name,
+        )
+
+        Assert.assertEquals(
+            listOf(PerpetualConstruction.Idle.name),
+            city.cityConstructions.constructionQueue,
+        )
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setPerpetualConstruction(game, "Rome", city.id, "Monument")
+        }
     }
 
     @Test

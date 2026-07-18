@@ -85,6 +85,14 @@ sealed interface WorkerOperation {
         val constructionName: String,
     ) : WorkerOperation
 
+    @Serializable @SerialName("set_perpetual_construction")
+    data class SetPerpetualConstruction(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val constructionName: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("remove_construction")
     data class RemoveConstruction(
         val snapshot: String,
@@ -216,6 +224,16 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.QueueConstruction -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val result = engine.queueConstruction(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.constructionName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetPerpetualConstruction -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setPerpetualConstruction(
                     game,
                     operation.actorCivilizationId,
                     operation.cityId,

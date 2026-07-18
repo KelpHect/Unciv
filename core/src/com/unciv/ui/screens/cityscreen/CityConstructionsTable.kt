@@ -704,11 +704,15 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         val city = cityScreen.city
         Concurrency.runOnNonDaemonThreadPool("Queue authoritative construction") {
             val outcome = try {
-                cityScreen.game.onlineMultiplayer.authoritativeSession?.queueConstructionIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    construction.name,
-                )
+                val session = cityScreen.game.onlineMultiplayer.authoritativeSession
+                if (construction is PerpetualConstruction)
+                    session?.setPerpetualConstructionIfOpen(
+                        city.civ.gameInfo.gameId, city.id, construction.name,
+                    )
+                else
+                    session?.queueConstructionIfOpen(
+                        city.civ.gameInfo.gameId, city.id, construction.name,
+                    )
             } catch (ex: Exception) {
                 if (ex is CancellationException) throw ex
                 Concurrency.runOnGLThread {

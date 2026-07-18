@@ -48,6 +48,14 @@ sealed interface PendingAuthoritativeCommand {
         val constructionName: String,
     ) : PendingAuthoritativeCommand
 
+    data class SetPerpetualConstruction(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+    ) : PendingAuthoritativeCommand
+
     data class RemoveConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -162,6 +170,19 @@ class AuthoritativeGameCommandBus(
             observedStateHash = current.canonicalStateHash,
             cityId = cityId,
             constructionName = constructionName,
+        ), current)
+    }
+
+    suspend fun setPerpetualConstruction(cityId: String, constructionName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(constructionName in city.availableConstructions) {
+            "Perpetual construction is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetPerpetualConstruction(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, constructionName,
         ), current)
     }
 
@@ -331,6 +352,16 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.QueueConstruction -> transport.queueConstruction(
                     gameId,
                     ApiV3QueueConstructionRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.cityId,
+                        pending.constructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetPerpetualConstruction -> transport.setPerpetualConstruction(
+                    gameId,
+                    ApiV3SetPerpetualConstructionRequest(
                         pending.commandId,
                         pending.expectedRevision,
                         pending.observedStateHash,

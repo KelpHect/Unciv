@@ -82,6 +82,15 @@ enum WorkerOperation<'a> {
         #[serde(rename = "constructionName")]
         construction_name: &'a str,
     },
+    SetPerpetualConstruction {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "constructionName")]
+        construction_name: &'a str,
+    },
     RemoveConstruction {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -187,6 +196,12 @@ pub struct QueueConstructionIntent<'a> {
     pub construction_name: &'a str,
 }
 
+pub struct SetPerpetualConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+}
+
 pub struct RemoveConstructionIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,
@@ -268,6 +283,29 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
+    pub async fn set_perpetual_construction(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetPerpetualConstructionIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetPerpetualConstruction {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    construction_name: intent.construction_name,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn purchase_construction(
         &self,
         actor_id: &str,

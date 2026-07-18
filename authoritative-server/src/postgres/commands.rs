@@ -1,6 +1,42 @@
 use super::*;
 
+struct WorkerCommandState {
+    snapshot: String,
+    manifest: WorkerManifest,
+}
+
 impl PostgresGameRepository {
+    async fn worker_command_state(&self, game_id: Uuid) -> Result<WorkerCommandState, CommitError> {
+        let row = sqlx::query(
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let snapshot = self.validated_snapshot(game_id, &row).await?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        Ok(WorkerCommandState { snapshot, manifest })
+    }
+
+    async fn actor_civilization_id(
+        &self,
+        game_id: Uuid,
+        actor_account_id: Uuid,
+    ) -> Result<String, CommitError> {
+        sqlx::query_scalar(
+            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
+        )
+        .bind(game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .flatten()
+        .ok_or(CommitError::Unauthorized)
+    }
     /// Loads the canonical head, delegates rule execution to Kotlin, then uses
     /// the normal CAS commit path. A competing commit becomes a stale conflict;
     /// it can never merge or overwrite this result.
@@ -19,29 +55,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        ).bind(envelope.game_id).fetch_optional(&self.pool).await.map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
-        let manifest: serde_json::Value = row.get("manifest");
-        let manifest: WorkerManifest =
-            serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .end_turn(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 &actor_civilization_id,
             )
             .await
@@ -77,33 +100,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .move_unit(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 MoveUnitIntent {
                     actor_civilization_id: &actor_civilization_id,
                     unit_id,
@@ -143,33 +149,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .queue_construction(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 QueueConstructionIntent {
                     actor_civilization_id: &actor_civilization_id,
                     city_id: &city_id,
@@ -185,6 +174,53 @@ impl PostgresGameRepository {
                     eprintln!(
                         "authoritative worker QueueConstruction transport/protocol failure: {other}"
                     );
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
+    pub async fn execute_set_perpetual_construction(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (city_id, construction_name) = match &envelope.command {
+            crate::GameCommand::SetPerpetualConstruction {
+                city_id,
+                construction_name,
+            } => (city_id.clone(), construction_name.clone()),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .set_perpetual_construction(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                SetPerpetualConstructionIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id: &city_id,
+                    construction_name: &construction_name,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) =>
+                    CommitError::WorkerRejected(reason),
+                other => {
+                    eprintln!("authoritative worker SetPerpetualConstruction transport/protocol failure: {other}");
                     CommitError::WorkerRevisionMismatch
                 }
             })?;
@@ -215,20 +251,12 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        ).bind(envelope.game_id).fetch_optional(&self.pool).await
-            .map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        ).bind(envelope.game_id).bind(actor_account_id).fetch_optional(&self.pool).await
-            .map_err(CommitError::storage)?.flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker.remove_construction(
-            &actor_account_id.to_string(), &manifest, envelope.expected_revision, &snapshot,
+            &actor_account_id.to_string(), &worker_state.manifest, envelope.expected_revision, &worker_state.snapshot,
             RemoveConstructionIntent {
                 actor_civilization_id: &actor_civilization_id,
                 city_id: &city_id,
@@ -271,24 +299,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        ).bind(envelope.game_id).fetch_optional(&self.pool).await
-            .map_err(CommitError::storage)?.ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        ).bind(envelope.game_id).bind(actor_account_id).fetch_optional(&self.pool).await
-            .map_err(CommitError::storage)?.flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .move_construction(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 MoveConstructionIntent {
                     actor_civilization_id: &actor_civilization_id,
                     city_id: &city_id,
@@ -338,33 +358,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .purchase_construction(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 PurchaseConstructionIntent {
                     actor_civilization_id: &actor_civilization_id,
                     city_id: &city_id,
@@ -404,33 +407,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .set_research_path(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 SetResearchPathIntent {
                     actor_civilization_id: &actor_civilization_id,
                     technology_name: &technology_name,
@@ -467,33 +453,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .adopt_policy(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 AdoptPolicyIntent {
                     actor_civilization_id: &actor_civilization_id,
                     policy_name: &policy_name,
@@ -530,33 +499,16 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let actor_civilization_id: Option<String> = sqlx::query_scalar(
-            "SELECT civilization_id FROM game_members WHERE game_id = $1 AND account_id = $2 AND role IN ('owner', 'player')",
-        )
-        .bind(envelope.game_id)
-        .bind(actor_account_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .flatten();
-        let actor_civilization_id = actor_civilization_id.ok_or(CommitError::Unauthorized)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
         let proposal = worker
             .choose_free_technology(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
                 ChooseFreeTechnologyIntent {
                     actor_civilization_id: &actor_civilization_id,
                     technology_name: &technology_name,
@@ -595,23 +547,13 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
-        let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
-        )
-        .bind(envelope.game_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(CommitError::storage)?
-        .ok_or(CommitError::NotFound)?;
-        let snapshot = self.validated_snapshot(envelope.game_id, &row).await?;
-        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
         let assigned = worker
             .assign_player(
                 &actor_account_id.to_string(),
-                &manifest,
+                &worker_state.manifest,
                 envelope.expected_revision,
-                &snapshot,
+                &worker_state.snapshot,
             )
             .await
             .map_err(|error| match error {

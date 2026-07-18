@@ -9,6 +9,7 @@ import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.INonPerpetualConstruction
+import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
 import java.security.MessageDigest
@@ -124,6 +125,30 @@ class HeadlessGameEngine(
         city.cityConstructions.addToQueue(construction)
         check(city.cityConstructions.constructionQueue.size == previousSize + 1) {
             "Construction queue was not updated"
+        }
+        return result(game)
+    }
+
+    fun setPerpetualConstruction(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Perpetual construction name is invalid"
+        }
+        val construction = requireNotNull(
+            PerpetualConstruction.perpetualConstructionsMap[constructionName],
+        ) { "Construction is not a perpetual construction" }
+        require(city.cityConstructions.canAddToQueue(construction) &&
+            !city.cityConstructions.isBeingConstructedOrEnqueued(constructionName)) {
+            "Perpetual construction is not available in this city"
+        }
+        city.cityConstructions.addToQueue(construction)
+        check(city.cityConstructions.constructionQueue.lastOrNull() == constructionName) {
+            "Perpetual construction was not selected"
         }
         return result(game)
     }

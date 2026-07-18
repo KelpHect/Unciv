@@ -32,6 +32,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/end-turn",
         "/api/v3/games/{game_id}/commands/move-unit",
         "/api/v3/games/{game_id}/commands/queue-construction",
+        "/api/v3/games/{game_id}/commands/set-perpetual-construction",
         "/api/v3/games/{game_id}/commands/remove-construction",
         "/api/v3/games/{game_id}/commands/move-construction",
         "/api/v3/games/{game_id}/commands/purchase-construction",
@@ -69,6 +70,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "JoinGameRequest",
         "MoveUnitRequest",
         "QueueConstructionRequest",
+        "SetPerpetualConstructionRequest",
         "RemoveConstructionRequest",
         "MoveConstructionRequest",
         "PurchaseConstructionRequest",
@@ -108,6 +110,7 @@ async fn capabilities_forbid_whole_state_uploads() {
     assert!(!response.0.whole_state_upload);
     assert!(response.0.commands.contains(&"move_unit"));
     assert!(response.0.commands.contains(&"queue_construction"));
+    assert!(response.0.commands.contains(&"set_perpetual_construction"));
     assert!(response.0.commands.contains(&"remove_construction"));
     assert!(response.0.commands.contains(&"move_construction"));
     assert!(response.0.commands.contains(&"purchase_construction"));

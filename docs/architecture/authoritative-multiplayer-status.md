@@ -1269,6 +1269,33 @@ tests with zero failures/errors and 13 intentional skips:
 .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
 ```
 
+## Typed perpetual construction selection
+
+Perpetual city production now has its own `SetPerpetualConstruction` command
+across the Kotlin client, Rust HTTP/OpenAPI boundary, PostgreSQL repository,
+private worker protocol, and shared headless engine. This is intentionally not
+folded into `QueueConstruction`: ordinary construction must append and increase
+queue length, while a perpetual choice replaces the terminal `Nothing` or
+stat-conversion entry. Keeping separate commands preserves both invariants.
+
+The worker accepts only a canonical `PerpetualConstruction` name that is
+currently buildable for an authenticated actor's owned city on their turn. It
+rejects duplicate/no-op selection and arbitrary ordinary construction names.
+The explicitly opened v3 city UI submits the typed command without mutating its
+cached `GameInfo`; local, hotseat, and legacy behavior is unchanged.
+
+Verification passed the closed actorless Rust contract/OpenAPI tests, focused
+Kotlin engine/bus/session tests, four worker tests, and all eight persistence
+tests against the sole pinned PostgreSQL 19 Beta 2 digest. The disposable
+database container was stopped and automatically removed afterward.
+
+The complete JDK 21 regression then passed 781 shared tests and four server
+tests with zero failures/errors and 13 intentional skips. Rust passed 26
+executable unit/API tests, strict Clippy with warnings denied, and formatting.
+The command repository now loads canonical snapshot/manifest state and derives
+the actor civilization through two shared typed helpers, removing the repeated
+SQL/membership prelude from all eleven worker-backed gameplay operations.
+
 Remaining production-queue gaps are add-to-top/all-cities batches, perpetual
 construction policy, tile-targeted buildings, purchases, and richer projected
 cost/progress data. This milestone does not change the broader anti-cheat

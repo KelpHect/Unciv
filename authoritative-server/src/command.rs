@@ -15,6 +15,10 @@ pub enum GameCommand {
         city_id: String,
         construction_name: String,
     },
+    SetPerpetualConstruction {
+        city_id: String,
+        construction_name: String,
+    },
     RemoveConstruction {
         city_id: String,
         queue_index: u32,

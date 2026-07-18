@@ -5,6 +5,8 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
+use rand_core::RngCore;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 const MINIMUM_PASSWORD_LENGTH: usize = 12;
@@ -45,6 +47,29 @@ impl PasswordService {
     }
 }
 
+/// A newly-issued opaque bearer token and the only value that may be persisted
+/// for it. Callers return `token` once over TLS and insert only `digest` into
+/// `sessions.token_digest`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionCredential {
+    pub token: String,
+    pub digest: String,
+}
+
+impl SessionCredential {
+    pub fn generate() -> Self {
+        let mut bytes = [0_u8; 32];
+        OsRng.fill_bytes(&mut bytes);
+        let token = hex_encode(&bytes);
+        let digest = token_digest(&token);
+        Self { token, digest }
+    }
+}
+
+pub fn token_digest(token: &str) -> String {
+    hex_encode(&Sha256::digest(token.as_bytes()))
+}
+
 fn validate_password(password: &str) -> Result<(), PasswordError> {
     if password.chars().count() < MINIMUM_PASSWORD_LENGTH {
         return Err(PasswordError::TooShort);
@@ -52,9 +77,19 @@ fn validate_password(password: &str) -> Result<(), PasswordError> {
     Ok(())
 }
 
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(HEX[usize::from(byte >> 4)] as char);
+        encoded.push(HEX[usize::from(byte & 0x0f)] as char);
+    }
+    encoded
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{PasswordError, PasswordService};
+    use super::{token_digest, PasswordError, PasswordService, SessionCredential};
 
     #[test]
     fn argon2id_hashes_and_verifies_passwords() {
@@ -79,5 +114,17 @@ mod tests {
                 .unwrap_err(),
             PasswordError::InvalidStoredHash,
         );
+    }
+
+    #[test]
+    fn session_tokens_have_256_bits_of_entropy_and_only_the_digest_is_stable() {
+        let first = SessionCredential::generate();
+        let second = SessionCredential::generate();
+
+        assert_eq!(first.token.len(), 64);
+        assert_eq!(first.digest.len(), 64);
+        assert_eq!(first.digest, token_digest(&first.token));
+        assert_ne!(first.token, second.token);
+        assert_ne!(first.digest, second.digest);
     }
 }

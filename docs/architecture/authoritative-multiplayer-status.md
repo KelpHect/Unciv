@@ -146,3 +146,8 @@ Argon2id verification are still pending.
 rejects passwords shorter than 12 characters. Password storage remains limited
 to the PHC value; registration/login endpoints, rate limits, and session-token
 issuance still need to be wired to the PostgreSQL account/session tables.
+
+Session issuance now has a 256-bit opaque bearer credential primitive. It
+returns the raw token only to the caller and the SHA-256 digest intended for
+`sessions.token_digest`; the persistence, rotation, expiry, and revocation API
+flows remain pending.

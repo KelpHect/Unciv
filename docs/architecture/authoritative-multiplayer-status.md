@@ -916,3 +916,37 @@ game UI. A projection-only world renderer and v3 game-list/open flow are still
 required before ordinary users can enter this path without integration wiring.
 Most mandatory pre-end-turn choices are not commands yet, so API v3 must remain
 opt-in and must not be advertised as generally playable.
+
+## Server-owned end-turn readiness
+
+Implemented:
+
+- `HeadlessGameEngine.endTurn` derives unresolved actions from the canonical
+  actor civilization before calling shared `GameInfo.nextTurn`. It rejects
+  empty non-puppet production, required technology/policy/spy decisions,
+  pantheon/religion belief phases, and an outstanding diplomatic-victory vote.
+- Idle-unit and automation reminders remain client conveniences and do not
+  block a legal server turn. The guard reuses the same civilization/domain
+  predicates as the UI without importing `WorldScreen` or another UI type into
+  the headless engine.
+- A regression fixture creates a canonical city with no production, verifies
+  `pick_construction` is pending, proves `EndTurn` is rejected, and compares the
+  complete canonical hash and current actor before/after to prove no mutation.
+
+Verification:
+
+```text
+.\gradlew.bat :tests:test \
+  --tests com.unciv.logic.AuthoritativeGameExecutionContextTests \
+  :server:test --no-daemon --no-build-cache
+```
+
+The focused headless engine and private worker suites passed. The choice list
+is not yet part of the player projection, and most corresponding resolution
+commands remain missing; the server therefore fails closed rather than letting
+a modified client skip those decisions.
+
+The complete regression run then passed four server tests and 758 shared tests,
+with zero failures/errors and 13 intentional skips. The command wrapper timed
+out while the detached Gradle worker was still running; the worker completed
+normally and wrote the full current XML result set above.

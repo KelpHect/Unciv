@@ -78,6 +78,22 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(serverTime + 5_000L, reloaded.currentTurnStartTime)
     }
 
+    @Test
+    fun serverRejectsEndTurnWhileCanonicalConstructionChoiceIsPending() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val hashBefore = engine.stateHash(game)
+
+        val rejection = Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.endTurn(game, "Rome")
+        }
+        Assert.assertTrue(rejection.message!!.contains("pick_construction"))
+        Assert.assertEquals(hashBefore, engine.stateHash(game))
+        Assert.assertEquals("Rome", game.currentPlayer)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotEndAnotherCivilizationsTurn() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

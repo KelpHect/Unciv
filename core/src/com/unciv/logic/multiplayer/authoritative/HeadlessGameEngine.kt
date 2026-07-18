@@ -3,7 +3,9 @@ package com.unciv.logic.multiplayer.authoritative
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
+import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.civilization.managers.ReligionState
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameSetupInfo
@@ -53,8 +55,37 @@ class HeadlessGameEngine(
         require(game.currentPlayer == actorCivilization.civID) {
             "Authenticated actor cannot end another civilization's turn"
         }
+        val pendingActions = pendingEndTurnActions(actorCivilization)
+        require(pendingActions.isEmpty()) {
+            "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
+        }
         game.nextTurn(executionContext = executionContext)
         return result(game)
+    }
+
+    /** Canonical blockers only. Idle-unit and automation reminders are client
+     * conveniences, but these choices mutate state or consume a one-shot grant
+     * and therefore cannot be skipped by a modified client. */
+    private fun pendingEndTurnActions(civilization: Civilization) = buildList {
+        if (civilization.cities.any {
+                !it.isPuppet && it.cityConstructions.currentConstructionName().isEmpty()
+            }) add(PendingEndTurnAction.PickConstruction)
+        if (civilization.shouldOpenTechPicker()) add(PendingEndTurnAction.PickTechnology)
+        if (civilization.policies.shouldShowPolicyPicker()) add(PendingEndTurnAction.PickPolicy)
+        if (civilization.gameInfo.isEspionageEnabled()
+            && civilization.espionageManager.shouldShowMoveSpies()
+        ) add(PendingEndTurnAction.MoveSpies)
+        when {
+            civilization.religionManager.religionState == ReligionState.FoundingReligion ->
+                add(PendingEndTurnAction.FoundReligion)
+            civilization.religionManager.religionState == ReligionState.EnhancingReligion ->
+                add(PendingEndTurnAction.EnhanceReligion)
+            civilization.religionManager.hasFreeBeliefs() ->
+                add(PendingEndTurnAction.ReformReligion)
+            civilization.religionManager.canFoundOrExpandPantheon() ->
+                add(PendingEndTurnAction.FoundOrExpandPantheon)
+        }
+        if (civilization.mayVoteForDiplomaticVictory()) add(PendingEndTurnAction.CastDiplomaticVote)
     }
 
     /** Applies one exact movement intent through Unciv's canonical movement
@@ -143,6 +174,18 @@ class HeadlessGameEngine(
     }
 
     private fun result(game: GameInfo) = EngineResult(game, stateHash(game))
+}
+
+private enum class PendingEndTurnAction(val wireName: String) {
+    PickConstruction("pick_construction"),
+    PickTechnology("pick_technology"),
+    PickPolicy("pick_policy"),
+    MoveSpies("move_spies"),
+    FoundOrExpandPantheon("found_or_expand_pantheon"),
+    FoundReligion("found_religion"),
+    EnhanceReligion("enhance_religion"),
+    ReformReligion("reform_religion"),
+    CastDiplomaticVote("cast_diplomatic_vote"),
 }
 
 data class EngineResult(

@@ -46,7 +46,7 @@ struct HealthResponse {
 struct CapabilitiesResponse {
     protocol_version: u16,
     projection_version: u16,
-    commands: [&'static str; 6],
+    commands: [&'static str; 7],
     whole_state_upload: bool,
     websocket_notifications: bool,
 }
@@ -165,6 +165,15 @@ struct AdoptPolicyRequest {
     policy_name: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct ChooseFreeTechnologyRequest {
+    command_id: uuid::Uuid,
+    expected_revision: u64,
+    client_observed_state_hash: Option<String>,
+    technology_name: String,
+}
+
 #[derive(Serialize, ToSchema)]
 struct ErrorResponse {
     code: &'static str,
@@ -203,7 +212,8 @@ struct ApiError {
         move_unit,
         queue_construction,
         set_research_path,
-        adopt_policy
+        adopt_policy,
+        choose_free_technology
     ),
     components(schemas(
         HealthResponse,
@@ -222,6 +232,7 @@ struct ApiError {
         QueueConstructionRequest,
         SetResearchPathRequest,
         AdoptPolicyRequest,
+        ChooseFreeTechnologyRequest,
         ErrorResponse,
         unciv_authoritative_server::CommandAccepted,
         unciv_authoritative_server::postgres::GameSummary,
@@ -350,6 +361,7 @@ async fn capabilities() -> Json<CapabilitiesResponse> {
             "queue_construction",
             "set_research_path",
             "adopt_policy",
+            "choose_free_technology",
             "end_turn",
         ],
         whole_state_upload: false,
@@ -1254,6 +1266,54 @@ async fn adopt_policy(
     Ok(Json(accepted))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/choose-free-technology",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = ChooseFreeTechnologyRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+async fn choose_free_technology(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<ChooseFreeTechnologyRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.technology_name.is_empty() || request.technology_name.len() > 128 {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_choose_free_technology(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::ChooseFreeTechnology {
+                    technology_name: request.technology_name,
+                },
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 async fn authenticated_account(state: &AppState, headers: &HeaderMap) -> Result<Account, ApiError> {
     let bearer_token = bearer_token(headers).ok_or_else(ApiError::unauthorized)?;
     state
@@ -1458,6 +1518,10 @@ async fn main() {
             "/api/v3/games/{game_id}/commands/adopt-policy",
             post(adopt_policy),
         )
+        .route(
+            "/api/v3/games/{game_id}/commands/choose-free-technology",
+            post(choose_free_technology),
+        )
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,
@@ -1513,6 +1577,7 @@ mod tests {
             "/api/v3/games/{game_id}/commands/queue-construction",
             "/api/v3/games/{game_id}/commands/set-research-path",
             "/api/v3/games/{game_id}/commands/adopt-policy",
+            "/api/v3/games/{game_id}/commands/choose-free-technology",
         ];
         assert_eq!(paths.len(), expected_paths.len());
         for path in expected_paths {
@@ -1582,6 +1647,7 @@ mod tests {
         assert!(response.0.commands.contains(&"queue_construction"));
         assert!(response.0.commands.contains(&"set_research_path"));
         assert!(response.0.commands.contains(&"adopt_policy"));
+        assert!(response.0.commands.contains(&"choose_free_technology"));
     }
 
     #[test]

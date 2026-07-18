@@ -90,6 +90,25 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun freeTechnologyUsesOnlyAProjectedGrantChoice() = runBlocking {
+        val initial = projection(0, "hash-0", freeTechnologyChoices = listOf("Writing"))
+        val committed = projection(1, "hash-1")
+        val transport = FakeTransport(initial).apply {
+            onChooseFreeTechnology = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "free-tech-command" }
+        bus.refresh()
+
+        val outcome = bus.chooseFreeTechnology("Writing")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("Writing", transport.freeTechnologyRequests.single().technologyName)
+    }
+
+    @Test
     fun freshClientReconstructsFromServerProjection() = runBlocking {
         val transport = FakeTransport(projection(4, "hash-4"))
         val bus = AuthoritativeGameCommandBus(gameId, transport)
@@ -178,7 +197,12 @@ class AuthoritativeGameCommandBusTests {
         assertEquals(revision6, (bus.state as AuthoritativeSyncState.Synchronized).current)
     }
 
-    private fun projection(revision: Long, hash: String, cityQueue: List<String>? = null) = ApiV3GameProjection(
+    private fun projection(
+        revision: Long,
+        hash: String,
+        cityQueue: List<String>? = null,
+        freeTechnologyChoices: List<String> = emptyList(),
+    ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
         committedRevision = revision,
@@ -190,7 +214,7 @@ class AuthoritativeGameCommandBusTests {
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
             pendingTurnActions = emptyList(),
-            research = ProjectedResearch(null, emptyList(), listOf("Writing"), emptyList()),
+            research = ProjectedResearch(null, emptyList(), listOf("Writing"), freeTechnologyChoices),
             policies = ProjectedPolicies(25, 25, 0, emptyList(), listOf("Tradition")),
             gold = 0,
             knownCivilizations = emptyList(),
@@ -226,6 +250,7 @@ class AuthoritativeGameCommandBusTests {
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
+        val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
@@ -236,6 +261,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onAdoptPolicy: suspend (ApiV3AdoptPolicyRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onChooseFreeTechnology: suspend (ApiV3ChooseFreeTechnologyRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
 
@@ -284,6 +312,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             policyRequests += request
             return onAdoptPolicy(request)
+        }
+        override suspend fun chooseFreeTechnology(
+            gameId: String,
+            request: ApiV3ChooseFreeTechnologyRequest,
+        ): ApiV3CommandAccepted {
+            freeTechnologyRequests += request
+            return onChooseFreeTechnology(request)
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")

@@ -237,6 +237,31 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    @Test
+    fun freeTechnologyRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(
+                        freeTechnologyChoices = listOf("Writing"),
+                    ),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.chooseFreeTechnologyIfOpen(GAME_ID, "Writing"))
+        session.openGame(GAME_ID)
+        val outcome = session.chooseFreeTechnologyIfOpen(GAME_ID, "Writing")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf("Writing"), transport.freeTechnologyNames)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
     private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -305,6 +330,7 @@ class AuthoritativeMultiplayerSessionTests {
         val endTurnCommandIds = mutableListOf<String>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
+        val freeTechnologyNames = mutableListOf<String>()
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -390,6 +416,29 @@ class AuthoritativeMultiplayerSessionTests {
                     policies = current.projection.policies.copy(
                         adoptedPolicies = listOf(request.policyName),
                         selectablePolicies = emptyList(),
+                    ),
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
+        override suspend fun chooseFreeTechnology(
+            gameId: String,
+            request: ApiV3ChooseFreeTechnologyRequest,
+        ): ApiV3CommandAccepted {
+            freeTechnologyNames += request.technologyName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(
+                        freeTechnologyChoices = emptyList(),
                     ),
                 ),
             )

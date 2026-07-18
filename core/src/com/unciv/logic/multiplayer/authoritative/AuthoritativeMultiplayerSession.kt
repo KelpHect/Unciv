@@ -170,6 +170,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun chooseFreeTechnologyIfOpen(
+        gameId: String,
+        technologyName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ChooseFreeTechnology &&
+                    current.pending.technologyName == technologyName) {
+                    "Resolve the pending authoritative command before choosing a free technology"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.chooseFreeTechnology(technologyName)
+            else -> {
+                bus.refresh()
+                bus.chooseFreeTechnology(technologyName)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

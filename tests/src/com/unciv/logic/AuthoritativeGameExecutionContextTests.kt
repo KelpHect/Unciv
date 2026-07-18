@@ -127,6 +127,30 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun serverConsumesOnlyACanonicalFreeTechnologyGrant() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        rome.tech.freeTechs = 1
+        val before = engine.playerProjection(game, "Rome")
+        val technologyName = before.research.freeTechnologyChoices.first()
+
+        val result = engine.chooseFreeTechnology(game, "Rome", technologyName)
+        val after = engine.playerProjection(result.game, "Rome")
+
+        Assert.assertTrue(rome.tech.isResearched(technologyName))
+        Assert.assertEquals(0, rome.tech.freeTechs)
+        Assert.assertTrue(after.research.freeTechnologyChoices.isEmpty())
+        Assert.assertFalse(PendingEndTurnAction.PickTechnology in after.pendingTurnActions)
+
+        val hashAfter = engine.stateHash(result.game)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseFreeTechnology(result.game, "Rome", technologyName)
+        }
+        Assert.assertEquals(hashAfter, engine.stateHash(result.game))
+    }
+
+    @Test
     fun serverAdoptsOnlyAProjectedCanonicalPolicy() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

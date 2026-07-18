@@ -99,6 +99,13 @@ sealed interface WorkerOperation {
         val policyName: String,
     ) : WorkerOperation
 
+    @Serializable @SerialName("choose_free_technology")
+    data class ChooseFreeTechnology(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val technologyName: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("project_state")
     data class ProjectState(
         val snapshot: String,
@@ -202,6 +209,15 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.policyName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.ChooseFreeTechnology -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.chooseFreeTechnology(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.technologyName,
                 )
                 responseForGame(engine, result.game)
             }

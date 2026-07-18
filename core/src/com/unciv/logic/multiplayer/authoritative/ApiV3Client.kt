@@ -178,6 +178,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun chooseFreeTechnology(
+        gameId: String,
+        request: ApiV3ChooseFreeTechnologyRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/choose-free-technology") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun endTurn(
         gameId: String,
         request: ApiV3EndTurnRequest,

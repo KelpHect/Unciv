@@ -61,6 +61,13 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
         val policyName: String,
     ) : PendingAuthoritativeCommand
+
+    data class ChooseFreeTechnology(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val technologyName: String,
+    ) : PendingAuthoritativeCommand
 }
 
 sealed interface AuthoritativeCommandOutcome {
@@ -155,6 +162,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun chooseFreeTechnology(technologyName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(technologyName in current.projection.research.freeTechnologyChoices) {
+            "Technology is absent from the current free-technology projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.ChooseFreeTechnology(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            technologyName = technologyName,
+        ), current)
+    }
+
     suspend fun retryPending(): AuthoritativeCommandOutcome = mutex.withLock {
         val retryable = state as? AuthoritativeSyncState.Retryable
             ?: error("There is no ambiguous command to retry")
@@ -236,6 +256,15 @@ class AuthoritativeGameCommandBus(
                         pending.expectedRevision,
                         pending.observedStateHash,
                         pending.policyName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ChooseFreeTechnology -> transport.chooseFreeTechnology(
+                    gameId,
+                    ApiV3ChooseFreeTechnologyRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.technologyName,
                     ),
                 )
             }

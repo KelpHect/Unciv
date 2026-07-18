@@ -176,6 +176,33 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun chooseFreeTechnology(
+        game: GameInfo,
+        actorCivilizationId: String,
+        technologyName: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot choose a free technology outside their turn"
+        }
+        require(technologyName.isNotBlank() && technologyName.length <= 128) {
+            "Technology name is invalid"
+        }
+        require(actorCivilization.tech.freeTechs > 0) {
+            "Civilization has no free technology grant"
+        }
+        require(game.ruleset.technologies.containsKey(technologyName)) {
+            "Technology is unavailable in the pinned ruleset"
+        }
+        require(actorCivilization.tech.canBeResearched(technologyName)) {
+            "Technology cannot be chosen from the canonical game state"
+        }
+        actorCivilization.tech.getFreeTechnology(technologyName)
+        return result(game)
+    }
+
     fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId

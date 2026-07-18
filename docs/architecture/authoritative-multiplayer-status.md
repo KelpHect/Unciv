@@ -1119,3 +1119,53 @@ and 13 intentional skips.
 This resolves the ordinary `pick_policy` end-turn blocker when one adoption is
 required. Ideology selection, ideology tenets with specialized UX, public
 policy/ideology events, and projection-only policy rendering remain incomplete.
+
+## Authoritative free-technology grants
+
+Implemented:
+
+- The closed `choose_free_technology` command accepts only a bounded technology
+  name already present in projection v5's `freeTechnologyChoices`; no grant
+  count, research result, cost, prerequisite assertion, or civilization ID is
+  accepted from the client.
+- The Kotlin authoritative engine derives the actor from the authenticated
+  membership assignment, requires the current turn, a positive canonical
+  `freeTechs` balance, a technology from the pinned ruleset, and canonical
+  `canBeResearched` legality before invoking the existing
+  `TechManager.getFreeTechnology` domain path and its research side effects.
+- Rust, the private worker protocol, PostgreSQL transaction path, generated
+  OpenAPI, shared client transport, command bus, and authenticated session all
+  carry the same typed intent. The normal revision-CAS, idempotency, immutable
+  snapshot, journal, canonical hash, and outbox boundary remains unchanged.
+- `TechPickerScreen` now routes both normal research and free-technology
+  selection through API v3 only for explicitly opened games. Accepted choices
+  mark the local game stale instead of decrementing its local grant. Local,
+  hotseat, and legacy multiplayer retain the existing domain behavior.
+
+Verification:
+
+```text
+cargo run -- --write-openapi
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all-targets
+.\gradlew.bat :tests:test --tests <focused free-tech engine, bus, and session tests> \
+  :server:test --no-daemon --no-build-cache --rerun-tasks
+git diff --check
+```
+
+Rust passed 16 active library tests and seven HTTP/OpenAPI tests. The forced
+JDK 21 focused run rebuilt every affected module and passed canonical grant
+consumption, projected-choice enforcement, explicit-session routing, and the
+worker/server suite. The engine regression proves one grant is consumed and a
+second attempt is rejected without changing the canonical state hash.
+
+All eight database integration tests then passed serially against the pinned
+PostgreSQL 19 Beta 2 composition, and the temporary test container, network,
+volume, and generated data were removed. The complete JVM regression passed
+four server tests and 768 shared tests with zero failures/errors and 13
+intentional skips.
+
+Research queue append/removal/reordering, research progress/cost/history, and
+public research events remain incomplete. The ordinary and free-technology
+picker paths no longer directly mutate authoritative v3 games.

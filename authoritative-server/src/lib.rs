@@ -39,6 +39,9 @@ pub enum GameCommand {
     AdoptPolicy {
         policy_name: String,
     },
+    ChooseFreeTechnology {
+        technology_name: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -316,6 +319,29 @@ mod tests {
                 "type": "adopt_policy",
                 "policy_name": "Tradition",
                 "free": true
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn choose_free_technology_contract_is_typed_and_closed() {
+        let command: GameCommand = serde_json::from_value(serde_json::json!({
+            "type": "choose_free_technology",
+            "technology_name": "Writing"
+        }))
+        .unwrap();
+        assert_eq!(
+            command,
+            GameCommand::ChooseFreeTechnology {
+                technology_name: "Writing".to_owned(),
+            }
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(serde_json::json!({
+                "type": "choose_free_technology",
+                "technology_name": "Writing",
+                "free_techs": 99
             }))
             .is_err()
         );

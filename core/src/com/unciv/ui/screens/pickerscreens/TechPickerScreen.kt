@@ -20,6 +20,7 @@ import com.unciv.ui.components.NonTransformGroup
 import com.unciv.ui.components.extensions.colorFromRGB
 import com.unciv.ui.components.extensions.darken
 import com.unciv.ui.components.extensions.disable
+import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.surroundWithCircle
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.fonts.Fonts
@@ -119,21 +120,27 @@ class TechPickerScreen(
 
 
     private fun tryExit() {
-        if (!freeTechPick && isAuthoritativeGame()) {
+        if (isAuthoritativeGame()) {
             val technologyName = selectedTech?.name ?: return
             rightSideButton.disable()
-            Concurrency.runOnNonDaemonThreadPool("Set authoritative research") {
+            Concurrency.runOnNonDaemonThreadPool("Set authoritative technology") {
                 val outcome = try {
-                    game.onlineMultiplayer.authoritativeSession?.setResearchPathIfOpen(
-                        civInfo.gameInfo.gameId,
-                        technologyName,
-                    )
+                    if (freeTechPick)
+                        game.onlineMultiplayer.authoritativeSession?.chooseFreeTechnologyIfOpen(
+                            civInfo.gameInfo.gameId,
+                            technologyName,
+                        )
+                    else game.onlineMultiplayer.authoritativeSession?.setResearchPathIfOpen(
+                            civInfo.gameInfo.gameId,
+                            technologyName,
+                        )
                 } catch (ex: Exception) {
                     if (ex is CancellationException) throw ex
                     Concurrency.runOnGLThread {
                         setButtonsInfo()
+                        rightSideButton.enable()
                         ToastPopup(
-                            "Could not submit authoritative research: [${ex.message ?: "Unknown"}]",
+                            "Could not submit authoritative technology: [${ex.message ?: "Unknown"}]",
                             this@TechPickerScreen,
                         )
                     }
@@ -142,7 +149,8 @@ class TechPickerScreen(
                 Concurrency.runOnGLThread {
                     if (outcome == null) {
                         setButtonsInfo()
-                        ToastPopup("Authoritative game was closed before research could be submitted", this@TechPickerScreen)
+                        rightSideButton.enable()
+                        ToastPopup("Authoritative game was closed before the technology could be submitted", this@TechPickerScreen)
                         return@runOnGLThread
                     }
                     when (outcome) {
@@ -150,19 +158,25 @@ class TechPickerScreen(
                             civInfo.gameInfo.isUpToDate = false
                             game.settings.addCompletedTutorialTask("Pick technology")
                             game.popScreen()
-                            ToastPopup("Research committed by the authoritative server", GUI.getWorldScreen())
+                            ToastPopup(
+                                if (freeTechPick) "Free technology committed by the authoritative server"
+                                else "Research committed by the authoritative server",
+                                GUI.getWorldScreen(),
+                            )
                         }
                         is AuthoritativeCommandOutcome.StaleRefreshed -> {
                             civInfo.gameInfo.isUpToDate = false
                             game.popScreen()
-                            ToastPopup("Game changed on the server - research was not submitted", GUI.getWorldScreen())
+                            ToastPopup("Game changed on the server - technology was not submitted", GUI.getWorldScreen())
                         }
                         is AuthoritativeCommandOutcome.Rejected -> {
                             setButtonsInfo()
-                            ToastPopup("Server rejected research: [${outcome.code}]", this@TechPickerScreen)
+                            rightSideButton.enable()
+                            ToastPopup("Server rejected technology: [${outcome.code}]", this@TechPickerScreen)
                         }
                         AuthoritativeCommandOutcome.RetryRequired -> {
                             setButtonsInfo()
+                            rightSideButton.enable()
                             ToastPopup("Server response was lost - retry will use the same command", this@TechPickerScreen)
                         }
                     }

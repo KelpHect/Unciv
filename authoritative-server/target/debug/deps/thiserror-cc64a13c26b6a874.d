@@ -1,0 +1,14 @@
+D:\Projects\Unciv\authoritative-server\target\debug\deps\thiserror-cc64a13c26b6a874.d: C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs D:\Projects\Unciv\authoritative-server\target\debug\build\thiserror-13aa907879e0e170\out/private.rs
+
+D:\Projects\Unciv\authoritative-server\target\debug\deps\libthiserror-cc64a13c26b6a874.rlib: C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs D:\Projects\Unciv\authoritative-server\target\debug\build\thiserror-13aa907879e0e170\out/private.rs
+
+D:\Projects\Unciv\authoritative-server\target\debug\deps\libthiserror-cc64a13c26b6a874.rmeta: C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs D:\Projects\Unciv\authoritative-server\target\debug\build\thiserror-13aa907879e0e170\out/private.rs
+
+C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs:
+C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs:
+C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs:
+C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs:
+C:\Users\KellHect\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs:
+D:\Projects\Unciv\authoritative-server\target\debug\build\thiserror-13aa907879e0e170\out/private.rs:
+
+# env-dep:OUT_DIR=D:\\Projects\\Unciv\\authoritative-server\\target\\debug\\build\\thiserror-13aa907879e0e170\\out

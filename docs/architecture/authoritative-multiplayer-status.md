@@ -58,3 +58,31 @@ Verification:
 
 Result: `BUILD SUCCESSFUL` (9s) on Temurin `21.0.11`. The full `:tests:test`
 suite also passed under the same runtime (29s).
+
+## Milestone 2 - Rust control plane and persistence foundation
+
+In progress:
+
+- Added the independent `authoritative-server` Rust crate. Its control-plane
+  contract serializes each game commit, rejects stale heads, validates worker
+  snapshot hashes, and returns the original accepted result for duplicate
+  command IDs.
+- Added one shared API-v3 JSON Schema at
+  `protocol/command-envelope-v3.schema.json`; it forbids whole-save uploads and
+  generic patches by admitting only the closed command union.
+- Added PostgreSQL migration `0001_authoritative_multiplayer.sql` for accounts,
+  ruleset manifests, games/members, immutable snapshots, command journal,
+  revisions, and transactional-outbox rows.
+- The Rust binary now provides a loopback-only-by-default `/healthz` endpoint;
+  API-v3 game routes stay absent until authentication and PostgreSQL-backed
+  authorization can enforce their invariants.
+
+Verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+```
+
+Result: `3 passed; 0 failed`. These are control-plane contract tests only; the
+repository is still an in-memory test double until the PostgreSQL implementation
+and private Kotlin worker protocol are connected.

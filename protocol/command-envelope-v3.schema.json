@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kelphect.github.io/unciv/protocol/command-envelope-v3.schema.json",
+  "title": "Unciv API v3 command envelope",
+  "type": "object",
+  "required": ["protocol_version", "game_id", "command_id", "expected_revision", "command"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": { "const": 3 },
+    "game_id": { "type": "string", "minLength": 1 },
+    "command_id": { "type": "string", "minLength": 1 },
+    "expected_revision": { "type": "integer", "minimum": 0 },
+    "client_observed_state_hash": { "type": "string" },
+    "command": {
+      "oneOf": [
+        { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "const": "end_turn" } } },
+        { "type": "object", "required": ["type", "unit_id", "destination_tile_id"], "additionalProperties": false, "properties": { "type": { "const": "move_unit" }, "unit_id": { "type": "string", "minLength": 1 }, "destination_tile_id": { "type": "string", "minLength": 1 } } }
+      ]
+    }
+  }
+}

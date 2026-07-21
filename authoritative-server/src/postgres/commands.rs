@@ -1,12 +1,15 @@
 use super::*;
 
-struct WorkerCommandState {
-    snapshot: String,
-    manifest: WorkerManifest,
+pub(super) struct WorkerCommandState {
+    pub(super) snapshot: String,
+    pub(super) manifest: WorkerManifest,
 }
 
 impl PostgresGameRepository {
-    async fn worker_command_state(&self, game_id: Uuid) -> Result<WorkerCommandState, CommitError> {
+    pub(super) async fn worker_command_state(
+        &self,
+        game_id: Uuid,
+    ) -> Result<WorkerCommandState, CommitError> {
         let row = sqlx::query(
             "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
@@ -21,7 +24,7 @@ impl PostgresGameRepository {
         Ok(WorkerCommandState { snapshot, manifest })
     }
 
-    async fn actor_civilization_id(
+    pub(super) async fn actor_civilization_id(
         &self,
         game_id: Uuid,
         actor_account_id: Uuid,
@@ -742,7 +745,7 @@ impl PostgresGameRepository {
         .await
     }
 
-    async fn committed_command(
+    pub(super) async fn committed_command(
         &self,
         game_id: Uuid,
         command_id: Uuid,

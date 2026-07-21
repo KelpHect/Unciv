@@ -116,6 +116,16 @@ sealed interface PendingAuthoritativeCommand {
         val y: Int,
     ) : PendingAuthoritativeCommand
 
+    data class SetCityTileAssignment(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val x: Int,
+        val y: Int,
+        val assignment: CityTileAssignment,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -339,6 +349,24 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setCityTileAssignment(
+        cityId: String,
+        x: Int,
+        y: Int,
+        assignment: CityTileAssignment,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(city.assignableTiles.any { it.x == x && it.y == y }) {
+            "Tile is absent from the city's assignable projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetCityTileAssignment(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, x, y, assignment,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -511,6 +539,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3BuyCityTileRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.x, pending.y,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
+                    gameId,
+                    ApiV3SetCityTileAssignmentRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.x, pending.y, pending.assignment,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

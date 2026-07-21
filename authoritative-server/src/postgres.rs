@@ -14,8 +14,8 @@ use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, ChooseFreeTechnologyIntent, EngineWorkerClient,
     MoveConstructionIntent, MoveUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    WorkerManifest,
+    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetPerpetualConstructionIntent,
+    SetResearchPathIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -84,6 +84,7 @@ pub struct ClaimedOutboxEvent {
 }
 
 mod accounts;
+mod city_population;
 mod commands;
 mod games;
 mod outbox;

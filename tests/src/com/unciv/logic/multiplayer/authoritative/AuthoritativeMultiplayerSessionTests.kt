@@ -558,6 +558,10 @@ class AuthoritativeMultiplayerSessionTests {
             return current
         }
         override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest) = unsupported()
+        override suspend fun setCityTileAssignment(
+            gameId: String,
+            request: ApiV3SetCityTileAssignmentRequest,
+        ) = unsupported()
         override suspend fun queueConstruction(
             gameId: String,
             request: ApiV3QueueConstructionRequest,

@@ -10,6 +10,7 @@ import com.unciv.logic.automation.Automation
 import com.unciv.logic.city.City
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
@@ -90,6 +91,7 @@ class CityScreen(
     private var constructionsTable = CityConstructionsTable(this)
     private var authoritativeTilePurchaseSubmissionInProgress = false
     private var authoritativeTileConstructionSubmissionInProgress = false
+    private var authoritativeTileAssignmentSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -415,6 +417,13 @@ class CityScreen(
 
         // Cycling as: Not-worked -> Worked  -> Not-worked
         if (tileGroup.tileState == CityTileState.WORKABLE) {
+            if (isAuthoritativeGame()) {
+                submitAuthoritativeCityTileAssignment(
+                    tile,
+                    if (city.isWorked(tile)) CityTileAssignment.Unworked else CityTileAssignment.Worked,
+                )
+                return
+            }
             if (!tile.providesYield() && city.population.getFreePopulation() > 0) {
                 city.workedTiles.add(tile.position)
                 game.settings.addCompletedTutorialTask("Reassign worked tiles")
@@ -427,6 +436,58 @@ class CityScreen(
 
         } else if (tileGroup.tileState == CityTileState.PURCHASABLE) {
             askToBuyTile(tile)
+        }
+    }
+
+    internal fun submitAuthoritativeCityTileAssignment(
+        tile: Tile,
+        assignment: CityTileAssignment,
+    ) {
+        if (authoritativeTileAssignmentSubmissionInProgress) return
+        authoritativeTileAssignmentSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Set authoritative city tile assignment") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.setCityTileAssignmentIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    tile.position.x,
+                    tile.position.y,
+                    assignment,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeTileAssignmentSubmissionInProgress = false
+                    ToastPopup("Could not submit tile assignment: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("City tile assignment committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - tile assignment was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeTileAssignmentSubmissionInProgress = false
+                        ToastPopup("Server rejected tile assignment: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeTileAssignmentSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeTileAssignmentSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before tile assignment", this@CityScreen)
+                    }
+                }
+            }
         }
     }
 
@@ -564,6 +625,11 @@ class CityScreen(
     private fun tileWorkedIconDoubleClick(tileGroup: CityTileGroup, city: City) {
         if (!canChangeState || city.isPuppet || tileGroup.tileState != CityTileState.WORKABLE) return
         val tile = tileGroup.tile
+
+        if (isAuthoritativeGame()) {
+            submitAuthoritativeCityTileAssignment(tile, CityTileAssignment.Locked)
+            return
+        }
 
         // Double-click should lead to locked tiles - both for unworked AND worked tiles
 

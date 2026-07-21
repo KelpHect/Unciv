@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.utils.Align
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.map.tile.TileDescription
 import com.unciv.models.stats.Stat
 import com.unciv.models.stats.Stats
@@ -84,18 +85,26 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
             if (selectedTile.isLocked()) {
                 val unlockButton = "Unlock".toTextButton()
                 unlockButton.onClick {
-                    city.lockedTiles.remove(selectedTile.position)
-                    update(selectedTile)
-                    cityScreen.update()
+                    if (cityScreen.isAuthoritativeGame())
+                        cityScreen.submitAuthoritativeCityTileAssignment(selectedTile, CityTileAssignment.Worked)
+                    else {
+                        city.lockedTiles.remove(selectedTile.position)
+                        update(selectedTile)
+                        cityScreen.update()
+                    }
                 }
                 if (!cityScreen.canChangeState) unlockButton.disable()
                 innerTable.add(unlockButton).padTop(5f).row()
             } else {
                 val lockButton = "Lock".toTextButton()
                 lockButton.onClick {
-                    city.lockedTiles.add(selectedTile.position)
-                    update(selectedTile)
-                    cityScreen.update()
+                    if (cityScreen.isAuthoritativeGame())
+                        cityScreen.submitAuthoritativeCityTileAssignment(selectedTile, CityTileAssignment.Locked)
+                    else {
+                        city.lockedTiles.add(selectedTile.position)
+                        update(selectedTile)
+                        cityScreen.update()
+                    }
                 }
                 if (!cityScreen.canChangeState) lockButton.disable()
                 innerTable.add(lockButton).padTop(5f).row()

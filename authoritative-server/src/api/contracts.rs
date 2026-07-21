@@ -10,7 +10,7 @@ pub(super) struct HealthResponse {
 pub(super) struct CapabilitiesResponse {
     pub(super) protocol_version: u16,
     pub(super) projection_version: u16,
-    pub(super) commands: [&'static str; 14],
+    pub(super) commands: [&'static str; 15],
     pub(super) whole_state_upload: bool,
     pub(super) websocket_notifications: bool,
 }
@@ -191,6 +191,18 @@ pub(super) struct BuyCityTileRequest {
     pub(super) city_id: String,
     pub(super) x: i32,
     pub(super) y: i32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SetCityTileAssignmentRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) x: i32,
+    pub(super) y: i32,
+    pub(super) assignment: CityTileAssignment,
 }
 
 #[derive(Deserialize, ToSchema)]

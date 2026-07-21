@@ -11,7 +11,9 @@ pub mod postgres;
 pub mod projection;
 pub mod worker;
 
-pub use command::{CommandAccepted, CommandEnvelope, CommitProposal, GameCommand};
+pub use command::{
+    CityTileAssignment, CommandAccepted, CommandEnvelope, CommitProposal, GameCommand,
+};
 pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 

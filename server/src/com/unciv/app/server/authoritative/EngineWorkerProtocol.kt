@@ -5,6 +5,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
+import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.HexCoord
@@ -151,6 +152,16 @@ sealed interface WorkerOperation {
         val cityId: String,
         val x: Int,
         val y: Int,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_city_tile_assignment")
+    data class SetCityTileAssignment(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val x: Int,
+        val y: Int,
+        val assignment: CityTileAssignment,
     ) : WorkerOperation
 
     @Serializable @SerialName("set_research_path")
@@ -338,6 +349,17 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.cityId,
                     HexCoord(operation.x, operation.y),
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetCityTileAssignment -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setCityTileAssignment(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    HexCoord(operation.x, operation.y),
+                    operation.assignment,
                 )
                 responseForGame(engine, result.game)
             }

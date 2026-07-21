@@ -292,6 +292,34 @@ fn buy_city_tile_contract_excludes_actor_and_price() {
 }
 
 #[test]
+fn city_tile_assignment_contract_is_typed_and_closed() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_city_tile_assignment",
+        "city_id": "city-1",
+        "x": 2,
+        "y": -1,
+        "assignment": "locked"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetCityTileAssignment {
+            city_id: "city-1".to_owned(),
+            x: 2,
+            y: -1,
+            assignment: crate::CityTileAssignment::Locked,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_city_tile_assignment", "city_id": "city-1",
+            "x": 2, "y": -1, "assignment": "automatic"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

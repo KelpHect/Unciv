@@ -1,6 +1,7 @@
 mod auth;
 mod auth_helpers;
 mod bootstrap;
+mod city_population;
 mod commands;
 mod contracts;
 mod error;
@@ -12,6 +13,7 @@ mod state;
 
 use auth::*;
 use auth_helpers::*;
+use city_population::*;
 use commands::*;
 use game_helpers::*;
 pub(super) use games::*;
@@ -33,7 +35,8 @@ pub(super) use axum::{
 pub(super) use futures_util::{SinkExt, StreamExt};
 pub(super) use serde::{Deserialize, Serialize};
 pub(super) use unciv_authoritative_server::{
-    CommandEnvelope, CommitError, GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION,
+    CityTileAssignment, CommandEnvelope, CommitError, GameCommand, PROJECTION_VERSION,
+    PROTOCOL_VERSION,
     auth::{Account, AuthError},
     notifications::{NotificationHub, run_outbox_dispatcher},
     postgres::{GameMetadata, PostgresGameRepository},

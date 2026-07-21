@@ -1388,8 +1388,60 @@ deny-unknown-fields DTO and the shared v6 fixture; capability negotiation now
 fails closed for older projection clients.
 
 This is the required projection foundation for typed citizen assignment. The
-UI mutation paths are not yet rerouted by this slice and remain an explicit
-coverage gap until the command handler is committed.
+typed command and UI routing are recorded in the later city-tile assignment
+slice below.
+
+## Authoritative city tile assignment vertical slice
+
+API v3 now accepts the closed `SetCityTileAssignment` command with only a city
+ID, canonical map coordinate, and `unworked`, `worked`, or `locked` target
+state. Authentication and membership derive the actor; the request cannot
+supply population, yields, ownership, price, or a client legality result. Rust
+persists and revision-commits only the Kotlin worker result and contains no
+city-allocation rules.
+
+The Kotlin worker invokes `HeadlessGameEngine.setCityTileAssignment`, which
+validates the canonical current-turn city, ownership/range, puppet and
+resistance state, other-city workers, yield, blockade, and free population
+before updating worked/locked state and recomputing city statistics. The
+command bus additionally fails closed unless the coordinate occurs in that
+city's projection-v6 `assignableTiles` allowlist.
+
+For explicitly opened v3 games, city worked-icon click/double-click and the
+tile table's lock/unlock controls submit this command and never mutate local
+`workedTiles` or `lockedTiles`. Local, hotseat, saved-game, legacy multiplayer,
+and unrelated API-v2 behavior retain their existing local paths. Specialist
+allocation and city automation remain explicit command-coverage gaps.
+
+The Rust implementation remains split by purpose: HTTP and persistence live in
+focused `api/city_population.rs` and `postgres/city_population.rs` modules.
+Every Rust source file remains below 800 lines; `main.rs` remains six lines and
+contains no application logic.
+
+Focused verification for this slice:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+# 23 library tests and 7 HTTP/OpenAPI tests passed; 8 database tests ignored without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+# passed
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# generated authoritative-server/openapi/api-v3.json
+.\gradlew.bat :tests:test --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.cityTileAssignmentIsBoundToTheProjectedCityTile' --tests 'com.unciv.logic.AuthoritativeGameExecutionContextTests' --no-daemon
+# passed
+.\gradlew.bat :tests:compileTestKotlin :server:compileTestKotlin --no-daemon
+# passed
+cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+# 8 passed against the pinned PostgreSQL 19 Beta 2 digest
+.\gradlew.bat :tests:test :server:test --no-daemon
+# 791 shared plus 4 server tests passed; 13 intentional shared skips
+```
+
+All eight database integration tests passed serially against
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable database container was stopped and automatically removed after
+the run. The complete JDK 21 regression passed 791 shared tests and four server
+tests with zero failures/errors and 13 intentional shared skips.
 
 Verification passed 29 active Rust unit/API tests (eight database tests remain
 explicitly gated), generated-OpenAPI parity, the shared Kotlin/Rust v6 fixture

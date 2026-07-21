@@ -223,6 +223,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setCityTileAssignment(
+        gameId: String,
+        request: ApiV3SetCityTileAssignmentRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-city-tile-assignment") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

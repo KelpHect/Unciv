@@ -402,6 +402,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setCityTileAssignmentIfOpen(
+        gameId: String,
+        cityId: String,
+        x: Int,
+        y: Int,
+        assignment: CityTileAssignment,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetCityTileAssignment &&
+                    current.pending.cityId == cityId && current.pending.x == x &&
+                    current.pending.y == y && current.pending.assignment == assignment) {
+                    "Resolve the pending authoritative command before changing another tile assignment"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.setCityTileAssignment(cityId, x, y, assignment)
+            else -> {
+                bus.refresh()
+                bus.setCityTileAssignment(cityId, x, y, assignment)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

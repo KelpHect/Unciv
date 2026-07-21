@@ -43,6 +43,27 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun cityTileAssignmentIsBoundToTheProjectedCityTile() = runBlocking {
+        val tile = ProjectedCityTile(2, -1, worked = true, locked = false)
+        val initial = projection(7, "hash-7", cityQueue = emptyList(), assignableTiles = listOf(tile))
+        val committed = projection(8, "hash-8", cityQueue = emptyList(), assignableTiles = listOf(tile.copy(locked = true)))
+        val transport = FakeTransport(initial).apply {
+            onSetCityTileAssignment = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "assignment-command" }
+        bus.refresh()
+
+        val outcome = bus.setCityTileAssignment("city-1", 2, -1, CityTileAssignment.Locked)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(CityTileAssignment.Locked, transport.cityTileAssignmentRequests.single().assignment)
+        assertEquals("assignment-command", transport.cityTileAssignmentRequests.single().commandId)
+    }
+
+    @Test
     fun queueConstructionUsesOnlyProjectedCityAndConstructionIds() = runBlocking {
         val initial = projection(0, "hash-0", cityQueue = emptyList())
         val committed = projection(1, "hash-1", cityQueue = listOf("Monument"))
@@ -416,6 +437,7 @@ class AuthoritativeGameCommandBusTests {
         freeTechnologyChoices: List<String> = emptyList(),
         availableConstructions: List<String> = listOf("Monument"),
         exploredTiles: List<ProjectedTileVisibility> = emptyList(),
+        assignableTiles: List<ProjectedCityTile> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -441,6 +463,7 @@ class AuthoritativeGameCommandBusTests {
                 health = 200,
                 constructionQueue = cityQueue,
                 availableConstructions = availableConstructions,
+                assignableTiles = assignableTiles,
             )),
             ownUnits = emptyList(),
             exploredTiles = exploredTiles,
@@ -469,6 +492,7 @@ class AuthoritativeGameCommandBusTests {
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
         val tilePurchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionAtTileRequest>()
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
+        val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -497,6 +521,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onBuyCityTile: suspend (ApiV3BuyCityTileRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -589,6 +616,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             buyCityTileRequests += request
             return onBuyCityTile(request)
+        }
+        override suspend fun setCityTileAssignment(
+            gameId: String,
+            request: ApiV3SetCityTileAssignmentRequest,
+        ): ApiV3CommandAccepted {
+            cityTileAssignmentRequests += request
+            return onSetCityTileAssignment(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

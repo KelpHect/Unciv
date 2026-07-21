@@ -1354,6 +1354,46 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative multi-turn movement orders and projection v9
+
+`MoveUnitToward(unitId, finalDestination)` now preserves the legacy long-distance
+movement behavior without trusting a client path or serialized action string.
+The Kotlin worker derives the actor, validates the canonical turn, ownership,
+known map coordinate, bounds and reachability, advances through shared
+`headTowards`, and stores the remaining `moveTo` order only in canonical server
+state. Later server-side turn processing executes that order through the shared
+`MapUnit.doAction()` path. Exact `MoveUnit` commands clear an earlier automation
+or movement order before moving, matching manual-move semantics.
+
+Projection v9 adds nullable movement-destination coordinates to own units so
+the client can render canonical order arrows after refresh. The builder never
+copies this field for foreign units, and both the real projection leak test and
+the shared Rust/Kotlin v9 fixture assert that foreign movement plans remain
+absent. Opened-v3 world-map movement chooses `MoveUnitToward` only when the
+requested target lies beyond the current-turn endpoint; one-turn moves retain
+the stricter exact-destination command.
+
+All new Rust code remains in the focused movement modules. Verification passed
+the canonical multi-turn/order projection test, foreign-plan leak test,
+projection-v9 Rust/Kotlin round trip, closed request tests, projection-bound
+command-bus routing, explicit-open session routing, 29 active Rust library
+tests, seven HTTP/OpenAPI tests, generated OpenAPI parity, formatting, strict
+all-target/all-feature Clippy with warnings denied, and `git diff --check`. All
+eight database integration tests passed serially against the pinned PostgreSQL
+19 Beta 2 digest on port 55477; the disposable container was then stopped and
+removed. The complete JDK 21 regression passed 813 shared tests and four server
+tests with zero failures/errors and 13 intentional skips. Every Rust source
+file remains below 800 lines; the largest is `postgres/commands.rs` at 729.
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55477/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Authoritative friendly-unit swapping and movement modules
 
 `SwapUnits(unitId, destination)` now crosses the complete API-v3 authority

@@ -232,10 +232,12 @@ class AuthoritativeGameExecutionContextTests {
         val destination = unit.movement.getDistanceToTiles().keys.first {
             it != unit.getTile() && unit.movement.canMoveTo(it)
         }
+        unit.action = "Explore"
 
         engine.moveUnit(game, "Rome", unit.id, destination.position)
 
         Assert.assertEquals(destination.position, unit.getTile().position)
+        Assert.assertEquals(null, unit.action)
     }
 
     @Test
@@ -252,6 +254,31 @@ class AuthoritativeGameExecutionContextTests {
         val second = engine.moveUnit(engine.loadSnapshot(snapshot), "Rome", unit.id, destination)
 
         Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+    }
+
+    @Test
+    fun moveTowardPersistsACanonicalServerOwnedMultiTurnOrder() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits().first()
+        val destination = game.tileMap.tileList.first { tile ->
+            tile != unit.currentTile &&
+                unit.movement.canReach(tile) &&
+                unit.movement.getTileToMoveToThisTurn(tile) != tile
+        }
+        destination.setExplored(civilization, true)
+
+        engine.moveUnitToward(game, "Rome", unit.id, destination.position)
+        val projectedUnit = engine.playerProjection(game, "Rome").ownUnits.single { it.id == unit.id }
+
+        Assert.assertNotEquals(destination, unit.currentTile)
+        Assert.assertEquals(
+            "moveTo ${destination.position.x},${destination.position.y}",
+            unit.action,
+        )
+        Assert.assertEquals(destination.position.x, projectedUnit.movementDestinationX)
+        Assert.assertEquals(destination.position.y, projectedUnit.movementDestinationY)
     }
 
     @Test
@@ -600,6 +627,7 @@ class AuthoritativeGameExecutionContextTests {
         otherCivilization.playerId = "SENTINEL_OTHER_ACCOUNT"
         otherCivilization.flagsCountdown["SENTINEL_SECRET_PLAN"] = 999
         otherCivilization.units.getCivUnits().first().instanceName = "SENTINEL_HIDDEN_UNIT_NAME"
+        otherCivilization.units.getCivUnits().first().action = "moveTo 999,999"
 
         val projection = engine.playerProjection(game, "Rome")
         val serialized = Json.encodeToString(PlayerProjection.serializer(), projection)
@@ -610,6 +638,9 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(serialized.contains("SENTINEL_OTHER_ACCOUNT"))
         Assert.assertFalse(serialized.contains("SENTINEL_SECRET_PLAN"))
         Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
+        Assert.assertTrue(projection.visibleForeignUnits.all {
+            it.movementDestinationX == null && it.movementDestinationY == null
+        })
     }
 
     private fun testSetup(): GameSetupInfo {

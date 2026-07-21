@@ -34,6 +34,15 @@ sealed interface PendingAuthoritativeCommand {
         val destinationY: Int,
     ) : PendingAuthoritativeCommand
 
+    data class MoveUnitToward(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -243,6 +252,22 @@ class AuthoritativeGameCommandBus(
             unitId = unitId,
             destinationX = destinationX,
             destinationY = destinationY,
+        ), current)
+    }
+
+    suspend fun moveUnitToward(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any {
+            it.x == destinationX && it.y == destinationY
+        }) {
+            "Destination is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.MoveUnitToward(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, destinationX, destinationY,
         ), current)
     }
 
@@ -609,6 +634,13 @@ class AuthoritativeGameCommandBus(
                         pending.unitId,
                         pending.destinationX,
                         pending.destinationY,
+                    ),
+                )
+                is PendingAuthoritativeCommand.MoveUnitToward -> transport.moveUnitToward(
+                    gameId,
+                    ApiV3MoveUnitTowardRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitId, pending.destinationX, pending.destinationY,
                     ),
                 )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

@@ -92,8 +92,41 @@ class HeadlessGameEngine(
         require(unit.movement.canMoveTo(destinationTile)) {
             "Unit cannot enter the destination"
         }
+        unit.action = null
         unit.movement.moveToTile(destinationTile)
         check(unit.getTile() == destinationTile) { "Movement did not reach the requested destination" }
+        return result(game)
+    }
+
+    /** Advances a unit toward a known canonical destination and persists the
+     * remaining route as a server-owned order for later turn processing. */
+    fun moveUnitToward(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        destination: HexCoord,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot order a unit outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(destination in game.tileMap) { "Destination is outside the canonical map" }
+        val destinationTile = game.tileMap[destination]
+        require(actorCivilization.hasExplored(destinationTile)) {
+            "Destination is not known to the authenticated actor"
+        }
+        require(destinationTile != unit.getTile()) { "Unit is already at the destination" }
+        require(unit.movement.canReach(destinationTile)) { "Destination is not reachable" }
+        val origin = unit.getTile()
+        unit.action = null
+        unit.movement.headTowards(destinationTile)
+        check(unit.getTile() != origin) { "Movement order made no canonical progress" }
+        unit.action = if (unit.getTile() == destinationTile) null else
+            "moveTo ${destination.x},${destination.y}"
         return result(game)
     }
 

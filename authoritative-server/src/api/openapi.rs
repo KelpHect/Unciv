@@ -21,6 +21,7 @@ use super::*;
         join_game,
         end_turn,
         move_unit,
+        move_unit_toward,
         swap_units,
         queue_construction,
         queue_construction_at_tile,
@@ -54,6 +55,7 @@ use super::*;
         EndTurnRequest,
         JoinGameRequest,
         MoveUnitRequest,
+        MoveUnitTowardRequest,
         SwapUnitsRequest,
         QueueConstructionRequest,
         QueueConstructionAtTileRequest,
@@ -127,6 +129,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
         commands: [
             "join_game",
             "move_unit",
+            "move_unit_toward",
             "swap_units",
             "queue_construction",
             "queue_construction_at_tile",

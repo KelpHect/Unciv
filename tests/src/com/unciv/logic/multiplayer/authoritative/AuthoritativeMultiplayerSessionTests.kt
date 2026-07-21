@@ -211,6 +211,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun multiTurnMovementOrderRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = listOf(unit),
+                exploredTiles = listOf(ProjectedTileVisibility(7, 2, visible = false)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2))
+        session.openGame(GAME_ID)
+        val outcome = session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple(42, 7, 2)), transport.movementOrders)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -547,6 +569,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
         val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
+        val movementOrders = mutableListOf<Triple<Int, Int, Int>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -618,6 +641,29 @@ class AuthoritativeMultiplayerSessionTests {
                 canonicalStateHash = "hash-8",
                 projectionHash = "projection-hash-8",
                 projection = current.projection.copy(ownUnits = listOf(movedUnit)),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun moveUnitToward(
+            gameId: String,
+            request: ApiV3MoveUnitTowardRequest,
+        ): ApiV3CommandAccepted {
+            movementOrders += Triple(request.unitId, request.destinationX, request.destinationY)
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownUnits = current.projection.ownUnits.map { unit ->
+                        if (unit.id == request.unitId) unit.copy(
+                            movementDestinationX = request.destinationX,
+                            movementDestinationY = request.destinationY,
+                        ) else unit
+                    },
+                ),
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

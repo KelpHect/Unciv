@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 8
+        const val CURRENT_PROJECTION_VERSION = 9
     }
 }
 
@@ -93,6 +93,8 @@ data class ProjectedUnit(
     val y: Int,
     val health: Int,
     val currentMovement: Float,
+    val movementDestinationX: Int? = null,
+    val movementDestinationY: Int? = null,
 )
 
 @Serializable
@@ -104,13 +106,16 @@ data class ProjectedTileVisibility(
 
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
-        val ownUnits = actor.units.getCivUnits().map(::unitProjection).sortedBy { it.id }.toList()
+        val ownUnits = actor.units.getCivUnits()
+            .map { unitProjection(it, includeMovementOrder = true) }
+            .sortedBy { it.id }
+            .toList()
         val visibleForeignUnits = game.tileMap.tileList.asSequence()
             .filter { it in actor.viewableTiles }
             .flatMap { it.getUnits() }
             .filter { it.civ != actor }
             .filter { !it.isInvisible(actor) || it.getTile() in actor.viewableInvisibleUnitsTiles }
-            .map(::unitProjection)
+            .map { unitProjection(it, includeMovementOrder = false) }
             .sortedWith(compareBy<ProjectedUnit> { it.civilizationId }.thenBy { it.id })
             .toList()
         return PlayerProjection(
@@ -183,7 +188,10 @@ object PlayerProjectionBuilder {
         )
     }
 
-    private fun unitProjection(unit: MapUnit) = ProjectedUnit(
+    private fun unitProjection(unit: MapUnit, includeMovementOrder: Boolean): ProjectedUnit {
+        val destination = if (includeMovementOrder && unit.isMoving())
+            unit.getMovementDestination().position else null
+        return ProjectedUnit(
         id = unit.id,
         civilizationId = unit.civ.civID,
         name = unit.name,
@@ -191,7 +199,10 @@ object PlayerProjectionBuilder {
         y = unit.getTile().position.y,
         health = unit.health,
         currentMovement = unit.currentMovement,
+        movementDestinationX = destination?.x,
+        movementDestinationY = destination?.y,
     )
+    }
 
     private fun researchProjection(civilization: Civilization): ProjectedResearch {
         val technologies = civilization.gameInfo.ruleset.technologies.values

@@ -30,6 +30,39 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun movementOrderRequestContainsNoClientPathOrActionEncoding() {
+        val encoded = Json.encodeToString(
+            ApiV3MoveUnitTowardRequest.serializer(),
+            ApiV3MoveUnitTowardRequest("command", 7, "hash", 42, 7, 2),
+        )
+        assertTrue(encoded.contains("\"destination_x\":7"))
+        assertTrue(!encoded.contains("path"))
+        assertTrue(!encoded.contains("action"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
+    fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
+        val initial = projection(
+            7, "hash-7",
+            exploredTiles = listOf(ProjectedTileVisibility(7, 2, visible = false)),
+            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)),
+        )
+        val committed = initial.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+        val transport = FakeTransport(initial).apply {
+            onMoveToward = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "order-command" }
+        bus.refresh()
+
+        assertTrue(bus.moveUnitToward(42, 7, 2) is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("order-command", transport.moveTowardRequests.single().commandId)
+    }
+
+    @Test
     fun swapRequestContainsOnlyStableUnitAndDestinationIntent() {
         val encoded = Json.encodeToString(
             ApiV3SwapUnitsRequest.serializer(),
@@ -676,6 +709,7 @@ class AuthoritativeGameCommandBusTests {
 
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
+        val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -695,6 +729,9 @@ class AuthoritativeGameCommandBusTests {
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onMoveToward: suspend (ApiV3MoveUnitTowardRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -776,6 +813,13 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted {
             moveRequests += request
             return onMove(request)
+        }
+        override suspend fun moveUnitToward(
+            gameId: String,
+            request: ApiV3MoveUnitTowardRequest,
+        ): ApiV3CommandAccepted {
+            moveTowardRequests += request
+            return onMoveToward(request)
         }
         override suspend fun swapUnits(
             gameId: String,

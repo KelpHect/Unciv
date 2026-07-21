@@ -53,6 +53,17 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "destinationY")]
         destination_y: i32,
     },
+    MoveUnitToward {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        #[serde(rename = "destinationX")]
+        destination_x: i32,
+        #[serde(rename = "destinationY")]
+        destination_y: i32,
+    },
     SwapUnits {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -259,6 +270,12 @@ pub struct ProjectedState {
 }
 
 pub struct MoveUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+pub struct MoveUnitTowardIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub destination_x: i32,

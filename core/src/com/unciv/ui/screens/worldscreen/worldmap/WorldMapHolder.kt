@@ -379,13 +379,22 @@ class WorldMapHolder(
         destinationThisTurn: Tile,
     ) {
         val selectedUnit = selectedUnits.first()
-        submitAuthoritativeUnitCommand("unit move", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
-                worldScreen.gameInfo.gameId,
-                selectedUnit.id,
-                destinationThisTurn.position.x,
-                destinationThisTurn.position.y,
-            )
+        val isMultiTurnOrder = destinationThisTurn != requestedTarget
+        val description = if (isMultiTurnOrder) "unit movement order" else "unit move"
+        submitAuthoritativeUnitCommand(description, submit = {
+            if (isMultiTurnOrder)
+                worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitTowardIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    selectedUnit.id,
+                    requestedTarget.position.x,
+                    requestedTarget.position.y,
+                )
+            else worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    selectedUnit.id,
+                    destinationThisTurn.position.x,
+                    destinationThisTurn.position.y,
+                )
         }) {
             if (selectedUnits.size > 1)
                 moveUnitToTargetTile(selectedUnits.drop(1), requestedTarget)

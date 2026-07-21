@@ -17,12 +17,12 @@ mod protocol;
 mod unit_movement;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
-    MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionAtTileIntent,
-    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, SwapUnitsIntent, WorkerCapabilities,
-    WorkerManifest, WorkerRuleset,
+    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ProjectedState,
+    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
+    QueueConstructionIntent, RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
+    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
+    SwapUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

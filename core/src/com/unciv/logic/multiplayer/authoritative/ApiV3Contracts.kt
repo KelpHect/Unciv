@@ -106,6 +106,16 @@ data class ApiV3MoveUnitRequest(
 )
 
 @Serializable
+data class ApiV3MoveUnitTowardRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+    @SerialName("destination_x") val destinationX: Int,
+    @SerialName("destination_y") val destinationY: Int,
+)
+
+@Serializable
 data class ApiV3SwapUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

@@ -10,7 +10,7 @@ pub(super) struct HealthResponse {
 pub(super) struct CapabilitiesResponse {
     pub(super) protocol_version: u16,
     pub(super) projection_version: u16,
-    pub(super) commands: [&'static str; 21],
+    pub(super) commands: [&'static str; 22],
     pub(super) whole_state_upload: bool,
     pub(super) websocket_notifications: bool,
 }
@@ -93,6 +93,17 @@ pub(super) struct JoinGameRequest {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct MoveUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
+    pub(super) destination_x: i32,
+    pub(super) destination_y: i32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct MoveUnitTowardRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,
     pub(super) client_observed_state_hash: Option<String>,

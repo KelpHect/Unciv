@@ -114,6 +114,10 @@ pub(crate) async fn run() {
             post(rename_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-tile-improvement-order",
+            post(set_tile_improvement_order),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/swap-units",
             post(swap_units),
         )

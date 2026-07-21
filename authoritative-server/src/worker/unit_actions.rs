@@ -116,4 +116,28 @@ impl EngineWorkerClient {
             .await?;
         commit_proposal(previous_revision, response)
     }
+
+    pub async fn set_tile_improvement_order(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetTileImprovementOrderIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetTileImprovementOrder {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                    improvement_name: intent.improvement_name,
+                    queued_improvement_name: intent.queued_improvement_name,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
 }

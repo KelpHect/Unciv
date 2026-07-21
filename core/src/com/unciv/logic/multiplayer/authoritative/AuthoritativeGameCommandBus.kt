@@ -115,6 +115,15 @@ sealed interface PendingAuthoritativeCommand {
         val instanceName: String?,
     ) : PendingAuthoritativeCommand
 
+    data class SetTileImprovementOrder(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val improvementName: String?,
+        val queuedImprovementName: String?,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -472,6 +481,32 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.RenameUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, instanceName,
+        ), current)
+    }
+
+    suspend fun setTileImprovementOrder(
+        unitId: Int,
+        improvementName: String?,
+        queuedImprovementName: String?,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(improvementName == null ||
+            (improvementName.isNotBlank() && improvementName.length <= 200)) {
+            "Improvement name is invalid"
+        }
+        require(queuedImprovementName == null ||
+            (queuedImprovementName.isNotBlank() && queuedImprovementName.length <= 200)) {
+            "Queued improvement name is invalid"
+        }
+        require(improvementName != null || queuedImprovementName == null) {
+            "A cancelled order cannot include a queued improvement"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetTileImprovementOrder(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, improvementName, queuedImprovementName,
         ), current)
     }
 
@@ -918,6 +953,15 @@ class AuthoritativeGameCommandBus(
                         ApiV3RenameUnitRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.instanceName,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.SetTileImprovementOrder ->
+                    transport.setTileImprovementOrder(
+                        gameId,
+                        ApiV3SetTileImprovementOrderRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
+                            pending.improvementName, pending.queuedImprovementName,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

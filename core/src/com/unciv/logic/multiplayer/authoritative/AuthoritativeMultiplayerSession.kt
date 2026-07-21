@@ -362,6 +362,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setTileImprovementOrderIfOpen(
+        gameId: String,
+        unitId: Int,
+        improvementName: String?,
+        queuedImprovementName: String?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetTileImprovementOrder &&
+                    current.pending.unitId == unitId &&
+                    current.pending.improvementName == improvementName &&
+                    current.pending.queuedImprovementName == queuedImprovementName) {
+                    "Resolve the pending authoritative command before changing the improvement order"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.setTileImprovementOrder(unitId, improvementName, queuedImprovementName)
+            else -> {
+                bus.refresh()
+                bus.setTileImprovementOrder(unitId, improvementName, queuedImprovementName)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

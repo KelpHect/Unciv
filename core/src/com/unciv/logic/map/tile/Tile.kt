@@ -213,6 +213,8 @@ class Tile : IsPartOfGameInfoSerialization {
 
     val improvementInProgress get() = improvementQueue.firstOrNull()?.improvement
     val turnsToImprovement get() = improvementQueue.firstOrNull()?.turnsToImprovement ?: 0
+    fun getImprovementQueueSnapshot(): List<Pair<String, Int>> =
+        improvementQueue.map { it.improvement to it.turnsToImprovement }
 
     //endregion
 

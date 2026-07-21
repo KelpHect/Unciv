@@ -3423,6 +3423,110 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-tile-improvement-order": {
+      "post": {
+        "tags": [],
+        "operationId": "set_tile_improvement_order",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTileImprovementOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/set-unit-automation": {
       "post": {
         "tags": [],
@@ -5079,6 +5183,23 @@
         },
         "additionalProperties": false
       },
+      "ProjectedImprovementOrderEntry": {
+        "type": "object",
+        "required": [
+          "improvementName",
+          "turnsRemaining"
+        ],
+        "properties": {
+          "improvementName": {
+            "type": "string"
+          },
+          "turnsRemaining": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedPolicies": {
         "type": "object",
         "required": [
@@ -5208,7 +5329,8 @@
           "automated",
           "exploring",
           "promotions",
-          "availablePromotions"
+          "availablePromotions",
+          "improvementOrder"
         ],
         "properties": {
           "automated": {
@@ -5237,6 +5359,12 @@
           "id": {
             "type": "integer",
             "format": "int32"
+          },
+          "improvementOrder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedImprovementOrderEntry"
+            }
           },
           "instanceName": {
             "type": [
@@ -5965,6 +6093,48 @@
           },
           "specialist_name": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetTileImprovementOrderRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "improvement_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queued_improvement_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

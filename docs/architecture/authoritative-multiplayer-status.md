@@ -2249,3 +2249,54 @@ UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55487/unciv \
 The database lane used only
 `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
 The disposable container was verified by exact name and image, then removed.
+
+## Authoritative tile improvement orders and projection v15
+
+The normal worker improvement picker now submits the closed
+`SetTileImprovementOrder(unitId, improvementName?, queuedImprovementName?)`
+command for explicitly opened v3 games. A null primary name means cancellation;
+the client cannot supply a tile coordinate, actor, civilization, build time,
+resource cost, movement amount, or legality result. Repair uses the same command
+but remains a distinct server-validated ruleset operation. Local, hotseat,
+legacy multiplayer, and headless AI/worker automation retain the existing
+synchronous Kotlin behavior.
+
+The Kotlin worker derives the owned unit and its canonical current tile, then
+validates current turn, movement, city-center and one-time-improvement guards,
+pinned-ruleset availability, builder capability, technology, resources,
+terrain legality, and repair state. The optional second improvement is accepted
+only as the canonically legal follow-up to a terrain-removal order; both build
+durations and all stockpile effects come from the server-side engine. Starting,
+replacing, cancelling, and repairing therefore commit through PostgreSQL CAS,
+idempotency, immutable revision, and outbox handling like every other v3
+command.
+
+Projection v15 adds the ordered improvement queue and server-derived remaining
+turns to owning-unit projections. Visible foreign units receive an empty queue,
+which is enforced by the shared closed Rust/Kotlin fixture. Pillage and the
+destination/path-based road-connection order remain explicit coverage gaps and
+were not folded into this same-tile command.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and the checked-in parity test passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 39 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55479/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 849 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.
+Every Rust source remains below 800 lines; the largest is
+`postgres/commands.rs` at 729 lines, while `main.rs` remains a six-line entry
+point.

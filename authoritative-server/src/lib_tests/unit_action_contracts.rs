@@ -217,6 +217,29 @@ fn rename_unit_contract_contains_only_unit_and_optional_name() {
 }
 
 #[test]
+fn tile_improvement_order_excludes_tile_cost_turn_and_actor_claims() {
+    let command = GameCommand::SetTileImprovementOrder {
+        unit_id: 42,
+        improvement_name: Some("Remove Forest".to_owned()),
+        queued_improvement_name: Some("Farm".to_owned()),
+    };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"unit_id\":42"));
+    assert!(serialized.contains("\"queued_improvement_name\":\"Farm\""));
+    for forbidden in ["actor", "civilization", "turns", "tile_x", "tile_y", "cost"] {
+        assert!(!serialized.contains(forbidden));
+    }
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_tile_improvement_order", "unit_id": 42,
+            "improvement_name": "Farm", "queued_improvement_name": null,
+            "turns": 1
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

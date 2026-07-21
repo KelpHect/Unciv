@@ -541,8 +541,12 @@ object UnitActionsFromUniques {
         return UnitAction(UnitActionType.Repair, useFrequency,
             title = "${UnitActionType.Repair} [${unit.currentTile.getImprovementToRepair()!!.name}] - [${turnsToBuild}${Fonts.turn}]",
             action = {
-                tile.queueImprovement(Constants.repair, turnsToBuild)
-                unit.action = null
+                val submitted = UncivGame.isCurrentInitialized() && GUI.isWorldLoaded() &&
+                    GUI.getMap().setTileImprovementOrder(unit, Constants.repair)
+                if (!submitted) {
+                    tile.queueImprovement(Constants.repair, turnsToBuild)
+                    unit.action = null
+                }
             }.takeIf { couldConstruct }
         )
     }

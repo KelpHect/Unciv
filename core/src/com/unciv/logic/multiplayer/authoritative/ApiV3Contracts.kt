@@ -197,6 +197,16 @@ data class ApiV3RenameUnitRequest(
 )
 
 @Serializable
+data class ApiV3SetTileImprovementOrderRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+    @SerialName("improvement_name") val improvementName: String?,
+    @SerialName("queued_improvement_name") val queuedImprovementName: String?,
+)
+
+@Serializable
 data class ApiV3SwapUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

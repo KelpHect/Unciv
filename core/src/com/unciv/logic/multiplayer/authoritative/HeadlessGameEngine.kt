@@ -1,16 +1,20 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.Constants
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
+import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.INonPerpetualConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
+import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
 import java.security.MessageDigest
@@ -210,6 +214,112 @@ class HeadlessGameEngine(
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         unit.instanceName = instanceName
+        return result(game)
+    }
+
+    /** Starts, replaces, or cancels the worker order on the owned unit's
+     * canonical tile. Build duration and stockpile costs are server-derived. */
+    fun setTileImprovementOrder(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        improvementName: String?,
+        queuedImprovementName: String?,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change improvement orders outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val tile = unit.currentTile
+        require(!tile.isMarkedForCreatesOneImprovement()) {
+            "This tile's improvement is controlled by a one-time creation action"
+        }
+
+        if (improvementName == null) {
+            require(queuedImprovementName == null) { "A cancelled order cannot include a queued improvement" }
+            require(tile.improvementInProgress != null) { "Tile has no improvement order to cancel" }
+            tile.stopWorkingOnImprovement()
+            return result(game)
+        }
+
+        require(unit.hasMovement()) { "Unit has no movement available to build" }
+        require(!tile.isCityCenter()) { "City-center tiles cannot receive improvement orders" }
+        require(improvementName.isNotBlank() && improvementName.length <= 200) {
+            "Improvement name is invalid"
+        }
+        require(queuedImprovementName == null ||
+            (queuedImprovementName.isNotBlank() && queuedImprovementName.length <= 200)) {
+            "Queued improvement name is invalid"
+        }
+        val improvement = game.ruleset.tileImprovements[improvementName]
+            ?: error("Improvement is unavailable in the pinned ruleset")
+        require(improvement.name != Constants.cancelImprovementOrder) {
+            "Cancellation must use an empty improvement name"
+        }
+        val context = GameContext(actorCivilization, unit = unit, tile = tile)
+        val isRepair = improvement.name == Constants.repair
+        if (isRepair) {
+            require(unit.cache.hasUniqueToBuildImprovements && !unit.isEmbarked() && tile.isPillaged()) {
+                "Unit cannot repair the canonical tile"
+            }
+            require(!tile.isEnemyTerritory(actorCivilization)) {
+                "Enemy territory cannot be repaired"
+            }
+            val improvementToRepair = tile.getImprovementToRepair()
+                ?: error("Canonical tile has no repairable improvement")
+            require(ImprovementFunctions.getImprovementBuildingProblems(improvementToRepair, context)
+                .none { it == ImprovementBuildingProblem.OutsideBorders }) {
+                "Canonical tile is outside the repair boundary"
+            }
+        } else {
+            require(improvement.turnsToBuild != -1 && unit.canBuildImprovement(improvement)) {
+                "Unit cannot build the requested improvement"
+            }
+            require(tile.improvementFunctions.canBuildImprovement(improvement, context)) {
+                "Requested improvement is not legal on the canonical tile"
+            }
+        }
+
+        val queuedImprovement = queuedImprovementName?.let { name ->
+            val queued = game.ruleset.tileImprovements[name]
+                ?: error("Queued improvement is unavailable in the pinned ruleset")
+            require(queued.name != Constants.cancelImprovementOrder &&
+                queued.turnsToBuild != -1 && unit.canBuildImprovement(queued)) {
+                "Unit cannot build the queued improvement"
+            }
+            require(improvement.name.startsWith(Constants.remove)) {
+                "A queued follow-up requires a canonical removal improvement first"
+            }
+            val removedFeature = improvement.name.removePrefix(Constants.remove)
+            require(tile.terrainFeatures.contains(removedFeature)) {
+                "The first improvement does not remove a canonical terrain feature"
+            }
+            val tileAfterRemoval = tile.clone(addUnits = false)
+            tileAfterRemoval.setTerrainFeatures(tile.terrainFeatures - removedFeature)
+            val futureContext = GameContext(actorCivilization, unit = unit, tile = tileAfterRemoval)
+            require(tileAfterRemoval.improvementFunctions.canBuildImprovement(queued, futureContext)) {
+                "Queued improvement is not legal after the requested removal"
+            }
+            queued
+        }
+
+        if (tile.improvementInProgress != improvement.name) {
+            if (isRepair) {
+                val originalTurns = tile.getImprovementToRepair()!!.getTurnsToBuild(actorCivilization, unit)
+                val repairTurns = improvement.getTurnsToBuild(actorCivilization, unit).coerceAtMost(originalTurns)
+                tile.stopWorkingOnImprovement()
+                tile.queueImprovement(Constants.repair, repairTurns)
+            } else tile.startWorkingOnImprovement(improvement, actorCivilization, unit)
+            if (queuedImprovement != null)
+                tile.queueImprovement(queuedImprovement, actorCivilization, unit)
+        } else require(queuedImprovement == null) {
+            "An unchanged active order cannot add a follow-up"
+        }
+        unit.action = null
         return result(game)
     }
 

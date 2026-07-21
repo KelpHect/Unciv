@@ -278,6 +278,29 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun tileImprovementOrderContainsNoClientTileCostTurnsOrActor() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Worker", 2, -1, 100, 2f)
+        val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
+            onImprovementOrder = { request ->
+                current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "improvement-command" }
+        bus.refresh()
+
+        assertTrue(bus.setTileImprovementOrder(42, "Remove Forest", "Farm")
+            is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.improvementOrderRequests.single()
+        assertEquals(42, request.unitId)
+        assertEquals("Remove Forest", request.improvementName)
+        assertEquals("Farm", request.queuedImprovementName)
+        val encoded = Json.encodeToString(ApiV3SetTileImprovementOrderRequest.serializer(), request)
+        for (forbidden in listOf("actor", "civilization", "turns", "tile_x", "tile_y", "cost"))
+            assertTrue(!encoded.contains(forbidden))
+    }
+
+    @Test
     fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
         val initial = projection(
             7, "hash-7",
@@ -955,6 +978,7 @@ class AuthoritativeGameCommandBusTests {
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
         val renameUnitRequests = mutableListOf<ApiV3RenameUnitRequest>()
+        val improvementOrderRequests = mutableListOf<ApiV3SetTileImprovementOrderRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -1004,6 +1028,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onRenameUnit: suspend (ApiV3RenameUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onImprovementOrder: suspend (ApiV3SetTileImprovementOrderRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1155,6 +1182,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             renameUnitRequests += request
             return onRenameUnit(request)
+        }
+        override suspend fun setTileImprovementOrder(
+            gameId: String,
+            request: ApiV3SetTileImprovementOrderRequest,
+        ): ApiV3CommandAccepted {
+            improvementOrderRequests += request
+            return onImprovementOrder(request)
         }
         override suspend fun swapUnits(
             gameId: String,

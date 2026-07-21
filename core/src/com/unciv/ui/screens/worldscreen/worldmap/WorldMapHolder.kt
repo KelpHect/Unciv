@@ -676,6 +676,27 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when the tile order was submitted to the authoritative server. */
+    fun setTileImprovementOrder(
+        unit: MapUnit,
+        improvementName: String?,
+        queuedImprovementName: String? = null,
+    ): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("tile improvement order", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.setTileImprovementOrderIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    unit.id,
+                    improvementName,
+                    queuedImprovementName,
+                )
+        }) {
+            removeUnitActionOverlay()
+        }
+        return true
+    }
+
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.

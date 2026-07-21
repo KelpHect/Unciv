@@ -20,6 +20,7 @@ import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.ruleset.PerpetualConstruction
+import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
 import com.unciv.testing.GdxTestRunner
@@ -588,6 +589,74 @@ class AuthoritativeGameExecutionContextTests {
         game.currentPlayer = "Greece"
         Assert.assertThrows(IllegalArgumentException::class.java) {
             ownerEngine.renameUnit(game, "Rome", unit.id, "Too late")
+        }
+    }
+
+    @Test
+    fun tileImprovementOrderIsCanonicalDeterministicProjectedAndCancelable() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().currentTile.position)
+        civilization.tech.techsResearched.addAll(game.ruleset.technologies.keys)
+        val worker = civilization.units.addUnit("Worker", city)!!
+        val tile = worker.currentTile.neighbors.first { !it.isCityCenter() && it.isLand }
+        worker.removeFromTile()
+        worker.putInTile(tile)
+        val context = GameContext(civilization, unit = worker, tile = tile)
+        val improvement = game.ruleset.tileImprovements.values.first {
+            it.turnsToBuild != -1 && worker.canBuildImprovement(it) &&
+                tile.improvementFunctions.canBuildImprovement(it, context)
+        }
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.setTileImprovementOrder(
+            engine.loadSnapshot(snapshot), "Rome", worker.id, improvement.name, null,
+        )
+        val second = engine.setTileImprovementOrder(
+            engine.loadSnapshot(snapshot), "Rome", worker.id, improvement.name, null,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val projectedOrder = engine.playerProjection(first.game, "Rome").ownUnits
+            .single { it.id == worker.id }.improvementOrder.single()
+        Assert.assertEquals(improvement.name, projectedOrder.improvementName)
+        Assert.assertTrue(projectedOrder.turnsRemaining > 0)
+        val cancelled = engine.setTileImprovementOrder(
+            first.game, "Rome", worker.id, null, null,
+        )
+        Assert.assertTrue(cancelled.game.getCivilization("Rome").units.getUnitById(worker.id)!!
+            .currentTile.getImprovementQueueSnapshot().isEmpty())
+    }
+
+    @Test
+    fun tileImprovementOrderRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().currentTile.position)
+        civilization.tech.techsResearched.addAll(game.ruleset.technologies.keys)
+        val worker = civilization.units.addUnit("Worker", city)!!
+        val tile = worker.currentTile.neighbors.first { !it.isCityCenter() && it.isLand }
+        worker.removeFromTile()
+        worker.putInTile(tile)
+        val context = GameContext(civilization, unit = worker, tile = tile)
+        val improvement = game.ruleset.tileImprovements.values.first {
+            it.turnsToBuild != -1 && worker.canBuildImprovement(it) &&
+                tile.improvementFunctions.canBuildImprovement(it, context)
+        }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.setTileImprovementOrder(
+                game, "Rome", worker.id, improvement.name, null,
+            )
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.setTileImprovementOrder(
+                game, "Rome", worker.id, improvement.name, null,
+            )
         }
     }
 

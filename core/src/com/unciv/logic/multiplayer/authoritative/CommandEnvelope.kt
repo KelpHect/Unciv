@@ -109,6 +109,12 @@ sealed interface GameCommand {
         val instanceName: String?,
     ) : GameCommand
 
+    data class SetTileImprovementOrder(
+        val unitId: Int,
+        val improvementName: String?,
+        val queuedImprovementName: String?,
+    ) : GameCommand
+
     data class SetCityUnitPromotionPreference(
         val cityId: String,
         val baseUnitName: String,

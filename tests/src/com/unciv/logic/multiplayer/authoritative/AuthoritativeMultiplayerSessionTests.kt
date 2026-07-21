@@ -760,6 +760,7 @@ class AuthoritativeMultiplayerSessionTests {
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
         val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
         val renamedUnits = mutableListOf<Pair<Int, String?>>()
+        val improvementOrders = mutableListOf<Triple<Int, String?, String?>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -1006,6 +1007,23 @@ class AuthoritativeMultiplayerSessionTests {
             request: ApiV3RenameUnitRequest,
         ): ApiV3CommandAccepted {
             renamedUnits += request.unitId to request.instanceName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun setTileImprovementOrder(
+            gameId: String,
+            request: ApiV3SetTileImprovementOrderRequest,
+        ): ApiV3CommandAccepted {
+            improvementOrders += Triple(
+                request.unitId, request.improvementName, request.queuedImprovementName,
+            )
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",

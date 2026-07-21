@@ -67,6 +67,11 @@ pub enum GameCommand {
         unit_id: i32,
         instance_name: Option<String>,
     },
+    SetTileImprovementOrder {
+        unit_id: i32,
+        improvement_name: Option<String>,
+        queued_improvement_name: Option<String>,
+    },
     SetCityUnitPromotionPreference {
         city_id: String,
         base_unit_name: String,

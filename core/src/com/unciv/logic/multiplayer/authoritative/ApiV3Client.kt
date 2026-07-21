@@ -241,6 +241,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setTileImprovementOrder(
+        gameId: String,
+        request: ApiV3SetTileImprovementOrderRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-tile-improvement-order") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

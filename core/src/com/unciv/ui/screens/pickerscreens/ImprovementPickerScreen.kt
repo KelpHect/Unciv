@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
+import com.unciv.GUI
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.logic.map.tile.Tile
@@ -58,6 +59,11 @@ class ImprovementPickerScreen(
 
     fun accept(improvement: TileImprovement?, secondImprovement: TileImprovement? = null) {
         if (improvement == null || tileMarkedForCreatesOneImprovement) return
+        val improvementName = improvement.name.takeUnless { it == Constants.cancelImprovementOrder }
+        if (GUI.getMap().setTileImprovementOrder(unit, improvementName, secondImprovement?.name)) {
+            game.popScreen()
+            return
+        }
         if (improvement.name == Constants.cancelImprovementOrder) {
             tile.stopWorkingOnImprovement()
             // no onAccept() - Worker can stay selected

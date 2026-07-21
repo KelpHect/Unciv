@@ -10,6 +10,7 @@ import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapPathing
 import com.unciv.logic.map.mapunit.actions.UnitPillage
+import com.unciv.logic.map.mapunit.actions.UnitCityFounding
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
@@ -83,6 +84,30 @@ class HeadlessGameEngine(
             ?: error("Unit is not controlled by the authenticated actor")
         require(UnitPillage.pillage(unit)) {
             "Unit cannot pillage its canonical current tile"
+        }
+        return result(game)
+    }
+
+    /** Founds a city at the owned unit's canonical current tile. The worker
+     * derives legality, city identity/name, ownership, modifiers, and unit consumption. */
+    fun foundCity(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot found a city outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val foundingLocation = unit.currentTile.position
+        val city = UnitCityFounding.foundCity(unit)
+            ?: error("Unit cannot found a city on its canonical current tile")
+        check(city.civ == actorCivilization && city.getCenterTile().position == foundingLocation) {
+            "Founded city did not match canonical actor and location"
         }
         return result(game)
     }

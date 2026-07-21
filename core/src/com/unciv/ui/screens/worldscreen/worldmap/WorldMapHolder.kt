@@ -629,6 +629,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when founding was submitted to the authoritative server. */
+    fun foundCity(unit: MapUnit): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("found city", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.foundCityIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     fun upgradeUnits(units: List<MapUnit>, targetUnitName: String) {
         if (units.isEmpty()) return
         if (!isAuthoritativeGame()) {

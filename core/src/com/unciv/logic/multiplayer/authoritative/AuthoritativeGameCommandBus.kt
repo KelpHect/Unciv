@@ -88,6 +88,13 @@ sealed interface PendingAuthoritativeCommand {
         val unitId: Int,
     ) : PendingAuthoritativeCommand
 
+    data class FoundCity(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+    ) : PendingAuthoritativeCommand
+
     data class UpgradeUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -433,6 +440,16 @@ class AuthoritativeGameCommandBus(
             "Unit is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.PillageTile(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
+        ), current)
+    }
+
+    suspend fun foundCity(unitId: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.FoundCity(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
         ), current)
     }
@@ -974,6 +991,14 @@ class AuthoritativeGameCommandBus(
                     transport.pillageTile(
                         gameId,
                         ApiV3PillageTileRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.FoundCity ->
+                    transport.foundCity(
+                        gameId,
+                        ApiV3FoundCityRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId,
                         ),

@@ -227,6 +227,42 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun foundCityRequestContainsOnlyUnitIntentAndReconcilesCityIdentity() = runBlocking {
+        val settler = ProjectedUnit(42, "Rome", "Settler", 0, 0, 100, 2f)
+        val initial = projection(7, "hash-7", ownUnits = listOf(settler))
+        val foundedCity = ProjectedCity(
+            "city-1", "Rome", 0, 0, 1, 200, emptyList(), emptyList(),
+        )
+        val transport = FakeTransport(initial).apply {
+            onFoundCity = { request ->
+                current = current.copy(
+                    committedRevision = 8,
+                    canonicalStateHash = "hash-8",
+                    projection = current.projection.copy(
+                        ownUnits = emptyList(),
+                        ownCities = listOf(foundedCity),
+                    ),
+                )
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "command-42" }
+        bus.refresh()
+
+        assertTrue(bus.foundCity(42) is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.foundCityRequests.single()
+        assertEquals("command-42", request.commandId)
+        assertEquals(42, request.unitId)
+        val encoded = Json.encodeToString(ApiV3FoundCityRequest.serializer(), request)
+        assertTrue(!encoded.contains("city_name"))
+        assertTrue(!encoded.contains("destination"))
+        assertTrue(!encoded.contains("actor"))
+        val synchronized = bus.state as AuthoritativeSyncState.Synchronized
+        assertEquals("city-1", synchronized.current.projection.ownCities.single().id)
+        assertTrue(synchronized.current.projection.ownUnits.isEmpty())
+    }
+
+    @Test
     fun upgradeBatchContainsOnlyProjectedIdsAndTargetIntent() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 0, 0, 100, 2f),
@@ -1041,6 +1077,7 @@ class AuthoritativeGameCommandBusTests {
         val unitPostureRequests = mutableListOf<ApiV3SetUnitPostureRequest>()
         val disbandUnitRequests = mutableListOf<ApiV3DisbandUnitRequest>()
         val pillageTileRequests = mutableListOf<ApiV3PillageTileRequest>()
+        val foundCityRequests = mutableListOf<ApiV3FoundCityRequest>()
         val upgradeUnitRequests = mutableListOf<ApiV3UpgradeUnitsRequest>()
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
@@ -1087,6 +1124,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onPillageTile: suspend (ApiV3PillageTileRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onFoundCity: suspend (ApiV3FoundCityRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onUpgradeUnits: suspend (ApiV3UpgradeUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1235,6 +1275,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             pillageTileRequests += request
             return onPillageTile(request)
+        }
+        override suspend fun foundCity(
+            gameId: String,
+            request: ApiV3FoundCityRequest,
+        ): ApiV3CommandAccepted {
+            foundCityRequests += request
+            return onFoundCity(request)
         }
         override suspend fun upgradeUnits(
             gameId: String,

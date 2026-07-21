@@ -152,6 +152,15 @@ fn pillage_tile_contract_contains_only_the_stable_unit_id() {
 }
 
 #[test]
+fn found_city_contract_contains_only_the_stable_unit_id() {
+    let serialized = serde_json::to_value(GameCommand::FoundCity { unit_id: 42 }).unwrap();
+    assert_eq!(
+        serialized,
+        serde_json::json!({ "type": "found_city", "unit_id": 42 })
+    );
+}
+
+#[test]
 fn upgrade_units_contract_excludes_cost_resources_and_actor() {
     let command = GameCommand::UpgradeUnits {
         unit_ids: vec![42, 43],

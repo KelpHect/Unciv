@@ -1,6 +1,28 @@
 use super::*;
 
 impl EngineWorkerClient {
+    pub async fn found_city(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: FoundCityIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::FoundCity {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn pillage_tile(
         &self,
         actor_id: &str,

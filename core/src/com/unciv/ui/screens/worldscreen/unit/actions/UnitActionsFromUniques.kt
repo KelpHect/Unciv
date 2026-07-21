@@ -8,6 +8,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.map.mapunit.MapUnit
+import com.unciv.logic.map.mapunit.actions.UnitCityFounding
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.logic.map.tile.RoadStatus
 import com.unciv.logic.map.tile.Tile
@@ -64,16 +65,12 @@ object UnitActionsFromUniques {
         val foundAction = {
             if (unit.civ.playerType != PlayerType.AI)
                 UncivGame.Current.settings.addCompletedTutorialTask("Found city")
-            // Get the city to be able to change it into puppet, for modding.
-            val city = unit.civ.addCity(tile.position, unit)
-
-            if (hasActionModifiers) UnitActionModifiers.activateSideEffects(unit, unique)
-            else unit.destroy()
-            GUI.setUpdateWorldOnNextRender() // Set manually, since this could be triggered from the ConfirmPopup and not from the UnitActionsTable
-            // If unit has FoundPuppetCity make it into a puppet city.
-            if (unique.type == UniqueType.FoundPuppetCity) {
-                city.isPuppet = true
+            if (!GUI.isWorldLoaded() || !GUI.getMap().foundCity(unit)) {
+                check(UnitCityFounding.foundCity(unit) != null) {
+                    "Found-city action became invalid before execution"
+                }
             }
+            GUI.setUpdateWorldOnNextRender() // Set manually, since this could be triggered from the ConfirmPopup and not from the UnitActionsTable
         }
 
         if (unit.civ.playerType == PlayerType.AI)

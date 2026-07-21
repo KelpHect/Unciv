@@ -12,12 +12,12 @@ use crate::auth::{
 use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
-    ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, PillageTileIntent, PromoteUnitIntent,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
-    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, FoundCityIntent,
+    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, PillageTileIntent,
+    PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
+    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
+    RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
     SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,

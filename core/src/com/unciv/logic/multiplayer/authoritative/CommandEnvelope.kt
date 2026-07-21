@@ -95,6 +95,8 @@ sealed interface GameCommand {
 
     data class PillageTile(val unitId: Int) : GameCommand
 
+    data class FoundCity(val unitId: Int) : GameCommand
+
     data class UpgradeUnits(
         val unitIds: List<Int>,
         val targetUnitName: String,

@@ -286,6 +286,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun foundCityIfOpen(
+        gameId: String,
+        unitId: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.FoundCity &&
+                    current.pending.unitId == unitId) {
+                    "Resolve the pending authoritative command before founding with another unit"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.foundCity(unitId)
+            else -> {
+                bus.refresh()
+                bus.foundCity(unitId)
+            }
+        }
+    }
+
     suspend fun upgradeUnitsIfOpen(
         gameId: String,
         unitIds: List<Int>,

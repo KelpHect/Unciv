@@ -2391,3 +2391,41 @@ Final gates passed:
 - `git diff --check`: passed. Every Rust source remains below 800 lines; the
   largest is `postgres/commands.rs` at 729 lines, and `main.rs` remains six
   lines.
+
+## Authoritative city founding
+
+API-v3 city founding now uses `FoundCity(unitId)`. The request contains no
+coordinate, city name or ID, puppet/capital flag, population, construction,
+cost, actor, or outcome. Membership supplies the civilization, and the private
+Kotlin worker derives the unit's canonical current tile and applies the shared
+settlement rules.
+
+The reusable unit-action modifier executor was moved out of the world-screen
+package into the focused, headless-safe `UnitActionModifierEffects` service.
+`UnitCityFounding` now combines those canonical costs/limited-use/consumption
+rules with the existing `CityFounder`. Human local play, server-owned AI, and
+the authoritative worker therefore share city naming and stable ID generation,
+capital/puppet behavior, settlement-distance and territory checks, starting
+population/buildings, proximity and promise flags, triggered uniques, and unit
+consumption. UI-only tutorial and confirmation behavior remains in the UI.
+
+Opened authoritative games submit through the session and command bus; local,
+hotseat, and legacy games continue synchronously. The accepted projection drops
+the consumed founder and adds the server-generated city identity and visible
+city state.
+
+Verification:
+
+- Deterministic repeated execution produced the same canonical hash and stable
+  city ID; projection, foreign actor, out-of-turn owner, non-founder, closed
+  Rust/Kotlin wire-shape, and explicit-open client-routing tests passed.
+- `cargo test --all-targets`: 42 library tests passed, 8 explicit PostgreSQL
+  tests skipped pending the database lane, and all 7 HTTP/OpenAPI tests passed.
+- `cargo fmt --all -- --check` and
+  `cargo clippy --all-targets --all-features -- -D warnings`: passed.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: passed;
+  861 shared JVM tests completed with 13 intentional skips and zero failures,
+  plus 4 worker protocol tests.
+- All 8 PostgreSQL integration tests passed serially against exact image
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The exact-name disposable container was removed afterward.

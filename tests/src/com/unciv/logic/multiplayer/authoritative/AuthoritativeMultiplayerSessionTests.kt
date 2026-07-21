@@ -350,6 +350,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun cityFoundingRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val settler = ProjectedUnit(42, "Rome", "Settler", 1, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(settler)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.foundCityIfOpen(GAME_ID, 42))
+        session.openGame(GAME_ID)
+        val outcome = session.foundCityIfOpen(GAME_ID, 42)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(42), transport.foundingUnits)
+        session.close()
+    }
+
+    @Test
     fun unitUpgradeBatchRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 1, 0, 100, 2f),
@@ -798,6 +817,7 @@ class AuthoritativeMultiplayerSessionTests {
         val postureOrders = mutableListOf<Pair<Int, UnitPosture>>()
         val disbandedUnits = mutableListOf<Int>()
         val pillagedByUnits = mutableListOf<Int>()
+        val foundingUnits = mutableListOf<Int>()
         val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
         val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
@@ -1008,6 +1028,20 @@ class AuthoritativeMultiplayerSessionTests {
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-pillage",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun foundCity(
+            gameId: String,
+            request: ApiV3FoundCityRequest,
+        ): ApiV3CommandAccepted {
+            foundingUnits += request.unitId
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-found-city",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

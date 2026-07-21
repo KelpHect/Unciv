@@ -214,6 +214,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun foundCity(
+        gameId: String,
+        request: ApiV3FoundCityRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/found-city") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

@@ -795,6 +795,52 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun foundCityIsCanonicalDeterministicAndProjectedWithStableIdentity() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val settler = civilization.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+        val location = settler.currentTile.position
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.foundCity(engine.loadSnapshot(snapshot), "Rome", settler.id)
+        val second = engine.foundCity(engine.loadSnapshot(snapshot), "Rome", settler.id)
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val city = first.game.getCivilization("Rome").cities.single()
+        val repeatedCity = second.game.getCivilization("Rome").cities.single()
+        Assert.assertEquals(city.id, repeatedCity.id)
+        Assert.assertEquals(location, city.location)
+        Assert.assertTrue(city.isOriginalCapital)
+        Assert.assertEquals(null, first.game.getCivilization("Rome").units.getUnitById(settler.id))
+        val projection = engine.playerProjection(first.game, "Rome")
+        Assert.assertEquals(city.id, projection.ownCities.single().id)
+        Assert.assertEquals(city.name, projection.ownCities.single().name)
+        Assert.assertTrue(projection.ownUnits.none { it.id == settler.id })
+    }
+
+    @Test
+    fun foundCityRejectsForeignActorsOutOfTurnOwnersAndNonFounders() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val settler = civilization.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+        val nonFounder = civilization.units.getCivUnits().first { !it.hasUnique(UniqueType.FoundCity) }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.foundCity(game, "Rome", settler.id)
+        }
+        Assert.assertThrows(IllegalStateException::class.java) {
+            ownerEngine.foundCity(game, "Rome", nonFounder.id)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.foundCity(game, "Rome", settler.id)
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

@@ -67,6 +67,18 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun citizenResetRequestContainsNoPolicyOrPopulationClaims() {
+        val encoded = Json.encodeToString(
+            ApiV3ResetCitizensRequest.serializer(),
+            ApiV3ResetCitizensRequest("command", 7, "hash", "city-1"),
+        )
+        assertTrue(encoded.contains("\"city_id\":\"city-1\""))
+        assertTrue(!encoded.contains("focus"))
+        assertTrue(!encoded.contains("population"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun cityTileAssignmentIsBoundToTheProjectedCityTile() = runBlocking {
         val tile = ProjectedCityTile(2, -1, worked = true, locked = false)
         val initial = projection(7, "hash-7", cityQueue = emptyList(), assignableTiles = listOf(tile))
@@ -126,6 +138,25 @@ class AuthoritativeGameCommandBusTests {
 
         assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
         assertEquals(false, transport.manualSpecialistRequests.single().enabled)
+    }
+
+    @Test
+    fun citizenResetIsBoundToProjectedCity() = runBlocking {
+        val initial = projection(7, "hash-7", cityQueue = emptyList())
+        val committed = projection(8, "hash-8", cityQueue = emptyList())
+        val transport = FakeTransport(initial).apply {
+            onResetCitizens = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "reset-command" }
+        bus.refresh()
+
+        val outcome = bus.resetCitizens("city-1")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("reset-command", transport.resetCitizenRequests.single().commandId)
     }
 
     @Test
@@ -562,6 +593,7 @@ class AuthoritativeGameCommandBusTests {
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
+        val resetCitizenRequests = mutableListOf<ApiV3ResetCitizensRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -599,6 +631,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetManualSpecialists: suspend (ApiV3SetManualSpecialistsRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onResetCitizens: suspend (ApiV3ResetCitizensRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -712,6 +747,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             manualSpecialistRequests += request
             return onSetManualSpecialists(request)
+        }
+        override suspend fun resetCitizens(
+            gameId: String,
+            request: ApiV3ResetCitizensRequest,
+        ): ApiV3CommandAccepted {
+            resetCitizenRequests += request
+            return onResetCitizens(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

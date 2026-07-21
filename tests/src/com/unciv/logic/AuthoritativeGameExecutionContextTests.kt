@@ -513,6 +513,26 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(0, city.population.getFreePopulation())
     }
 
+    @Test
+    fun citizenResetClearsLocksAndReassignsCanonicalPopulation() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val target = testGame.setTileTerrain(HexCoord(1, 0), Constants.grassland)
+        city.workedTiles.clear()
+        city.workedTiles.add(target.position)
+        city.lockedTiles.add(target.position)
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.resetCitizens(testGame.gameInfo, civilization.civName, city.id)
+
+        Assert.assertTrue(city.lockedTiles.isEmpty())
+        Assert.assertEquals(0, city.population.getFreePopulation())
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

@@ -454,6 +454,23 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun resetCitizens(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City citizens cannot be reset manually"
+        }
+        city.reassignPopulation(resetLocked = true)
+        check(city.lockedTiles.isEmpty()) { "Citizen reset did not clear tile locks" }
+        check(city.population.getFreePopulation() == 0) {
+            "Citizen reset left population unassigned"
+        }
+        return result(game)
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,

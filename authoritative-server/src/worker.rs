@@ -18,9 +18,9 @@ pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
     MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
-    WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    RemoveConstructionIntent, ResetCitizensIntent, SetCityTileAssignmentIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetSpecialistCountIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

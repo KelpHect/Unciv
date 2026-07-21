@@ -32,6 +32,7 @@ use super::*;
         set_city_tile_assignment,
         set_specialist_count,
         set_manual_specialists,
+        reset_citizens,
         set_research_path,
         adopt_policy,
         choose_free_technology
@@ -61,6 +62,7 @@ use super::*;
         SetCityTileAssignmentRequest,
         SetSpecialistCountRequest,
         SetManualSpecialistsRequest,
+        ResetCitizensRequest,
         unciv_authoritative_server::CityTileAssignment,
         SetResearchPathRequest,
         AdoptPolicyRequest,
@@ -129,6 +131,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "set_city_tile_assignment",
             "set_specialist_count",
             "set_manual_specialists",
+            "reset_citizens",
             "set_research_path",
             "adopt_policy",
             "choose_free_technology",

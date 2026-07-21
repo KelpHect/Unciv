@@ -1354,6 +1354,38 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative citizen reset
+
+The `ResetCitizens(cityId)` API-v3 command exactly mirrors the existing reset
+button semantics without accepting focus, population, lock, yield, or actor
+claims. The Kotlin worker validates the authenticated current-turn city and
+calls `reassignPopulation(resetLocked = true)`, then verifies canonical locks
+are empty and no population remains unassigned. Manual-specialist mode is not
+silently changed, matching the existing local behavior.
+
+For explicitly opened v3 games the reset control submits through the
+revisioned command bus and never mutates the local city. Local, hotseat, saved-
+game, legacy multiplayer, and API-v2 paths retain their existing behavior.
+Rust HTTP, persistence, and worker code remains in the focused city-population
+modules; every Rust source file remains below 800 lines and `main.rs` remains
+six lines.
+
+Focused verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+# 26 library tests and 7 HTTP/OpenAPI tests passed; 8 DB tests ignored without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+# passed
+.\gradlew.bat :tests:test --tests 'com.unciv.logic.AuthoritativeGameExecutionContextTests.citizenResetClearsLocksAndReassignsCanonicalPopulation' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.citizenResetIsBoundToProjectedCity' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.citizenResetRequestContainsNoPolicyOrPopulationClaims' --no-daemon
+# passed
+```
+
+All eight database integration tests passed serially against the sole pinned
+PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
+The complete JDK 21 regression passed 800 shared tests and four server tests
+with zero failures/errors and 13 intentional shared skips.
+
 ## Typed perpetual construction selection
 
 Perpetual city production now has its own `SetPerpetualConstruction` command

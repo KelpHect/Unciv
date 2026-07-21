@@ -171,6 +171,13 @@ pub(super) enum WorkerOperation<'a> {
         city_id: &'a str,
         enabled: bool,
     },
+    ResetCitizens {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -302,6 +309,11 @@ pub struct SetManualSpecialistsIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,
     pub enabled: bool,
+}
+
+pub struct ResetCitizensIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
 }
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,

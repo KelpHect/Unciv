@@ -250,6 +250,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun resetCitizens(
+        gameId: String,
+        request: ApiV3ResetCitizensRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/reset-citizens") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

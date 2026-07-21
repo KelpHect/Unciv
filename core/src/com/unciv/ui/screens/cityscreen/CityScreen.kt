@@ -93,6 +93,7 @@ class CityScreen(
     private var authoritativeTileConstructionSubmissionInProgress = false
     private var authoritativeTileAssignmentSubmissionInProgress = false
     private var authoritativeSpecialistSubmissionInProgress = false
+    private var authoritativeCitizenManagementSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -584,6 +585,52 @@ class CityScreen(
                     null -> {
                         authoritativeSpecialistSubmissionInProgress = false
                         ToastPopup("Authoritative game was closed before specialist mode", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
+    internal fun submitAuthoritativeCitizenReset() {
+        if (authoritativeCitizenManagementSubmissionInProgress) return
+        authoritativeCitizenManagementSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Reset authoritative citizens") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.resetCitizensIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeCitizenManagementSubmissionInProgress = false
+                    ToastPopup("Could not submit citizen reset: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Citizen reset committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - citizens were not reset", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Server rejected citizen reset: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before citizen reset", this@CityScreen)
                     }
                 }
             }

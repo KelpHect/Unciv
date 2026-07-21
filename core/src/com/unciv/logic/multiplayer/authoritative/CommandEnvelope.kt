@@ -123,6 +123,8 @@ sealed interface GameCommand {
         val enabled: Boolean,
     ) : GameCommand
 
+    data class ResetCitizens(val cityId: String) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

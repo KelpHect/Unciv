@@ -143,6 +143,13 @@ sealed interface PendingAuthoritativeCommand {
         val enabled: Boolean,
     ) : PendingAuthoritativeCommand
 
+    data class ResetCitizens(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -416,6 +423,16 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun resetCitizens(cityId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.ResetCitizens(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityId,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -609,6 +626,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3SetManualSpecialistsRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.enabled,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ResetCitizens -> transport.resetCitizens(
+                    gameId,
+                    ApiV3ResetCitizensRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

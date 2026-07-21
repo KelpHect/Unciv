@@ -476,6 +476,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun resetCitizensIfOpen(
+        gameId: String,
+        cityId: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ResetCitizens &&
+                    current.pending.cityId == cityId) {
+                    "Resolve the pending authoritative command before resetting citizens"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.resetCitizens(cityId)
+            else -> {
+                bus.refresh()
+                bus.resetCitizens(cityId)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

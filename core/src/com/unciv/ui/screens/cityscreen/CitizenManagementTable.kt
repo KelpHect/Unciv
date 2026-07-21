@@ -29,8 +29,12 @@ class CitizenManagementTable(val cityScreen: CityScreen) : Table(BaseScreen.skin
         if (cityScreen.canCityBeChanged()) {
             resetCell.touchable = Touchable.enabled
             resetCell.onActivation(binding = KeyboardBinding.ResetCitizens) {
-                city.reassignPopulation(true)
-                cityScreen.update()
+                if (cityScreen.isAuthoritativeGame())
+                    cityScreen.submitAuthoritativeCitizenReset()
+                else {
+                    city.reassignPopulation(true)
+                    cityScreen.update()
+                }
             }
         }
         resetCell.background = BaseScreen.skinStrings.getUiBackground(

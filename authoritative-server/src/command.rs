@@ -78,6 +78,9 @@ pub enum GameCommand {
         city_id: String,
         enabled: bool,
     },
+    ResetCitizens {
+        city_id: String,
+    },
     SetResearchPath {
         technology_name: String,
     },

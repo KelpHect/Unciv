@@ -372,6 +372,26 @@ fn manual_specialist_mode_contract_is_boolean_and_closed() {
 }
 
 #[test]
+fn reset_citizens_contract_contains_only_the_city_id() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "reset_citizens", "city_id": "city-1"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::ResetCitizens {
+            city_id: "city-1".to_owned()
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "reset_citizens", "city_id": "city-1", "focus": "gold"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

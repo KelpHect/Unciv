@@ -126,6 +126,15 @@ sealed interface PendingAuthoritativeCommand {
         val assignment: CityTileAssignment,
     ) : PendingAuthoritativeCommand
 
+    data class SetSpecialistCount(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val specialistName: String,
+        val count: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -367,6 +376,25 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setSpecialistCount(
+        cityId: String,
+        specialistName: String,
+        count: Int,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        val specialist = city.specialists.singleOrNull { it.name == specialistName }
+            ?: error("Specialist is absent from the city's projection")
+        require(count in 0..specialist.capacity) {
+            "Specialist count is outside projected capacity"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetSpecialistCount(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, specialistName, count,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -546,6 +574,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3SetCityTileAssignmentRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.x, pending.y, pending.assignment,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetSpecialistCount -> transport.setSpecialistCount(
+                    gameId,
+                    ApiV3SetSpecialistCountRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.specialistName, pending.count,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

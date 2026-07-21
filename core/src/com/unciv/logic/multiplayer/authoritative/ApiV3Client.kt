@@ -232,6 +232,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setSpecialistCount(
+        gameId: String,
+        request: ApiV3SetSpecialistCountRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-specialist-count") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

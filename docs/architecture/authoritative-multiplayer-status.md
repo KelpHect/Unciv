@@ -1269,6 +1269,54 @@ tests with zero failures/errors and 13 intentional skips:
 .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
 ```
 
+## Authoritative specialist allocation vertical slice
+
+Projection v7 adds an owned-city-only specialist allowlist containing each
+canonical specialist name, assigned count, and slot capacity, plus the city's
+manual-specialist state. The Rust projection DTO denies unknown fields and the
+shared Kotlin/Rust v7 fixture round-trips semantically, so an older or broader
+projection shape fails closed during capability negotiation.
+
+API v3 now accepts the absolute `SetSpecialistCount(cityId, specialistName,
+count)` command. Absolute counts make command intent deterministic across
+retries. The public request contains no actor, population, capacity, yield, or
+legality claim. Rust authenticates and revision-commits only the Kotlin worker
+result; it implements no specialist rules.
+
+`HeadlessGameEngine.setSpecialistCount` validates the authenticated current-turn
+city, puppet/resistance state, specialist existence, built-building slot
+capacity, and canonical free population. It then sets manual-specialist mode,
+updates the allocation, and recomputes city statistics. The shared client bus
+also refuses names or counts outside the projection-v7 allowlist.
+
+For explicitly opened v3 games, specialist `+` and `-` controls submit this
+command without mutating the local city. The auto/manual toggle is deliberately
+suppressed until a distinct automation command is implemented. Local, hotseat,
+saved-game, legacy multiplayer, and unrelated API-v2 behavior are unchanged.
+
+The existing focused Rust city-population modules own the new handler; no
+generic population endpoint or god module was introduced. Every Rust source
+file remains below 800 lines (largest: 779); `main.rs` remains six lines.
+
+Focused verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+# 24 library tests and 7 HTTP/OpenAPI tests passed; 8 DB tests ignored without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+# passed
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# generated contract parity passed
+.\gradlew.bat :tests:test --tests 'com.unciv.logic.AuthoritativeGameExecutionContextTests.specialistAssignmentUsesCanonicalCapacityAndPopulation' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.specialistCountIsBoundToProjectedNameAndCapacity' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.specialistRequestContainsNoCapacityPopulationOrActorClaims' --tests 'com.unciv.logic.multiplayer.authoritative.PlayerProjectionContractTests' --no-daemon
+# passed
+```
+
+All eight database integration tests passed serially against
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was stopped and automatically removed. The complete
+JDK 21 regression passed 794 shared tests and four server tests with zero
+failures/errors and 13 intentional shared skips.
+
 ## Typed perpetual construction selection
 
 Perpetual city production now has its own `SetPerpetualConstruction` command

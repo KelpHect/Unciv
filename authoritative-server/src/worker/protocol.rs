@@ -153,6 +153,16 @@ pub(super) enum WorkerOperation<'a> {
         y: i32,
         assignment: crate::CityTileAssignment,
     },
+    SetSpecialistCount {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "specialistName")]
+        specialist_name: &'a str,
+        count: u32,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -271,6 +281,13 @@ pub struct SetCityTileAssignmentIntent<'a> {
     pub x: i32,
     pub y: i32,
     pub assignment: crate::CityTileAssignment,
+}
+
+pub struct SetSpecialistCountIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub specialist_name: &'a str,
+    pub count: u32,
 }
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,

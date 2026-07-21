@@ -112,6 +112,12 @@ sealed interface GameCommand {
         val assignment: CityTileAssignment,
     ) : GameCommand
 
+    data class SetSpecialistCount(
+        val cityId: String,
+        val specialistName: String,
+        val count: Int,
+    ) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

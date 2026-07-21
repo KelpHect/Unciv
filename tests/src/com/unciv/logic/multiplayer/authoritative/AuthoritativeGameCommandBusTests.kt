@@ -43,6 +43,19 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun specialistRequestContainsNoCapacityPopulationOrActorClaims() {
+        val encoded = Json.encodeToString(
+            ApiV3SetSpecialistCountRequest.serializer(),
+            ApiV3SetSpecialistCountRequest("command", 7, "hash", "city-1", "Scientist", 2),
+        )
+        assertTrue(encoded.contains("\"specialist_name\":\"Scientist\""))
+        assertTrue(encoded.contains("\"count\":2"))
+        assertTrue(!encoded.contains("capacity"))
+        assertTrue(!encoded.contains("population"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun cityTileAssignmentIsBoundToTheProjectedCityTile() = runBlocking {
         val tile = ProjectedCityTile(2, -1, worked = true, locked = false)
         val initial = projection(7, "hash-7", cityQueue = emptyList(), assignableTiles = listOf(tile))
@@ -61,6 +74,27 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
         assertEquals(CityTileAssignment.Locked, transport.cityTileAssignmentRequests.single().assignment)
         assertEquals("assignment-command", transport.cityTileAssignmentRequests.single().commandId)
+    }
+
+    @Test
+    fun specialistCountIsBoundToProjectedNameAndCapacity() = runBlocking {
+        val specialist = ProjectedSpecialist("Scientist", assigned = 1, capacity = 2)
+        val initial = projection(7, "hash-7", cityQueue = emptyList(), specialists = listOf(specialist))
+        val committed = projection(8, "hash-8", cityQueue = emptyList(), specialists = listOf(specialist.copy(assigned = 2)))
+        val transport = FakeTransport(initial).apply {
+            onSetSpecialistCount = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "specialist-command" }
+        bus.refresh()
+
+        val outcome = bus.setSpecialistCount("city-1", "Scientist", 2)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(2, transport.specialistCountRequests.single().count)
+        assertEquals("specialist-command", transport.specialistCountRequests.single().commandId)
     }
 
     @Test
@@ -438,6 +472,7 @@ class AuthoritativeGameCommandBusTests {
         availableConstructions: List<String> = listOf("Monument"),
         exploredTiles: List<ProjectedTileVisibility> = emptyList(),
         assignableTiles: List<ProjectedCityTile> = emptyList(),
+        specialists: List<ProjectedSpecialist> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -464,6 +499,7 @@ class AuthoritativeGameCommandBusTests {
                 constructionQueue = cityQueue,
                 availableConstructions = availableConstructions,
                 assignableTiles = assignableTiles,
+                specialists = specialists,
             )),
             ownUnits = emptyList(),
             exploredTiles = exploredTiles,
@@ -493,6 +529,7 @@ class AuthoritativeGameCommandBusTests {
         val tilePurchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionAtTileRequest>()
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
+        val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -524,6 +561,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetSpecialistCount: suspend (ApiV3SetSpecialistCountRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -623,6 +663,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             cityTileAssignmentRequests += request
             return onSetCityTileAssignment(request)
+        }
+        override suspend fun setSpecialistCount(
+            gameId: String,
+            request: ApiV3SetSpecialistCountRequest,
+        ): ApiV3CommandAccepted {
+            specialistCountRequests += request
+            return onSetSpecialistCount(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

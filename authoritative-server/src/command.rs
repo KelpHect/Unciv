@@ -69,6 +69,11 @@ pub enum GameCommand {
         y: i32,
         assignment: CityTileAssignment,
     },
+    SetSpecialistCount {
+        city_id: String,
+        specialist_name: String,
+        count: u32,
+    },
     SetResearchPath {
         technology_name: String,
     },

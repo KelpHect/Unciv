@@ -30,6 +30,7 @@ use super::*;
         purchase_construction_at_tile,
         buy_city_tile,
         set_city_tile_assignment,
+        set_specialist_count,
         set_research_path,
         adopt_policy,
         choose_free_technology
@@ -57,6 +58,7 @@ use super::*;
         PurchaseConstructionAtTileRequest,
         BuyCityTileRequest,
         SetCityTileAssignmentRequest,
+        SetSpecialistCountRequest,
         unciv_authoritative_server::CityTileAssignment,
         SetResearchPathRequest,
         AdoptPolicyRequest,
@@ -70,6 +72,7 @@ use super::*;
         unciv_authoritative_server::projection::PlayerProjection,
         unciv_authoritative_server::projection::ProjectedCity,
         unciv_authoritative_server::projection::ProjectedCityTile,
+        unciv_authoritative_server::projection::ProjectedSpecialist,
         unciv_authoritative_server::projection::ProjectedUnit,
         unciv_authoritative_server::projection::ProjectedTileVisibility
     )),
@@ -122,6 +125,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "purchase_construction_at_tile",
             "buy_city_tile",
             "set_city_tile_assignment",
+            "set_specialist_count",
             "set_research_path",
             "adopt_policy",
             "choose_free_technology",

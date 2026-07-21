@@ -463,6 +463,32 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(target.isLocked())
     }
 
+    @Test
+    fun specialistAssignmentUsesCanonicalCapacityAndPopulation() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val specialistBuilding = testGame.createBuilding()
+        specialistBuilding.specialistSlots.add("Merchant", 1)
+        city.cityConstructions.addBuilding(specialistBuilding)
+        city.workedTiles.clear()
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.setSpecialistCount(
+            testGame.gameInfo, civilization.civName, city.id, "Merchant", 1,
+        )
+        Assert.assertEquals(1, city.population.specialistAllocations["Merchant"])
+        Assert.assertTrue(city.manualSpecialists)
+
+        engine.setSpecialistCount(
+            testGame.gameInfo, civilization.civName, city.id, "Merchant", 0,
+        )
+        Assert.assertEquals(0, city.population.specialistAllocations["Merchant"])
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

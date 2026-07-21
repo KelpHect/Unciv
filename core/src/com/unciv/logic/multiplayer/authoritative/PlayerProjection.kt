@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 6
+        const val CURRENT_PROJECTION_VERSION = 7
     }
 }
 
@@ -45,6 +45,8 @@ data class ProjectedCity(
     val constructionQueue: List<String>,
     val availableConstructions: List<String>,
     val assignableTiles: List<ProjectedCityTile> = emptyList(),
+    val manualSpecialists: Boolean = false,
+    val specialists: List<ProjectedSpecialist> = emptyList(),
 )
 
 @Serializable
@@ -53,6 +55,13 @@ data class ProjectedCityTile(
     val y: Int,
     val worked: Boolean,
     val locked: Boolean,
+)
+
+@Serializable
+data class ProjectedSpecialist(
+    val name: String,
+    val assigned: Int,
+    val capacity: Int,
 )
 
 @Serializable
@@ -140,6 +149,17 @@ object PlayerProjectionBuilder {
                             tile.isLocked() && tile.getWorkingCity() == it,
                         ) }
                         .sortedWith(compareBy<ProjectedCityTile> { tile -> tile.x }.thenBy { tile -> tile.y })
+                        .toList(),
+                    manualSpecialists = it.manualSpecialists,
+                    specialists = it.population.getMaxSpecialists().asSequence()
+                        .filter { specialist -> specialist.value > 0 }
+                        .filter { specialist -> it.getRuleset().specialists.containsKey(specialist.key) }
+                        .map { specialist -> ProjectedSpecialist(
+                            specialist.key,
+                            it.population.specialistAllocations[specialist.key],
+                            specialist.value,
+                        ) }
+                        .sortedBy { specialist -> specialist.name }
                         .toList(),
                 )
             }.sortedBy { it.id },

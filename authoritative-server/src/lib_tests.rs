@@ -320,6 +320,36 @@ fn city_tile_assignment_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn specialist_count_contract_excludes_capacity_population_and_actor() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_specialist_count",
+        "city_id": "city-1",
+        "specialist_name": "Scientist",
+        "count": 2
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetSpecialistCount {
+            city_id: "city-1".to_owned(),
+            specialist_name: "Scientist".to_owned(),
+            count: 2,
+        }
+    );
+    for untrusted in ["actor_id", "population", "capacity"] {
+        let mut value = serde_json::json!({
+            "type": "set_specialist_count", "city_id": "city-1",
+            "specialist_name": "Scientist", "count": 2
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(99));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

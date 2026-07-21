@@ -428,6 +428,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setSpecialistCountIfOpen(
+        gameId: String,
+        cityId: String,
+        specialistName: String,
+        count: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetSpecialistCount &&
+                    current.pending.cityId == cityId &&
+                    current.pending.specialistName == specialistName &&
+                    current.pending.count == count) {
+                    "Resolve the pending authoritative command before changing another specialist"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.setSpecialistCount(cityId, specialistName, count)
+            else -> {
+                bus.refresh()
+                bus.setSpecialistCount(cityId, specialistName, count)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

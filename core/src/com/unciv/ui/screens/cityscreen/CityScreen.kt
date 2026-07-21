@@ -92,6 +92,7 @@ class CityScreen(
     private var authoritativeTilePurchaseSubmissionInProgress = false
     private var authoritativeTileConstructionSubmissionInProgress = false
     private var authoritativeTileAssignmentSubmissionInProgress = false
+    private var authoritativeSpecialistSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -485,6 +486,57 @@ class CityScreen(
                     null -> {
                         authoritativeTileAssignmentSubmissionInProgress = false
                         ToastPopup("Authoritative game was closed before tile assignment", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
+    internal fun submitAuthoritativeSpecialistCount(
+        specialistName: String,
+        count: Int,
+    ) {
+        if (authoritativeSpecialistSubmissionInProgress) return
+        authoritativeSpecialistSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Set authoritative specialist count") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.setSpecialistCountIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    specialistName,
+                    count,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeSpecialistSubmissionInProgress = false
+                    ToastPopup("Could not submit specialist assignment: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Specialist assignment committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - specialist assignment was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Server rejected specialist assignment: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before specialist assignment", this@CityScreen)
                     }
                 }
             }

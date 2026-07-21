@@ -405,6 +405,37 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun setSpecialistCount(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        specialistName: String,
+        count: Int,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City specialists cannot be assigned manually"
+        }
+        require(count >= 0 && city.getRuleset().specialists.containsKey(specialistName)) {
+            "Specialist assignment is invalid"
+        }
+        val capacity = city.population.getMaxSpecialists()[specialistName]
+        require(capacity > 0 && count <= capacity) {
+            "Specialist count exceeds canonical capacity"
+        }
+        val previous = city.population.specialistAllocations[specialistName]
+        require(count - previous <= city.population.getFreePopulation()) {
+            "City has no free population for this specialist"
+        }
+        city.population.specialistAllocations[specialistName] = count
+        city.manualSpecialists = true
+        city.cityStats.update()
+        check(city.population.specialistAllocations[specialistName] == count) {
+            "Specialist assignment was not committed"
+        }
+        return result(game)
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,

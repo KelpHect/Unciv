@@ -164,6 +164,15 @@ sealed interface WorkerOperation {
         val assignment: CityTileAssignment,
     ) : WorkerOperation
 
+    @Serializable @SerialName("set_specialist_count")
+    data class SetSpecialistCount(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val specialistName: String,
+        val count: Int,
+    ) : WorkerOperation
+
     @Serializable @SerialName("set_research_path")
     data class SetResearchPath(
         val snapshot: String,
@@ -360,6 +369,17 @@ class AuthoritativeEngineWorker {
                     operation.cityId,
                     HexCoord(operation.x, operation.y),
                     operation.assignment,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetSpecialistCount -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setSpecialistCount(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.specialistName,
+                    operation.count,
                 )
                 responseForGame(engine, result.game)
             }

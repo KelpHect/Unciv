@@ -169,6 +169,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setUnitExploration(
+        gameId: String,
+        request: ApiV3SetUnitExplorationRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-unit-exploration") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

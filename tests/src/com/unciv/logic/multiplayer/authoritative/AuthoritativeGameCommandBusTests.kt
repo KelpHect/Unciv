@@ -76,6 +76,28 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun explorationRequestContainsOnlyStableUnitAndDesiredState() = runBlocking {
+        val initial = projection(
+            7, "hash-7",
+            ownUnits = listOf(ProjectedUnit(42, "Rome", "Scout", 0, 0, 100, 2f)),
+        )
+        val transport = FakeTransport(initial).apply {
+            onSetUnitExploration = { request ->
+                current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "explore-command" }
+        bus.refresh()
+
+        assertTrue(bus.setUnitExploration(42, true) is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.unitExplorationRequests.single()
+        assertEquals("explore-command", request.commandId)
+        assertEquals(42, request.unitId)
+        assertTrue(request.enabled)
+    }
+
+    @Test
     fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
         val initial = projection(
             7, "hash-7",
@@ -745,6 +767,7 @@ class AuthoritativeGameCommandBusTests {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val cancelMovementOrderRequests = mutableListOf<ApiV3CancelUnitMovementOrderRequest>()
+        val unitExplorationRequests = mutableListOf<ApiV3SetUnitExplorationRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -770,6 +793,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onCancelMovementOrder: suspend (ApiV3CancelUnitMovementOrderRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetUnitExploration: suspend (ApiV3SetUnitExplorationRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -865,6 +891,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             cancelMovementOrderRequests += request
             return onCancelMovementOrder(request)
+        }
+        override suspend fun setUnitExploration(
+            gameId: String,
+            request: ApiV3SetUnitExplorationRequest,
+        ): ApiV3CommandAccepted {
+            unitExplorationRequests += request
+            return onSetUnitExploration(request)
         }
         override suspend fun swapUnits(
             gameId: String,

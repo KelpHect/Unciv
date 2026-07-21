@@ -29,6 +29,10 @@ pub enum GameCommand {
     CancelUnitMovementOrder {
         unit_id: i32,
     },
+    SetUnitExploration {
+        unit_id: i32,
+        enabled: bool,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

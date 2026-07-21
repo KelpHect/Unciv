@@ -124,6 +124,15 @@ data class ApiV3CancelUnitMovementOrderRequest(
 )
 
 @Serializable
+data class ApiV3SetUnitExplorationRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+    val enabled: Boolean,
+)
+
+@Serializable
 data class ApiV3SwapUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

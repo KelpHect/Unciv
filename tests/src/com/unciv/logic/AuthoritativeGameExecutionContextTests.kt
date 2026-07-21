@@ -289,6 +289,22 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun explorationIsStartedAndStoppedOnlyByTheAuthoritativeEngine() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val unit = game.getCivilization("Rome").units.getCivUnits().first {
+            !it.baseUnit.movesLikeAirUnits
+        }
+
+        engine.setUnitExploration(game, "Rome", unit.id, enabled = true)
+        Assert.assertTrue(unit.isExploring())
+
+        engine.setUnitExploration(game, "Rome", unit.id, enabled = false)
+        Assert.assertFalse(unit.isExploring())
+        Assert.assertEquals(null, unit.action)
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)

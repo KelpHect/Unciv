@@ -148,6 +148,33 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Starts or stops exploration through the shared automation engine. */
+    fun setUnitExploration(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        enabled: Boolean,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change unit exploration outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(!unit.baseUnit.movesLikeAirUnits) { "Air units cannot explore" }
+        if (enabled) {
+            require(!unit.isExploring()) { "Unit is already exploring" }
+            unit.action = com.unciv.models.UnitActionType.Explore.value
+            if (unit.hasMovement()) com.unciv.logic.automation.unit.UnitAutomation.automatedExplore(unit)
+        } else {
+            require(unit.isExploring()) { "Unit is not exploring" }
+            unit.action = null
+        }
+        return result(game)
+    }
+
     /** Swaps a controlled unit with the compatible friendly unit occupying the
      * destination, using the shared movement implementation and canonical state. */
     fun swapUnits(

@@ -95,6 +95,14 @@ sealed interface WorkerOperation {
         val unitId: Int,
     ) : WorkerOperation
 
+    @Serializable @SerialName("set_unit_exploration")
+    data class SetUnitExploration(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val enabled: Boolean,
+    ) : WorkerOperation
+
     @Serializable @SerialName("swap_units")
     data class SwapUnits(
         val snapshot: String,
@@ -345,6 +353,16 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.unitId,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetUnitExploration -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setUnitExploration(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                    operation.enabled,
                 )
                 responseForGame(engine, result.game)
             }

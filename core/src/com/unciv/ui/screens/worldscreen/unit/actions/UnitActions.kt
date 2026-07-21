@@ -143,7 +143,9 @@ object UnitActions {
                 GUI.getMap().cancelUnitMovementOrder(unit)
             })
         if (unit.isExploring())
-            yield(UnitAction(UnitActionType.StopExploration, 20f) { unit.action = null })
+            yield(UnitAction(UnitActionType.StopExploration, 20f) {
+                GUI.getMap().setUnitExploration(unit, enabled = false)
+            })
         if (unit.isAutomated())
             yield(UnitAction(UnitActionType.StopAutomation, 10f) {
                 unit.action = null
@@ -266,8 +268,7 @@ object UnitActions {
         if (unit.baseUnit.movesLikeAirUnits) return
         if (unit.isExploring()) return
         yield(UnitAction(UnitActionType.Explore, 5f) {
-            unit.action = UnitActionType.Explore.value
-            if (unit.hasMovement()) UnitAutomation.automatedExplore(unit)
+            GUI.getMap().setUnitExploration(unit, enabled = true)
         })
     }
 

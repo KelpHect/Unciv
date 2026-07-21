@@ -1269,6 +1269,45 @@ tests with zero failures/errors and 13 intentional skips:
 .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
 ```
 
+## Authoritative unit exploration
+
+Unit exploration now crosses the complete API-v3 authority boundary through
+the closed `SetUnitExploration(unitId, enabled)` command. The client supplies
+only a stable unit ID and desired boolean state. Rust derives the actor and
+civilization from authenticated PostgreSQL membership, and the private Kotlin
+worker validates the canonical current turn, ownership, and non-air-unit
+constraint. Starting exploration sets the canonical Explore action and runs
+the immediate move with shared `UnitAutomation.automatedExplore` logic;
+stopping requires an existing exploration order and clears it on the server.
+
+For explicitly opened v3 games, Explore and Stop Exploration never mutate the
+client `MapUnit`. Single-player, hotseat, saved games, legacy multiplayer, and
+unrelated API-v2 behavior retain the existing local path. Generic unit
+automation remains a separate command-coverage gap rather than being
+conflated with exploration.
+
+The implementation stays in the focused Rust unit-movement modules. `main.rs`
+remains six lines; the largest Rust source file remains
+`postgres/commands.rs` at 729 lines.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 31 active library tests and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55479/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :tests:test :server:test --no-daemon --no-build-cache
+# 819 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database tests used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was stopped and automatically removed after the run.
+
 ## Authoritative specialist allocation vertical slice
 
 Projection v7 adds an owned-city-only specialist allowlist containing each

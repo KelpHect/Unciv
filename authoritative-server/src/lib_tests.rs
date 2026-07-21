@@ -101,6 +101,28 @@ fn cancel_unit_movement_order_contract_contains_only_the_unit_id() {
 }
 
 #[test]
+fn set_unit_exploration_contract_is_typed_and_closed() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_unit_exploration", "unit_id": 42, "enabled": true
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetUnitExploration {
+            unit_id: 42,
+            enabled: true
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_unit_exploration", "unit_id": 42, "enabled": true,
+            "action": "Explore"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

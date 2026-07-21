@@ -66,6 +66,7 @@ use super::*;
         unciv_authoritative_server::notifications::RevisionNotification,
         unciv_authoritative_server::projection::PlayerProjection,
         unciv_authoritative_server::projection::ProjectedCity,
+        unciv_authoritative_server::projection::ProjectedCityTile,
         unciv_authoritative_server::projection::ProjectedUnit,
         unciv_authoritative_server::projection::ProjectedTileVisibility
     )),

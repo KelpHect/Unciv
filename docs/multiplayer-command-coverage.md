@@ -96,7 +96,7 @@ legal destination targets, legal free-technology choices, culture/free-policy
 balances, adopted policies, and currently selectable policies. It is sufficient for the vertical-slice `MoveUnit`,
 but not for most rows above. Missing projection contracts include terrain and legally known
 resources/improvements; movement/action availability; city yields, production
-progress, purchase costs and tile-specific choices; research progress/cost/history, ideology details, and religion; diplomacy, trades and
+progress, purchase costs and server-projected yields; research progress/cost/history, ideology details, and religion; diplomacy, trades and
 private prompts; espionage; votes; notifications/history; server-issued choice
 tokens and the legal payload options needed to resolve projected blockers;
 spectator views; and structured public events/deltas.

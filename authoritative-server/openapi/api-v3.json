@@ -3021,9 +3021,16 @@
           "population",
           "health",
           "constructionQueue",
-          "availableConstructions"
+          "availableConstructions",
+          "assignableTiles"
         ],
         "properties": {
+          "assignableTiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityTile"
+            }
+          },
           "availableConstructions": {
             "type": "array",
             "items": {
@@ -3049,6 +3056,32 @@
           "population": {
             "type": "integer",
             "format": "int32"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityTile": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "worked",
+          "locked"
+        ],
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          },
+          "worked": {
+            "type": "boolean"
           },
           "x": {
             "type": "integer",

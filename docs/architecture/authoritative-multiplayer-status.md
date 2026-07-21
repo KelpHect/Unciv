@@ -1376,6 +1376,25 @@ the disposable container was stopped and removed. The complete JVM regression
 passed 790 tests (786 shared plus four server), with zero failures/errors and
 13 intentional skips.
 
+## Player-scoped city tile assignment projection
+
+Projection v6 adds `assignableTiles` to each owned city. Each entry contains
+only coordinate, worked, and locked state for an actor-owned, in-range,
+yielding, non-blockaded tile that is not being worked by another city. This is
+an explicit allowlist built by the Kotlin authoritative engine rather than a
+redacted canonical tile, so terrain, resources, foreign assignments, and other
+hidden canonical fields do not cross the public boundary. Rust uses a matching
+deny-unknown-fields DTO and the shared v6 fixture; capability negotiation now
+fails closed for older projection clients.
+
+This is the required projection foundation for typed citizen assignment. The
+UI mutation paths are not yet rerouted by this slice and remain an explicit
+coverage gap until the command handler is committed.
+
+Verification passed 29 active Rust unit/API tests (eight database tests remain
+explicitly gated), generated-OpenAPI parity, the shared Kotlin/Rust v6 fixture
+round trip, Kotlin foreign-secret projection coverage, and `git diff --check`.
+
 ## Authoritative tile-targeted construction purchases
 
 Tile-targeted buildings can now be purchased through the distinct typed

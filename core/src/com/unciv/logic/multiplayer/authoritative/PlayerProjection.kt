@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 5
+        const val CURRENT_PROJECTION_VERSION = 6
     }
 }
 
@@ -44,6 +44,15 @@ data class ProjectedCity(
     val health: Int,
     val constructionQueue: List<String>,
     val availableConstructions: List<String>,
+    val assignableTiles: List<ProjectedCityTile> = emptyList(),
+)
+
+@Serializable
+data class ProjectedCityTile(
+    val x: Int,
+    val y: Int,
+    val worked: Boolean,
+    val locked: Boolean,
 )
 
 @Serializable
@@ -118,6 +127,20 @@ object PlayerProjectionBuilder {
                                 .filter { construction -> construction.shouldBeDisplayed(it.cityConstructions) }
                                 .map { construction -> construction.name }
                     ).sorted().toList(),
+                    assignableTiles = it.tilesInRange.asSequence()
+                        .filter { tile -> tile.getOwner() == actor }
+                        .filter { tile -> !tile.isCityCenter() }
+                        .filter { tile -> !tile.isWorked() || tile.getWorkingCity() == it }
+                        .filter { tile -> !tile.stats.getTileStats(it, actor).isEmpty() }
+                        .filter { tile -> !tile.isBlockaded() }
+                        .map { tile -> ProjectedCityTile(
+                            tile.position.x,
+                            tile.position.y,
+                            tile.isWorked() && tile.getWorkingCity() == it,
+                            tile.isLocked() && tile.getWorkingCity() == it,
+                        ) }
+                        .sortedWith(compareBy<ProjectedCityTile> { tile -> tile.x }.thenBy { tile -> tile.y })
+                        .toList(),
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,

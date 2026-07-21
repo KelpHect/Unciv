@@ -188,6 +188,29 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitMovementRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = listOf(unit),
+                exploredTiles = listOf(ProjectedTileVisibility(1, 0, visible = true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.moveUnitIfOpen(GAME_ID, 42, 1, 0))
+        session.openGame(GAME_ID)
+        val outcome = session.moveUnitIfOpen(GAME_ID, 42, 1, 0)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple(42, 1, 0)), transport.unitMoves)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
+    @Test
     fun researchRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val transport = FakeTransport().apply {
             restored = true
@@ -501,6 +524,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnCalls = 0
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
+        val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
         val freeTechnologyNames = mutableListOf<String>()
@@ -557,7 +581,26 @@ class AuthoritativeMultiplayerSessionTests {
             projectionCalls++
             return current
         }
-        override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest) = unsupported()
+        override suspend fun moveUnit(
+            gameId: String,
+            request: ApiV3MoveUnitRequest,
+        ): ApiV3CommandAccepted {
+            unitMoves += Triple(request.unitId, request.destinationX, request.destinationY)
+            val movedUnit = current.projection.ownUnits.single { it.id == request.unitId }.copy(
+                x = request.destinationX,
+                y = request.destinationY,
+            )
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(ownUnits = listOf(movedUnit)),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
         override suspend fun setCityTileAssignment(
             gameId: String,
             request: ApiV3SetCityTileAssignmentRequest,

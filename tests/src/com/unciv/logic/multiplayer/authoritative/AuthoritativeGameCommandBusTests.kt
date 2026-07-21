@@ -499,7 +499,7 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun staleCommandRefreshesWithoutMergingOrReplaying() = runBlocking {
-        val old = projection(3, "hash-3")
+        val old = movementProjection(3, "hash-3", 1)
         val canonical = projection(4, "hash-4")
         val transport = FakeTransport(old).apply {
             onMove = {
@@ -519,7 +519,7 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun lostResponseRetriesTheExactIdempotencyKey() = runBlocking {
-        val initial = projection(0, "hash-0")
+        val initial = movementProjection(0, "hash-0", 1)
         val committed = projection(1, "hash-1")
         val transport = FakeTransport(initial)
         var first = true
@@ -545,7 +545,7 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun rejectedCommandLeavesCachedProjectionUntouched() = runBlocking {
-        val initial = projection(2, "hash-2")
+        val initial = movementProjection(2, "hash-2", 99)
         val transport = FakeTransport(initial).apply {
             onMove = { throw ApiV3Exception(422, ApiV3ErrorResponse("invalid_command")) }
         }
@@ -587,6 +587,7 @@ class AuthoritativeGameCommandBusTests {
         avoidGrowth: Boolean = false,
         citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
         selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
+        ownUnits: List<ProjectedUnit> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -618,10 +619,17 @@ class AuthoritativeGameCommandBusTests {
                 citizenFocus = citizenFocus,
                 selectableCitizenFocuses = selectableCitizenFocuses,
             )),
-            ownUnits = emptyList(),
+            ownUnits = ownUnits,
             exploredTiles = exploredTiles,
             visibleForeignUnits = emptyList(),
         ),
+    )
+
+    private fun movementProjection(revision: Long, hash: String, unitId: Int) = projection(
+        revision = revision,
+        hash = hash,
+        exploredTiles = listOf(ProjectedTileVisibility(2, 3, visible = true)),
+        ownUnits = listOf(ProjectedUnit(unitId, "Rome", "Warrior", 0, 0, 100, 2f)),
     )
 
     private fun accepted(commandId: String, previous: Long, committed: Long, hash: String) =

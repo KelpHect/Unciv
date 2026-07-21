@@ -219,6 +219,14 @@ class AuthoritativeGameCommandBus(
 
     suspend fun moveUnit(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
         val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any {
+            it.x == destinationX && it.y == destinationY
+        }) {
+            "Destination is absent from the current player projection"
+        }
         submitLocked(PendingAuthoritativeCommand.MoveUnit(
             commandId = commandIdFactory(),
             expectedRevision = current.committedRevision,

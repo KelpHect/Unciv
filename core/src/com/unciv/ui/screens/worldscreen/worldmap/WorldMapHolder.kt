@@ -20,6 +20,7 @@ import com.unciv.logic.map.*
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.mapunit.movement.UnitMovement
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.Spy
 import com.unciv.models.UncivSound
 import com.unciv.ui.audio.SoundPlayer
@@ -39,10 +40,12 @@ import com.unciv.ui.components.widgets.ZoomableScrollPane
 import com.unciv.ui.screens.basescreen.UncivStage
 import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.recordUndoCheckpoint
 import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
 import com.unciv.utils.launchOnGLThread
+import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import java.lang.Float.max
 
@@ -312,6 +315,10 @@ class WorldMapHolder(
                 return@run // can't move here
             }
 
+            if (isAuthoritativeGame()) {
+                submitAuthoritativeUnitMove(selectedUnits, targetTile, tileToMoveTo)
+                return@run
+            }
 
             worldScreen.recordUndoCheckpoint()
 
@@ -362,6 +369,65 @@ class WorldMapHolder(
         }
     }
 
+    private fun isAuthoritativeGame() = worldScreen.gameInfo.gameParameters.isOnlineMultiplayer &&
+        worldScreen.game.onlineMultiplayer.authoritativeSession
+            ?.isGameOpen(worldScreen.gameInfo.gameId) == true
+
+    private fun submitAuthoritativeUnitMove(
+        selectedUnits: List<MapUnit>,
+        requestedTarget: Tile,
+        destinationThisTurn: Tile,
+    ) {
+        val selectedUnit = selectedUnits.first()
+        Concurrency.runOnNonDaemonThreadPool("Move authoritative unit") {
+            val outcome = try {
+                worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    selectedUnit.id,
+                    destinationThisTurn.position.x,
+                    destinationThisTurn.position.y,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                launchOnGLThread {
+                    removeUnitActionOverlay()
+                    ToastPopup(
+                        "Could not submit authoritative unit move: [${ex.message ?: "Unknown"}]",
+                        worldScreen,
+                    )
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            launchOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        worldScreen.gameInfo.isUpToDate = false
+                        if (selectedUnits.size > 1)
+                            moveUnitToTargetTile(selectedUnits.drop(1), requestedTarget)
+                        else removeUnitActionOverlay()
+                        ToastPopup("Unit move committed by the authoritative server", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        worldScreen.gameInfo.isUpToDate = false
+                        removeUnitActionOverlay()
+                        ToastPopup("Game changed on the server - unit was not moved", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        removeUnitActionOverlay()
+                        ToastPopup("Server rejected unit move: [${outcome.code}]", worldScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired ->
+                        ToastPopup("Server response was lost - retry will use the same command", worldScreen)
+                    null -> {
+                        removeUnitActionOverlay()
+                        ToastPopup("Authoritative game was closed before unit movement", worldScreen)
+                    }
+                }
+                worldScreen.shouldUpdate = true
+            }
+        }
+    }
+
     private fun animateMovement(
         previousTile: Tile,
         selectedUnit: MapUnit,
@@ -407,6 +473,11 @@ class WorldMapHolder(
     }
 
     internal fun swapMoveUnitToTargetTile(selectedUnit: MapUnit, targetTile: Tile) {
+        if (isAuthoritativeGame()) {
+            removeUnitActionOverlay()
+            ToastPopup("Unit swapping is not available for authoritative games yet", worldScreen)
+            return
+        }
         markUnitMoveTutorialComplete(selectedUnit)
         selectedUnit.movement.swapMoveToTile(targetTile, keepEscorting = true)
 
@@ -461,10 +532,14 @@ class WorldMapHolder(
                 if (UncivGame.Current.settings.singleTapMove && turnsToGetThere == 1) {
                     // single turn instant move
                     val selectedUnit = unitsWhoCanMoveThere.keys.first()
-                    for (unit in unitsWhoCanMoveThere.keys) {
-                        unit.movement.headTowards(tile)
+                    if (isAuthoritativeGame())
+                        moveUnitToTargetTile(unitsWhoCanMoveThere.keys.toList(), tile)
+                    else {
+                        for (unit in unitsWhoCanMoveThere.keys) {
+                            unit.movement.headTowards(tile)
+                        }
+                        worldScreen.bottomUnitTable.selectUnit(selectedUnit) // keep moved unit selected
                     }
-                    worldScreen.bottomUnitTable.selectUnit(selectedUnit) // keep moved unit selected
                 } else {
                     // add "move to" button if there is a path to tileInfo
                     val moveHereButtonDto = MoveHereOverlayButtonData(unitsWhoCanMoveThere, tile)

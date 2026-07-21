@@ -105,6 +105,32 @@ class AuthoritativeMultiplayerSession(
 
     fun isGameOpen(gameId: String): Boolean = gameId in openedGameIds
 
+    suspend fun moveUnitIfOpen(
+        gameId: String,
+        unitId: Int,
+        destinationX: Int,
+        destinationY: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.MoveUnit &&
+                    current.pending.unitId == unitId &&
+                    current.pending.destinationX == destinationX &&
+                    current.pending.destinationY == destinationY) {
+                    "Resolve the pending authoritative command before moving another unit"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.moveUnit(unitId, destinationX, destinationY)
+            else -> {
+                bus.refresh()
+                bus.moveUnit(unitId, destinationX, destinationY)
+            }
+        }
+    }
+
     /** Routes a production action only when this exact game was explicitly
      * opened through API v3. A merely installed session must never capture a
      * legacy online game's turn. Ambiguous retries retain the original command

@@ -1354,6 +1354,45 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative world-map unit movement
+
+The existing `MoveUnit(unitId, destination)` command now owns the ordinary
+world-map movement UI for explicitly opened v3 games. Overlay-button movement
+and the single-tap setting both resolve the intended current-turn destination,
+then submit it through `AuthoritativeMultiplayerSession` and the revisioned
+command bus without calling local `MapUnit` movement. Multi-selected units are
+submitted sequentially so each command observes the prior committed revision.
+
+The client preflights only that the stable unit ID belongs to its projection
+and the destination coordinate is explored. The Kotlin worker remains the
+authority for membership-derived actor/turn, ownership, canonical map bounds,
+reachability, movement points, terrain, occupancy, and the resulting position.
+Accepted and stale outcomes mark the disposable local cache out of date.
+Ambiguous retries retain the original command ID. Friendly-unit swapping is a
+different state transition and now fails closed for v3 instead of invoking the
+legacy local swap; persistent multi-turn movement orders remain unimplemented.
+
+Verification passed the canonical engine movement tests, command-bus
+stale/retry/rejection tests with projection-bound units/destinations, the
+explicit-open session routing test, 27 active Rust library tests, all seven
+HTTP/OpenAPI tests, generated-contract parity, formatting, strict all-target/
+all-feature Clippy with warnings denied, and `git diff --check`. All eight
+database integration tests passed serially against the pinned PostgreSQL 19
+Beta 2 digest on port 55475; the disposable container was then stopped and
+removed. The complete JDK 21 regression passed 805 shared tests and four server
+tests with zero failures/errors and 13 intentional skips. `main.rs` remains six
+lines and every Rust source file remains below 800 lines; the largest is
+`postgres/commands.rs` at 779 lines.
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55475/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Authoritative citizen growth and focus policies
 
 `SetAvoidGrowth(cityId, enabled)` and `SetCitizenFocus(cityId, focus)` now cross

@@ -101,11 +101,18 @@ sealed interface GameCommand {
     data class PromoteUnit(
         val unitId: Int,
         val promotionNames: List<String>,
+        val saveAsCityDefault: Boolean,
     ) : GameCommand
 
     data class RenameUnit(
         val unitId: Int,
         val instanceName: String?,
+    ) : GameCommand
+
+    data class SetCityUnitPromotionPreference(
+        val cityId: String,
+        val baseUnitName: String,
+        val enabled: Boolean,
     ) : GameCommand
 
     data class SwapUnits(

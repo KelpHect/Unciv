@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 13
+        const val CURRENT_PROJECTION_VERSION = 14
     }
 }
 
@@ -50,6 +50,14 @@ data class ProjectedCity(
     val avoidGrowth: Boolean = false,
     val citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
     val selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
+    val unitPromotionPreferences: List<ProjectedUnitPromotionPreference> = emptyList(),
+)
+
+@Serializable
+data class ProjectedUnitPromotionPreference(
+    val baseUnitName: String,
+    val enabled: Boolean,
+    val savedPromotions: List<String>,
 )
 
 @Serializable
@@ -183,6 +191,14 @@ object PlayerProjectionBuilder {
                         .filter { focus -> focus.tableEnabled }
                         .filter { focus -> focus != com.unciv.logic.city.CityFocus.FaithFocus || game.isReligionEnabled() }
                         .map { focus -> CitizenFocus.valueOf(focus.name) }
+                        .toList(),
+                    unitPromotionPreferences = it.unitToPromotions.entries.asSequence()
+                        .map { preference -> ProjectedUnitPromotionPreference(
+                            preference.key,
+                            it.unitShouldUseSavedPromotion[preference.key] == true,
+                            preference.value.promotions.sorted(),
+                        ) }
+                        .sortedBy { preference -> preference.baseUnitName }
                         .toList(),
                 )
             }.sortedBy { it.id },

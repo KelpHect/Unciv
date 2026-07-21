@@ -95,6 +95,16 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
         val unitId: Int,
         val promotionNames: List<String>,
+        val saveAsCityDefault: Boolean,
+    ) : PendingAuthoritativeCommand
+
+    data class SetCityUnitPromotionPreference(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val baseUnitName: String,
+        val enabled: Boolean,
     ) : PendingAuthoritativeCommand
 
     data class RenameUnit(
@@ -410,7 +420,11 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
-    suspend fun promoteUnit(unitId: Int, promotionNames: List<String>) = mutex.withLock {
+    suspend fun promoteUnit(
+        unitId: Int,
+        promotionNames: List<String>,
+        saveAsCityDefault: Boolean = false,
+    ) = mutex.withLock {
         val current = requireSynchronized()
         require(current.projection.ownUnits.any { it.id == unitId }) {
             "Unit is absent from the current player projection"
@@ -424,7 +438,25 @@ class AuthoritativeGameCommandBus(
         }
         submitLocked(PendingAuthoritativeCommand.PromoteUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
-            unitId, promotionNames.toList(),
+            unitId, promotionNames.toList(), saveAsCityDefault,
+        ), current)
+    }
+
+    suspend fun setCityUnitPromotionPreference(
+        cityId: String,
+        baseUnitName: String,
+        enabled: Boolean,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        require(baseUnitName.isNotBlank() && baseUnitName.length <= 200) {
+            "Base unit name is invalid"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetCityUnitPromotionPreference(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, baseUnitName, enabled,
         ), current)
     }
 
@@ -869,6 +901,15 @@ class AuthoritativeGameCommandBus(
                         ApiV3PromoteUnitRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.promotionNames,
+                            pending.saveAsCityDefault,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.SetCityUnitPromotionPreference ->
+                    transport.setCityUnitPromotionPreference(
+                        gameId,
+                        ApiV3SetCityUnitPromotionPreferenceRequest(
+                            pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                            pending.cityId, pending.baseUnitName, pending.enabled,
                         ),
                     )
                 is PendingAuthoritativeCommand.RenameUnit ->

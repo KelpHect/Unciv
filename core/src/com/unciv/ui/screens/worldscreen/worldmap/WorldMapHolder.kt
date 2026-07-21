@@ -638,7 +638,11 @@ class WorldMapHolder(
 
     /** Returns true when promotion was submitted to an authoritative game;
      * local modes apply the same selected path synchronously. */
-    fun promoteUnit(unit: MapUnit, promotionNames: List<String>): Boolean {
+    fun promoteUnit(
+        unit: MapUnit,
+        promotionNames: List<String>,
+        saveAsCityDefault: Boolean,
+    ): Boolean {
         if (!isAuthoritativeGame()) {
             for (promotionName in promotionNames)
                 unit.promotions.addPromotion(promotionName)
@@ -647,7 +651,9 @@ class WorldMapHolder(
         }
         submitAuthoritativeUnitCommand("unit promotion", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.promoteUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, promotionNames)
+                ?.promoteUnitIfOpen(
+                    worldScreen.gameInfo.gameId, unit.id, promotionNames, saveAsCityDefault,
+                )
         }) {
             removeUnitActionOverlay()
         }

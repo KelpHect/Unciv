@@ -223,6 +223,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setCityUnitPromotionPreference(
+        gameId: String,
+        request: ApiV3SetCityUnitPromotionPreferenceRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-city-unit-promotion-preference") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun renameUnit(
         gameId: String,
         request: ApiV3RenameUnitRequest,

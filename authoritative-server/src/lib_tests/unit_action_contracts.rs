@@ -168,6 +168,7 @@ fn promote_unit_contract_contains_only_unit_and_selected_path() {
     let command = GameCommand::PromoteUnit {
         unit_id: 42,
         promotion_names: vec!["Drill I".to_owned(), "Drill II".to_owned()],
+        save_as_city_default: true,
     };
     let serialized = serde_json::to_string(&command).unwrap();
     assert!(serialized.contains("\"unit_id\":42"));
@@ -181,6 +182,19 @@ fn promote_unit_contract_contains_only_unit_and_selected_path() {
         }))
         .is_err()
     );
+}
+
+#[test]
+fn city_unit_promotion_preference_excludes_saved_promotion_state() {
+    let command = GameCommand::SetCityUnitPromotionPreference {
+        city_id: "city-1".to_owned(),
+        base_unit_name: "Warrior".to_owned(),
+        enabled: false,
+    };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"base_unit_name\":\"Warrior\""));
+    assert!(!serialized.contains("saved_promotions"));
+    assert!(!serialized.contains("actor"));
 }
 
 #[test]

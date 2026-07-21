@@ -117,6 +117,7 @@ class HeadlessGameEngine(
         actorCivilizationId: String,
         unitId: Int,
         promotionNames: List<String>,
+        saveAsCityDefault: Boolean = false,
     ): EngineResult {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
@@ -149,7 +150,44 @@ class HeadlessGameEngine(
                 "Promoted unit lost its stable identity"
             }
         }
+        if (saveAsCityDefault) {
+            val unit = actorCivilization.units.getUnitById(unitId)!!
+            val city = unit.currentTile.getCity()
+                ?: error("Unit must be in a city to save default promotions")
+            require(city.civ == actorCivilization && !city.isPuppet) {
+                "Default promotions require an owned non-puppet city"
+            }
+            city.unitShouldUseSavedPromotion[unit.baseUnit.name] = true
+            city.unitToPromotions[unit.baseUnit.name] = unit.promotions.clone()
+        }
         actorCivilization.updateStatsForNextTurn()
+        return result(game)
+    }
+
+    fun setCityUnitPromotionPreference(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        baseUnitName: String,
+        enabled: Boolean,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change city preferences outside their turn"
+        }
+        require(baseUnitName.isNotBlank() && baseUnitName.length <= 200) {
+            "Base unit name is invalid"
+        }
+        require(game.ruleset.units.containsKey(baseUnitName)) { "Base unit is unavailable" }
+        val city = actorCivilization.cities.firstOrNull { it.id == cityId }
+            ?: error("City is not controlled by the authenticated actor")
+        require(!city.isPuppet) { "Puppet city preferences cannot be changed" }
+        require(city.unitToPromotions.containsKey(baseUnitName)) {
+            "No canonical default promotions are saved for this unit"
+        }
+        city.unitShouldUseSavedPromotion[baseUnitName] = enabled
         return result(game)
     }
 

@@ -2863,6 +2863,110 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-city-unit-promotion-preference": {
+      "post": {
+        "tags": [],
+        "operationId": "set_city_unit_promotion_preference",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCityUnitPromotionPreferenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/set-manual-specialists": {
       "post": {
         "tags": [],
@@ -4875,7 +4979,8 @@
           "specialists",
           "avoidGrowth",
           "citizenFocus",
-          "selectableCitizenFocuses"
+          "selectableCitizenFocuses",
+          "unitPromotionPreferences"
         ],
         "properties": {
           "assignableTiles": {
@@ -4929,6 +5034,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedSpecialist"
+            }
+          },
+          "unitPromotionPreferences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedUnitPromotionPreference"
             }
           },
           "x": {
@@ -5191,13 +5302,37 @@
         },
         "additionalProperties": false
       },
+      "ProjectedUnitPromotionPreference": {
+        "type": "object",
+        "required": [
+          "baseUnitName",
+          "enabled",
+          "savedPromotions"
+        ],
+        "properties": {
+          "baseUnitName": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "savedPromotions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "PromoteUnitRequest": {
         "type": "object",
         "required": [
           "command_id",
           "expected_revision",
           "unit_id",
-          "promotion_names"
+          "promotion_names",
+          "save_as_city_default"
         ],
         "properties": {
           "client_observed_state_hash": {
@@ -5220,6 +5355,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "save_as_city_default": {
+            "type": "boolean"
           },
           "unit_id": {
             "type": "integer",
@@ -5656,6 +5794,43 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetCityUnitPromotionPreferenceRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_id",
+          "base_unit_name",
+          "enabled"
+        ],
+        "properties": {
+          "base_unit_name": {
+            "type": "string"
+          },
+          "city_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         },
         "additionalProperties": false

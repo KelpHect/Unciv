@@ -141,6 +141,16 @@ sealed interface WorkerOperation {
         val actorCivilizationId: String,
         val unitId: Int,
         val promotionNames: List<String>,
+        val saveAsCityDefault: Boolean,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_city_unit_promotion_preference")
+    data class SetCityUnitPromotionPreference(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val baseUnitName: String,
+        val enabled: Boolean,
     ) : WorkerOperation
 
     @Serializable @SerialName("rename_unit")
@@ -460,6 +470,18 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.unitId,
                     operation.promotionNames,
+                    operation.saveAsCityDefault,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetCityUnitPromotionPreference -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setCityUnitPromotionPreference(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.baseUnitName,
+                    operation.enabled,
                 )
                 responseForGame(engine, result.game)
             }

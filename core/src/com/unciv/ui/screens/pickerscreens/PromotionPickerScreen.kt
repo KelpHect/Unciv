@@ -117,7 +117,7 @@ class PromotionPickerScreen private constructor(
         val path = tree.getPathTo(button.node.promotion)
         SoundPlayer.playRepeated(UncivSound.Promote, path.size.coerceAtMost(2))
 
-        if (GUI.getMap().promoteUnit(unit, path.map { it.name })) {
+        if (GUI.getMap().promoteUnit(unit, path.map { it.name }, saveUnitPromotion)) {
             game.popScreen()
             return true
         }
@@ -201,7 +201,6 @@ class PromotionPickerScreen private constructor(
 
     // adds the checkBoxs to choice to save unit promotion.
     private fun saveUnitPromotionForCity() {
-        if (GUI.getMap().usesAuthoritativeCommands()) return
         /* if you are not in a city tile then don't show up 
          then player should not be able to save promotion in enermy tiles/puppet citys 
          even their own because you can't build any unit there.

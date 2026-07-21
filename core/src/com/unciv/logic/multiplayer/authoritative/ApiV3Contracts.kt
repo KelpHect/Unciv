@@ -174,6 +174,17 @@ data class ApiV3PromoteUnitRequest(
     @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
     @SerialName("unit_id") val unitId: Int,
     @SerialName("promotion_names") val promotionNames: List<String>,
+    @SerialName("save_as_city_default") val saveAsCityDefault: Boolean,
+)
+
+@Serializable
+data class ApiV3SetCityUnitPromotionPreferenceRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    @SerialName("base_unit_name") val baseUnitName: String,
+    val enabled: Boolean,
 )
 
 @Serializable

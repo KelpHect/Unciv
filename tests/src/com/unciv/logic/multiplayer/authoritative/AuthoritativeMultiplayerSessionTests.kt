@@ -372,6 +372,29 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun cityPromotionPreferenceRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val city = ProjectedCity("city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList())
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownCities = listOf(city)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setCityUnitPromotionPreferenceIfOpen(
+            GAME_ID, "city-1", "Warrior", false,
+        ))
+        session.openGame(GAME_ID)
+        val outcome = session.setCityUnitPromotionPreferenceIfOpen(
+            GAME_ID, "city-1", "Warrior", false,
+        )
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple("city-1", "Warrior", false)), transport.unitPromotionPreferences)
+        session.close()
+    }
+
+    @Test
     fun unitRenameRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -735,6 +758,7 @@ class AuthoritativeMultiplayerSessionTests {
         val disbandedUnits = mutableListOf<Int>()
         val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
+        val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
         val renamedUnits = mutableListOf<Pair<Int, String?>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
@@ -952,6 +976,21 @@ class AuthoritativeMultiplayerSessionTests {
             request: ApiV3PromoteUnitRequest,
         ): ApiV3CommandAccepted {
             promotedUnits += request.unitId to request.promotionNames
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun setCityUnitPromotionPreference(
+            gameId: String,
+            request: ApiV3SetCityUnitPromotionPreferenceRequest,
+        ): ApiV3CommandAccepted {
+            unitPromotionPreferences += Triple(request.cityId, request.baseUnitName, request.enabled)
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",

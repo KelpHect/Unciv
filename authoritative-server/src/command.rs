@@ -61,10 +61,16 @@ pub enum GameCommand {
     PromoteUnit {
         unit_id: i32,
         promotion_names: Vec<String>,
+        save_as_city_default: bool,
     },
     RenameUnit {
         unit_id: i32,
         instance_name: Option<String>,
+    },
+    SetCityUnitPromotionPreference {
+        city_id: String,
+        base_unit_name: String,
+        enabled: bool,
     },
     SwapUnits {
         unit_id: i32,

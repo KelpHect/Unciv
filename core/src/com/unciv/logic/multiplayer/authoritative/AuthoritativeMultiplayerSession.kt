@@ -292,21 +292,49 @@ class AuthoritativeMultiplayerSession(
         gameId: String,
         unitId: Int,
         promotionNames: List<String>,
+        saveAsCityDefault: Boolean = false,
     ): AuthoritativeCommandOutcome? {
         val bus = mutex.withLock { games[gameId] } ?: return null
         return when (val current = bus.state) {
             is AuthoritativeSyncState.Retryable -> {
                 check(current.pending is PendingAuthoritativeCommand.PromoteUnit &&
                     current.pending.unitId == unitId &&
-                    current.pending.promotionNames == promotionNames) {
+                    current.pending.promotionNames == promotionNames &&
+                    current.pending.saveAsCityDefault == saveAsCityDefault) {
                     "Resolve the pending authoritative command before changing the promotion"
                 }
                 bus.retryPending()
             }
-            is AuthoritativeSyncState.Synchronized -> bus.promoteUnit(unitId, promotionNames)
+            is AuthoritativeSyncState.Synchronized -> bus.promoteUnit(unitId, promotionNames, saveAsCityDefault)
             else -> {
                 bus.refresh()
-                bus.promoteUnit(unitId, promotionNames)
+                bus.promoteUnit(unitId, promotionNames, saveAsCityDefault)
+            }
+        }
+    }
+
+    suspend fun setCityUnitPromotionPreferenceIfOpen(
+        gameId: String,
+        cityId: String,
+        baseUnitName: String,
+        enabled: Boolean,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetCityUnitPromotionPreference &&
+                    current.pending.cityId == cityId &&
+                    current.pending.baseUnitName == baseUnitName &&
+                    current.pending.enabled == enabled) {
+                    "Resolve the pending command before changing promotion preferences"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.setCityUnitPromotionPreference(cityId, baseUnitName, enabled)
+            else -> {
+                bus.refresh()
+                bus.setCityUnitPromotionPreference(cityId, baseUnitName, enabled)
             }
         }
     }

@@ -42,6 +42,15 @@ pub struct ProjectedCity {
     pub avoid_growth: bool,
     pub citizen_focus: CitizenFocus,
     pub selectable_citizen_focuses: Vec<CitizenFocus>,
+    pub unit_promotion_preferences: Vec<ProjectedUnitPromotionPreference>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedUnitPromotionPreference {
+    pub base_unit_name: String,
+    pub enabled: bool,
+    pub saved_promotions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -146,7 +155,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v13.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v14.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -157,6 +166,10 @@ mod tests {
         assert_eq!(projection.own_cities[0].construction_queue, ["Monument"]);
         assert!(projection.own_cities[0].assignable_tiles[0].worked);
         assert_eq!(projection.own_cities[0].specialists[0].name, "Scientist");
+        assert_eq!(
+            projection.own_cities[0].unit_promotion_preferences[0].base_unit_name,
+            "Warrior"
+        );
         assert_eq!(
             projection.own_cities[0].citizen_focus,
             CitizenFocus::GoldFocus

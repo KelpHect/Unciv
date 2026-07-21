@@ -2205,3 +2205,47 @@ The database lane used only
 The disposable container was verified by exact name and image, then removed.
 All Rust sources remain below 800 lines and `main.rs` remains a six-line entry
 point; the largest source is `postgres/commands.rs` at 729 lines.
+
+## Authoritative saved city promotion preferences and projection v14
+
+The promotion picker's “Default promotions” option and the city construction
+screen's “Use default promotions” toggle now remain fully server-owned in v3.
+`PromoteUnit` carries only a boolean request to save the post-promotion result;
+the worker requires the canonical unit to occupy an owned non-puppet city and
+clones the canonical promotion state into that city atomically with the
+promotion. The client never supplies saved promotions, XP, prerequisites, or
+promotion counts.
+
+Subsequent toggles use the closed
+`SetCityUnitPromotionPreference(cityId, baseUnitName, enabled)` command. The
+worker derives the actor from membership, requires the canonical current turn,
+owned non-puppet city, real base unit, and an existing server-saved promotion
+entry. Thus a client cannot invent a default promotion set or enable one that
+was never canonically captured.
+
+Projection v14 adds sorted owning-city preference summaries containing the base
+unit name, enabled flag, and server-saved promotion names. These are nested only
+under `ownCities`; no foreign city/private preference structure exists in the
+closed projection. The promotion picker and city checkbox preserve their local
+behavior outside explicitly opened v3 games.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and the checked-in parity test passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 38 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55487/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 846 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.

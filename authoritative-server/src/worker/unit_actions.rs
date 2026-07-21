@@ -63,6 +63,31 @@ impl EngineWorkerClient {
                     actor_civilization_id: intent.actor_civilization_id,
                     unit_id: intent.unit_id,
                     promotion_names: intent.promotion_names,
+                    save_as_city_default: intent.save_as_city_default,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
+    pub async fn set_city_unit_promotion_preference(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetCityUnitPromotionPreferenceIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetCityUnitPromotionPreference {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    base_unit_name: intent.base_unit_name,
+                    enabled: intent.enabled,
                 },
             )
             .await?;

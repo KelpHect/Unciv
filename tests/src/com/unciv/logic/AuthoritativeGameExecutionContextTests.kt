@@ -592,6 +592,55 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits()
+            .first { it.promotions.getAvailablePromotions().any() }
+        val city = civilization.addCity(unit.currentTile.position)
+        unit.promotions.XP = 1_000
+        val promotion = unit.promotions.getAvailablePromotions().sortedBy { it.name }.first().name
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.promoteUnit(
+            engine.loadSnapshot(snapshot), "Rome", unit.id, listOf(promotion), true,
+        )
+        val second = engine.promoteUnit(
+            engine.loadSnapshot(snapshot), "Rome", unit.id, listOf(promotion), true,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val resultCity = first.game.getCivilization("Rome").cities.single { it.id == city.id }
+        Assert.assertTrue(resultCity.unitShouldUseSavedPromotion[unit.baseUnit.name] == true)
+        Assert.assertTrue(promotion in resultCity.unitToPromotions[unit.baseUnit.name]!!.promotions)
+        val preference = engine.playerProjection(first.game, "Rome").ownCities
+            .single { it.id == city.id }.unitPromotionPreferences.single()
+        Assert.assertEquals(unit.baseUnit.name, preference.baseUnitName)
+        Assert.assertTrue(preference.enabled)
+        Assert.assertTrue(promotion in preference.savedPromotions)
+
+        val disabled = engine.setCityUnitPromotionPreference(
+            first.game, "Rome", city.id, unit.baseUnit.name, false,
+        )
+        Assert.assertTrue(disabled.game.getCivilization("Rome").cities
+            .single { it.id == city.id }.unitShouldUseSavedPromotion[unit.baseUnit.name] == false)
+
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.setCityUnitPromotionPreference(
+                disabled.game, "Rome", city.id, unit.baseUnit.name, true,
+            )
+        }
+        disabled.game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setCityUnitPromotionPreference(
+                disabled.game, "Rome", city.id, unit.baseUnit.name, true,
+            )
+        }
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)

@@ -16,10 +16,10 @@ use crate::worker::{
     MoveUnitIntent, MoveUnitTowardIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerManifest,
+    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetSpecialistCountIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
+    SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

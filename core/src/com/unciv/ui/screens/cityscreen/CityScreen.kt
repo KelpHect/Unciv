@@ -657,6 +657,18 @@ class CityScreen(
             )
         }
 
+    internal fun submitAuthoritativeUnitPromotionPreference(
+        baseUnitName: String,
+        enabled: Boolean,
+    ) = submitAuthoritativeCitizenPolicy("unit promotion preference") {
+        game.onlineMultiplayer.authoritativeSession?.setCityUnitPromotionPreferenceIfOpen(
+            city.civ.gameInfo.gameId,
+            city.id,
+            baseUnitName,
+            enabled,
+        )
+    }
+
     private fun submitAuthoritativeCitizenPolicy(
         description: String,
         submit: suspend () -> AuthoritativeCommandOutcome?,

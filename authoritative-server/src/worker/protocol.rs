@@ -119,6 +119,18 @@ pub(super) enum WorkerOperation<'a> {
         unit_id: i32,
         #[serde(rename = "promotionNames")]
         promotion_names: &'a [String],
+        #[serde(rename = "saveAsCityDefault")]
+        save_as_city_default: bool,
+    },
+    SetCityUnitPromotionPreference {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "baseUnitName")]
+        base_unit_name: &'a str,
+        enabled: bool,
     },
     RenameUnit {
         snapshot: &'a str,
@@ -378,6 +390,13 @@ pub struct PromoteUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub promotion_names: &'a [String],
+    pub save_as_city_default: bool,
+}
+pub struct SetCityUnitPromotionPreferenceIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub base_unit_name: &'a str,
+    pub enabled: bool,
 }
 pub struct RenameUnitIntent<'a> {
     pub actor_civilization_id: &'a str,

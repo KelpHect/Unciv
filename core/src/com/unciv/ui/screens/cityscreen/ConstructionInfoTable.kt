@@ -104,9 +104,13 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
                 val baseUnit = construction.name
                 val buildUnitWithPromotions = city.unitShouldUseSavedPromotion[baseUnit]
 
-                if (buildUnitWithPromotions != null && !cityScreen.isAuthoritativeGame()) {
+                if (buildUnitWithPromotions != null) {
                     row()
-                    add("Use default promotions".toCheckBox(buildUnitWithPromotions) {city.unitShouldUseSavedPromotion[baseUnit] = it}).colspan(2).center()
+                    add("Use default promotions".toCheckBox(buildUnitWithPromotions) {
+                        if (cityScreen.isAuthoritativeGame())
+                            cityScreen.submitAuthoritativeUnitPromotionPreference(baseUnit, it)
+                        else city.unitShouldUseSavedPromotion[baseUnit] = it
+                    }).colspan(2).center()
                 }
             }
         }

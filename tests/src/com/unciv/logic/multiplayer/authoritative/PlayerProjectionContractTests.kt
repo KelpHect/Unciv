@@ -24,6 +24,8 @@ class PlayerProjectionContractTests {
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
         assertEquals(CitizenFocus.GoldFocus, projection.ownCities.single().citizenFocus)
+        assertEquals("Warrior", projection.ownCities.single().unitPromotionPreferences.single().baseUnitName)
+        assertTrue(projection.ownCities.single().unitPromotionPreferences.single().enabled)
         assertEquals(7, projection.ownUnits.single().movementDestinationX)
         assertTrue(projection.ownUnits.single().automated)
         assertTrue(!projection.ownUnits.single().exploring)
@@ -78,6 +80,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v13.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v14.fixture.json") }
         .first { it.isFile }
 }

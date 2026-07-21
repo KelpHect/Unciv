@@ -103,11 +103,12 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        let (unit_id, promotion_names) = match &envelope.command {
+        let (unit_id, promotion_names, save_as_city_default) = match &envelope.command {
             crate::GameCommand::PromoteUnit {
                 unit_id,
                 promotion_names,
-            } => (*unit_id, promotion_names.clone()),
+                save_as_city_default,
+            } => (*unit_id, promotion_names.clone(), *save_as_city_default),
             _ => return Err(CommitError::InvalidCommand),
         };
         if let Some(accepted) = self
@@ -130,6 +131,7 @@ impl PostgresGameRepository {
                     actor_civilization_id: &actor_civilization_id,
                     unit_id,
                     promotion_names: &promotion_names,
+                    save_as_city_default,
                 },
             )
             .await
@@ -141,6 +143,56 @@ impl PostgresGameRepository {
                     eprintln!(
                         "authoritative worker PromoteUnit transport/protocol failure: {other}"
                     );
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
+    pub async fn execute_set_city_unit_promotion_preference(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (city_id, base_unit_name, enabled) = match &envelope.command {
+            crate::GameCommand::SetCityUnitPromotionPreference {
+                city_id,
+                base_unit_name,
+                enabled,
+            } => (city_id.clone(), base_unit_name.clone(), *enabled),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .set_city_unit_promotion_preference(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                SetCityUnitPromotionPreferenceIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id: &city_id,
+                    base_unit_name: &base_unit_name,
+                    enabled,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker city promotion preference failure: {other}");
                     CommitError::WorkerRevisionMismatch
                 }
             })?;

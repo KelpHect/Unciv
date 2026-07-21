@@ -230,6 +230,39 @@ fn purchase_construction_contract_excludes_actor_and_price() {
 }
 
 #[test]
+fn tile_purchase_contract_excludes_actor_price_and_legality_claims() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "purchase_construction_at_tile",
+        "city_id": "city-1",
+        "construction_name": "District",
+        "currency_name": "Gold",
+        "x": 2,
+        "y": -1,
+        "queue_index": 0
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::PurchaseConstructionAtTile {
+            city_id: "city-1".to_owned(),
+            construction_name: "District".to_owned(),
+            currency_name: "Gold".to_owned(),
+            x: 2,
+            y: -1,
+            queue_index: Some(0),
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "purchase_construction_at_tile", "city_id": "city-1",
+            "construction_name": "District", "currency_name": "Gold",
+            "x": 2, "y": -1, "price": 1, "placement_is_legal": true
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn buy_city_tile_contract_excludes_actor_and_price() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "buy_city_tile",

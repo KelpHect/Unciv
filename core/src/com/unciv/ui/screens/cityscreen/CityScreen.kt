@@ -587,9 +587,7 @@ class CityScreen(
             val improvement = pickTileData.improvement
             if (city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
                 
-                if (isAuthoritativeGame() && pickTileData.isBuying) {
-                    ToastPopup("Tile-specific purchases are not yet available for authoritative games", this)
-                } else if (isAuthoritativeGame()) {
+                if (isAuthoritativeGame() && !pickTileData.isBuying) {
                     submitAuthoritativeTileConstruction(pickTileData.building, tileInfo)
                 } else if (pickTileData.isBuying) {
                     BuyButtonFactory(this).askToBuyConstruction(pickTileData.building, pickTileData.buyStat, tileInfo)

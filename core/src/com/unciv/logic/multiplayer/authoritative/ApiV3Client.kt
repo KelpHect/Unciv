@@ -205,6 +205,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun purchaseConstructionAtTile(
+        gameId: String,
+        request: ApiV3PurchaseConstructionAtTileRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/purchase-construction-at-tile") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun buyCityTile(
         gameId: String,
         request: ApiV3BuyCityTileRequest,

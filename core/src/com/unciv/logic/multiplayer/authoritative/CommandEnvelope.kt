@@ -80,6 +80,15 @@ sealed interface GameCommand {
         val queueIndex: Int? = null,
     ) : GameCommand
 
+    data class PurchaseConstructionAtTile(
+        val cityId: String,
+        val constructionName: String,
+        val currencyName: String,
+        val x: Int,
+        val y: Int,
+        val queueIndex: Int? = null,
+    ) : GameCommand
+
     data class BuyCityTile(
         val cityId: String,
         val x: Int,

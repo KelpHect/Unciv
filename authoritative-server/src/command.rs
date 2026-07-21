@@ -42,6 +42,14 @@ pub enum GameCommand {
         currency_name: String,
         queue_index: Option<u32>,
     },
+    PurchaseConstructionAtTile {
+        city_id: String,
+        construction_name: String,
+        currency_name: String,
+        x: i32,
+        y: i32,
+        queue_index: Option<u32>,
+    },
     BuyCityTile {
         city_id: String,
         x: i32,

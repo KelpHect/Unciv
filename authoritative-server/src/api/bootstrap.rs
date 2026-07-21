@@ -98,6 +98,10 @@ pub(crate) async fn run() {
             post(purchase_construction),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/purchase-construction-at-tile",
+            post(purchase_construction_at_tile),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/buy-city-tile",
             post(buy_city_tile),
         )

@@ -674,6 +674,10 @@ class AuthoritativeMultiplayerSessionTests {
             return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
                 current.committedRevision, current.canonicalStateHash)
         }
+        override suspend fun purchaseConstructionAtTile(
+            gameId: String,
+            request: ApiV3PurchaseConstructionAtTileRequest,
+        ): ApiV3CommandAccepted = unsupported()
         override suspend fun buyCityTile(
             gameId: String,
             request: ApiV3BuyCityTileRequest,

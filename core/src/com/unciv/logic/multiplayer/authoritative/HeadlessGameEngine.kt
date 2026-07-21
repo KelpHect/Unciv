@@ -277,6 +277,64 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun purchaseConstructionAtTile(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+        currencyName: String,
+        coordinates: HexCoord,
+        queueIndex: Int?,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Construction name is invalid"
+        }
+        val currency = Stat.entries.singleOrNull { it.name == currencyName }
+            ?: error("Purchase currency is invalid")
+        require(currency in Stat.statsUsableToBuy) { "Purchase currency is not supported" }
+        val tile = game.tileMap.getOrNull(coordinates.x, coordinates.y)
+            ?: error("Tile coordinates are outside the canonical map")
+        val construction = city.cityConstructions.getConstruction(constructionName) as? Building
+            ?: error("Tile-specific construction is invalid")
+        val improvement = construction.getImprovementToCreate(city.getRuleset(), city.civ)
+            ?: error("Construction does not create a tile improvement")
+        if (queueIndex == null) {
+            require(city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tile)) {
+                "Construction improvement cannot be placed on this tile"
+            }
+        } else {
+            require(tile.isMarkedForCreatesOneImprovement(improvement.name) && tile.getCity() == city) {
+                "Queued construction is not marked on this city's tile"
+            }
+        }
+        val cost = construction.getStatBuyCost(city, currency)
+            ?: error("Construction cannot be purchased with this currency")
+        require(city.cityConstructions.isConstructionPurchaseAllowed(construction, currency, cost)) {
+            "Construction purchase is not legal in the canonical game state"
+        }
+        val canonicalQueueIndex = queueIndex ?: -1
+        if (queueIndex != null) {
+            require(queueIndex in city.cityConstructions.constructionQueue.indices &&
+                city.cityConstructions.constructionQueue[queueIndex] == constructionName) {
+                "Construction queue entry no longer matches the client projection"
+            }
+            require(city.cityConstructions.getTileForImprovement(improvement.name) == tile) {
+                "Construction queue entry is bound to a different canonical tile"
+            }
+        }
+        require(city.cityConstructions.purchaseConstruction(
+            construction, canonicalQueueIndex, false, currency, tile,
+        )) { "Construction could not be placed" }
+        check(city.cityConstructions.isBuilt(constructionName)) {
+            "Purchased construction was not completed"
+        }
+        check(tile.improvement == improvement.name) {
+            "Purchased construction improvement was not committed"
+        }
+        return result(game)
+    }
+
     fun buyCityTile(
         game: GameInfo,
         actorCivilizationId: String,

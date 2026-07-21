@@ -119,6 +119,21 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "queueIndex")]
         queue_index: Option<u32>,
     },
+    PurchaseConstructionAtTile {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "constructionName")]
+        construction_name: &'a str,
+        #[serde(rename = "currencyName")]
+        currency_name: &'a str,
+        x: i32,
+        y: i32,
+        #[serde(rename = "queueIndex")]
+        queue_index: Option<u32>,
+    },
     BuyCityTile {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -222,6 +237,15 @@ pub struct PurchaseConstructionIntent<'a> {
     pub city_id: &'a str,
     pub construction_name: &'a str,
     pub currency_name: &'a str,
+    pub queue_index: Option<u32>,
+}
+pub struct PurchaseConstructionAtTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub currency_name: &'a str,
+    pub x: i32,
+    pub y: i32,
     pub queue_index: Option<u32>,
 }
 pub struct BuyCityTileIntent<'a> {

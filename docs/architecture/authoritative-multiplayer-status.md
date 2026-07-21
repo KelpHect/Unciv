@@ -1376,6 +1376,35 @@ the disposable container was stopped and removed. The complete JVM regression
 passed 790 tests (786 shared plus four server), with zero failures/errors and
 13 intentional skips.
 
+## Authoritative tile-targeted construction purchases
+
+Tile-targeted buildings can now be purchased through the distinct typed
+`PurchaseConstructionAtTile(cityId, constructionName, currencyName, x, y,
+queueIndex?)` command. The Kotlin client sends no price, actor, or legality
+claim. Rust derives the actor civilization from authenticated PostgreSQL
+membership, and the private worker resolves canonical city, construction,
+currency, queue entry, and map tile. It reruns shared purchase and placement
+rules, recomputes the canonical cost, enforces an existing queued building's
+canonical tile binding, and verifies that both the building and improvement
+were committed before returning a proposal.
+
+`CityScreen` now uses its existing tile picker and confirmation popup for v3
+purchases. `BuyButtonFactory` submits either ordinary or tile-targeted purchase
+through the authoritative session and never calls the local purchase method for
+an explicitly opened v3 game. Local, hotseat, and legacy multiplayer behavior
+is unchanged.
+
+Verification used JDK 21 and the sole pinned PostgreSQL 19 Beta 2 digest. Rust
+passed 29 active unit/API tests, generated-OpenAPI parity, formatting, and
+strict Clippy with warnings denied. All eight database integration tests passed
+serially against the pinned digest, and the disposable container was stopped
+and removed. The complete JVM regression passed 792 tests (788 shared plus four
+server), with zero failures/errors and 13 intentional skips. Focused engine
+tests prove canonical cost deduction, building completion, and improvement
+placement; wire/client tests prove projection gating and the absence of actor,
+price, and client legality fields. Every Rust source module remains below 800
+lines; the largest is `postgres/commands.rs` at 776 lines.
+
 ## Authoritative construction purchases and Rust module boundaries
 
 Non-tile-targeted city purchases now cross the complete API-v3 authority

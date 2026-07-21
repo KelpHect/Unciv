@@ -15,10 +15,10 @@ use crate::CommitProposal;
 mod protocol;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
-    MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionIntent,
-    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, WorkerCapabilities, WorkerManifest,
-    WorkerRuleset,
+    MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 
@@ -62,6 +62,33 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
+    pub async fn purchase_construction_at_tile(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: PurchaseConstructionAtTileIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::PurchaseConstructionAtTile {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    construction_name: intent.construction_name,
+                    currency_name: intent.currency_name,
+                    x: intent.x,
+                    y: intent.y,
+                    queue_index: intent.queue_index,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn queue_construction_at_tile(
         &self,
         actor_id: &str,

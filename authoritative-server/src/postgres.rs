@@ -12,9 +12,10 @@ use crate::auth::{
 use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, ChooseFreeTechnologyIntent, EngineWorkerClient,
-    MoveConstructionIntent, MoveUnitIntent, PurchaseConstructionIntent,
-    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, WorkerManifest,
+    MoveConstructionIntent, MoveUnitIntent, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

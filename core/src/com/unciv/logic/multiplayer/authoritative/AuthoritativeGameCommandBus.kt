@@ -95,6 +95,18 @@ sealed interface PendingAuthoritativeCommand {
         val queueIndex: Int?,
     ) : PendingAuthoritativeCommand
 
+    data class PurchaseConstructionAtTile(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+        val currencyName: String,
+        val x: Int,
+        val y: Int,
+        val queueIndex: Int?,
+    ) : PendingAuthoritativeCommand
+
     data class BuyCityTile(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -280,6 +292,39 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun purchaseConstructionAtTile(
+        cityId: String,
+        constructionName: String,
+        currencyName: String,
+        x: Int,
+        y: Int,
+        queueIndex: Int?,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        if (queueIndex == null) {
+            require(constructionName in city.availableConstructions) {
+                "Construction is absent from the current player projection"
+            }
+        } else {
+            require(queueIndex in city.constructionQueue.indices &&
+                city.constructionQueue[queueIndex] == constructionName) {
+                "Construction queue entry is absent from the current player projection"
+            }
+        }
+        require(currencyName.isNotBlank() && currencyName.length <= 32) {
+            "Purchase currency is invalid"
+        }
+        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
+            "Tile is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.PurchaseConstructionAtTile(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, constructionName, currencyName, x, y, queueIndex,
+        ), current)
+    }
+
     suspend fun buyCityTile(cityId: String, x: Int, y: Int) = mutex.withLock {
         val current = requireSynchronized()
         require(current.projection.ownCities.any { it.id == cityId }) {
@@ -451,6 +496,14 @@ class AuthoritativeGameCommandBus(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.constructionName, pending.currencyName,
                         pending.queueIndex,
+                    ),
+                )
+                is PendingAuthoritativeCommand.PurchaseConstructionAtTile -> transport.purchaseConstructionAtTile(
+                    gameId,
+                    ApiV3PurchaseConstructionAtTileRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.constructionName, pending.currencyName,
+                        pending.x, pending.y, pending.queueIndex,
                     ),
                 )
                 is PendingAuthoritativeCommand.BuyCityTile -> transport.buyCityTile(

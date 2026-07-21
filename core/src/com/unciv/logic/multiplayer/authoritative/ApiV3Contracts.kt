@@ -167,6 +167,19 @@ data class ApiV3PurchaseConstructionRequest(
 )
 
 @Serializable
+data class ApiV3PurchaseConstructionAtTileRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    @SerialName("construction_name") val constructionName: String,
+    @SerialName("currency_name") val currencyName: String,
+    val x: Int,
+    val y: Int,
+    @SerialName("queue_index") val queueIndex: Int? = null,
+)
+
+@Serializable
 data class ApiV3BuyCityTileRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

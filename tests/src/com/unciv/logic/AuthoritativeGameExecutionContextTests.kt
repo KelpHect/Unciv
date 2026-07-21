@@ -296,6 +296,32 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun tilePurchaseRecomputesCanonicalCostAndCommitsTheImprovement() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        testGame.gameInfo.gameParameters.godMode = true
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        civilization.addGold(100_000)
+        val building = testGame.createBuilding("Creates a [Farm] improvement on a specific tile")
+        val target = testGame.setTileTerrain(HexCoord(1, 0), Constants.grassland)
+        val expectedCost = building.getStatBuyCost(city, Stat.Gold)!!
+        val previousGold = civilization.gold
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.purchaseConstructionAtTile(
+            testGame.gameInfo, civilization.civName, city.id, building.name,
+            Stat.Gold.name, target.position, null,
+        )
+
+        Assert.assertTrue(city.cityConstructions.isBuilt(building.name))
+        Assert.assertEquals("Farm", target.improvement)
+        Assert.assertEquals(previousGold - expectedCost, civilization.gold)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotQueueConstructionInAnotherCivilizationsCity() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

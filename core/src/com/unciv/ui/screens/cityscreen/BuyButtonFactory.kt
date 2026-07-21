@@ -174,11 +174,7 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         tile: Tile? = null
     ) {
         if (cityScreen.isAuthoritativeGame()) {
-            if (tile != null) {
-                ToastPopup("Tile-specific purchases are not yet available for authoritative games", cityScreen)
-                return
-            }
-            submitAuthoritativePurchase(construction, stat)
+            submitAuthoritativePurchase(construction, stat, tile)
             return
         }
         SoundPlayer.play(stat.purchaseSound)
@@ -210,6 +206,7 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
     private fun submitAuthoritativePurchase(
         construction: INonPerpetualConstruction,
         stat: Stat,
+        tile: Tile? = null,
     ) {
         if (authoritativePurchaseSubmissionInProgress) return
         authoritativePurchaseSubmissionInProgress = true
@@ -217,13 +214,16 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
         Concurrency.runOnNonDaemonThreadPool("Purchase authoritative construction") {
             val outcome = try {
-                cityScreen.game.onlineMultiplayer.authoritativeSession?.purchaseConstructionIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    construction.name,
-                    stat.name,
-                    queueIndex,
-                )
+                val session = cityScreen.game.onlineMultiplayer.authoritativeSession
+                if (tile == null)
+                    session?.purchaseConstructionIfOpen(
+                        city.civ.gameInfo.gameId, city.id, construction.name, stat.name, queueIndex,
+                    )
+                else
+                    session?.purchaseConstructionAtTileIfOpen(
+                        city.civ.gameInfo.gameId, city.id, construction.name, stat.name,
+                        tile.position.x, tile.position.y, queueIndex,
+                    )
             } catch (ex: Exception) {
                 if (ex is CancellationException) throw ex
                 Concurrency.runOnGLThread {

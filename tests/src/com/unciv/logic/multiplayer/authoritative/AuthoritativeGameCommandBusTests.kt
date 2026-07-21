@@ -89,6 +89,39 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun tilePurchaseUsesProjectedQueueAndCoordinateWithoutPrice() = runBlocking {
+        val tile = ProjectedTileVisibility(2, 0, true)
+        val initial = projection(
+            0, "hash-0", cityQueue = listOf("District"),
+            availableConstructions = listOf("District"), exploredTiles = listOf(tile),
+        )
+        val committed = projection(
+            1, "hash-1", cityQueue = emptyList(),
+            availableConstructions = listOf("District"), exploredTiles = listOf(tile),
+        )
+        val transport = FakeTransport(initial).apply {
+            onPurchaseConstructionAtTile = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "tile-purchase" }
+        bus.refresh()
+
+        val outcome = bus.purchaseConstructionAtTile("city-1", "District", "Gold", 2, 0, 0)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.tilePurchaseConstructionRequests.single()
+        assertEquals("District", request.constructionName)
+        assertEquals(0, request.queueIndex)
+        assertEquals(2, request.x)
+        val encoded = Json.encodeToString(ApiV3PurchaseConstructionAtTileRequest.serializer(), request)
+        assertTrue(!encoded.contains("price"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("legal"))
+    }
+
+    @Test
     fun perpetualConstructionHasItsOwnClosedIntent() = runBlocking {
         val initial = projection(
             0, "hash-0", cityQueue = listOf("Monument"),
@@ -421,6 +454,7 @@ class AuthoritativeGameCommandBusTests {
         val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
         val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
+        val tilePurchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionAtTileRequest>()
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
@@ -444,6 +478,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onPurchaseConstruction: suspend (ApiV3PurchaseConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onPurchaseConstructionAtTile: suspend (ApiV3PurchaseConstructionAtTileRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onBuyCityTile: suspend (ApiV3BuyCityTileRequest) -> ApiV3CommandAccepted = {
@@ -525,6 +562,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             purchaseConstructionRequests += request
             return onPurchaseConstruction(request)
+        }
+        override suspend fun purchaseConstructionAtTile(
+            gameId: String,
+            request: ApiV3PurchaseConstructionAtTileRequest,
+        ): ApiV3CommandAccepted {
+            tilePurchaseConstructionRequests += request
+            return onPurchaseConstructionAtTile(request)
         }
         override suspend fun buyCityTile(
             gameId: String,

@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.unciv.logic.city.CityFocus as DomainCityFocus
 import java.io.File
 
 class PlayerProjectionContractTests {
@@ -22,10 +23,16 @@ class PlayerProjectionContractTests {
         assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
+        assertEquals(CitizenFocus.GoldFocus, projection.ownCities.single().citizenFocus)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
         )
+    }
+
+    @Test
+    fun citizenFocusWireVocabularyCoversTheDomainEnum() {
+        assertEquals(DomainCityFocus.entries.map { it.name }, CitizenFocus.entries.map { it.name })
     }
 
     @Test
@@ -53,6 +60,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v7.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v8.fixture.json") }
         .first { it.isFile }
 }

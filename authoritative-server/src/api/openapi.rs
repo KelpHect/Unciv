@@ -77,6 +77,7 @@ use super::*;
         unciv_authoritative_server::projection::ProjectedCity,
         unciv_authoritative_server::projection::ProjectedCityTile,
         unciv_authoritative_server::projection::ProjectedSpecialist,
+        unciv_authoritative_server::projection::CitizenFocus,
         unciv_authoritative_server::projection::ProjectedUnit,
         unciv_authoritative_server::projection::ProjectedTileVisibility
     )),

@@ -7,6 +7,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
+import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.MapParameters
@@ -531,6 +532,26 @@ class AuthoritativeGameExecutionContextTests {
 
         Assert.assertTrue(city.lockedTiles.isEmpty())
         Assert.assertEquals(0, city.population.getFreePopulation())
+    }
+
+    @Test
+    fun citizenPoliciesAreAppliedAndReassignedCanonically() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        testGame.setTileTerrain(HexCoord(1, 0), Constants.grassland)
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.setAvoidGrowth(testGame.gameInfo, civilization.civName, city.id, true)
+        engine.setCitizenFocus(
+            testGame.gameInfo, civilization.civName, city.id, CitizenFocus.GoldFocus,
+        )
+
+        Assert.assertTrue(city.avoidGrowth)
+        Assert.assertEquals(com.unciv.logic.city.CityFocus.GoldFocus, city.getCityFocus())
     }
 
     @Test(expected = IllegalStateException::class)

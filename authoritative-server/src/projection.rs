@@ -37,6 +37,9 @@ pub struct ProjectedCity {
     pub assignable_tiles: Vec<ProjectedCityTile>,
     pub manual_specialists: bool,
     pub specialists: Vec<ProjectedSpecialist>,
+    pub avoid_growth: bool,
+    pub citizen_focus: CitizenFocus,
+    pub selectable_citizen_focuses: Vec<CitizenFocus>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -54,6 +57,22 @@ pub struct ProjectedSpecialist {
     pub name: String,
     pub assigned: i32,
     pub capacity: i32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CitizenFocus {
+    NoFocus,
+    Manual,
+    FoodFocus,
+    ProductionFocus,
+    GoldFocus,
+    ScienceFocus,
+    CultureFocus,
+    HappinessFocus,
+    FaithFocus,
+    GoldGrowthFocus,
+    ProductionGrowthFocus,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -115,7 +134,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v7.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v8.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -126,6 +145,10 @@ mod tests {
         assert_eq!(projection.own_cities[0].construction_queue, ["Monument"]);
         assert!(projection.own_cities[0].assignable_tiles[0].worked);
         assert_eq!(projection.own_cities[0].specialists[0].name, "Scientist");
+        assert_eq!(
+            projection.own_cities[0].citizen_focus,
+            CitizenFocus::GoldFocus
+        );
         assert_eq!(
             projection.research.current_technology.as_deref(),
             Some("Pottery")

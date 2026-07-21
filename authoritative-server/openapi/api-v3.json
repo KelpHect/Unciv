@@ -2982,6 +2982,22 @@
         },
         "additionalProperties": false
       },
+      "CitizenFocus": {
+        "type": "string",
+        "enum": [
+          "no_focus",
+          "manual",
+          "food_focus",
+          "production_focus",
+          "gold_focus",
+          "science_focus",
+          "culture_focus",
+          "happiness_focus",
+          "faith_focus",
+          "gold_growth_focus",
+          "production_growth_focus"
+        ]
+      },
       "CityTileAssignment": {
         "type": "string",
         "enum": [
@@ -3488,7 +3504,10 @@
           "availableConstructions",
           "assignableTiles",
           "manualSpecialists",
-          "specialists"
+          "specialists",
+          "avoidGrowth",
+          "citizenFocus",
+          "selectableCitizenFocuses"
         ],
         "properties": {
           "assignableTiles": {
@@ -3502,6 +3521,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "avoidGrowth": {
+            "type": "boolean"
+          },
+          "citizenFocus": {
+            "$ref": "#/components/schemas/CitizenFocus"
           },
           "constructionQueue": {
             "type": "array",
@@ -3525,6 +3550,12 @@
           "population": {
             "type": "integer",
             "format": "int32"
+          },
+          "selectableCitizenFocuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CitizenFocus"
+            }
           },
           "specialists": {
             "type": "array",

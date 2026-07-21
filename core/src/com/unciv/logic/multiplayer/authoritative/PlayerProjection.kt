@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 7
+        const val CURRENT_PROJECTION_VERSION = 8
     }
 }
 
@@ -47,6 +47,9 @@ data class ProjectedCity(
     val assignableTiles: List<ProjectedCityTile> = emptyList(),
     val manualSpecialists: Boolean = false,
     val specialists: List<ProjectedSpecialist> = emptyList(),
+    val avoidGrowth: Boolean = false,
+    val citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
+    val selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
 )
 
 @Serializable
@@ -160,6 +163,13 @@ object PlayerProjectionBuilder {
                             specialist.value,
                         ) }
                         .sortedBy { specialist -> specialist.name }
+                        .toList(),
+                    avoidGrowth = it.avoidGrowth,
+                    citizenFocus = CitizenFocus.valueOf(it.getCityFocus().name),
+                    selectableCitizenFocuses = com.unciv.logic.city.CityFocus.entries.asSequence()
+                        .filter { focus -> focus.tableEnabled }
+                        .filter { focus -> focus != com.unciv.logic.city.CityFocus.FaithFocus || game.isReligionEnabled() }
+                        .map { focus -> CitizenFocus.valueOf(focus.name) }
                         .toList(),
                 )
             }.sortedBy { it.id },

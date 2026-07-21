@@ -471,6 +471,43 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun setAvoidGrowth(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        enabled: Boolean,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City growth policy cannot be changed manually"
+        }
+        city.avoidGrowth = enabled
+        city.reassignPopulation()
+        check(city.avoidGrowth == enabled) { "Avoid-growth policy was not committed" }
+        return result(game)
+    }
+
+    fun setCitizenFocus(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        focus: CitizenFocus,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City citizen focus cannot be changed manually"
+        }
+        val domainFocus = com.unciv.logic.city.CityFocus.valueOf(focus.name)
+        require(domainFocus.tableEnabled) { "Citizen focus is not player-selectable" }
+        require(domainFocus != com.unciv.logic.city.CityFocus.FaithFocus || game.isReligionEnabled()) {
+            "Faith focus requires religion to be enabled"
+        }
+        city.setCityFocus(domainFocus)
+        city.reassignPopulation()
+        check(city.getCityFocus() == domainFocus) { "Citizen focus was not committed" }
+        return result(game)
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,

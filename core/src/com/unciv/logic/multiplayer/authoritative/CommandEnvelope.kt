@@ -10,6 +10,21 @@ enum class CityTileAssignment {
     @SerialName("locked") Locked,
 }
 
+@Serializable
+enum class CitizenFocus {
+    @SerialName("no_focus") NoFocus,
+    @SerialName("manual") Manual,
+    @SerialName("food_focus") FoodFocus,
+    @SerialName("production_focus") ProductionFocus,
+    @SerialName("gold_focus") GoldFocus,
+    @SerialName("science_focus") ScienceFocus,
+    @SerialName("culture_focus") CultureFocus,
+    @SerialName("happiness_focus") HappinessFocus,
+    @SerialName("faith_focus") FaithFocus,
+    @SerialName("gold_growth_focus") GoldGrowthFocus,
+    @SerialName("production_growth_focus") ProductionGrowthFocus,
+}
+
 /**
  * Public API-v3 command contract. This deliberately models an intent, never a
  * serialized [com.unciv.logic.GameInfo] or an arbitrary object patch.

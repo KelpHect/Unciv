@@ -1354,6 +1354,37 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Projection v8 citizen-policy foundation
+
+Projection v8 adds each owned city's canonical `avoidGrowth`, current
+`citizenFocus`, and player-selectable focus allowlist. Focus values use a
+closed snake-case enum shared by Kotlin command/projection code and mirrored by
+the deny-unknown Rust projection DTO. A contract test proves every Unciv
+`CityFocus` enum value has a corresponding wire value. `HappinessFocus` remains
+round-trippable for legacy/AI state but is absent from the player-selectable
+allowlist; `FaithFocus` is offered only when religion is enabled.
+
+The Kotlin engine now has canonical `setAvoidGrowth` and `setCitizenFocus`
+handlers. Both authenticate the current-turn city, reject puppet/resistance
+mutation, change only the requested policy, and invoke the shared
+`reassignPopulation()` rules. The focus handler rejects non-player-selectable
+and religion-incompatible values. These handlers are not yet exposed through
+the public Rust command route or client UI in this foundation slice.
+
+Verification passed the shared projection-v8 Rust/Kotlin round trip, closed
+enum parity, canonical policy/focus handler test, generated OpenAPI parity, 26
+active Rust library tests, seven HTTP/OpenAPI tests, formatting, strict Clippy,
+and `git diff --check`. All eight database integration tests passed serially
+against `postgres:19beta2-alpine` on port 55473; the disposable container was
+then stopped. The complete JDK 21 regression passed 802 shared tests and four
+server tests with zero failures/errors and 13 intentional skips:
+
+```text
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55473/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Authoritative citizen reset
 
 The `ResetCitizens(cityId)` API-v3 command exactly mirrors the existing reset

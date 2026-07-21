@@ -1,5 +1,15 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class CityTileAssignment {
+    @SerialName("unworked") Unworked,
+    @SerialName("worked") Worked,
+    @SerialName("locked") Locked,
+}
+
 /**
  * Public API-v3 command contract. This deliberately models an intent, never a
  * serialized [com.unciv.logic.GameInfo] or an arbitrary object patch.

@@ -22,8 +22,6 @@ import java.security.MessageDigest
 class HeadlessGameEngine(
     private val executionContext: GameExecutionContext,
 ) {
-    enum class CityTileAssignment { Unworked, Worked, Locked }
-
     init {
         require(executionContext.actorId != null) { "Authoritative execution requires an authenticated actor" }
         require(!executionContext.persistLocalSettings) { "Authoritative execution must not persist client settings" }

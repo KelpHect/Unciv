@@ -6,6 +6,7 @@ import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.MapParameters
@@ -449,14 +450,14 @@ class AuthoritativeGameExecutionContextTests {
 
         engine.setCityTileAssignment(
             testGame.gameInfo, civilization.civName, city.id, target.position,
-            HeadlessGameEngine.CityTileAssignment.Locked,
+            CityTileAssignment.Locked,
         )
         Assert.assertTrue(city.isWorked(target))
         Assert.assertTrue(target.isLocked())
 
         engine.setCityTileAssignment(
             testGame.gameInfo, civilization.civName, city.id, target.position,
-            HeadlessGameEngine.CityTileAssignment.Unworked,
+            CityTileAssignment.Unworked,
         )
         Assert.assertFalse(city.isWorked(target))
         Assert.assertFalse(target.isLocked())

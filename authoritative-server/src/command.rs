@@ -54,6 +54,10 @@ pub enum GameCommand {
     DisbandUnit {
         unit_id: i32,
     },
+    UpgradeUnits {
+        unit_ids: Vec<i32>,
+        target_unit_name: String,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

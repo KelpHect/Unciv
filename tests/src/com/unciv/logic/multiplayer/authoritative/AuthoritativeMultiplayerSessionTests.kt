@@ -331,6 +331,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitUpgradeBatchRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val units = listOf(
+            ProjectedUnit(42, "Rome", "Archer", 1, 0, 100, 2f),
+            ProjectedUnit(43, "Rome", "Archer", 2, 0, 100, 2f),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = units))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.upgradeUnitsIfOpen(GAME_ID, listOf(42, 43), "Crossbowman"))
+        session.openGame(GAME_ID)
+        val outcome = session.upgradeUnitsIfOpen(GAME_ID, listOf(42, 43), "Crossbowman")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(listOf(42, 43) to "Crossbowman"), transport.upgradedUnits)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -673,6 +695,7 @@ class AuthoritativeMultiplayerSessionTests {
         val automationOrders = mutableListOf<Pair<Int, Boolean>>()
         val postureOrders = mutableListOf<Pair<Int, UnitPosture>>()
         val disbandedUnits = mutableListOf<Int>()
+        val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -863,6 +886,21 @@ class AuthoritativeMultiplayerSessionTests {
                 projection = current.projection.copy(
                     ownUnits = current.projection.ownUnits.filterNot { it.id == request.unitId },
                 ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun upgradeUnits(
+            gameId: String,
+            request: ApiV3UpgradeUnitsRequest,
+        ): ApiV3CommandAccepted {
+            upgradedUnits += request.unitIds to request.targetUnitName
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

@@ -265,6 +265,29 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun upgradeUnitsIfOpen(
+        gameId: String,
+        unitIds: List<Int>,
+        targetUnitName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.UpgradeUnits &&
+                    current.pending.unitIds == unitIds &&
+                    current.pending.targetUnitName == targetUnitName) {
+                    "Resolve the pending authoritative command before changing the upgrade batch"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.upgradeUnits(unitIds, targetUnitName)
+            else -> {
+                bus.refresh()
+                bus.upgradeUnits(unitIds, targetUnitName)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

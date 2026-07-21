@@ -98,6 +98,10 @@ pub(crate) async fn run() {
             post(disband_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/upgrade-units",
+            post(upgrade_units),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/swap-units",
             post(swap_units),
         )

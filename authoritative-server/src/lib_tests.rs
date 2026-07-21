@@ -176,6 +176,27 @@ fn disband_unit_contract_contains_only_the_stable_unit_id() {
 }
 
 #[test]
+fn upgrade_units_contract_excludes_cost_resources_and_actor() {
+    let command = GameCommand::UpgradeUnits {
+        unit_ids: vec![42, 43],
+        target_unit_name: "Swordsman".to_owned(),
+    };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"unit_ids\":[42,43]"));
+    assert!(serialized.contains("\"target_unit_name\":\"Swordsman\""));
+    assert!(!serialized.contains("gold"));
+    assert!(!serialized.contains("resources"));
+    assert!(!serialized.contains("actor"));
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "upgrade_units", "unit_ids": [42],
+            "target_unit_name": "Swordsman", "gold_cost": 5
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

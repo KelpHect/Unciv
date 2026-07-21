@@ -93,6 +93,11 @@ sealed interface GameCommand {
 
     data class DisbandUnit(val unitId: Int) : GameCommand
 
+    data class UpgradeUnits(
+        val unitIds: List<Int>,
+        val targetUnitName: String,
+    ) : GameCommand
+
     data class SwapUnits(
         val unitId: Int,
         val destinationX: Int,

@@ -437,6 +437,69 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun unitUpgradeBatchIsCanonicalDeterministicAndDerivesCostsOnTheServer() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().getTile().position)
+        civilization.addGold(10_000)
+        val units = listOf(
+            civilization.units.addUnit("Archer", city)!!,
+            civilization.units.addUnit("Archer", city)!!,
+        )
+        val unitIds = units.map { it.id }
+        val target = civilization.getEquivalentUnit(
+            units.first().baseUnit.getUpgradeUnits(units.first().cache.state).first(),
+        )
+        target.requiredTech?.let { civilization.tech.addTechnology(it) }
+        val totalCost = units.sumOf { it.upgrade.getCostOfUpgrade(target) }
+        val initialGold = civilization.gold
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.upgradeUnits(
+            engine.loadSnapshot(snapshot), "Rome", unitIds, target.name,
+        )
+        val second = engine.upgradeUnits(
+            engine.loadSnapshot(snapshot), "Rome", unitIds, target.name,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val resultCivilization = first.game.getCivilization("Rome")
+        Assert.assertEquals(initialGold - totalCost, resultCivilization.gold)
+        Assert.assertTrue(unitIds.all { unitId ->
+            resultCivilization.units.getUnitById(unitId)?.baseUnit?.name == target.name
+        })
+        Assert.assertTrue(unitIds.all { unitId ->
+            engine.playerProjection(first.game, "Rome").ownUnits
+                .single { it.id == unitId }.name == target.name
+        })
+    }
+
+    @Test
+    fun unitUpgradeRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().getTile().position)
+        civilization.addGold(10_000)
+        val unit = civilization.units.addUnit("Archer", city)!!
+        val unitId = unit.id
+        val target = civilization.getEquivalentUnit(
+            unit.baseUnit.getUpgradeUnits(unit.cache.state).first(),
+        )
+        target.requiredTech?.let { civilization.tech.addTechnology(it) }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.upgradeUnits(game, "Rome", listOf(unitId), target.name)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.upgradeUnits(game, "Rome", listOf(unitId), target.name)
+        }
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)

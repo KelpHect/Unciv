@@ -159,6 +159,15 @@ data class ApiV3DisbandUnitRequest(
 )
 
 @Serializable
+data class ApiV3UpgradeUnitsRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_ids") val unitIds: List<Int>,
+    @SerialName("target_unit_name") val targetUnitName: String,
+)
+
+@Serializable
 data class ApiV3SwapUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

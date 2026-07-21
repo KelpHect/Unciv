@@ -2060,3 +2060,52 @@ The disposable container was verified by exact name, then stopped and removed.
 The multiplayer client remains a rendering/input/projection cache rather than
 an authority; AI civilizations and turn processing already execute in the
 server worker, while the remaining coverage gaps are still tracked explicitly.
+
+## Authoritative unit upgrades
+
+Normal unit upgrades now cross the complete API-v3 authority boundary through
+the bounded `UpgradeUnits(unitIds, targetUnitName)` command. A single upgrade
+and Upgrade All share this contract; batches contain 1-100 distinct stable
+unit IDs and commit atomically. If validation of any unit fails, Rust receives
+a rejected worker result and PostgreSQL commits neither a snapshot nor a new
+revision.
+
+The request contains no actor, civilization, price, resource quantities,
+technology claims, placement result, or replacement state. Rust derives the
+account's civilization from authenticated game membership. The Kotlin worker
+loads canonical state and independently validates the current turn, ownership,
+movement, owned territory, embarkation state, equivalent upgrade target,
+technology, resources, gold, canonical cost, and placement before invoking the
+shared `performUpgrade` domain logic. Stable unit IDs survive replacement and
+the committed projection supplies the resulting unit names and treasury.
+
+For explicitly opened v3 games, `UnitUpgradeMenu` submits either Upgrade or
+Upgrade All through the session and command bus without mutating local
+`GameInfo`. Single-player, hotseat, saved games, legacy multiplayer, and
+server-internal AI or unique-driven upgrades retain the existing shared Kotlin
+domain behavior. Promotions remain an explicit command-coverage gap.
+
+The Rust changes remain separated across focused API, PostgreSQL, and worker
+unit-action modules. `main.rs` remains six lines, and all Rust source files
+remain below 800 lines (largest: `lib_tests.rs`, 762 lines).
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and the checked-in parity test passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 35 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55483/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 835 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.

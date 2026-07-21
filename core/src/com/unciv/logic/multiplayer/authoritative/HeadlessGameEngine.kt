@@ -60,6 +60,55 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Upgrades a bounded set of owned units atomically from the control
+     * plane's perspective. Target equivalence, costs, resources, and placement
+     * are all derived from canonical state for each unit in order. */
+    fun upgradeUnits(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitIds: List<Int>,
+        targetUnitName: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot upgrade units outside their turn"
+        }
+        require(unitIds.isNotEmpty() && unitIds.size <= 100) {
+            "Upgrade batch must contain between 1 and 100 units"
+        }
+        require(unitIds.distinct().size == unitIds.size) { "Upgrade batch contains duplicate units" }
+        require(targetUnitName.isNotBlank() && targetUnitName.length <= 200) {
+            "Upgrade target name is invalid"
+        }
+
+        for (unitId in unitIds) {
+            val unit = actorCivilization.units.getUnitById(unitId)
+                ?: error("Unit is not controlled by the authenticated actor")
+            require(unit.hasMovement()) { "Unit has no movement available to upgrade" }
+            require(unit.currentTile.getOwner() == actorCivilization) {
+                "Unit must be in owned territory to upgrade"
+            }
+            require(!unit.isEmbarked()) { "Embarked unit cannot upgrade" }
+            val upgradedUnit = unit.baseUnit.getUpgradeUnits(unit.cache.state)
+                .map { actorCivilization.getEquivalentUnit(it) }
+                .firstOrNull { it.name == targetUnitName }
+                ?: error("Requested unit is not a canonical upgrade target")
+            require(unit.upgrade.canUpgrade(upgradedUnit)) { "Unit cannot upgrade to requested target" }
+            val cost = unit.upgrade.getCostOfUpgrade(upgradedUnit)
+            require(actorCivilization.gold >= cost) { "Civilization cannot afford unit upgrade" }
+
+            unit.upgrade.performUpgrade(upgradedUnit, isFree = false, goldCostOfUpgrade = cost)
+            val resultUnit = actorCivilization.units.getUnitById(unitId)
+            check(resultUnit?.baseUnit?.name == targetUnitName) {
+                "Canonical unit upgrade could not be placed"
+            }
+        }
+        actorCivilization.updateStatsForNextTurn()
+        return result(game)
+    }
+
     /** Assigns the authenticated actor to the first canonical unclaimed major
      * civilization. Selection is server deterministic and accepts no client
      * civilization input. The control plane restricts joining to revision 0. */

@@ -22,4 +22,27 @@ impl EngineWorkerClient {
             .await?;
         commit_proposal(previous_revision, response)
     }
+
+    pub async fn upgrade_units(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: UpgradeUnitsIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::UpgradeUnits {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_ids: intent.unit_ids,
+                    target_unit_name: intent.target_unit_name,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
 }

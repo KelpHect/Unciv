@@ -26,6 +26,7 @@ import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Spy
 import com.unciv.models.UnitActionType
 import com.unciv.models.UncivSound
+import com.unciv.models.UpgradeUnitAction
 import com.unciv.ui.audio.SoundPlayer
 import com.unciv.ui.components.MapArrowType
 import com.unciv.ui.components.MiscArrowTypes
@@ -43,6 +44,7 @@ import com.unciv.ui.components.widgets.ZoomableScrollPane
 import com.unciv.ui.screens.basescreen.UncivStage
 import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.recordUndoCheckpoint
 import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsUpgrade
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
 import com.unciv.utils.Concurrency
@@ -603,6 +605,30 @@ class WorldMapHolder(
         submitAuthoritativeUnitCommand("unit disband", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.disbandUnitIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) {
+            removeUnitActionOverlay()
+        }
+    }
+
+    fun upgradeUnits(units: List<MapUnit>, targetUnitName: String) {
+        if (units.isEmpty()) return
+        if (!isAuthoritativeGame()) {
+            for (unit in units) {
+                val action = UnitActionsUpgrade.getUpgradeActions(unit)
+                    .filterIsInstance<UpgradeUnitAction>()
+                    .firstOrNull { it.unitToUpgradeTo.name == targetUnitName && it.action != null }
+                action?.action?.invoke()
+            }
+            worldScreen.shouldUpdate = true
+            return
+        }
+        submitAuthoritativeUnitCommand("unit upgrade", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.upgradeUnitsIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    units.map { it.id },
+                    targetUnitName,
+                )
         }) {
             removeUnitActionOverlay()
         }

@@ -81,6 +81,14 @@ sealed interface PendingAuthoritativeCommand {
         val unitId: Int,
     ) : PendingAuthoritativeCommand
 
+    data class UpgradeUnits(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitIds: List<Int>,
+        val targetUnitName: String,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -365,6 +373,24 @@ class AuthoritativeGameCommandBus(
         }
         submitLocked(PendingAuthoritativeCommand.DisbandUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
+        ), current)
+    }
+
+    suspend fun upgradeUnits(unitIds: List<Int>, targetUnitName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(unitIds.isNotEmpty() && unitIds.size <= 100 && unitIds.distinct().size == unitIds.size) {
+            "Upgrade batch must contain between 1 and 100 distinct units"
+        }
+        require(targetUnitName.isNotBlank() && targetUnitName.length <= 200) {
+            "Upgrade target name is invalid"
+        }
+        val projectedIds = current.projection.ownUnits.mapTo(HashSet()) { it.id }
+        require(unitIds.all { it in projectedIds }) {
+            "Upgrade batch contains a unit absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.UpgradeUnits(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitIds.toList(), targetUnitName,
         ), current)
     }
 
@@ -778,6 +804,14 @@ class AuthoritativeGameCommandBus(
                         ApiV3DisbandUnitRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.UpgradeUnits ->
+                    transport.upgradeUnits(
+                        gameId,
+                        ApiV3UpgradeUnitsRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitIds, pending.targetUnitName,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

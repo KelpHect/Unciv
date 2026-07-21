@@ -165,6 +165,10 @@ pub struct ProjectedTileVisibility {
     pub x: i32,
     pub y: i32,
     pub visible: bool,
+    pub improvement_name: Option<String>,
+    pub improvement_pillaged: Option<bool>,
+    pub road_status: Option<String>,
+    pub road_pillaged: Option<bool>,
 }
 
 #[cfg(test)]
@@ -173,7 +177,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v16.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v17.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

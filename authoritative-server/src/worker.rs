@@ -20,7 +20,7 @@ mod unit_orders;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     ChooseFreeTechnologyIntent, CreatedGame, DisbandUnitIntent, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, ProjectedState, PromoteUnitIntent,
+    MoveUnitIntent, MoveUnitTowardIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
     QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
     SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,

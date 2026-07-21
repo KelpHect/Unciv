@@ -127,6 +127,13 @@ sealed interface WorkerOperation {
         val unitId: Int,
     ) : WorkerOperation
 
+    @Serializable @SerialName("pillage_tile")
+    data class PillageTile(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+    ) : WorkerOperation
+
     @Serializable @SerialName("upgrade_units")
     data class UpgradeUnits(
         val snapshot: String,
@@ -465,6 +472,15 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.DisbandUnit -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val result = engine.disbandUnit(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.PillageTile -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.pillageTile(
                     game,
                     operation.actorCivilizationId,
                     operation.unitId,

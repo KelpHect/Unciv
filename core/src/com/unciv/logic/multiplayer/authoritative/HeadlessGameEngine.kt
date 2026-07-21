@@ -9,6 +9,7 @@ import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapPathing
+import com.unciv.logic.map.mapunit.actions.UnitPillage
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
@@ -61,6 +62,27 @@ class HeadlessGameEngine(
         actorCivilization.updateStatsForNextTurn()
         check(actorCivilization.units.getUnitById(unitId) == null) {
             "Disbanded unit remained in canonical state"
+        }
+        return result(game)
+    }
+
+    /** Pillages the owned unit's canonical current tile. Target selection,
+     * loot, healing, movement cost, and destruction are all server-derived. */
+    fun pillageTile(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot pillage outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(UnitPillage.pillage(unit)) {
+            "Unit cannot pillage its canonical current tile"
         }
         return result(game)
     }

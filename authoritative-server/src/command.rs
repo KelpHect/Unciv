@@ -54,6 +54,9 @@ pub enum GameCommand {
     DisbandUnit {
         unit_id: i32,
     },
+    PillageTile {
+        unit_id: i32,
+    },
     UpgradeUnits {
         unit_ids: Vec<i32>,
         target_unit_name: String,

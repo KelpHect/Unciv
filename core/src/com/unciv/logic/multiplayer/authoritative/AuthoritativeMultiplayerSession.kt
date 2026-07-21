@@ -265,6 +265,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun pillageTileIfOpen(
+        gameId: String,
+        unitId: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.PillageTile &&
+                    current.pending.unitId == unitId) {
+                    "Resolve the pending authoritative command before pillaging with another unit"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.pillageTile(unitId)
+            else -> {
+                bus.refresh()
+                bus.pillageTile(unitId)
+            }
+        }
+    }
+
     suspend fun upgradeUnitsIfOpen(
         gameId: String,
         unitIds: List<Int>,

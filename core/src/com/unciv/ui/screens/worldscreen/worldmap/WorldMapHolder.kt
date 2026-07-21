@@ -619,6 +619,16 @@ class WorldMapHolder(
         }
     }
 
+    /** Returns true when pillaging was submitted to the authoritative server. */
+    fun pillageTile(unit: MapUnit): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("tile pillage", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.pillageTileIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     fun upgradeUnits(units: List<MapUnit>, targetUnitName: String) {
         if (units.isEmpty()) return
         if (!isAuthoritativeGame()) {

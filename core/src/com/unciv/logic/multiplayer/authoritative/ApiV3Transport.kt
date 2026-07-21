@@ -23,6 +23,7 @@ interface ApiV3Transport {
     suspend fun setUnitAutomation(gameId: String, request: ApiV3SetUnitAutomationRequest): ApiV3CommandAccepted
     suspend fun setUnitPosture(gameId: String, request: ApiV3SetUnitPostureRequest): ApiV3CommandAccepted
     suspend fun disbandUnit(gameId: String, request: ApiV3DisbandUnitRequest): ApiV3CommandAccepted
+    suspend fun pillageTile(gameId: String, request: ApiV3PillageTileRequest): ApiV3CommandAccepted
     suspend fun upgradeUnits(gameId: String, request: ApiV3UpgradeUnitsRequest): ApiV3CommandAccepted
     suspend fun promoteUnit(gameId: String, request: ApiV3PromoteUnitRequest): ApiV3CommandAccepted
     suspend fun setCityUnitPromotionPreference(gameId: String, request: ApiV3SetCityUnitPromotionPreferenceRequest): ApiV3CommandAccepted

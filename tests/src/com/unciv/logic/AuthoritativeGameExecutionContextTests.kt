@@ -727,6 +727,74 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun pillageTileDerivesTargetLootHealingAndMovementDeterministically() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits().first { !it.isCivilian() }
+        val tile = unit.currentTile.neighbors.first { it.isLand && !it.isCityCenter() }
+        unit.removeFromTile()
+        unit.putInTile(tile)
+        tile.setImprovement("Farm")
+        unit.health = 50
+        val movementBefore = unit.currentMovement
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.pillageTile(engine.loadSnapshot(snapshot), "Rome", unit.id)
+        val second = engine.pillageTile(engine.loadSnapshot(snapshot), "Rome", unit.id)
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val resultUnit = first.game.getCivilization("Rome").units.getUnitById(unit.id)!!
+        Assert.assertTrue(resultUnit.currentTile.improvementIsPillaged)
+        Assert.assertEquals(75, resultUnit.health)
+        Assert.assertEquals(movementBefore - 1f, resultUnit.currentMovement)
+        val projectedTile = engine.playerProjection(first.game, "Rome").exploredTiles
+            .single { it.x == tile.position.x && it.y == tile.position.y }
+        Assert.assertTrue(projectedTile.visible)
+        Assert.assertEquals("Farm", projectedTile.improvementName)
+        Assert.assertEquals(true, projectedTile.improvementPillaged)
+        val resultCivilization = first.game.getCivilization("Rome")
+        val hiddenTile = first.game.tileMap.tileList.first {
+            resultCivilization.hasExplored(it) && it != resultUnit.currentTile
+        }
+        hiddenTile.setImprovement("Farm")
+        hiddenTile.improvementIsPillaged = true
+        resultCivilization.viewableTiles = resultCivilization.viewableTiles - hiddenTile
+        val hiddenProjection = engine.playerProjection(first.game, "Rome").exploredTiles
+            .single { it.x == hiddenTile.position.x && it.y == hiddenTile.position.y }
+        Assert.assertFalse(hiddenProjection.visible)
+        Assert.assertEquals(null, hiddenProjection.improvementName)
+        Assert.assertEquals(null, hiddenProjection.improvementPillaged)
+        Assert.assertEquals(null, hiddenProjection.roadStatus)
+        Assert.assertEquals(null, hiddenProjection.roadPillaged)
+    }
+
+    @Test
+    fun pillageTileRejectsForeignActorsOutOfTurnOwnersAndInvalidTargets() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val unit = game.getCivilization("Rome").units.getCivUnits().first { !it.isCivilian() }
+        val tile = unit.currentTile.neighbors.first { it.isLand && !it.isCityCenter() }
+        unit.removeFromTile()
+        unit.putInTile(tile)
+        tile.setImprovement("Farm")
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.pillageTile(game, "Rome", unit.id)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.pillageTile(game, "Rome", unit.id)
+        }
+        game.currentPlayer = "Rome"
+        tile.removeImprovement()
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.pillageTile(game, "Rome", unit.id)
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

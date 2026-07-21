@@ -189,6 +189,44 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun pillageRequestContainsOnlyTheProjectedStableUnitIdAndReconcilesTile() = runBlocking {
+        val visibleTile = ProjectedTileVisibility(
+            0, 0, true, "Farm", false, "None", false,
+        )
+        val initial = projection(
+            7, "hash-7",
+            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 50, 2f)),
+            exploredTiles = listOf(visibleTile),
+        )
+        val transport = FakeTransport(initial).apply {
+            onPillageTile = { request ->
+                current = current.copy(
+                    committedRevision = 8,
+                    canonicalStateHash = "hash-8",
+                    projection = current.projection.copy(
+                        ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 75, 1f)),
+                        exploredTiles = listOf(visibleTile.copy(improvementPillaged = true)),
+                    ),
+                )
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "pillage-command" }
+        bus.refresh()
+
+        assertTrue(bus.pillageTile(42) is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.pillageTileRequests.single()
+        assertEquals("pillage-command", request.commandId)
+        assertEquals(42, request.unitId)
+        val encoded = Json.encodeToString(ApiV3PillageTileRequest.serializer(), request)
+        assertTrue(!encoded.contains("improvement"))
+        assertTrue(!encoded.contains("loot"))
+        assertTrue(!encoded.contains("actor"))
+        val synchronized = bus.state as AuthoritativeSyncState.Synchronized
+        assertEquals(true, synchronized.current.projection.exploredTiles.single().improvementPillaged)
+    }
+
+    @Test
     fun upgradeBatchContainsOnlyProjectedIdsAndTargetIntent() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 0, 0, 100, 2f),
@@ -1002,6 +1040,7 @@ class AuthoritativeGameCommandBusTests {
         val unitAutomationRequests = mutableListOf<ApiV3SetUnitAutomationRequest>()
         val unitPostureRequests = mutableListOf<ApiV3SetUnitPostureRequest>()
         val disbandUnitRequests = mutableListOf<ApiV3DisbandUnitRequest>()
+        val pillageTileRequests = mutableListOf<ApiV3PillageTileRequest>()
         val upgradeUnitRequests = mutableListOf<ApiV3UpgradeUnitsRequest>()
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
@@ -1045,6 +1084,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onDisbandUnit: suspend (ApiV3DisbandUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onPillageTile: suspend (ApiV3PillageTileRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onUpgradeUnits: suspend (ApiV3UpgradeUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1186,6 +1228,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             disbandUnitRequests += request
             return onDisbandUnit(request)
+        }
+        override suspend fun pillageTile(
+            gameId: String,
+            request: ApiV3PillageTileRequest,
+        ): ApiV3CommandAccepted {
+            pillageTileRequests += request
+            return onPillageTile(request)
         }
         override suspend fun upgradeUnits(
             gameId: String,

@@ -93,6 +93,8 @@ sealed interface GameCommand {
 
     data class DisbandUnit(val unitId: Int) : GameCommand
 
+    data class PillageTile(val unitId: Int) : GameCommand
+
     data class UpgradeUnits(
         val unitIds: List<Int>,
         val targetUnitName: String,

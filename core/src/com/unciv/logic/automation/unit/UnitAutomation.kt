@@ -21,7 +21,7 @@ import com.unciv.models.UpgradeUnitAction
 import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.ruleset.unit.BaseUnit
-import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsPillage
+import com.unciv.logic.map.mapunit.actions.UnitPillage
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsUpgrade
 import kotlin.math.ceil
 import yairm210.purity.annotations.Readonly
@@ -455,7 +455,7 @@ object UnitAutomation {
         val unitDistanceToTiles = unit.movement.getDistanceToTiles()
         val tilesThatCanWalkToAndThenPillage = unitDistanceToTiles
             .filter { it.value.totalMovement < unit.currentMovement }.keys
-            .filter { unit.movement.canMoveTo(it) && UnitActionsPillage.canPillage(unit, it)
+            .filter { unit.movement.canMoveTo(it) && UnitPillage.canPillage(unit, it)
                     && (it.canPillageTileImprovement()
                     || (!onlyPillageToHeal && it.canPillageRoad() && it.getRoadOwner() != null && unit.civ.isAtWarWith(it.getRoadOwner()!!))) }
 
@@ -468,8 +468,7 @@ object UnitAutomation {
 
         // We CANNOT use invokeUnitAction, since the default unit action contains a popup, which - when automated -
         //  runs a UI action on a side thread leading to crash!
-        UnitActionsPillage.getPillageAction(unit, unit.currentTile)?.action?.invoke()
-        return true
+        return UnitPillage.pillage(unit)
     }
 
     /** Move towards the closest attackable enemy of the [unit].

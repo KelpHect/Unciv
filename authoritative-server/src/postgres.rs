@@ -13,14 +13,15 @@ use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
-    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerManifest,
+    MoveUnitIntent, MoveUnitTowardIntent, PillageTileIntent, PromoteUnitIntent,
+    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
+    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
+    WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

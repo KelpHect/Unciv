@@ -26,6 +26,9 @@
     "unitPromotionPreferences": [{ "baseUnitName": "Warrior", "enabled": true, "savedPromotions": ["Drill I"] }]
   }],
   "ownUnits": [{ "id": 17, "civilizationId": "Rome", "name": "Worker", "x": 3, "y": -1, "health": 91, "currentMovement": 1.5, "movementDestinationX": 7, "movementDestinationY": 2, "automated": true, "exploring": false, "posture": "fortify", "promotions": ["Drill I"], "promotionXp": 12, "nextPromotionXp": 30, "availablePromotions": ["Drill II", "Shock I"], "instanceName": "First Legion", "improvementOrder": [{ "improvementName": "Remove Forest", "turnsRemaining": 2 }, { "improvementName": "Farm", "turnsRemaining": 5 }], "roadConnectionDestinationX": 8, "roadConnectionDestinationY": -3, "roadConnectionPath": [{ "x": 3, "y": -1 }, { "x": 4, "y": -1 }, { "x": 5, "y": -2 }, { "x": 8, "y": -3 }] }],
-  "exploredTiles": [{ "x": 2, "y": -1, "visible": true }, { "x": 3, "y": -1, "visible": false }],
+  "exploredTiles": [
+    { "x": 2, "y": -1, "visible": true, "improvementName": "Farm", "improvementPillaged": true, "roadStatus": "Road", "roadPillaged": false },
+    { "x": 3, "y": -1, "visible": false, "improvementName": null, "improvementPillaged": null, "roadStatus": null, "roadPillaged": null }
+  ],
   "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [], "instanceName": null, "improvementOrder": [], "roadConnectionDestinationX": null, "roadConnectionDestinationY": null, "roadConnectionPath": [] }]
 }

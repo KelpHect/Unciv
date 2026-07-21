@@ -16,7 +16,7 @@ import com.unciv.models.stats.Stat
 import com.unciv.models.stats.Stats
 import com.unciv.models.stats.SubStat
 import com.unciv.ui.components.UnitMovementMemoryType
-import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsPillage
+import com.unciv.logic.map.mapunit.actions.UnitPillage
 import com.unciv.utils.debug
 import yairm210.purity.annotations.Pure
 import yairm210.purity.annotations.Readonly
@@ -80,9 +80,9 @@ object Battle {
             for (tileToPillage in tilesMovedThrough) {
                 if (attacker.unit.currentMovement <= 1f || attacker.unit.health > 90) break // We are done pillaging
 
-                if (UnitActionsPillage.canPillage(attacker.unit, tileToPillage)
+                if (UnitPillage.canPillage(attacker.unit, tileToPillage)
                     && tileToPillage.canPillageTileImprovement()) {
-                    UnitActionsPillage.getPillageAction(attacker.unit, tileToPillage)?.action?.invoke()
+                    UnitPillage.pillage(attacker.unit)
                 }
             }
         }

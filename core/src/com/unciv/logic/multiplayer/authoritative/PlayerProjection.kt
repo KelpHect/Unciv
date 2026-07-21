@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 16
+        const val CURRENT_PROJECTION_VERSION = 17
     }
 }
 
@@ -131,6 +131,10 @@ data class ProjectedTileVisibility(
     val x: Int,
     val y: Int,
     val visible: Boolean,
+    val improvementName: String? = null,
+    val improvementPillaged: Boolean? = null,
+    val roadStatus: String? = null,
+    val roadPillaged: Boolean? = null,
 )
 
 object PlayerProjectionBuilder {
@@ -218,7 +222,18 @@ object PlayerProjectionBuilder {
             ownUnits = ownUnits,
             exploredTiles = game.tileMap.tileList.asSequence()
                 .filter { it.isExplored(actor) }
-                .map { ProjectedTileVisibility(it.position.x, it.position.y, it in actor.viewableTiles) }
+                .map { tile ->
+                    val visible = tile in actor.viewableTiles
+                    ProjectedTileVisibility(
+                        tile.position.x,
+                        tile.position.y,
+                        visible,
+                        improvementName = tile.improvement.takeIf { visible },
+                        improvementPillaged = tile.improvementIsPillaged.takeIf { visible },
+                        roadStatus = tile.roadStatus.name.takeIf { visible },
+                        roadPillaged = tile.roadIsPillaged.takeIf { visible },
+                    )
+                }
                 .sortedWith(compareBy<ProjectedTileVisibility> { it.x }.thenBy { it.y })
                 .toList(),
             visibleForeignUnits = visibleForeignUnits,

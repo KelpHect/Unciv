@@ -2347,3 +2347,47 @@ UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55480/unciv \
 The database lane used only
 `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
 The disposable container was verified by exact name and image, then removed.
+
+## Authoritative pillage command and projection v17
+
+Direct multiplayer pillaging now uses the closed `PillageTile(unitId)` command.
+The authenticated membership supplies the civilization, and the Kotlin worker
+loads canonical state before deriving the unit's current tile, improvement or
+road target, legality, deterministic loot, recipient city, healing, movement
+cost, resource changes, notifications, and destroyed-on-pillage behavior. The
+client cannot submit coordinates, a target type, loot, health, RNG, or an actor.
+
+The former UI-owned mutation was extracted into the focused shared
+`UnitPillage` domain service. Local play, AI automation, battle auto-pillage,
+and the authoritative worker now execute that one implementation. Opened API-v3
+games submit through the session and command bus; single-player, hotseat, and
+legacy multiplayer continue synchronously through the same domain service.
+
+Projection v17 adds improvement, road, and pillage state for currently visible
+tiles. Explored tiles outside current visibility receive null values for all
+four fields, preventing a refresh from revealing unseen map changes.
+
+Verification for this slice:
+
+- `cargo run --quiet -- --write-openapi`: generated contract updated.
+- `cargo test --all-targets`: 41 Rust library tests passed, 8 explicit
+  PostgreSQL tests skipped pending the required database URL, and 7 HTTP tests
+  passed.
+- Focused Gradle authoritative engine, projection contract, command-bus, and
+  session tests passed, including deterministic hashes, foreign/out-of-turn and
+  invalid-target rejection, projection reconciliation, and explicit-open
+  routing.
+
+Final gates passed:
+
+- `cargo fmt --all -- --check` and
+  `cargo clippy --all-targets --all-features -- -D warnings`: passed.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: passed;
+  857 shared JVM tests completed with 13 intentional skips, plus 4 server tests.
+- Exact PostgreSQL image
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`:
+  all 8 serialized ignored integration tests passed, and the dedicated test
+  container was removed afterward.
+- `git diff --check`: passed. Every Rust source remains below 800 lines; the
+  largest is `postgres/commands.rs` at 729 lines, and `main.rs` remains six
+  lines.

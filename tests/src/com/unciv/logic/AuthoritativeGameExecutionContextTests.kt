@@ -2,6 +2,7 @@ package com.unciv.logic
 
 import com.badlogic.gdx.Gdx
 import com.unciv.UncivGame
+import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
@@ -9,6 +10,7 @@ import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
+import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.metadata.GameSetupInfo
@@ -18,6 +20,7 @@ import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
 import com.unciv.testing.GdxTestRunner
+import com.unciv.testing.TestGame
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -264,6 +267,33 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(listOf(construction), city.cityConstructions.constructionQueue)
         Assert.assertEquals(listOf(construction), projectedCity.constructionQueue)
         Assert.assertTrue(construction in projectedCity.availableConstructions)
+    }
+
+    @Test
+    fun tileConstructionRevalidatesPlacementAndCommitsTheCanonicalMarker() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val farm = testGame.ruleset.tileImprovements["Farm"]!!
+        civilization.tech.techsResearched.add(farm.techRequired!!)
+        val building = testGame.createBuilding("Creates a [Farm] improvement on a specific tile")
+        val target = testGame.setTileTerrain(HexCoord(1, 0), Constants.grassland)
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.queueConstructionAtTile(
+            testGame.gameInfo, civilization.civName, city.id, building.name, target.position,
+        )
+
+        Assert.assertEquals(listOf(building.name), city.cityConstructions.constructionQueue)
+        Assert.assertTrue(target.isMarkedForCreatesOneImprovement("Farm"))
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.queueConstructionAtTile(
+                testGame.gameInfo, civilization.civName, city.id, building.name, HexCoord(4, 0),
+            )
+        }
     }
 
     @Test(expected = IllegalStateException::class)

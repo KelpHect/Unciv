@@ -3,7 +3,6 @@
 
 use std::{net::SocketAddr, time::Duration};
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -11,7 +10,17 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{CommitProposal, projection::PlayerProjection};
+use crate::CommitProposal;
+
+mod protocol;
+pub use protocol::{
+    AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
+    MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionIntent,
+    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, WorkerCapabilities, WorkerManifest,
+    WorkerRuleset,
+};
+use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 
 pub const WORKER_PROTOCOL_VERSION: u16 = 1;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
@@ -20,252 +29,6 @@ const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 pub struct EngineWorkerClient {
     address: SocketAddr,
     request_timeout: Duration,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkerManifest {
-    pub engine_build: String,
-    pub base_ruleset: WorkerRuleset,
-    pub mods: Vec<WorkerRuleset>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct WorkerRuleset {
-    pub name: String,
-    pub sha256: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct WorkerRequest<'a> {
-    protocol_version: u16,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    actor_id: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ruleset_manifest: Option<&'a WorkerManifest>,
-    operation: WorkerOperation<'a>,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum WorkerOperation<'a> {
-    Handshake,
-    CreateGame {
-        setup: &'a str,
-    },
-    AssignPlayer {
-        snapshot: &'a str,
-    },
-    EndTurn {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-    },
-    MoveUnit {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "unitId")]
-        unit_id: i32,
-        #[serde(rename = "destinationX")]
-        destination_x: i32,
-        #[serde(rename = "destinationY")]
-        destination_y: i32,
-    },
-    QueueConstruction {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        #[serde(rename = "constructionName")]
-        construction_name: &'a str,
-    },
-    SetPerpetualConstruction {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        #[serde(rename = "constructionName")]
-        construction_name: &'a str,
-    },
-    RemoveConstruction {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        #[serde(rename = "queueIndex")]
-        queue_index: u32,
-        #[serde(rename = "expectedConstructionName")]
-        expected_construction_name: &'a str,
-    },
-    MoveConstruction {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        #[serde(rename = "fromIndex")]
-        from_index: u32,
-        #[serde(rename = "toIndex")]
-        to_index: u32,
-        #[serde(rename = "expectedConstructionName")]
-        expected_construction_name: &'a str,
-    },
-    PurchaseConstruction {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        #[serde(rename = "constructionName")]
-        construction_name: &'a str,
-        #[serde(rename = "currencyName")]
-        currency_name: &'a str,
-        #[serde(rename = "queueIndex")]
-        queue_index: Option<u32>,
-    },
-    BuyCityTile {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "cityId")]
-        city_id: &'a str,
-        x: i32,
-        y: i32,
-    },
-    SetResearchPath {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "technologyName")]
-        technology_name: &'a str,
-    },
-    AdoptPolicy {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "policyName")]
-        policy_name: &'a str,
-    },
-    ChooseFreeTechnology {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-        #[serde(rename = "technologyName")]
-        technology_name: &'a str,
-    },
-    ProjectState {
-        snapshot: &'a str,
-        #[serde(rename = "actorCivilizationId")]
-        actor_civilization_id: &'a str,
-    },
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WorkerResponse {
-    protocol_version: u16,
-    engine_build: Option<String>,
-    installed_rulesets: Option<Vec<WorkerRuleset>>,
-    snapshot: Option<String>,
-    canonical_state_hash: Option<String>,
-    actor_civilization_id: Option<String>,
-    player_projection: Option<serde_json::Value>,
-    error: Option<WorkerError>,
-}
-
-pub struct CreatedGame {
-    pub proposal: CommitProposal,
-    pub owner_civilization_id: String,
-}
-
-pub struct AssignedPlayer {
-    pub proposal: CommitProposal,
-    pub civilization_id: String,
-}
-
-pub struct ProjectedState {
-    pub projection: PlayerProjection,
-}
-
-pub struct MoveUnitIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub unit_id: i32,
-    pub destination_x: i32,
-    pub destination_y: i32,
-}
-
-pub struct QueueConstructionIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub construction_name: &'a str,
-}
-
-pub struct SetPerpetualConstructionIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub construction_name: &'a str,
-}
-
-pub struct RemoveConstructionIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub queue_index: u32,
-    pub expected_construction_name: &'a str,
-}
-
-pub struct MoveConstructionIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub from_index: u32,
-    pub to_index: u32,
-    pub expected_construction_name: &'a str,
-}
-
-pub struct PurchaseConstructionIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub construction_name: &'a str,
-    pub currency_name: &'a str,
-    pub queue_index: Option<u32>,
-}
-
-pub struct BuyCityTileIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub city_id: &'a str,
-    pub x: i32,
-    pub y: i32,
-}
-
-pub struct SetResearchPathIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub technology_name: &'a str,
-}
-
-pub struct AdoptPolicyIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub policy_name: &'a str,
-}
-
-pub struct ChooseFreeTechnologyIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub technology_name: &'a str,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkerCapabilities {
-    pub engine_build: String,
-    pub installed_rulesets: Vec<WorkerRuleset>,
-}
-
-#[derive(Deserialize)]
-struct WorkerError {
-    code: String,
-    message: String,
 }
 
 #[derive(Debug, Error)]
@@ -299,6 +62,31 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
+    pub async fn queue_construction_at_tile(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: QueueConstructionAtTileIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::QueueConstructionAtTile {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    construction_name: intent.construction_name,
+                    x: intent.x,
+                    y: intent.y,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn buy_city_tile(
         &self,
         actor_id: &str,

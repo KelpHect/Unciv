@@ -52,6 +52,43 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun tileConstructionSendsCoordinatesWithoutClientPlacementClaims() = runBlocking {
+        val tile = ProjectedTileVisibility(2, 0, true)
+        val initial = projection(
+            0, "hash-0", cityQueue = emptyList(),
+            availableConstructions = listOf("District"), exploredTiles = listOf(tile),
+        )
+        val committed = projection(
+            1, "hash-1", cityQueue = listOf("District"),
+            availableConstructions = listOf("District"), exploredTiles = listOf(tile),
+        )
+        val transport = FakeTransport(initial).apply {
+            onQueueConstructionAtTile = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "tile-command" }
+        bus.refresh()
+
+        val outcome = bus.queueConstructionAtTile("city-1", "District", 2, 0)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(
+            ApiV3QueueConstructionAtTileRequest(
+                "tile-command", 0, "hash-0", "city-1", "District", 2, 0,
+            ),
+            transport.tileQueueRequests.single(),
+        )
+        val encoded = Json.encodeToString(
+            ApiV3QueueConstructionAtTileRequest.serializer(),
+            transport.tileQueueRequests.single(),
+        )
+        assertTrue(!encoded.contains("legal"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun perpetualConstructionHasItsOwnClosedIntent() = runBlocking {
         val initial = projection(
             0, "hash-0", cityQueue = listOf("Monument"),
@@ -379,6 +416,7 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
+        val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
         val perpetualRequests = mutableListOf<ApiV3SetPerpetualConstructionRequest>()
         val removeConstructionRequests = mutableListOf<ApiV3RemoveConstructionRequest>()
         val moveConstructionRequests = mutableListOf<ApiV3MoveConstructionRequest>()
@@ -391,6 +429,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onQueueConstruction: suspend (ApiV3QueueConstructionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onQueueConstructionAtTile: suspend (ApiV3QueueConstructionAtTileRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetPerpetualConstruction: suspend (ApiV3SetPerpetualConstructionRequest) -> ApiV3CommandAccepted = {
@@ -449,6 +490,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             queueRequests += request
             return onQueueConstruction(request)
+        }
+        override suspend fun queueConstructionAtTile(
+            gameId: String,
+            request: ApiV3QueueConstructionAtTileRequest,
+        ): ApiV3CommandAccepted {
+            tileQueueRequests += request
+            return onQueueConstructionAtTile(request)
         }
         override suspend fun setPerpetualConstruction(
             gameId: String,

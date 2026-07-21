@@ -674,10 +674,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
 
         // UniqueType.CreatesOneImprovement support - don't add yet, postpone until target tile for the improvement is selected
         if (construction is Building && construction.hasCreateOneImprovementUnique()) {
-            if (cityScreen.isAuthoritativeGame()) {
-                ToastPopup("Tile-specific construction is not yet available for authoritative games", cityScreen)
-                return
-            }
             cityScreen.startPickTileForCreatesOneImprovement(construction, Stat.Gold, false)
             return
         }

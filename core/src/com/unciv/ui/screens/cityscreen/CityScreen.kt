@@ -89,6 +89,7 @@ class CityScreen(
      */
     private var constructionsTable = CityConstructionsTable(this)
     private var authoritativeTilePurchaseSubmissionInProgress = false
+    private var authoritativeTileConstructionSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -510,6 +511,55 @@ class CityScreen(
         }
     }
 
+    private fun submitAuthoritativeTileConstruction(building: Building, selectedTile: Tile) {
+        if (authoritativeTileConstructionSubmissionInProgress) return
+        authoritativeTileConstructionSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Queue authoritative tile construction") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.queueConstructionAtTileIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    building.name,
+                    selectedTile.position.x,
+                    selectedTile.position.y,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeTileConstructionSubmissionInProgress = false
+                    ToastPopup("Could not submit tile construction: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Tile construction committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - construction was not queued", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeTileConstructionSubmissionInProgress = false
+                        ToastPopup("Server rejected tile construction: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeTileConstructionSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeTileConstructionSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before tile construction", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
 
     private fun tileWorkedIconDoubleClick(tileGroup: CityTileGroup, city: City) {
         if (!canChangeState || city.isPuppet || tileGroup.tileState != CityTileState.WORKABLE) return
@@ -537,8 +587,10 @@ class CityScreen(
             val improvement = pickTileData.improvement
             if (city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
                 
-                if (isAuthoritativeGame()) {
-                    ToastPopup("Tile-specific construction and purchases are not yet available for authoritative games", this)
+                if (isAuthoritativeGame() && pickTileData.isBuying) {
+                    ToastPopup("Tile-specific purchases are not yet available for authoritative games", this)
+                } else if (isAuthoritativeGame()) {
+                    submitAuthoritativeTileConstruction(pickTileData.building, tileInfo)
                 } else if (pickTileData.isBuying) {
                     BuyButtonFactory(this).askToBuyConstruction(pickTileData.building, pickTileData.buyStat, tileInfo)
                 } else {

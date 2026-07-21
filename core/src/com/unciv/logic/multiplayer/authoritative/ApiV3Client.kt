@@ -160,6 +160,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun queueConstructionAtTile(
+        gameId: String,
+        request: ApiV3QueueConstructionAtTileRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/queue-construction-at-tile") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setPerpetualConstruction(
         gameId: String,
         request: ApiV3SetPerpetualConstructionRequest,

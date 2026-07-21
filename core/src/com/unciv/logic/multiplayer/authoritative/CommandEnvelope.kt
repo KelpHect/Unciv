@@ -48,6 +48,13 @@ sealed interface GameCommand {
         val constructionName: String,
     ) : GameCommand
 
+    data class QueueConstructionAtTile(
+        val cityId: String,
+        val constructionName: String,
+        val x: Int,
+        val y: Int,
+    ) : GameCommand
+
     data class SetPerpetualConstruction(
         val cityId: String,
         val constructionName: String,

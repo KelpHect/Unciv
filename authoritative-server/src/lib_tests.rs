@@ -84,6 +84,38 @@ fn queue_construction_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn queue_construction_at_tile_contract_has_only_canonical_intent() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "queue_construction_at_tile",
+        "city_id": "city-1",
+        "construction_name": "Terrace Farm",
+        "x": 2,
+        "y": -1
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::QueueConstructionAtTile {
+            city_id: "city-1".to_owned(),
+            construction_name: "Terrace Farm".to_owned(),
+            x: 2,
+            y: -1,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "queue_construction_at_tile",
+            "city_id": "city-1",
+            "construction_name": "Terrace Farm",
+            "x": 2,
+            "y": -1,
+            "placement_is_legal": true
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn perpetual_construction_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_perpetual_construction",

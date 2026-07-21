@@ -1330,6 +1330,52 @@ cost/progress data. This milestone does not change the broader anti-cheat
 status: incomplete player projections and many other local gameplay mutation
 paths still prevent a cheat-resistant completion claim.
 
+## Authoritative tile-targeted construction
+
+Buildings with `CreatesOneImprovement` now use the distinct typed
+`QueueConstructionAtTile(cityId, constructionName, x, y)` command across the
+Kotlin client, Rust HTTP/OpenAPI boundary, PostgreSQL repository, private
+worker protocol, and shared headless engine. The request contains no actor or
+client legality flag. Rust derives civilization membership; the worker resolves
+the coordinate from canonical state, requires an owned current-turn city,
+rechecks constructability and shared placement rules, appends through
+`CityConstructions.addToQueue`, and verifies both the queue entry and canonical
+tile marker before proposing a revision.
+
+The explicitly opened v3 city screen retains the existing tile picker but
+submits the selected building and coordinate asynchronously without mutating
+its disposable `GameInfo`. Accepted/stale/rejected/lost-response outcomes use
+the existing reconciliation model. Tile-targeted purchases remain fail closed,
+while single-player, hotseat, and legacy multiplayer retain their existing
+local behavior.
+
+Focused verification covers the actorless closed wire shape, projected
+city/construction/coordinate gating, canonical marker placement, invalid-tile
+rejection, and the client/session compilation boundary. The Rust module review
+also moved worker wire contracts and typed intent records into focused
+`worker/protocol.rs`; `worker.rs` is now transport/execution focused at 664
+lines, and every Rust source module is below 800 lines (`main.rs` remains six
+lines and `lib.rs` 24).
+
+Verification used JDK 21 and the sole pinned PostgreSQL 19 Beta 2 digest:
+
+```text
+cargo fmt --manifest-path authoritative-server/Cargo.toml
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets --all-features
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+UNCIV_V3_DATABASE_URL=postgres://... cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+git diff --check
+```
+
+Rust passed 28 executable unit/API tests (plus eight intentionally gated
+database tests), formatting, generated-OpenAPI parity, and strict Clippy. The
+database lane passed all eight tests serially against
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`;
+the disposable container was stopped and removed. The complete JVM regression
+passed 790 tests (786 shared plus four server), with zero failures/errors and
+13 intentional skips.
+
 ## Authoritative construction purchases and Rust module boundaries
 
 Non-tile-targeted city purchases now cross the complete API-v3 authority

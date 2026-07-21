@@ -588,6 +588,10 @@ class AuthoritativeMultiplayerSessionTests {
                 current.canonicalStateHash,
             )
         }
+        override suspend fun queueConstructionAtTile(
+            gameId: String,
+            request: ApiV3QueueConstructionAtTileRequest,
+        ): ApiV3CommandAccepted = unsupported()
         override suspend fun setPerpetualConstruction(
             gameId: String,
             request: ApiV3SetPerpetualConstructionRequest,

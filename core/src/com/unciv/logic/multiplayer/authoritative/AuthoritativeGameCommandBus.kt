@@ -48,6 +48,16 @@ sealed interface PendingAuthoritativeCommand {
         val constructionName: String,
     ) : PendingAuthoritativeCommand
 
+    data class QueueConstructionAtTile(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+        val x: Int,
+        val y: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SetPerpetualConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -179,6 +189,27 @@ class AuthoritativeGameCommandBus(
             observedStateHash = current.canonicalStateHash,
             cityId = cityId,
             constructionName = constructionName,
+        ), current)
+    }
+
+    suspend fun queueConstructionAtTile(
+        cityId: String,
+        constructionName: String,
+        x: Int,
+        y: Int,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(constructionName in city.availableConstructions) {
+            "Construction is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
+            "Tile is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.QueueConstructionAtTile(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, constructionName, x, y,
         ), current)
     }
 
@@ -380,6 +411,13 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                         pending.cityId,
                         pending.constructionName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.QueueConstructionAtTile -> transport.queueConstructionAtTile(
+                    gameId,
+                    ApiV3QueueConstructionAtTileRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.constructionName, pending.x, pending.y,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetPerpetualConstruction -> transport.setPerpetualConstruction(

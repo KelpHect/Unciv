@@ -15,6 +15,12 @@ pub enum GameCommand {
         city_id: String,
         construction_name: String,
     },
+    QueueConstructionAtTile {
+        city_id: String,
+        construction_name: String,
+        x: i32,
+        y: i32,
+    },
     SetPerpetualConstruction {
         city_id: String,
         construction_name: String,

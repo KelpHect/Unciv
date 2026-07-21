@@ -180,6 +180,58 @@ impl PostgresGameRepository {
         self.commit(actor_account_id, envelope, proposal).await
     }
 
+    pub async fn execute_queue_construction_at_tile(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (city_id, construction_name, x, y) = match &envelope.command {
+            crate::GameCommand::QueueConstructionAtTile {
+                city_id,
+                construction_name,
+                x,
+                y,
+            } => (city_id.clone(), construction_name.clone(), *x, *y),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .queue_construction_at_tile(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                QueueConstructionAtTileIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id: &city_id,
+                    construction_name: &construction_name,
+                    x,
+                    y,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker QueueConstructionAtTile transport/protocol failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
     pub async fn execute_set_perpetual_construction(
         &self,
         worker: &EngineWorkerClient,

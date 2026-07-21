@@ -242,6 +242,41 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun queueConstructionAtTile(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+        coordinates: HexCoord,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Construction name is invalid"
+        }
+        val tile = game.tileMap.getOrNull(coordinates.x, coordinates.y)
+            ?: error("Tile coordinates are outside the canonical map")
+        val construction = city.cityConstructions.getConstruction(constructionName) as? Building
+            ?: error("Tile-specific construction is invalid")
+        val improvement = construction.getImprovementToCreate(city.getRuleset(), city.civ)
+            ?: error("Construction does not create a tile improvement")
+        require(city.cityConstructions.canAddToQueue(construction)) {
+            "Construction cannot be queued in the canonical game state"
+        }
+        require(city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tile)) {
+            "Construction improvement cannot be placed on this tile"
+        }
+        val previousQueueSize = city.cityConstructions.constructionQueue.size
+        city.cityConstructions.addToQueue(construction, tile = tile)
+        check(city.cityConstructions.constructionQueue.size == previousQueueSize + 1 &&
+            city.cityConstructions.constructionQueue.last() == constructionName) {
+            "Tile-specific construction was not queued"
+        }
+        check(tile.isMarkedForCreatesOneImprovement(improvement.name)) {
+            "Tile-specific construction marker was not committed"
+        }
+        return result(game)
+    }
+
     fun buyCityTile(
         game: GameInfo,
         actorCivilizationId: String,

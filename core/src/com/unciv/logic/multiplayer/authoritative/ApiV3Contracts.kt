@@ -115,6 +115,17 @@ data class ApiV3QueueConstructionRequest(
 )
 
 @Serializable
+data class ApiV3QueueConstructionAtTileRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    @SerialName("construction_name") val constructionName: String,
+    val x: Int,
+    val y: Int,
+)
+
+@Serializable
 data class ApiV3SetPerpetualConstructionRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

@@ -178,6 +178,22 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "cityId")]
         city_id: &'a str,
     },
+    SetAvoidGrowth {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        enabled: bool,
+    },
+    SetCitizenFocus {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        focus: crate::CitizenFocus,
+    },
     SetResearchPath {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -314,6 +330,16 @@ pub struct SetManualSpecialistsIntent<'a> {
 pub struct ResetCitizensIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,
+}
+pub struct SetAvoidGrowthIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub enabled: bool,
+}
+pub struct SetCitizenFocusIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub focus: crate::CitizenFocus,
 }
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,

@@ -6,6 +6,7 @@ import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
+import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.map.HexCoord
@@ -186,6 +187,22 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
         val cityId: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_avoid_growth")
+    data class SetAvoidGrowth(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val enabled: Boolean,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_citizen_focus")
+    data class SetCitizenFocus(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val focus: CitizenFocus,
     ) : WorkerOperation
 
     @Serializable @SerialName("set_research_path")
@@ -414,6 +431,26 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.cityId,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetAvoidGrowth -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setAvoidGrowth(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.enabled,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetCitizenFocus -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setCitizenFocus(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.focus,
                 )
                 responseForGame(engine, result.game)
             }

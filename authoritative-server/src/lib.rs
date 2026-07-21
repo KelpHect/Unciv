@@ -12,7 +12,7 @@ pub mod projection;
 pub mod worker;
 
 pub use command::{
-    CityTileAssignment, CommandAccepted, CommandEnvelope, CommitProposal, GameCommand,
+    CitizenFocus, CityTileAssignment, CommandAccepted, CommandEnvelope, CommitProposal, GameCommand,
 };
 pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};

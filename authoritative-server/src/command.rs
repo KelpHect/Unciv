@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use crate::projection::CitizenFocus;
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CityTileAssignment {
@@ -80,6 +82,14 @@ pub enum GameCommand {
     },
     ResetCitizens {
         city_id: String,
+    },
+    SetAvoidGrowth {
+        city_id: String,
+        enabled: bool,
+    },
+    SetCitizenFocus {
+        city_id: String,
+        focus: CitizenFocus,
     },
     SetResearchPath {
         technology_name: String,

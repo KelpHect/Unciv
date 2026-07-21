@@ -574,6 +574,14 @@ class AuthoritativeMultiplayerSessionTests {
             gameId: String,
             request: ApiV3ResetCitizensRequest,
         ) = unsupported()
+        override suspend fun setAvoidGrowth(
+            gameId: String,
+            request: ApiV3SetAvoidGrowthRequest,
+        ) = unsupported()
+        override suspend fun setCitizenFocus(
+            gameId: String,
+            request: ApiV3SetCitizenFocusRequest,
+        ) = unsupported()
         override suspend fun queueConstruction(
             gameId: String,
             request: ApiV3QueueConstructionRequest,

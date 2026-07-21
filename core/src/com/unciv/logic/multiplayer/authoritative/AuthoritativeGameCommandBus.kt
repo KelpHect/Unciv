@@ -150,6 +150,22 @@ sealed interface PendingAuthoritativeCommand {
         val cityId: String,
     ) : PendingAuthoritativeCommand
 
+    data class SetAvoidGrowth(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val enabled: Boolean,
+    ) : PendingAuthoritativeCommand
+
+    data class SetCitizenFocus(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val focus: CitizenFocus,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -433,6 +449,30 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setAvoidGrowth(cityId: String, enabled: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetAvoidGrowth(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, enabled,
+        ), current)
+    }
+
+    suspend fun setCitizenFocus(cityId: String, focus: CitizenFocus) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(focus in city.selectableCitizenFocuses) {
+            "Citizen focus is absent from the city's projected allowlist"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetCitizenFocus(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, focus,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -633,6 +673,20 @@ class AuthoritativeGameCommandBus(
                     ApiV3ResetCitizensRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetAvoidGrowth -> transport.setAvoidGrowth(
+                    gameId,
+                    ApiV3SetAvoidGrowthRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.enabled,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetCitizenFocus -> transport.setCitizenFocus(
+                    gameId,
+                    ApiV3SetCitizenFocusRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.focus,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

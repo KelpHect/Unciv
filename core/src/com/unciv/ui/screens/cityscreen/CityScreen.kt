@@ -8,9 +8,11 @@ import com.unciv.GUI
 import com.unciv.UncivGame
 import com.unciv.logic.automation.Automation
 import com.unciv.logic.city.City
+import com.unciv.logic.city.CityFocus
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
+import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
@@ -631,6 +633,70 @@ class CityScreen(
                     null -> {
                         authoritativeCitizenManagementSubmissionInProgress = false
                         ToastPopup("Authoritative game was closed before citizen reset", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
+    internal fun submitAuthoritativeAvoidGrowth(enabled: Boolean) =
+        submitAuthoritativeCitizenPolicy("growth policy") {
+            game.onlineMultiplayer.authoritativeSession?.setAvoidGrowthIfOpen(
+                city.civ.gameInfo.gameId,
+                city.id,
+                enabled,
+            )
+        }
+
+    internal fun submitAuthoritativeCitizenFocus(focus: CityFocus) =
+        submitAuthoritativeCitizenPolicy("citizen focus") {
+            game.onlineMultiplayer.authoritativeSession?.setCitizenFocusIfOpen(
+                city.civ.gameInfo.gameId,
+                city.id,
+                CitizenFocus.valueOf(focus.name),
+            )
+        }
+
+    private fun submitAuthoritativeCitizenPolicy(
+        description: String,
+        submit: suspend () -> AuthoritativeCommandOutcome?,
+    ) {
+        if (authoritativeCitizenManagementSubmissionInProgress) return
+        authoritativeCitizenManagementSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Set authoritative $description") {
+            val outcome = try {
+                submit()
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeCitizenManagementSubmissionInProgress = false
+                    ToastPopup("Could not submit $description: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("${description.replaceFirstChar { it.uppercase() }} committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - $description was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Server rejected $description: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeCitizenManagementSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before $description", this@CityScreen)
                     }
                 }
             }

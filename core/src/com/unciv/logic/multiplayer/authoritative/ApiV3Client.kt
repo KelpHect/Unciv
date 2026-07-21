@@ -259,6 +259,24 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setAvoidGrowth(
+        gameId: String,
+        request: ApiV3SetAvoidGrowthRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-avoid-growth") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun setCitizenFocus(
+        gameId: String,
+        request: ApiV3SetCitizenFocusRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-citizen-focus") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setResearchPath(
         gameId: String,
         request: ApiV3SetResearchPathRequest,

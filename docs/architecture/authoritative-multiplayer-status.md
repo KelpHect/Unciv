@@ -1354,6 +1354,44 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative citizen growth and focus policies
+
+`SetAvoidGrowth(cityId, enabled)` and `SetCitizenFocus(cityId, focus)` now cross
+the complete API-v3 boundary. Requests carry only the typed policy intent plus
+revision/idempotency metadata; Rust derives the actor from the authenticated
+membership and commits only the Kotlin worker's canonical result. The worker
+validates current-turn city ownership, rejects puppet/resistance mutation,
+checks focus selectability and religion compatibility, and runs the shared
+population reassignment rules.
+
+For explicitly opened v3 games, the Avoid Growth and every Citizen Focus
+control submit through the authoritative session and never mutate the local
+city. The command bus binds the city to the player projection and accepts only
+focuses in projection v8's server-produced allowlist. Local, hotseat, saved-
+game, legacy multiplayer, and API-v2 behavior is unchanged.
+
+Rust keeps this work in the existing focused `api/city_population.rs`,
+`postgres/city_population.rs`, and `worker/city_population.rs` modules.
+`main.rs` remains six lines, and every Rust source file remains below 800 lines;
+the largest is `postgres/commands.rs` at 779 lines.
+
+Verification passed 27 active Rust library tests, all seven HTTP/OpenAPI tests,
+generated-contract parity, formatting, strict all-target/all-feature Clippy
+with warnings denied, the canonical Kotlin engine policy test, command-bus
+projection gating and wire-shape tests, and `git diff --check`. All eight
+database integration tests passed serially against the pinned PostgreSQL 19
+Beta 2 digest on port 55474, after which the disposable container was stopped
+and removed. The complete JDK 21 regression passed 804 shared tests and four
+server tests with zero failures/errors and 13 intentional skips:
+
+```text
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55474/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Projection v8 citizen-policy foundation
 
 Projection v8 adds each owned city's canonical `avoidGrowth`, current

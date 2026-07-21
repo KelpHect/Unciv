@@ -392,6 +392,45 @@ fn reset_citizens_contract_contains_only_the_city_id() {
 }
 
 #[test]
+fn citizen_policy_contracts_are_typed_and_closed() {
+    let avoid: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_avoid_growth", "city_id": "city-1", "enabled": true
+    }))
+    .unwrap();
+    assert_eq!(
+        avoid,
+        GameCommand::SetAvoidGrowth {
+            city_id: "city-1".to_owned(),
+            enabled: true,
+        }
+    );
+    let focus: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_citizen_focus", "city_id": "city-1", "focus": "gold_focus"
+    }))
+    .unwrap();
+    assert_eq!(
+        focus,
+        GameCommand::SetCitizenFocus {
+            city_id: "city-1".to_owned(),
+            focus: crate::CitizenFocus::GoldFocus,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_citizen_focus", "city_id": "city-1", "focus": "omniscient"
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_avoid_growth", "city_id": "city-1", "enabled": true,
+            "population": 99
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

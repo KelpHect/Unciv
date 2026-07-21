@@ -79,6 +79,55 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun citizenPolicyRequestsContainOnlyTypedPolicyInputs() {
+        val avoid = Json.encodeToString(
+            ApiV3SetAvoidGrowthRequest.serializer(),
+            ApiV3SetAvoidGrowthRequest("command", 7, "hash", "city-1", true),
+        )
+        val focus = Json.encodeToString(
+            ApiV3SetCitizenFocusRequest.serializer(),
+            ApiV3SetCitizenFocusRequest("command", 7, "hash", "city-1", CitizenFocus.GoldFocus),
+        )
+        assertTrue(avoid.contains("\"enabled\":true"))
+        assertTrue(focus.contains("\"focus\":\"gold_focus\""))
+        assertTrue(!avoid.contains("population") && !focus.contains("actor"))
+    }
+
+    @Test
+    fun citizenPoliciesAreBoundToTheProjectedCityAndFocusAllowlist() = runBlocking {
+        val initial = projection(
+            7, "hash-7", cityQueue = emptyList(),
+            selectableCitizenFocuses = listOf(CitizenFocus.NoFocus, CitizenFocus.GoldFocus),
+        )
+        val afterGrowth = projection(
+            8, "hash-8", cityQueue = emptyList(), avoidGrowth = true,
+            selectableCitizenFocuses = initial.projection.ownCities.single().selectableCitizenFocuses,
+        )
+        val afterFocus = projection(
+            9, "hash-9", cityQueue = emptyList(), avoidGrowth = true,
+            citizenFocus = CitizenFocus.GoldFocus,
+            selectableCitizenFocuses = initial.projection.ownCities.single().selectableCitizenFocuses,
+        )
+        val transport = FakeTransport(initial).apply {
+            onSetAvoidGrowth = { request ->
+                current = afterGrowth
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+            onSetCitizenFocus = { request ->
+                current = afterFocus
+                accepted(request.commandId, 8, 9, "hash-9")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "policy-command" }
+        bus.refresh()
+
+        assertTrue(bus.setAvoidGrowth("city-1", true) is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(bus.setCitizenFocus("city-1", CitizenFocus.GoldFocus) is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(true, transport.avoidGrowthRequests.single().enabled)
+        assertEquals(CitizenFocus.GoldFocus, transport.citizenFocusRequests.single().focus)
+    }
+
+    @Test
     fun cityTileAssignmentIsBoundToTheProjectedCityTile() = runBlocking {
         val tile = ProjectedCityTile(2, -1, worked = true, locked = false)
         val initial = projection(7, "hash-7", cityQueue = emptyList(), assignableTiles = listOf(tile))
@@ -535,6 +584,9 @@ class AuthoritativeGameCommandBusTests {
         exploredTiles: List<ProjectedTileVisibility> = emptyList(),
         assignableTiles: List<ProjectedCityTile> = emptyList(),
         specialists: List<ProjectedSpecialist> = emptyList(),
+        avoidGrowth: Boolean = false,
+        citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
+        selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -562,6 +614,9 @@ class AuthoritativeGameCommandBusTests {
                 availableConstructions = availableConstructions,
                 assignableTiles = assignableTiles,
                 specialists = specialists,
+                avoidGrowth = avoidGrowth,
+                citizenFocus = citizenFocus,
+                selectableCitizenFocuses = selectableCitizenFocuses,
             )),
             ownUnits = emptyList(),
             exploredTiles = exploredTiles,
@@ -594,6 +649,8 @@ class AuthoritativeGameCommandBusTests {
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
         val resetCitizenRequests = mutableListOf<ApiV3ResetCitizensRequest>()
+        val avoidGrowthRequests = mutableListOf<ApiV3SetAvoidGrowthRequest>()
+        val citizenFocusRequests = mutableListOf<ApiV3SetCitizenFocusRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -634,6 +691,12 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onResetCitizens: suspend (ApiV3ResetCitizensRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetAvoidGrowth: suspend (ApiV3SetAvoidGrowthRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetCitizenFocus: suspend (ApiV3SetCitizenFocusRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -754,6 +817,20 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             resetCitizenRequests += request
             return onResetCitizens(request)
+        }
+        override suspend fun setAvoidGrowth(
+            gameId: String,
+            request: ApiV3SetAvoidGrowthRequest,
+        ): ApiV3CommandAccepted {
+            avoidGrowthRequests += request
+            return onSetAvoidGrowth(request)
+        }
+        override suspend fun setCitizenFocus(
+            gameId: String,
+            request: ApiV3SetCitizenFocusRequest,
+        ): ApiV3CommandAccepted {
+            citizenFocusRequests += request
+            return onSetCitizenFocus(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

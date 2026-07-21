@@ -140,6 +140,16 @@ sealed interface GameCommand {
 
     data class ResetCitizens(val cityId: String) : GameCommand
 
+    data class SetAvoidGrowth(
+        val cityId: String,
+        val enabled: Boolean,
+    ) : GameCommand
+
+    data class SetCitizenFocus(
+        val cityId: String,
+        val focus: CitizenFocus,
+    ) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

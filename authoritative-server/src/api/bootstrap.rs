@@ -122,6 +122,14 @@ pub(crate) async fn run() {
             post(reset_citizens),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-avoid-growth",
+            post(set_avoid_growth),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/set-citizen-focus",
+            post(set_citizen_focus),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-research-path",
             post(set_research_path),
         )

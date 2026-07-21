@@ -497,6 +497,50 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setAvoidGrowthIfOpen(
+        gameId: String,
+        cityId: String,
+        enabled: Boolean,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetAvoidGrowth &&
+                    current.pending.cityId == cityId && current.pending.enabled == enabled) {
+                    "Resolve the pending authoritative command before changing growth policy"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setAvoidGrowth(cityId, enabled)
+            else -> {
+                bus.refresh()
+                bus.setAvoidGrowth(cityId, enabled)
+            }
+        }
+    }
+
+    suspend fun setCitizenFocusIfOpen(
+        gameId: String,
+        cityId: String,
+        focus: CitizenFocus,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetCitizenFocus &&
+                    current.pending.cityId == cityId && current.pending.focus == focus) {
+                    "Resolve the pending authoritative command before changing citizen focus"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setCitizenFocus(cityId, focus)
+            else -> {
+                bus.refresh()
+                bus.setCitizenFocus(cityId, focus)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

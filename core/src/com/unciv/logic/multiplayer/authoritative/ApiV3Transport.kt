@@ -29,6 +29,8 @@ interface ApiV3Transport {
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted
     suspend fun resetCitizens(gameId: String, request: ApiV3ResetCitizensRequest): ApiV3CommandAccepted
+    suspend fun setAvoidGrowth(gameId: String, request: ApiV3SetAvoidGrowthRequest): ApiV3CommandAccepted
+    suspend fun setCitizenFocus(gameId: String, request: ApiV3SetCitizenFocusRequest): ApiV3CommandAccepted
     suspend fun setResearchPath(gameId: String, request: ApiV3SetResearchPathRequest): ApiV3CommandAccepted
     suspend fun adoptPolicy(gameId: String, request: ApiV3AdoptPolicyRequest): ApiV3CommandAccepted
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted

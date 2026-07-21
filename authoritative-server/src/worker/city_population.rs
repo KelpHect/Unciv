@@ -1,6 +1,52 @@
 use super::*;
 
 impl EngineWorkerClient {
+    pub async fn set_avoid_growth(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetAvoidGrowthIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetAvoidGrowth {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    enabled: intent.enabled,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
+    pub async fn set_citizen_focus(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: SetCitizenFocusIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::SetCitizenFocus {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    focus: intent.focus,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn reset_citizens(
         &self,
         actor_id: &str,

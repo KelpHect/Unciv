@@ -94,6 +94,10 @@ pub(crate) async fn run() {
             post(set_unit_posture),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/disband-unit",
+            post(disband_unit),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/swap-units",
             post(swap_units),
         )

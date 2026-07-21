@@ -10,6 +10,7 @@ mod games;
 mod notifications;
 mod openapi;
 mod state;
+mod unit_actions;
 mod unit_movement;
 mod unit_orders;
 
@@ -20,6 +21,7 @@ use commands::*;
 use game_helpers::*;
 pub(super) use games::*;
 pub(super) use notifications::*;
+use unit_actions::*;
 use unit_movement::*;
 use unit_orders::*;
 

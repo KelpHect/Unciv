@@ -95,6 +95,13 @@ pub(super) enum WorkerOperation<'a> {
         unit_id: i32,
         posture: UnitPosture,
     },
+    DisbandUnit {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+    },
     SwapUnits {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -330,6 +337,10 @@ pub struct SetUnitPostureIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub posture: UnitPosture,
+}
+pub struct DisbandUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
 }
 pub struct SwapUnitsIntent<'a> {
     pub actor_civilization_id: &'a str,

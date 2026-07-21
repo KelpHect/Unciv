@@ -74,6 +74,13 @@ sealed interface PendingAuthoritativeCommand {
         val posture: UnitPosture,
     ) : PendingAuthoritativeCommand
 
+    data class DisbandUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -348,6 +355,16 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.SetUnitPosture(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, posture,
+        ), current)
+    }
+
+    suspend fun disbandUnit(unitId: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.DisbandUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
         ), current)
     }
 
@@ -753,6 +770,14 @@ class AuthoritativeGameCommandBus(
                         ApiV3SetUnitPostureRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.posture,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.DisbandUnit ->
+                    transport.disbandUnit(
+                        gameId,
+                        ApiV3DisbandUnitRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

@@ -241,11 +241,7 @@ object UnitActions {
                         "Disband this unit for [${unit.baseUnit.getDisbandGold(unit.civ)}] gold?".tr()
                     else "Do you really want to disband this unit?".tr()
                     ConfirmPopup(worldScreen, disbandText, "Disband unit") {
-                        unit.disband()
-                        unit.civ.updateStatsForNextTurn() // less upkeep!
-                        GUI.setUpdateWorldOnNextRender()
-                        if (GUI.getSettings().autoUnitCycle)
-                            worldScreen.switchToNextUnit()
+                        GUI.getMap().disbandUnit(unit)
                     }.open()
                 }
             }.takeIf { unit.hasMovement() }

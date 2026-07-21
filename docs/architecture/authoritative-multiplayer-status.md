@@ -2009,3 +2009,54 @@ server tests with zero failures/errors and 13 intentional skips:
 ```text
 .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
 ```
+
+## Authoritative unit disbanding
+
+Unit disbanding now crosses the complete API-v3 authority boundary through the
+typed `DisbandUnit(unitId)` command. The client request carries no actor,
+civilization, gold value, ownership claim, transport result, or defeat result.
+Rust derives membership and commits only the private Kotlin worker proposal;
+the shared engine validates the canonical current turn, ownership, and
+movement before calling `MapUnit.disband()`.
+
+All consequential logic therefore remains server-owned: transported units are
+evacuated or destroyed by shared movement rules, gold is derived from canonical
+tile ownership and the pinned unit/ruleset, upkeep statistics are refreshed,
+and civilization defeat is evaluated from canonical state. Deterministic tests
+apply the command twice from the same real server-created snapshot and compare
+hashes, while authorization tests reject a foreign account and an out-of-turn
+owner without mutation.
+
+For explicitly opened v3 games, the existing confirmation popup submits the
+command through the session/command bus and never calls client-side
+`MapUnit.disband()`. Local, hotseat, saved-game, legacy multiplayer, and
+unrelated API-v2 paths preserve the existing direct behavior. Reconciliation
+removes the unit from the owner's projection after the committed revision.
+
+The Rust implementation uses new focused `api/unit_actions.rs`,
+`postgres/unit_actions.rs`, and `worker/unit_actions.rs` modules. `main.rs`
+remains six lines, and every Rust source file remains below 800 lines (largest:
+`lib_tests.rs`, 741 lines).
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 34 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated authoritative-server/openapi/api-v3.json; parity test passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55482/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml --all-targets -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 831 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name, then stopped and removed.
+The multiplayer client remains a rendering/input/projection cache rather than
+an authority; AI civilizations and turn processing already execute in the
+server worker, while the remaining coverage gaps are still tracked explicitly.

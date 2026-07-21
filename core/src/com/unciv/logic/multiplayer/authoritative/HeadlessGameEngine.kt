@@ -35,6 +35,31 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Disbands one owned unit while the shared engine derives transport,
+     * treasury, upkeep, and defeat consequences from canonical state. */
+    fun disbandUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot disband a unit outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(unit.hasMovement()) { "Unit has no movement available to disband" }
+
+        unit.disband()
+        actorCivilization.updateStatsForNextTurn()
+        check(actorCivilization.units.getUnitById(unitId) == null) {
+            "Disbanded unit remained in canonical state"
+        }
+        return result(game)
+    }
+
     /** Assigns the authenticated actor to the first canonical unclaimed major
      * civilization. Selection is server deterministic and accepts no client
      * civilization input. The control plane restricts joining to revision 0. */

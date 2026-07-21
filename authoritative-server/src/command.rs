@@ -51,6 +51,9 @@ pub enum GameCommand {
         unit_id: i32,
         posture: UnitPosture,
     },
+    DisbandUnit {
+        unit_id: i32,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

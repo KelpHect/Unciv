@@ -312,6 +312,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitDisbandRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.disbandUnitIfOpen(GAME_ID, 42))
+        session.openGame(GAME_ID)
+        val outcome = session.disbandUnitIfOpen(GAME_ID, 42)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(42), transport.disbandedUnits)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -653,6 +672,7 @@ class AuthoritativeMultiplayerSessionTests {
         val explorationOrders = mutableListOf<Pair<Int, Boolean>>()
         val automationOrders = mutableListOf<Pair<Int, Boolean>>()
         val postureOrders = mutableListOf<Pair<Int, UnitPosture>>()
+        val disbandedUnits = mutableListOf<Int>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -824,6 +844,24 @@ class AuthoritativeMultiplayerSessionTests {
                     ownUnits = current.projection.ownUnits.map { unit ->
                         if (unit.id == request.unitId) unit.copy(posture = request.posture) else unit
                     },
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun disbandUnit(
+            gameId: String,
+            request: ApiV3DisbandUnitRequest,
+        ): ApiV3CommandAccepted {
+            disbandedUnits += request.unitId
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownUnits = current.projection.ownUnits.filterNot { it.id == request.unitId },
                 ),
             )
             return ApiV3CommandAccepted(

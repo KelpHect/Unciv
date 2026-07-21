@@ -11,6 +11,7 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.*
 import com.unciv.UncivGame
+import com.unciv.GUI
 import com.unciv.logic.battle.Battle
 import com.unciv.logic.battle.MapUnitCombatant
 import com.unciv.logic.battle.TargetHelper
@@ -585,6 +586,23 @@ class WorldMapHolder(
         submitAuthoritativeUnitCommand("unit posture", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.setUnitPostureIfOpen(worldScreen.gameInfo.gameId, unit.id, posture)
+        }) {
+            removeUnitActionOverlay()
+        }
+    }
+
+    internal fun disbandUnit(unit: MapUnit) {
+        if (!isAuthoritativeGame()) {
+            unit.disband()
+            unit.civ.updateStatsForNextTurn()
+            GUI.setUpdateWorldOnNextRender()
+            if (GUI.getSettings().autoUnitCycle)
+                worldScreen.switchToNextUnit()
+            return
+        }
+        submitAuthoritativeUnitCommand("unit disband", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.disbandUnitIfOpen(worldScreen.gameInfo.gameId, unit.id)
         }) {
             removeUnitActionOverlay()
         }

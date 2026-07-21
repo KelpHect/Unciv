@@ -91,6 +91,8 @@ sealed interface GameCommand {
 
     data class SetUnitPosture(val unitId: Int, val posture: UnitPosture) : GameCommand
 
+    data class DisbandUnit(val unitId: Int) : GameCommand
+
     data class SwapUnits(
         val unitId: Int,
         val destinationX: Int,

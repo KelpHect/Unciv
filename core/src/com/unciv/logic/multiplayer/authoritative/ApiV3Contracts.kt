@@ -151,6 +151,14 @@ data class ApiV3SetUnitPostureRequest(
 )
 
 @Serializable
+data class ApiV3DisbandUnitRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+)
+
+@Serializable
 data class ApiV3SwapUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

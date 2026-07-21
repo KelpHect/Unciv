@@ -36,6 +36,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/set-unit-exploration",
         "/api/v3/games/{game_id}/commands/set-unit-automation",
         "/api/v3/games/{game_id}/commands/set-unit-posture",
+        "/api/v3/games/{game_id}/commands/disband-unit",
         "/api/v3/games/{game_id}/commands/swap-units",
         "/api/v3/games/{game_id}/commands/queue-construction",
         "/api/v3/games/{game_id}/commands/queue-construction-at-tile",
@@ -89,6 +90,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "SetUnitExplorationRequest",
         "SetUnitAutomationRequest",
         "SetUnitPostureRequest",
+        "DisbandUnitRequest",
         "SwapUnitsRequest",
         "QueueConstructionRequest",
         "QueueConstructionAtTileRequest",
@@ -152,6 +154,7 @@ async fn capabilities_forbid_whole_state_uploads() {
             .contains(&"purchase_construction_at_tile")
     );
     assert!(response.0.commands.contains(&"buy_city_tile"));
+    assert!(response.0.commands.contains(&"disband_unit"));
     assert!(response.0.commands.contains(&"set_research_path"));
     assert!(response.0.commands.contains(&"adopt_policy"));
     assert!(response.0.commands.contains(&"choose_free_technology"));

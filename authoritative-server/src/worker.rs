@@ -14,12 +14,13 @@ use crate::CommitProposal;
 
 mod city_population;
 mod protocol;
+mod unit_actions;
 mod unit_movement;
 mod unit_orders;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, CancelUnitMovementOrderIntent,
-    ChooseFreeTechnologyIntent, CreatedGame, MoveConstructionIntent, MoveUnitIntent,
-    MoveUnitTowardIntent, ProjectedState, PurchaseConstructionAtTileIntent,
+    ChooseFreeTechnologyIntent, CreatedGame, DisbandUnitIntent, MoveConstructionIntent,
+    MoveUnitIntent, MoveUnitTowardIntent, ProjectedState, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,

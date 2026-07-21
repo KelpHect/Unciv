@@ -22,6 +22,7 @@ interface ApiV3Transport {
     suspend fun setUnitExploration(gameId: String, request: ApiV3SetUnitExplorationRequest): ApiV3CommandAccepted
     suspend fun setUnitAutomation(gameId: String, request: ApiV3SetUnitAutomationRequest): ApiV3CommandAccepted
     suspend fun setUnitPosture(gameId: String, request: ApiV3SetUnitPostureRequest): ApiV3CommandAccepted
+    suspend fun disbandUnit(gameId: String, request: ApiV3DisbandUnitRequest): ApiV3CommandAccepted
     suspend fun swapUnits(gameId: String, request: ApiV3SwapUnitsRequest): ApiV3CommandAccepted
     suspend fun queueConstruction(gameId: String, request: ApiV3QueueConstructionRequest): ApiV3CommandAccepted
     suspend fun queueConstructionAtTile(gameId: String, request: ApiV3QueueConstructionAtTileRequest): ApiV3CommandAccepted

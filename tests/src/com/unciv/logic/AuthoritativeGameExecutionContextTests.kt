@@ -389,6 +389,54 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun unitDisbandIsCanonicalDeterministicAndDerivesGoldOnTheServer() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits().first { it.isMilitary() }
+        civilization.addCity(unit.getTile().position)
+        val unitId = unit.id
+        val expectedGold = unit.baseUnit.getDisbandGold(civilization)
+        val initialGold = civilization.gold
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.disbandUnit(
+            engine.loadSnapshot(snapshot), civilization.civName, unitId,
+        )
+        val second = engine.disbandUnit(
+            engine.loadSnapshot(snapshot), civilization.civName, unitId,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertEquals(
+            initialGold + expectedGold,
+            first.game.getCivilization(civilization.civName).gold,
+        )
+        Assert.assertEquals(
+            null,
+            first.game.getCivilization(civilization.civName).units.getUnitById(unitId),
+        )
+        Assert.assertTrue(engine.playerProjection(first.game, civilization.civName).ownUnits
+            .none { it.id == unitId })
+    }
+
+    @Test
+    fun unitDisbandRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val unitId = game.getCivilization("Rome").units.getCivUnits().first().id
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.disbandUnit(game, "Rome", unitId)
+        }
+        ownerEngine.endTurn(game, "Rome")
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.disbandUnit(game, "Rome", unitId)
+        }
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)

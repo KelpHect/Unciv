@@ -166,6 +166,16 @@ fn set_unit_posture_contract_uses_a_closed_enum() {
 }
 
 #[test]
+fn disband_unit_contract_contains_only_the_stable_unit_id() {
+    let command = GameCommand::DisbandUnit { unit_id: 42 };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"unit_id\":42"));
+    assert!(!serialized.contains("gold"));
+    assert!(!serialized.contains("actor"));
+    assert!(!serialized.contains("civilization"));
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

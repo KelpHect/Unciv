@@ -10,7 +10,7 @@ pub(super) struct HealthResponse {
 pub(super) struct CapabilitiesResponse {
     pub(super) protocol_version: u16,
     pub(super) projection_version: u16,
-    pub(super) commands: [&'static str; 26],
+    pub(super) commands: [&'static str; 27],
     pub(super) whole_state_upload: bool,
     pub(super) websocket_notifications: bool,
 }
@@ -149,6 +149,15 @@ pub(super) struct SetUnitPostureRequest {
     pub(super) client_observed_state_hash: Option<String>,
     pub(super) unit_id: i32,
     pub(super) posture: unciv_authoritative_server::UnitPosture,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct DisbandUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
 }
 
 #[derive(Deserialize, ToSchema)]

@@ -841,6 +841,67 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun paradropIsCanonicalDeterministicAndConsumesServerDerivedActionState() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val origin = civilization.units.getCivUnits().first { it.isCivilian() }.currentTile
+        val city = civilization.addCity(origin.position)
+        val unit = civilization.units.addUnit("Paratrooper", city)!!
+        civilization.cache.updateViewableTiles()
+        val destination = origin.getTilesAtDistance(2).first { it.isLand && it.militaryUnit == null }
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.paradropUnit(
+            engine.loadSnapshot(snapshot), civilization.civName, unit.id,
+            destination.position.x, destination.position.y,
+        )
+        val second = engine.paradropUnit(
+            engine.loadSnapshot(snapshot), civilization.civName, unit.id,
+            destination.position.x, destination.position.y,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val dropped = first.game.getCivilization(civilization.civName).units.getUnitById(unit.id)!!
+        Assert.assertEquals(destination.position, dropped.currentTile.position)
+        Assert.assertEquals(1, dropped.attacksThisTurn)
+        Assert.assertTrue(dropped.currentMovement < dropped.getMaxMovement().toFloat())
+    }
+
+    @Test
+    fun paradropRejectsForeignActorsOutOfTurnUnitsAndIllegalDestinations() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val origin = civilization.units.getCivUnits().first { it.isCivilian() }.currentTile
+        val city = civilization.addCity(origin.position)
+        val unit = civilization.units.addUnit("Paratrooper", city)!!
+        civilization.cache.updateViewableTiles()
+        val destination = origin.getTilesAtDistance(6).first()
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.paradropUnit(
+                game, civilization.civName, unit.id,
+                destination.position.x, destination.position.y,
+            )
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.paradropUnit(
+                game, civilization.civName, unit.id,
+                destination.position.x, destination.position.y,
+            )
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.paradropUnit(
+                game, civilization.civName, unit.id,
+                origin.position.x, origin.position.y,
+            )
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

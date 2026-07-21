@@ -223,6 +223,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun paradropUnit(
+        gameId: String,
+        request: ApiV3ParadropUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/paradrop-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

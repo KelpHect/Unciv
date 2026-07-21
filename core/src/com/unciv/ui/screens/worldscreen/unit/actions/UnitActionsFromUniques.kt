@@ -8,6 +8,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.map.mapunit.MapUnit
+import com.unciv.logic.map.mapunit.actions.UnitParadrop
 import com.unciv.logic.map.mapunit.actions.UnitCityFounding
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.logic.map.tile.RoadStatus
@@ -144,23 +145,14 @@ object UnitActionsFromUniques {
     }
 
     internal fun getParadropActions(unit: MapUnit, tile: Tile): Sequence<UnitAction> {
-        unit.cache.paradropDestinationTileFilters.clear()
-
         // Retrieve all parardrop uniques, considering the state of the unit
         val paradropUniques = unit.getMatchingUniques(UniqueType.MayParadrop, unit.cache.state)
         var useFrequency = 0f
 
         // Construct the list of possible destination tile filters, keeping the largest distance
-        for (unique in paradropUniques) {
-            val tileFilter = unique.params[0]
-            val distance = unique.params[1].toInt()
-            val existingDistance = unit.cache.paradropDestinationTileFilters[tileFilter]
-            if (existingDistance == null || distance > existingDistance) {
-                unit.cache.paradropDestinationTileFilters[tileFilter] = distance
-                useFrequency = getUseFrequency(unit, unique, 60f)
-            }
-        }
-        if (unit.cache.paradropDestinationTileFilters.isEmpty()) return emptySequence()
+        for (unique in paradropUniques)
+            useFrequency = getUseFrequency(unit, unique, 60f)
+        if (!UnitParadrop.rebuildDestinationFilters(unit)) return emptySequence()
 
         return sequenceOf(UnitAction(UnitActionType.Paradrop,
             isCurrentAction = unit.isPreparingParadrop(),

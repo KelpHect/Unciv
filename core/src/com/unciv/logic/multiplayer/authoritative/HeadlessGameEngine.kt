@@ -11,6 +11,7 @@ import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapPathing
 import com.unciv.logic.map.mapunit.actions.UnitPillage
 import com.unciv.logic.map.mapunit.actions.UnitCityFounding
+import com.unciv.logic.map.mapunit.actions.UnitParadrop
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
@@ -108,6 +109,31 @@ class HeadlessGameEngine(
             ?: error("Unit cannot found a city on its canonical current tile")
         check(city.civ == actorCivilization && city.getCenterTile().position == foundingLocation) {
             "Founded city did not match canonical actor and location"
+        }
+        return result(game)
+    }
+
+    /** Paradrops one owned unit while the worker derives capability, range,
+     * visibility, terrain, occupancy, movement cost, and attack state. */
+    fun paradropUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        destinationX: Int,
+        destinationY: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot paradrop outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val destination = game.tileMap.getIfTileExistsOrNull(destinationX, destinationY)
+            ?: error("Paradrop destination is outside the canonical map")
+        require(UnitParadrop.paradrop(unit, destination)) {
+            "Unit cannot paradrop to the requested canonical destination"
         }
         return result(game)
     }

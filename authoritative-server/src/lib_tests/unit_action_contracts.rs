@@ -161,6 +161,25 @@ fn found_city_contract_contains_only_the_stable_unit_id() {
 }
 
 #[test]
+fn paradrop_unit_contract_contains_only_intent_coordinates() {
+    let serialized = serde_json::to_value(GameCommand::ParadropUnit {
+        unit_id: 42,
+        destination_x: 3,
+        destination_y: -2,
+    })
+    .unwrap();
+    assert_eq!(
+        serialized,
+        serde_json::json!({
+            "type": "paradrop_unit",
+            "unit_id": 42,
+            "destination_x": 3,
+            "destination_y": -2,
+        })
+    );
+}
+
+#[test]
 fn upgrade_units_contract_excludes_cost_resources_and_actor() {
     let command = GameCommand::UpgradeUnits {
         unit_ids: vec![42, 43],

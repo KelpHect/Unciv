@@ -307,6 +307,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun paradropUnitIfOpen(
+        gameId: String,
+        unitId: Int,
+        destinationX: Int,
+        destinationY: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ParadropUnit &&
+                    current.pending.unitId == unitId &&
+                    current.pending.destinationX == destinationX &&
+                    current.pending.destinationY == destinationY) {
+                    "Resolve the pending authoritative command before another paradrop"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.paradropUnit(unitId, destinationX, destinationY)
+            else -> {
+                bus.refresh()
+                bus.paradropUnit(unitId, destinationX, destinationY)
+            }
+        }
+    }
+
     suspend fun upgradeUnitsIfOpen(
         gameId: String,
         unitIds: List<Int>,

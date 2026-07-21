@@ -60,6 +60,11 @@ pub enum GameCommand {
     FoundCity {
         unit_id: i32,
     },
+    ParadropUnit {
+        unit_id: i32,
+        destination_x: i32,
+        destination_y: i32,
+    },
     UpgradeUnits {
         unit_ids: Vec<i32>,
         target_unit_name: String,

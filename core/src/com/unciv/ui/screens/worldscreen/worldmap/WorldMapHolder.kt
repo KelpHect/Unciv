@@ -386,10 +386,22 @@ class WorldMapHolder(
         destinationThisTurn: Tile,
     ) {
         val selectedUnit = selectedUnits.first()
+        val isParadrop = selectedUnit.isPreparingParadrop()
         val isMultiTurnOrder = destinationThisTurn != requestedTarget
-        val description = if (isMultiTurnOrder) "unit movement order" else "unit move"
+        val description = when {
+            isParadrop -> "unit paradrop"
+            isMultiTurnOrder -> "unit movement order"
+            else -> "unit move"
+        }
         submitAuthoritativeUnitCommand(description, submit = {
-            if (isMultiTurnOrder)
+            if (isParadrop)
+                worldScreen.game.onlineMultiplayer.authoritativeSession?.paradropUnitIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    selectedUnit.id,
+                    destinationThisTurn.position.x,
+                    destinationThisTurn.position.y,
+                )
+            else if (isMultiTurnOrder)
                 worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitTowardIfOpen(
                     worldScreen.gameInfo.gameId,
                     selectedUnit.id,

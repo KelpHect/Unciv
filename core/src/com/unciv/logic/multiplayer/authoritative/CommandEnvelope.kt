@@ -97,6 +97,12 @@ sealed interface GameCommand {
 
     data class FoundCity(val unitId: Int) : GameCommand
 
+    data class ParadropUnit(
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
+    ) : GameCommand
+
     data class UpgradeUnits(
         val unitIds: List<Int>,
         val targetUnitName: String,

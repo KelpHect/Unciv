@@ -1048,6 +1048,10 @@ class AuthoritativeMultiplayerSessionTests {
                 current.committedRevision, current.canonicalStateHash,
             )
         }
+        override suspend fun paradropUnit(
+            gameId: String,
+            request: ApiV3ParadropUnitRequest,
+        ): ApiV3CommandAccepted = error("Paradrop is not used by this session fixture")
         override suspend fun upgradeUnits(
             gameId: String,
             request: ApiV3UpgradeUnitsRequest,

@@ -263,6 +263,40 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun paradropRequestContainsOnlyUnitAndVisibleDestinationIntent() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Paratrooper", 0, 0, 100, 2f)
+        val initial = projection(7, "hash-7", ownUnits = listOf(unit)).copy(
+            projection = projection(7, "hash-7", ownUnits = listOf(unit)).projection.copy(
+                exploredTiles = listOf(ProjectedTileVisibility(2, -1, true)),
+            ),
+        )
+        val transport = FakeTransport(initial).apply {
+            onParadropUnit = { request ->
+                current = current.copy(
+                    committedRevision = 8,
+                    canonicalStateHash = "hash-8",
+                    projection = current.projection.copy(
+                        ownUnits = listOf(unit.copy(x = 2, y = -1, currentMovement = 1f)),
+                    ),
+                )
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "command-42" }
+        bus.refresh()
+
+        assertTrue(bus.paradropUnit(42, 2, -1) is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.paradropUnitRequests.single()
+        assertEquals(42, request.unitId)
+        assertEquals(2, request.destinationX)
+        assertEquals(-1, request.destinationY)
+        val encoded = Json.encodeToString(ApiV3ParadropUnitRequest.serializer(), request)
+        assertTrue(!encoded.contains("range"))
+        assertTrue(!encoded.contains("movement_cost"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun upgradeBatchContainsOnlyProjectedIdsAndTargetIntent() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 0, 0, 100, 2f),
@@ -1078,6 +1112,7 @@ class AuthoritativeGameCommandBusTests {
         val disbandUnitRequests = mutableListOf<ApiV3DisbandUnitRequest>()
         val pillageTileRequests = mutableListOf<ApiV3PillageTileRequest>()
         val foundCityRequests = mutableListOf<ApiV3FoundCityRequest>()
+        val paradropUnitRequests = mutableListOf<ApiV3ParadropUnitRequest>()
         val upgradeUnitRequests = mutableListOf<ApiV3UpgradeUnitsRequest>()
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
@@ -1127,6 +1162,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onFoundCity: suspend (ApiV3FoundCityRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onParadropUnit: suspend (ApiV3ParadropUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onUpgradeUnits: suspend (ApiV3UpgradeUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1282,6 +1320,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             foundCityRequests += request
             return onFoundCity(request)
+        }
+        override suspend fun paradropUnit(
+            gameId: String,
+            request: ApiV3ParadropUnitRequest,
+        ): ApiV3CommandAccepted {
+            paradropUnitRequests += request
+            return onParadropUnit(request)
         }
         override suspend fun upgradeUnits(
             gameId: String,

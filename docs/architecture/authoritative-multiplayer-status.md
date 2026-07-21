@@ -2428,4 +2428,44 @@ Verification:
   plus 4 worker protocol tests.
 - All 8 PostgreSQL integration tests passed serially against exact image
   `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
-  The exact-name disposable container was removed afterward.
+The exact-name disposable container was removed afterward.
+
+## Authoritative paradrop command
+
+API-v3 paradrops now use the closed
+`ParadropUnit(unitId, destinationX, destinationY)` command. Coordinates are
+player intent only: authenticated membership supplies the civilization and the
+private Kotlin worker derives the owned stable unit, current turn, canonical
+paradrop uniques and conditionals, maximum range, current visibility, terrain
+filter, passability, occupancy, movement availability, movement cost, and
+post-drop attack state. The request contains no actor, range, visibility claim,
+movement cost, attack result, path, or replacement state.
+
+`UnitParadrop` is the focused shared rules boundary. It rebuilds derived
+destination filters from canonical uniques and performs the existing Kotlin
+movement mutation. Local play continues through the established UI path, while
+opened authoritative games translate the selected destination into the typed
+command and reconcile the returned projection. The previous behavior that sent
+a prepared paradrop through the ordinary move endpoint has been removed.
+
+Verification on 2026-07-21:
+
+- Repeated execution from the same snapshot produced the same canonical hash,
+  stable unit destination, consumed movement, and one recorded attack. Foreign
+  actors, out-of-turn actors, and out-of-range destinations were rejected.
+- Command-bus tests prove the client transmits only the stable unit ID and a
+  currently visible destination; Rust wire-shape and generated OpenAPI tests
+  prove the closed cross-language contract.
+- `cargo test --all-targets`: 43 active Rust library tests and all 7 HTTP/OpenAPI
+  tests passed; 8 database tests were explicitly gated from this invocation.
+- All 8 PostgreSQL integration tests passed serially against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The exact-name disposable container was removed after the run.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: 864 shared
+  JVM tests completed with 13 intentional skips and zero failures, plus all 4
+  worker protocol tests.
+- `cargo fmt --all -- --check`, warnings-as-errors `cargo clippy`, and
+  `git diff --check` passed. `main.rs` and `lib.rs` remain thin; the largest Rust
+  source is 729 lines and every Rust source remains below 800 lines.
+
+Direct combat remains the next major authoritative unit-action gap.

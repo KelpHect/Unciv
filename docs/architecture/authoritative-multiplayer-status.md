@@ -1395,6 +1395,14 @@ Verification passed 29 active Rust unit/API tests (eight database tests remain
 explicitly gated), generated-OpenAPI parity, the shared Kotlin/Rust v6 fixture
 round trip, Kotlin foreign-secret projection coverage, and `git diff --check`.
 
+The shared headless engine now also has a canonical
+`setCityTileAssignment` boundary with the closed states `Unworked`, `Worked`,
+and `Locked`. It rejects foreign/out-of-range/city-center/blockaded/zero-yield
+tiles, tiles worked by another city, puppet/resisting cities, and assignment
+without free population. Postconditions verify both worked and lock state, and
+a focused headless fixture passes the locked-to-unworked transition. Public
+API/worker/client routing remains the next buildable slice.
+
 ## Authoritative tile-targeted construction purchases
 
 Tile-targeted buildings can now be purchased through the distinct typed

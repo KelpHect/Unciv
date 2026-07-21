@@ -22,6 +22,8 @@ import java.security.MessageDigest
 class HeadlessGameEngine(
     private val executionContext: GameExecutionContext,
 ) {
+    enum class CityTileAssignment { Unworked, Worked, Locked }
+
     init {
         require(executionContext.actorId != null) { "Authoritative execution requires an authenticated actor" }
         require(!executionContext.persistLocalSettings) { "Authoritative execution must not persist client settings" }
@@ -353,6 +355,54 @@ class HeadlessGameEngine(
         check(tile.owningCity == city) { "Purchased tile ownership was not committed" }
         check(city.civ.gold == previousGold - canonicalCost) {
             "Canonical tile price was not applied"
+        }
+        return result(game)
+    }
+
+    fun setCityTileAssignment(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        coordinates: HexCoord,
+        assignment: CityTileAssignment,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City population cannot be assigned manually"
+        }
+        val tile = game.tileMap.getOrNull(coordinates.x, coordinates.y)
+            ?: error("Tile coordinates are outside the canonical map")
+        require(tile.getOwner() == city.civ && tile in city.tilesInRange && !tile.isCityCenter()) {
+            "Tile is not assignable by this city"
+        }
+        require(!tile.isWorked() || tile.getWorkingCity() == city) {
+            "Tile is worked by another city"
+        }
+        require(!tile.stats.getTileStats(city, city.civ).isEmpty() && !tile.isBlockaded()) {
+            "Tile cannot currently be worked"
+        }
+        when (assignment) {
+            CityTileAssignment.Unworked -> {
+                require(city.isWorked(tile)) { "Tile is not worked by this city" }
+                city.population.stopWorkingTile(tile.position)
+            }
+            CityTileAssignment.Worked, CityTileAssignment.Locked -> {
+                if (!city.isWorked(tile)) {
+                    require(city.population.getFreePopulation() > 0) {
+                        "City has no free population"
+                    }
+                    city.workedTiles.add(tile.position)
+                }
+                if (assignment == CityTileAssignment.Locked) city.lockedTiles.add(tile.position)
+                else city.lockedTiles.remove(tile.position)
+            }
+        }
+        city.cityStats.update()
+        check(city.isWorked(tile) == (assignment != CityTileAssignment.Unworked)) {
+            "City tile assignment was not committed"
+        }
+        check(tile.isLocked() == (assignment == CityTileAssignment.Locked)) {
+            "City tile lock state was not committed"
         }
         return result(game)
     }

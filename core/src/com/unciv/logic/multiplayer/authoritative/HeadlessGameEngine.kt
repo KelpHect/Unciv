@@ -153,6 +153,28 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun renameUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        instanceName: String?,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot rename a unit outside their turn"
+        }
+        require(instanceName == null ||
+            (instanceName.isNotBlank() && instanceName.length <= 100 && instanceName.none { it.isISOControl() })) {
+            "Unit name must be null or 1-100 printable characters"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        unit.instanceName = instanceName
+        return result(game)
+    }
+
     /** Assigns the authenticated actor to the first canonical unclaimed major
      * civilization. Selection is server deterministic and accepts no client
      * civilization input. The control plane restricts joining to revision 0. */

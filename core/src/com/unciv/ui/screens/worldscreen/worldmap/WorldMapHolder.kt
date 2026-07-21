@@ -654,6 +654,22 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when the rename was submitted to the authoritative server. */
+    fun renameUnit(unit: MapUnit, instanceName: String?): Boolean {
+        if (!isAuthoritativeGame()) {
+            unit.instanceName = instanceName
+            worldScreen.shouldUpdate = true
+            return false
+        }
+        submitAuthoritativeUnitCommand("unit rename", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.renameUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, instanceName)
+        }) {
+            removeUnitActionOverlay()
+        }
+        return true
+    }
+
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.

@@ -235,6 +235,27 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun renameContainsOnlyProjectedUnitAndOptionalName() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
+            onRenameUnit = { request ->
+                current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "rename-command" }
+        bus.refresh()
+
+        assertTrue(bus.renameUnit(42, "First Legion") is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.renameUnitRequests.single()
+        assertEquals(42, request.unitId)
+        assertEquals("First Legion", request.instanceName)
+        val encoded = Json.encodeToString(ApiV3RenameUnitRequest.serializer(), request)
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("civilization"))
+    }
+
+    @Test
     fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
         val initial = projection(
             7, "hash-7",
@@ -910,6 +931,7 @@ class AuthoritativeGameCommandBusTests {
         val disbandUnitRequests = mutableListOf<ApiV3DisbandUnitRequest>()
         val upgradeUnitRequests = mutableListOf<ApiV3UpgradeUnitsRequest>()
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
+        val renameUnitRequests = mutableListOf<ApiV3RenameUnitRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -953,6 +975,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onPromoteUnit: suspend (ApiV3PromoteUnitRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onRenameUnit: suspend (ApiV3RenameUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1090,6 +1115,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             promoteUnitRequests += request
             return onPromoteUnit(request)
+        }
+        override suspend fun renameUnit(
+            gameId: String,
+            request: ApiV3RenameUnitRequest,
+        ): ApiV3CommandAccepted {
+            renameUnitRequests += request
+            return onRenameUnit(request)
         }
         override suspend fun swapUnits(
             gameId: String,

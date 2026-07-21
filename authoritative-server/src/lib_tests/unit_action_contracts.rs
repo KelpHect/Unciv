@@ -184,6 +184,25 @@ fn promote_unit_contract_contains_only_unit_and_selected_path() {
 }
 
 #[test]
+fn rename_unit_contract_contains_only_unit_and_optional_name() {
+    let command = GameCommand::RenameUnit {
+        unit_id: 42,
+        instance_name: Some("The First Legion".to_owned()),
+    };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"unit_id\":42"));
+    assert!(serialized.contains("\"instance_name\":\"The First Legion\""));
+    assert!(!serialized.contains("actor"));
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "rename_unit", "unit_id": 42,
+            "instance_name": "Legion", "civilization_id": "Rome"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

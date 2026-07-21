@@ -68,4 +68,27 @@ impl EngineWorkerClient {
             .await?;
         commit_proposal(previous_revision, response)
     }
+
+    pub async fn rename_unit(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: RenameUnitIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::RenameUnit {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                    instance_name: intent.instance_name,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
 }

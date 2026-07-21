@@ -83,7 +83,7 @@ class PromotionPickerScreen private constructor(
 
         updateDescriptionLabel()
 
-        if (canChangeState && !GUI.getMap().usesAuthoritativeCommands()) {
+        if (canChangeState) {
             //Always allow the user to rename the unit as many times as they like.
             val renameButton = "Choose name for [${unit.name}]".toTextButton()
             renameButton.onClick {

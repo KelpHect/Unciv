@@ -311,6 +311,29 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun renameUnitIfOpen(
+        gameId: String,
+        unitId: Int,
+        instanceName: String?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.RenameUnit &&
+                    current.pending.unitId == unitId &&
+                    current.pending.instanceName == instanceName) {
+                    "Resolve the pending authoritative command before changing the unit name"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.renameUnit(unitId, instanceName)
+            else -> {
+                bus.refresh()
+                bus.renameUnit(unitId, instanceName)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

@@ -22,11 +22,12 @@ pub use protocol::{
     ChooseFreeTechnologyIntent, CreatedGame, DisbandUnitIntent, MoveConstructionIntent,
     MoveUnitIntent, MoveUnitTowardIntent, ProjectedState, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetSpecialistCountIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
+    SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest,
+    WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

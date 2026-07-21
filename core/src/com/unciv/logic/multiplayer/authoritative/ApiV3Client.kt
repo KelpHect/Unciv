@@ -223,6 +223,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun renameUnit(
+        gameId: String,
+        request: ApiV3RenameUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/rename-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

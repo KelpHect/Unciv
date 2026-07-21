@@ -97,6 +97,14 @@ sealed interface PendingAuthoritativeCommand {
         val promotionNames: List<String>,
     ) : PendingAuthoritativeCommand
 
+    data class RenameUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val instanceName: String?,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -417,6 +425,21 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.PromoteUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, promotionNames.toList(),
+        ), current)
+    }
+
+    suspend fun renameUnit(unitId: Int, instanceName: String?) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(instanceName == null ||
+            (instanceName.isNotBlank() && instanceName.length <= 100 && instanceName.none { it.isISOControl() })) {
+            "Unit name must be null or 1-100 printable characters"
+        }
+        submitLocked(PendingAuthoritativeCommand.RenameUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, instanceName,
         ), current)
     }
 
@@ -846,6 +869,14 @@ class AuthoritativeGameCommandBus(
                         ApiV3PromoteUnitRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.promotionNames,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.RenameUnit ->
+                    transport.renameUnit(
+                        gameId,
+                        ApiV3RenameUnitRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId, pending.instanceName,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

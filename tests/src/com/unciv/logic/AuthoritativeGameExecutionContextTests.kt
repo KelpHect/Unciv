@@ -553,6 +553,45 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun unitRenameIsCanonicalDeterministicProjectedAndClearable() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val unit = game.getCivilization("Rome").units.getCivUnits().first()
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.renameUnit(engine.loadSnapshot(snapshot), "Rome", unit.id, "First Legion")
+        val second = engine.renameUnit(engine.loadSnapshot(snapshot), "Rome", unit.id, "First Legion")
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertEquals("First Legion", first.game.getCivilization("Rome").units.getUnitById(unit.id)!!.instanceName)
+        Assert.assertEquals(
+            "First Legion",
+            engine.playerProjection(first.game, "Rome").ownUnits.single { it.id == unit.id }.instanceName,
+        )
+        val cleared = engine.renameUnit(first.game, "Rome", unit.id, null)
+        Assert.assertEquals(null, cleared.game.getCivilization("Rome").units.getUnitById(unit.id)!!.instanceName)
+    }
+
+    @Test
+    fun unitRenameRejectsForeignActorsOutOfTurnOwnersAndInvalidNames() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val unit = game.getCivilization("Rome").units.getCivUnits().first()
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.renameUnit(game, "Rome", unit.id, "Stolen")
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.renameUnit(game, "Rome", unit.id, "line\nbreak")
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.renameUnit(game, "Rome", unit.id, "Too late")
+        }
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)
@@ -914,7 +953,8 @@ class AuthoritativeGameExecutionContextTests {
             it.movementDestinationX == null && it.movementDestinationY == null &&
                 !it.automated && !it.exploring && it.posture == null &&
                 it.promotions.isEmpty() && it.promotionXp == null &&
-                it.nextPromotionXp == null && it.availablePromotions.isEmpty()
+                it.nextPromotionXp == null && it.availablePromotions.isEmpty() &&
+                it.instanceName == null
         })
     }
 

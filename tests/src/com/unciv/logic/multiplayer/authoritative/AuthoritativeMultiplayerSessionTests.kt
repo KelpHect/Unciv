@@ -372,6 +372,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitRenameRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.renameUnitIfOpen(GAME_ID, 42, "First Legion"))
+        session.openGame(GAME_ID)
+        val outcome = session.renameUnitIfOpen(GAME_ID, 42, "First Legion")
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(42 to "First Legion"), transport.renamedUnits)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -716,6 +735,7 @@ class AuthoritativeMultiplayerSessionTests {
         val disbandedUnits = mutableListOf<Int>()
         val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
+        val renamedUnits = mutableListOf<Pair<Int, String?>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -932,6 +952,21 @@ class AuthoritativeMultiplayerSessionTests {
             request: ApiV3PromoteUnitRequest,
         ): ApiV3CommandAccepted {
             promotedUnits += request.unitId to request.promotionNames
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun renameUnit(
+            gameId: String,
+            request: ApiV3RenameUnitRequest,
+        ): ApiV3CommandAccepted {
+            renamedUnits += request.unitId to request.instanceName
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",

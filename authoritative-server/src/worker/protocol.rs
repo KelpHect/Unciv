@@ -120,6 +120,15 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "promotionNames")]
         promotion_names: &'a [String],
     },
+    RenameUnit {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        #[serde(rename = "instanceName")]
+        instance_name: Option<&'a str>,
+    },
     SwapUnits {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -369,6 +378,11 @@ pub struct PromoteUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub promotion_names: &'a [String],
+}
+pub struct RenameUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub instance_name: Option<&'a str>,
 }
 pub struct SwapUnitsIntent<'a> {
     pub actor_civilization_id: &'a str,

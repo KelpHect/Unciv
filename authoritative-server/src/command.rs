@@ -62,6 +62,10 @@ pub enum GameCommand {
         unit_id: i32,
         promotion_names: Vec<String>,
     },
+    RenameUnit {
+        unit_id: i32,
+        instance_name: Option<String>,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

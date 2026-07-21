@@ -32,6 +32,7 @@ class PlayerProjectionContractTests {
         assertEquals(12, projection.ownUnits.single().promotionXp)
         assertEquals(30, projection.ownUnits.single().nextPromotionXp)
         assertEquals(listOf("Drill II", "Shock I"), projection.ownUnits.single().availablePromotions)
+        assertEquals("First Legion", projection.ownUnits.single().instanceName)
         assertEquals(null, projection.visibleForeignUnits.single().movementDestinationX)
         assertTrue(!projection.visibleForeignUnits.single().automated)
         assertTrue(!projection.visibleForeignUnits.single().exploring)
@@ -40,6 +41,7 @@ class PlayerProjectionContractTests {
         assertEquals(null, projection.visibleForeignUnits.single().promotionXp)
         assertEquals(null, projection.visibleForeignUnits.single().nextPromotionXp)
         assertEquals(emptyList<String>(), projection.visibleForeignUnits.single().availablePromotions)
+        assertEquals(null, projection.visibleForeignUnits.single().instanceName)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
@@ -76,6 +78,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v12.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v13.fixture.json") }
         .first { it.isFile }
 }

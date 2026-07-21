@@ -2161,3 +2161,47 @@ Projection v12 adds the owning player's promotion names, current XP, next XP
 cost, and currently available promotion names so a disposable client can
 reconstruct the promotion UI. Visible foreign units receive empty/null values
 for all four fields, enforced by the shared closed fixture and leak tests.
+
+## Authoritative unit renaming and projection v13
+
+Unit names now cross API v3 through `RenameUnit(unitId, instanceName)`. The
+nullable name means clearing a custom name is explicit; non-null names are
+bounded to 100 printable characters. The server derives the civilization from
+authenticated membership, validates the canonical current turn and stable unit
+ownership, mutates only the worker-loaded canonical unit, and commits through
+the same revision/idempotency transaction as other gameplay commands.
+
+`UnitRenamePopup` is the centralized mutation point used by the world-screen
+unit label, empire overview, and promotion picker. It now delegates to
+`WorldMapHolder.renameUnit`: local, hotseat, saved-game, and legacy modes retain
+their synchronous behavior, while an explicitly opened v3 game submits the
+typed command and does not alter local `GameInfo`. The saved city default-
+promotion toggle is hidden for v3 until its separate typed command exists.
+
+Projection v13 adds the owning unit's nullable `instanceName`. Visible foreign
+units always receive null, so private custom names do not become a hidden-state
+side channel. The v13 Rust/Kotlin closed fixture and canonical leak test enforce
+that boundary.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and the checked-in parity test passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 37 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55486/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 843 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.
+All Rust sources remain below 800 lines and `main.rs` remains a six-line entry
+point; the largest source is `postgres/commands.rs` at 729 lines.

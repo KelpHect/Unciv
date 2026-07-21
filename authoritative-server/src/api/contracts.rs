@@ -10,7 +10,7 @@ pub(super) struct HealthResponse {
 pub(super) struct CapabilitiesResponse {
     pub(super) protocol_version: u16,
     pub(super) projection_version: u16,
-    pub(super) commands: [&'static str; 28],
+    pub(super) commands: [&'static str; 29],
     pub(super) whole_state_upload: bool,
     pub(super) websocket_notifications: bool,
 }
@@ -168,6 +168,16 @@ pub(super) struct UpgradeUnitsRequest {
     pub(super) client_observed_state_hash: Option<String>,
     pub(super) unit_ids: Vec<i32>,
     pub(super) target_unit_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct PromoteUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
+    pub(super) promotion_names: Vec<String>,
 }
 
 #[derive(Deserialize, ToSchema)]

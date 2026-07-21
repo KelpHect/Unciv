@@ -75,9 +75,7 @@ class PromotionPickerScreen private constructor(
         if (canPromoteNow) {
             rightSideButton.setText("Pick promotion".tr())
             rightSideButton.onClick(UncivSound.Silent) {
-                acceptPromotion(selectedPromotion)
-                
-                checkSaveUnitPromotion()
+                if (!acceptPromotion(selectedPromotion)) checkSaveUnitPromotion()
             }
         } else {
             rightSideButton.isVisible = false
@@ -85,7 +83,7 @@ class PromotionPickerScreen private constructor(
 
         updateDescriptionLabel()
 
-        if (canChangeState) {
+        if (canChangeState && !GUI.getMap().usesAuthoritativeCommands()) {
             //Always allow the user to rename the unit as many times as they like.
             val renameButton = "Choose name for [${unit.name}]".toTextButton()
             renameButton.onClick {
@@ -111,15 +109,18 @@ class PromotionPickerScreen private constructor(
 
     override fun getCivilopediaRuleset() = unit.civ.gameInfo.ruleset
 
-    private fun acceptPromotion(button: PromotionButton?) {
+    /** @return true when the mutation was submitted to an authoritative server. */
+    private fun acceptPromotion(button: PromotionButton?): Boolean {
         // if user managed to click disabled button, still do nothing
-        if (button == null || !button.isPickable) return
+        if (button == null || !button.isPickable) return false
 
         val path = tree.getPathTo(button.node.promotion)
         SoundPlayer.playRepeated(UncivSound.Promote, path.size.coerceAtMost(2))
 
-        for (promotion in path)
-            unit.promotions.addPromotion(promotion.name)
+        if (GUI.getMap().promoteUnit(unit, path.map { it.name })) {
+            game.popScreen()
+            return true
+        }
 
         onChange?.invoke()
 
@@ -127,6 +128,7 @@ class PromotionPickerScreen private constructor(
             game.replaceCurrentScreen(recreate(false))
         else
             game.popScreen()
+        return false
     }
 
     private fun fillTable() {
@@ -199,6 +201,7 @@ class PromotionPickerScreen private constructor(
 
     // adds the checkBoxs to choice to save unit promotion.
     private fun saveUnitPromotionForCity() {
+        if (GUI.getMap().usesAuthoritativeCommands()) return
         /* if you are not in a city tile then don't show up 
          then player should not be able to save promotion in enermy tiles/puppet citys 
          even their own because you can't build any unit there.
@@ -247,8 +250,7 @@ class PromotionPickerScreen private constructor(
 
         if (isPickable)
             button.onDoubleClick(UncivSound.Silent) {
-                acceptPromotion(button)
-                checkSaveUnitPromotion()
+                if (!acceptPromotion(button)) checkSaveUnitPromotion()
             }
 
         return button

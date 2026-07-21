@@ -125,6 +125,10 @@ pub struct ProjectedUnit {
     pub automated: bool,
     pub exploring: bool,
     pub posture: Option<UnitPosture>,
+    pub promotions: Vec<String>,
+    pub promotion_xp: Option<i32>,
+    pub next_promotion_xp: Option<i32>,
+    pub available_promotions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -141,7 +145,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v11.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v12.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -165,6 +169,14 @@ mod tests {
         assert!(projection.own_units[0].automated);
         assert!(!projection.own_units[0].exploring);
         assert_eq!(projection.own_units[0].posture, Some(UnitPosture::Fortify));
+        assert_eq!(projection.own_units[0].promotions, ["Drill I"]);
+        assert_eq!(projection.own_units[0].promotion_xp, Some(12));
+        assert_eq!(projection.own_units[0].next_promotion_xp, Some(30));
+        assert_eq!(
+            projection.visible_foreign_units[0].promotions,
+            Vec::<String>::new()
+        );
+        assert_eq!(projection.visible_foreign_units[0].promotion_xp, None);
         assert_eq!(
             projection.visible_foreign_units[0].movement_destination_x,
             None

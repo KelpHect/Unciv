@@ -378,6 +378,8 @@ class WorldMapHolder(
         worldScreen.game.onlineMultiplayer.authoritativeSession
             ?.isGameOpen(worldScreen.gameInfo.gameId) == true
 
+    fun usesAuthoritativeCommands(): Boolean = isAuthoritativeGame()
+
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,
         requestedTarget: Tile,
@@ -632,6 +634,24 @@ class WorldMapHolder(
         }) {
             removeUnitActionOverlay()
         }
+    }
+
+    /** Returns true when promotion was submitted to an authoritative game;
+     * local modes apply the same selected path synchronously. */
+    fun promoteUnit(unit: MapUnit, promotionNames: List<String>): Boolean {
+        if (!isAuthoritativeGame()) {
+            for (promotionName in promotionNames)
+                unit.promotions.addPromotion(promotionName)
+            worldScreen.shouldUpdate = true
+            return false
+        }
+        submitAuthoritativeUnitCommand("unit promotion", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.promoteUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, promotionNames)
+        }) {
+            removeUnitActionOverlay()
+        }
+        return true
     }
 
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {

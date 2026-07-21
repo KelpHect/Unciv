@@ -1629,6 +1629,110 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/promote-unit": {
+      "post": {
+        "tags": [],
+        "operationId": "promote_unit",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/purchase-construction": {
       "post": {
         "tags": [],
@@ -4887,11 +4991,19 @@
           "health",
           "currentMovement",
           "automated",
-          "exploring"
+          "exploring",
+          "promotions",
+          "availablePromotions"
         ],
         "properties": {
           "automated": {
             "type": "boolean"
+          },
+          "availablePromotions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "civilizationId": {
             "type": "string"
@@ -4928,6 +5040,13 @@
           "name": {
             "type": "string"
           },
+          "nextPromotionXp": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
           "posture": {
             "oneOf": [
               {
@@ -4938,11 +5057,61 @@
               }
             ]
           },
+          "promotionXp": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "promotions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "x": {
             "type": "integer",
             "format": "int32"
           },
           "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PromoteUnitRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id",
+          "promotion_names"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "promotion_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unit_id": {
             "type": "integer",
             "format": "int32"
           }

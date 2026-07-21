@@ -500,6 +500,59 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun unitPromotionIsCanonicalDeterministicAndSpendsServerDerivedXp() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits()
+            .first { it.promotions.getAvailablePromotions().any() }
+        unit.promotions.XP = 1_000
+        val promotion = unit.promotions.getAvailablePromotions().sortedBy { it.name }.first()
+        val xpCost = unit.promotions.xpForNextPromotion()
+        val initialXp = unit.promotions.XP
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.promoteUnit(
+            engine.loadSnapshot(snapshot), "Rome", unit.id, listOf(promotion.name),
+        )
+        val second = engine.promoteUnit(
+            engine.loadSnapshot(snapshot), "Rome", unit.id, listOf(promotion.name),
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val promoted = first.game.getCivilization("Rome").units.getUnitById(unit.id)!!
+        Assert.assertTrue(promotion.name in promoted.promotions.promotions)
+        Assert.assertEquals(initialXp - xpCost, promoted.promotions.XP)
+        val projected = engine.playerProjection(first.game, "Rome").ownUnits.single { it.id == unit.id }
+        Assert.assertTrue(promotion.name in projected.promotions)
+        Assert.assertEquals(initialXp - xpCost, projected.promotionXp)
+        Assert.assertEquals(promoted.promotions.xpForNextPromotion(), projected.nextPromotionXp)
+    }
+
+    @Test
+    fun unitPromotionRejectsForeignActorsOutOfTurnOwnersAndUnavailableChoices() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val unit = civilization.units.getCivUnits()
+            .first { it.promotions.getAvailablePromotions().any() }
+        unit.promotions.XP = 1_000
+        val promotion = unit.promotions.getAvailablePromotions().sortedBy { it.name }.first().name
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.promoteUnit(game, "Rome", unit.id, listOf(promotion))
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.promoteUnit(game, "Rome", unit.id, listOf("Not a promotion"))
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.promoteUnit(game, "Rome", unit.id, listOf(promotion))
+        }
+    }
+
+    @Test
     fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
         val testGame = TestGame()
         testGame.makeHexagonalMap(3)
@@ -859,7 +912,9 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
         Assert.assertTrue(projection.visibleForeignUnits.all {
             it.movementDestinationX == null && it.movementDestinationY == null &&
-                !it.automated && !it.exploring && it.posture == null
+                !it.automated && !it.exploring && it.posture == null &&
+                it.promotions.isEmpty() && it.promotionXp == null &&
+                it.nextPromotionXp == null && it.availablePromotions.isEmpty()
         })
     }
 

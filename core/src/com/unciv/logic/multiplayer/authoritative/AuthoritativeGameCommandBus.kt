@@ -89,6 +89,14 @@ sealed interface PendingAuthoritativeCommand {
         val targetUnitName: String,
     ) : PendingAuthoritativeCommand
 
+    data class PromoteUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val promotionNames: List<String>,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -391,6 +399,24 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.UpgradeUnits(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitIds.toList(), targetUnitName,
+        ), current)
+    }
+
+    suspend fun promoteUnit(unitId: Int, promotionNames: List<String>) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(promotionNames.isNotEmpty() && promotionNames.size <= 10 &&
+            promotionNames.distinct().size == promotionNames.size) {
+            "Promotion path must contain between 1 and 10 distinct promotions"
+        }
+        require(promotionNames.all { it.isNotBlank() && it.length <= 200 }) {
+            "Promotion name is invalid"
+        }
+        submitLocked(PendingAuthoritativeCommand.PromoteUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, promotionNames.toList(),
         ), current)
     }
 
@@ -812,6 +838,14 @@ class AuthoritativeGameCommandBus(
                         ApiV3UpgradeUnitsRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitIds, pending.targetUnitName,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.PromoteUnit ->
+                    transport.promoteUnit(
+                        gameId,
+                        ApiV3PromoteUnitRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId, pending.promotionNames,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

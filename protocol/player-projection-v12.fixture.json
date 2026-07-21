@@ -1,0 +1,30 @@
+{
+  "protocolVersion": 3,
+  "civilizationId": "Rome",
+  "turn": 12,
+  "currentPlayerCivilizationId": "Rome",
+  "isCurrentTurn": true,
+  "pendingTurnActions": ["pick_policy"],
+  "research": { "currentTechnology": "Pottery", "queue": ["Pottery", "Writing"], "selectableTargets": ["Archery", "Writing"], "freeTechnologyChoices": [] },
+  "policies": { "storedCulture": 35, "cultureNeededForNextPolicy": 25, "freePolicies": 0, "adoptedPolicies": [], "selectablePolicies": ["Tradition"] },
+  "gold": 321,
+  "knownCivilizations": ["Greece"],
+  "ownCities": [{
+    "id": "city-rome", "name": "Rome", "x": 2, "y": -1,
+    "population": 5, "health": 200,
+    "constructionQueue": ["Monument"],
+    "availableConstructions": ["Archer", "Granary"],
+    "assignableTiles": [
+      { "x": 2, "y": 0, "worked": true, "locked": true },
+      { "x": 3, "y": -1, "worked": false, "locked": false }
+    ],
+    "manualSpecialists": true,
+    "specialists": [{ "name": "Scientist", "assigned": 1, "capacity": 2 }],
+    "avoidGrowth": true,
+    "citizenFocus": "gold_focus",
+    "selectableCitizenFocuses": ["no_focus", "manual", "food_focus", "production_focus", "gold_focus", "science_focus", "culture_focus", "faith_focus", "gold_growth_focus", "production_growth_focus"]
+  }],
+  "ownUnits": [{ "id": 17, "civilizationId": "Rome", "name": "Warrior", "x": 3, "y": -1, "health": 91, "currentMovement": 1.5, "movementDestinationX": 7, "movementDestinationY": 2, "automated": true, "exploring": false, "posture": "fortify", "promotions": ["Drill I"], "promotionXp": 12, "nextPromotionXp": 30, "availablePromotions": ["Drill II", "Shock I"] }],
+  "exploredTiles": [{ "x": 2, "y": -1, "visible": true }, { "x": 3, "y": -1, "visible": false }],
+  "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [] }]
+}

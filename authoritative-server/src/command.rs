@@ -58,6 +58,10 @@ pub enum GameCommand {
         unit_ids: Vec<i32>,
         target_unit_name: String,
     },
+    PromoteUnit {
+        unit_id: i32,
+        promotion_names: Vec<String>,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

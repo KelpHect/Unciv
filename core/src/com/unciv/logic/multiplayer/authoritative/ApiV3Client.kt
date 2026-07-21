@@ -214,6 +214,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun promoteUnit(
+        gameId: String,
+        request: ApiV3PromoteUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/promote-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

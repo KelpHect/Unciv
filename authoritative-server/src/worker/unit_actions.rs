@@ -45,4 +45,27 @@ impl EngineWorkerClient {
             .await?;
         commit_proposal(previous_revision, response)
     }
+
+    pub async fn promote_unit(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: PromoteUnitIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::PromoteUnit {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                    promotion_names: intent.promotion_names,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
 }

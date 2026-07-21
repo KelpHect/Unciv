@@ -13,7 +13,7 @@ use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, PurchaseConstructionAtTileIntent,
+    MoveUnitIntent, MoveUnitTowardIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,

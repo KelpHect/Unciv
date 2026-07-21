@@ -98,6 +98,11 @@ sealed interface GameCommand {
         val targetUnitName: String,
     ) : GameCommand
 
+    data class PromoteUnit(
+        val unitId: Int,
+        val promotionNames: List<String>,
+    ) : GameCommand
+
     data class SwapUnits(
         val unitId: Int,
         val destinationX: Int,

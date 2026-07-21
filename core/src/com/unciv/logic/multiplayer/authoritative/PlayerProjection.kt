@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 11
+        const val CURRENT_PROJECTION_VERSION = 12
     }
 }
 
@@ -98,6 +98,10 @@ data class ProjectedUnit(
     val automated: Boolean = false,
     val exploring: Boolean = false,
     val posture: UnitPosture? = null,
+    val promotions: List<String> = emptyList(),
+    val promotionXp: Int? = null,
+    val nextPromotionXp: Int? = null,
+    val availablePromotions: List<String> = emptyList(),
 )
 
 @Serializable
@@ -207,6 +211,12 @@ object PlayerProjectionBuilder {
         automated = includePrivateOrders && unit.isAutomated(),
         exploring = includePrivateOrders && unit.isExploring(),
         posture = if (includePrivateOrders) unitPosture(unit) else null,
+        promotions = if (includePrivateOrders) unit.promotions.promotions.sorted() else emptyList(),
+        promotionXp = if (includePrivateOrders) unit.promotions.XP else null,
+        nextPromotionXp = if (includePrivateOrders) unit.promotions.xpForNextPromotion() else null,
+        availablePromotions = if (includePrivateOrders)
+            unit.promotions.getAvailablePromotions().map { it.name }.sorted().toList()
+        else emptyList(),
     )
     }
 

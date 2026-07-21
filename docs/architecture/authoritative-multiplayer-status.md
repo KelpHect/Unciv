@@ -2109,3 +2109,55 @@ UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55483/unciv \
 The database lane used only
 `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
 The disposable container was verified by exact name and image, then removed.
+
+## Authoritative unit promotions
+
+Player-selected unit promotions now cross API v3 through the bounded
+`PromoteUnit(unitId, promotionNames)` command. The selected list preserves the
+existing promotion picker's multi-step path UX, but it is intent rather than a
+legality claim: the Kotlin worker resolves the membership-derived civilization
+and stable unit ID, then revalidates the canonical turn, ownership, movement,
+attack count, promotion availability, prerequisites, incompatibilities,
+XP/free-promotion rules, and triggered effects before every path step.
+
+The client supplies no actor, XP balance/cost, prerequisite claim, unit state,
+or resulting effects. It performs no local promotion for an explicitly opened
+v3 game and closes the picker while the command reconciles. Local-only unit
+renaming and city default-promotion controls are suppressed in that picker so
+they cannot piggyback an untyped canonical mutation. Single-player, hotseat,
+saved games, legacy multiplayer, and server-owned AI promotion logic continue
+to use the shared Kotlin domain behavior directly.
+
+Rust keeps the handler, repository orchestration, and worker transport in the
+focused unit-action modules. Unit-action wire-contract tests were proactively
+split from the general `lib_tests.rs` catch-all into
+`lib_tests/unit_action_contracts.rs`; `main.rs` remains six lines, the general
+test module fell from 782 to 566 lines, and every Rust source file remains below
+800 lines.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and the checked-in parity test passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 36 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55485/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 839 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.
+Unit renaming and persistent city default-promotion preferences remain distinct
+command-coverage gaps rather than being accepted through this command.
+Projection v12 adds the owning player's promotion names, current XP, next XP
+cost, and currently available promotion names so a disposable client can
+reconstruct the promotion UI. Visible foreign units receive empty/null values
+for all four fields, enforced by the shared closed fixture and leak tests.

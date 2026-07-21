@@ -109,6 +109,50 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Applies a bounded promotion path to one owned unit. The client may
+     * choose the path, but canonical availability, prerequisites, XP, movement,
+     * attacks, and triggered effects are revalidated before every step. */
+    fun promoteUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        promotionNames: List<String>,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot promote a unit outside their turn"
+        }
+        require(promotionNames.isNotEmpty() && promotionNames.size <= 10) {
+            "Promotion path must contain between 1 and 10 promotions"
+        }
+        require(promotionNames.distinct().size == promotionNames.size) {
+            "Promotion path contains duplicate promotions"
+        }
+        require(promotionNames.all { it.isNotBlank() && it.length <= 200 }) {
+            "Promotion name is invalid"
+        }
+
+        for (promotionName in promotionNames) {
+            val unit = actorCivilization.units.getUnitById(unitId)
+                ?: error("Unit is not controlled by the authenticated actor")
+            require(unit.hasMovement() && unit.attacksThisTurn == 0) {
+                "Unit cannot promote after exhausting movement or attacking"
+            }
+            require(unit.promotions.canBePromoted()) { "Unit cannot currently be promoted" }
+            require(unit.promotions.getAvailablePromotions().any { it.name == promotionName }) {
+                "Requested promotion is not canonically available"
+            }
+            unit.promotions.addPromotion(promotionName)
+            check(actorCivilization.units.getUnitById(unitId) != null) {
+                "Promoted unit lost its stable identity"
+            }
+        }
+        actorCivilization.updateStatsForNextTurn()
+        return result(game)
+    }
+
     /** Assigns the authenticated actor to the first canonical unclaimed major
      * civilization. Selection is server deterministic and accepts no client
      * civilization input. The control plane restricts joining to revision 0. */

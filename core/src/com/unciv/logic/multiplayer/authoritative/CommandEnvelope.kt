@@ -25,6 +25,15 @@ enum class CitizenFocus {
     @SerialName("production_growth_focus") ProductionGrowthFocus,
 }
 
+@Serializable
+enum class UnitPosture {
+    @SerialName("sleep") Sleep,
+    @SerialName("sleep_until_healed") SleepUntilHealed,
+    @SerialName("fortify") Fortify,
+    @SerialName("fortify_until_healed") FortifyUntilHealed,
+    @SerialName("guard") Guard,
+}
+
 /**
  * Public API-v3 command contract. This deliberately models an intent, never a
  * serialized [com.unciv.logic.GameInfo] or an arbitrary object patch.
@@ -79,6 +88,8 @@ sealed interface GameCommand {
     data class SetUnitExploration(val unitId: Int, val enabled: Boolean) : GameCommand
 
     data class SetUnitAutomation(val unitId: Int, val enabled: Boolean) : GameCommand
+
+    data class SetUnitPosture(val unitId: Int, val posture: UnitPosture) : GameCommand
 
     data class SwapUnits(
         val unitId: Int,

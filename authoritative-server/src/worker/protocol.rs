@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{CommitProposal, projection::PlayerProjection};
+use crate::{CommitProposal, UnitPosture, projection::PlayerProjection};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,6 +86,14 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "unitId")]
         unit_id: i32,
         enabled: bool,
+    },
+    SetUnitPosture {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        posture: UnitPosture,
     },
     SwapUnits {
         snapshot: &'a str,
@@ -317,6 +325,11 @@ pub struct SetUnitAutomationIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub enabled: bool,
+}
+pub struct SetUnitPostureIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub posture: UnitPosture,
 }
 pub struct SwapUnitsIntent<'a> {
     pub actor_civilization_id: &'a str,

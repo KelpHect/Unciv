@@ -27,9 +27,11 @@ class PlayerProjectionContractTests {
         assertEquals(7, projection.ownUnits.single().movementDestinationX)
         assertTrue(projection.ownUnits.single().automated)
         assertTrue(!projection.ownUnits.single().exploring)
+        assertEquals(UnitPosture.Fortify, projection.ownUnits.single().posture)
         assertEquals(null, projection.visibleForeignUnits.single().movementDestinationX)
         assertTrue(!projection.visibleForeignUnits.single().automated)
         assertTrue(!projection.visibleForeignUnits.single().exploring)
+        assertEquals(null, projection.visibleForeignUnits.single().posture)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
@@ -66,6 +68,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v10.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v11.fixture.json") }
         .first { it.isFile }
 }

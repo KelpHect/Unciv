@@ -17,8 +17,8 @@ use crate::worker::{
     QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
     ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
     SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetSpecialistCountIntent, SetUnitAutomationIntent, SetUnitExplorationIntent, SwapUnitsIntent,
-    WorkerManifest,
+    SetSpecialistCountIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
+    SetUnitPostureIntent, SwapUnitsIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

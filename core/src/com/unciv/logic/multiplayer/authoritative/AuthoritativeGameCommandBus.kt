@@ -66,6 +66,14 @@ sealed interface PendingAuthoritativeCommand {
         val enabled: Boolean,
     ) : PendingAuthoritativeCommand
 
+    data class SetUnitPosture(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val posture: UnitPosture,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -329,6 +337,17 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.SetUnitAutomation(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, enabled,
+        ), current)
+    }
+
+    suspend fun setUnitPosture(unitId: Int, posture: UnitPosture) = mutex.withLock {
+        val current = requireSynchronized()
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(unit.posture != posture) { "Unit already has the requested posture" }
+        submitLocked(PendingAuthoritativeCommand.SetUnitPosture(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, posture,
         ), current)
     }
 
@@ -726,6 +745,14 @@ class AuthoritativeGameCommandBus(
                         ApiV3SetUnitAutomationRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.enabled,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.SetUnitPosture ->
+                    transport.setUnitPosture(
+                        gameId,
+                        ApiV3SetUnitPostureRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId, pending.posture,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

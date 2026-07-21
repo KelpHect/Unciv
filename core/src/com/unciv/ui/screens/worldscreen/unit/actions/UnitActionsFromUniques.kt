@@ -11,6 +11,7 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.logic.map.tile.RoadStatus
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Counter
 import com.unciv.models.UncivSound
 import com.unciv.models.UnitAction
@@ -212,7 +213,7 @@ object UnitActionsFromUniques {
         return sequenceOf(UnitAction(UnitActionType.Guard,
             useFrequency = useFrequency,
             action = {
-                unit.action = UnitActionType.Guard.value
+                GUI.getMap().setUnitPosture(unit, UnitPosture.Guard)
             }.takeIf { !unit.isGuarding() })
         )
     }

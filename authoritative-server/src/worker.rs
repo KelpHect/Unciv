@@ -24,7 +24,8 @@ pub use protocol::{
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
     SetResearchPathIntent, SetSpecialistCountIntent, SetUnitAutomationIntent,
-    SetUnitExplorationIntent, SwapUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, WorkerCapabilities,
+    WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

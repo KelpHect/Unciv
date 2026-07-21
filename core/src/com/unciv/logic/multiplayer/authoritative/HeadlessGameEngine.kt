@@ -7,6 +7,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
 import com.unciv.models.metadata.GameSetupInfo
+import com.unciv.models.UnitActionType
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.INonPerpetualConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
@@ -200,6 +201,61 @@ class HeadlessGameEngine(
             require(unit.isAutomated()) { "Unit is not automated" }
             unit.action = null
             unit.automated = false
+        }
+        return result(game)
+    }
+
+    /** Applies one allowlisted passive posture after rerunning its canonical
+     * eligibility rules. Raw action strings never cross the API boundary. */
+    fun setUnitPosture(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        posture: UnitPosture,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change a unit posture outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(unit.hasMovement()) { "Unit has no movement available to change posture" }
+        when (posture) {
+            UnitPosture.Sleep, UnitPosture.SleepUntilHealed -> {
+                require(!unit.isFortified() && !unit.canFortify() && !unit.isGuarding()) {
+                    "Unit cannot sleep"
+                }
+                val tile = unit.currentTile
+                require(!(tile.hasImprovementInProgress() &&
+                    unit.canBuildImprovement(tile.getTileImprovementInProgress()!!))) {
+                    "Unit cannot sleep while working on an improvement"
+                }
+                if (posture == UnitPosture.SleepUntilHealed) {
+                    require(unit.health < 100 && unit.canHealInCurrentTile()) {
+                        "Unit cannot sleep until healed"
+                    }
+                }
+                unit.action = if (posture == UnitPosture.Sleep)
+                    UnitActionType.Sleep.value else UnitActionType.SleepUntilHealed.value
+            }
+            UnitPosture.Fortify, UnitPosture.FortifyUntilHealed -> {
+                require(unit.canFortify()) { "Unit cannot fortify" }
+                if (posture == UnitPosture.FortifyUntilHealed) {
+                    require(unit.health < 100 && unit.canHealInCurrentTile()) {
+                        "Unit cannot fortify until healed"
+                    }
+                    unit.fortifyUntilHealed()
+                } else unit.fortify()
+            }
+            UnitPosture.Guard -> {
+                require(unit.getMatchingUniques(UniqueType.WithdrawsBeforeMeleeCombat).any()) {
+                    "Unit cannot guard"
+                }
+                require(!unit.isGuarding()) { "Unit is already guarding" }
+                unit.action = UnitActionType.Guard.value
+            }
         }
         return result(game)
     }

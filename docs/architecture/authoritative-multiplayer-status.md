@@ -1269,6 +1269,57 @@ tests with zero failures/errors and 13 intentional skips:
 .\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
 ```
 
+## Authoritative unit postures and projection v11
+
+Sleep, Sleep Until Healed, Fortify, Fortify Until Healed, and Guard now cross
+the complete API-v3 authority boundary through the closed
+`SetUnitPosture(unitId, posture)` command. Neither the public request nor the
+private worker accepts a raw action string. Rust derives the actor civilization
+from authenticated PostgreSQL membership; the Kotlin worker validates the
+canonical turn, ownership, movement, healing, fortification, improvement-work,
+and Guard-unique rules before using the existing shared `MapUnit` behavior.
+
+Projection v11 adds the closed nullable `posture` field for owned units. Visible
+foreign units always receive null, so private persistent orders do not cross the
+anti-cheat boundary. The shared Kotlin/Rust fixture is now
+`player-projection-v11.fixture.json` and remains closed to unknown fields.
+
+For explicitly opened v3 games, all existing Sleep, Sleep Until Healed,
+Fortify, Fortify Until Healed, and Guard controls submit through the
+authoritative session without mutating local canonical state. Single-player,
+hotseat, saved-game, legacy multiplayer, and unrelated API-v2 behavior keep
+their existing local paths.
+
+The Rust additions stay in focused `api/unit_orders.rs`,
+`postgres/unit_orders.rs`, and `worker/unit_orders.rs` modules. `main.rs`
+remains six lines, `lib.rs` remains a thin 27-line façade, and every Rust source
+file remains below 800 lines (largest: `lib_tests.rs`, 731 lines). `AGENTS.md`
+now makes these module boundaries and PostgreSQL 19 Beta 2-only target explicit
+goal constraints.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 33 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated authoritative-server/openapi/api-v3.json; parity test passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55481/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml --all-targets -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 827 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable PostgreSQL 19 Beta 2 container was verified by exact name, then
+stopped and removed. Remaining unit gaps include combat, promotions/upgrades,
+worker improvement/repair/pillage orders, and other special actions; this
+milestone does not claim complete command coverage.
+
 ## Authoritative unit exploration
 
 Unit exploration now crosses the complete API-v3 authority boundary through

@@ -5,6 +5,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.civilization.diplomacy.DiplomaticModifiers
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.UnitAction
 import com.unciv.models.UnitActionType
 import com.unciv.models.ruleset.unique.UniqueType
@@ -286,13 +287,14 @@ object UnitActions {
         if (!unit.canFortify() || !unit.hasMovement()) return
 
         yield(UnitAction(UnitActionType.Fortify,
-            action = { unit.fortify() }.takeIf { !unit.isFortified() || unit.isFortifyingUntilHealed() },
+            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.Fortify) }
+                .takeIf { !unit.isFortified() || unit.isFortifyingUntilHealed() },
             useFrequency = 30f
         ))
 
         if (unit.health == 100) return
         yield(UnitAction(UnitActionType.FortifyUntilHealed,
-            action = { unit.fortifyUntilHealed() }
+            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.FortifyUntilHealed) }
                 .takeIf { !unit.isFortifyingUntilHealed() && unit.canHealInCurrentTile() },
             useFrequency = 45f
         ))
@@ -304,13 +306,14 @@ object UnitActions {
 
         yield(UnitAction(UnitActionType.Sleep,
             useFrequency = if (!unit.isSleeping()) 29f else 21f,
-            action = { unit.action = UnitActionType.Sleep.value }.takeIf { !unit.isSleeping() || unit.isSleepingUntilHealed() }
+            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.Sleep) }
+                .takeIf { !unit.isSleeping() || unit.isSleepingUntilHealed() }
         ))
 
         if (unit.health == 100) return
         yield(UnitAction(UnitActionType.SleepUntilHealed,
             useFrequency = if (!unit.isSleepingUntilHealed()) 44f else 20f,
-            action = { unit.action = UnitActionType.SleepUntilHealed.value }
+            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.SleepUntilHealed) }
                 .takeIf { !unit.isSleepingUntilHealed() && unit.canHealInCurrentTile() }
         ))
     }

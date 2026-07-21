@@ -9,6 +9,7 @@ import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
 import com.unciv.models.metadata.GameSetupInfo
@@ -109,6 +110,14 @@ sealed interface WorkerOperation {
         val actorCivilizationId: String,
         val unitId: Int,
         val enabled: Boolean,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_unit_posture")
+    data class SetUnitPosture(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val posture: UnitPosture,
     ) : WorkerOperation
 
     @Serializable @SerialName("swap_units")
@@ -381,6 +390,16 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.unitId,
                     operation.enabled,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetUnitPosture -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setUnitPosture(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                    operation.posture,
                 )
                 responseForGame(engine, result.game)
             }

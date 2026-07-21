@@ -10,6 +10,7 @@ import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
@@ -342,6 +343,48 @@ class AuthoritativeGameExecutionContextTests {
         ownerEngine.endTurn(game, "Rome")
         Assert.assertThrows(IllegalArgumentException::class.java) {
             ownerEngine.setUnitAutomation(game, "Rome", unitId, enabled = true)
+        }
+    }
+
+    @Test
+    fun unitPostureIsCanonicalDeterministicAndProjectedOnlyToItsOwner() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val created = engine.createGame(testSetup()).game
+        val unitId = created.getCivilization("Rome").units.getCivUnits().first { it.canFortify() }.id
+        val snapshot = engine.serializeSnapshot(created)
+
+        val first = engine.setUnitPosture(
+            engine.loadSnapshot(snapshot), "Rome", unitId, UnitPosture.Fortify,
+        )
+        val second = engine.setUnitPosture(
+            engine.loadSnapshot(snapshot), "Rome", unitId, UnitPosture.Fortify,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertTrue(first.game.getCivilization("Rome").units.getUnitById(unitId)!!.isFortified())
+        Assert.assertEquals(
+            UnitPosture.Fortify,
+            engine.playerProjection(first.game, "Rome").ownUnits.single { it.id == unitId }.posture,
+        )
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertTrue(foreignEngine.playerProjection(first.game, "Greece").visibleForeignUnits.all {
+            it.posture == null
+        })
+    }
+
+    @Test
+    fun unitPostureRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val unitId = game.getCivilization("Rome").units.getCivUnits().first { it.canFortify() }.id
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.setUnitPosture(game, "Rome", unitId, UnitPosture.Fortify)
+        }
+        ownerEngine.endTurn(game, "Rome")
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.setUnitPosture(game, "Rome", unitId, UnitPosture.Fortify)
         }
     }
 
@@ -705,7 +748,7 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
         Assert.assertTrue(projection.visibleForeignUnits.all {
             it.movementDestinationX == null && it.movementDestinationY == null &&
-                !it.automated && !it.exploring
+                !it.automated && !it.exploring && it.posture == null
         })
     }
 

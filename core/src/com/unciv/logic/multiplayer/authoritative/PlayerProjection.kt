@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 10
+        const val CURRENT_PROJECTION_VERSION = 11
     }
 }
 
@@ -97,6 +97,7 @@ data class ProjectedUnit(
     val movementDestinationY: Int? = null,
     val automated: Boolean = false,
     val exploring: Boolean = false,
+    val posture: UnitPosture? = null,
 )
 
 @Serializable
@@ -205,7 +206,17 @@ object PlayerProjectionBuilder {
         movementDestinationY = destination?.y,
         automated = includePrivateOrders && unit.isAutomated(),
         exploring = includePrivateOrders && unit.isExploring(),
+        posture = if (includePrivateOrders) unitPosture(unit) else null,
     )
+    }
+
+    private fun unitPosture(unit: MapUnit): UnitPosture? = when {
+        unit.isSleepingUntilHealed() -> UnitPosture.SleepUntilHealed
+        unit.isSleeping() -> UnitPosture.Sleep
+        unit.isFortifyingUntilHealed() -> UnitPosture.FortifyUntilHealed
+        unit.isFortified() -> UnitPosture.Fortify
+        unit.isGuarding() -> UnitPosture.Guard
+        else -> null
     }
 
     private fun researchProjection(civilization: Civilization): ProjectedResearch {

@@ -11,6 +11,16 @@ pub enum CityTileAssignment {
     Locked,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UnitPosture {
+    Sleep,
+    SleepUntilHealed,
+    Fortify,
+    FortifyUntilHealed,
+    Guard,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GameCommand {
@@ -36,6 +46,10 @@ pub enum GameCommand {
     SetUnitAutomation {
         unit_id: i32,
         enabled: bool,
+    },
+    SetUnitPosture {
+        unit_id: i32,
+        posture: UnitPosture,
     },
     SwapUnits {
         unit_id: i32,

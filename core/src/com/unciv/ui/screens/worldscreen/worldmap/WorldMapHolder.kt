@@ -21,7 +21,9 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.mapunit.movement.UnitMovement
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Spy
+import com.unciv.models.UnitActionType
 import com.unciv.models.UncivSound
 import com.unciv.ui.audio.SoundPlayer
 import com.unciv.ui.components.MapArrowType
@@ -563,6 +565,26 @@ class WorldMapHolder(
         submitAuthoritativeUnitCommand("unit automation", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.setUnitAutomationIfOpen(worldScreen.gameInfo.gameId, unit.id, enabled)
+        }) {
+            removeUnitActionOverlay()
+        }
+    }
+
+    internal fun setUnitPosture(unit: MapUnit, posture: UnitPosture) {
+        if (!isAuthoritativeGame()) {
+            when (posture) {
+                UnitPosture.Sleep -> unit.action = UnitActionType.Sleep.value
+                UnitPosture.SleepUntilHealed -> unit.action = UnitActionType.SleepUntilHealed.value
+                UnitPosture.Fortify -> unit.fortify()
+                UnitPosture.FortifyUntilHealed -> unit.fortifyUntilHealed()
+                UnitPosture.Guard -> unit.action = UnitActionType.Guard.value
+            }
+            worldScreen.shouldUpdate = true
+            return
+        }
+        submitAuthoritativeUnitCommand("unit posture", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.setUnitPostureIfOpen(worldScreen.gameInfo.gameId, unit.id, posture)
         }) {
             removeUnitActionOverlay()
         }

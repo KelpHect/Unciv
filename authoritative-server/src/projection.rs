@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::UnitPosture;
+
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
 /// Rust API boundary.
@@ -122,6 +124,7 @@ pub struct ProjectedUnit {
     pub movement_destination_y: Option<i32>,
     pub automated: bool,
     pub exploring: bool,
+    pub posture: Option<UnitPosture>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -138,7 +141,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v10.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v11.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -161,12 +164,14 @@ mod tests {
         assert_eq!(projection.own_units[0].movement_destination_x, Some(7));
         assert!(projection.own_units[0].automated);
         assert!(!projection.own_units[0].exploring);
+        assert_eq!(projection.own_units[0].posture, Some(UnitPosture::Fortify));
         assert_eq!(
             projection.visible_foreign_units[0].movement_destination_x,
             None
         );
         assert!(!projection.visible_foreign_units[0].automated);
         assert!(!projection.visible_foreign_units[0].exploring);
+        assert_eq!(projection.visible_foreign_units[0].posture, None);
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;

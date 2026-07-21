@@ -222,6 +222,28 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setUnitPostureIfOpen(
+        gameId: String,
+        unitId: Int,
+        posture: UnitPosture,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetUnitPosture &&
+                    current.pending.unitId == unitId && current.pending.posture == posture) {
+                    "Resolve the pending authoritative command before changing posture"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setUnitPosture(unitId, posture)
+            else -> {
+                bus.refresh()
+                bus.setUnitPosture(unitId, posture)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

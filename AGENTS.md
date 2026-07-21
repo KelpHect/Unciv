@@ -19,6 +19,20 @@ service.
   game saves. Preserve existing user changes.
 - Make each milestone buildable and record the exact verification result in
   `docs/architecture/authoritative-multiplayer-status.md`.
+- PostgreSQL 19 Beta 2 is the sole production and test database target. Pin its
+  image digest; do not retain compatibility profiles for older PostgreSQL
+  majors.
+
+## Rust structure
+
+- Keep `main.rs`, `lib.rs`, and module façades nearly logic-free: declarations,
+  narrow re-exports, and bootstrap delegation only.
+- Split implementation early by purpose into descriptive, shallow modules.
+  Prefer roughly 300-800 substantive lines per file and never allow a 2,000-line
+  god file. Keep items private by default and widen visibility only as needed.
+- Reuse behavior through focused traits/types where it removes real duplication;
+  prefer explicit readable code over speculative abstraction.
+- Run `cargo fmt` and warnings-as-errors `cargo clippy` for every Rust milestone.
 
 ## Required checks
 

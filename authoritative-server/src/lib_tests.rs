@@ -145,6 +145,27 @@ fn set_unit_automation_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn set_unit_posture_contract_uses_a_closed_enum() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_unit_posture", "unit_id": 42, "posture": "fortify_until_healed"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetUnitPosture {
+            unit_id: 42,
+            posture: crate::UnitPosture::FortifyUntilHealed,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_unit_posture", "unit_id": 42, "posture": "arbitrary_action"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

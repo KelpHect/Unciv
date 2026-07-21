@@ -3215,6 +3215,110 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-unit-posture": {
+      "post": {
+        "tags": [],
+        "operationId": "set_unit_posture",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUnitPostureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/swap-units": {
       "post": {
         "tags": [],
@@ -4586,6 +4690,16 @@
           "name": {
             "type": "string"
           },
+          "posture": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UnitPosture"
+              }
+            ]
+          },
           "x": {
             "type": "integer",
             "format": "int32"
@@ -5195,6 +5309,40 @@
         },
         "additionalProperties": false
       },
+      "SetUnitPostureRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id",
+          "posture"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "posture": {
+            "$ref": "#/components/schemas/UnitPosture"
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "SwapUnitsRequest": {
         "type": "object",
         "required": [
@@ -5234,6 +5382,16 @@
           }
         },
         "additionalProperties": false
+      },
+      "UnitPosture": {
+        "type": "string",
+        "enum": [
+          "sleep",
+          "sleep_until_healed",
+          "fortify",
+          "fortify_until_healed",
+          "guard"
+        ]
       }
     },
     "securitySchemes": {

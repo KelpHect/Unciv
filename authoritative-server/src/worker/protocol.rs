@@ -79,6 +79,14 @@ pub(super) enum WorkerOperation<'a> {
         unit_id: i32,
         enabled: bool,
     },
+    SetUnitAutomation {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        enabled: bool,
+    },
     SwapUnits {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -301,6 +309,11 @@ pub struct CancelUnitMovementOrderIntent<'a> {
     pub unit_id: i32,
 }
 pub struct SetUnitExplorationIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub enabled: bool,
+}
+pub struct SetUnitAutomationIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub enabled: bool,

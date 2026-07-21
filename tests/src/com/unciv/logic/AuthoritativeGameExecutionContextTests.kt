@@ -298,10 +298,51 @@ class AuthoritativeGameExecutionContextTests {
 
         engine.setUnitExploration(game, "Rome", unit.id, enabled = true)
         Assert.assertTrue(unit.isExploring())
+        Assert.assertTrue(engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == unit.id }.exploring)
 
         engine.setUnitExploration(game, "Rome", unit.id, enabled = false)
         Assert.assertFalse(unit.isExploring())
         Assert.assertEquals(null, unit.action)
+    }
+
+    @Test
+    fun unitAutomationIsCanonicalDeterministicAndProjectedOnlyToItsOwner() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val created = engine.createGame(testSetup()).game
+        val unitId = created.getCivilization("Rome").units.getCivUnits().first { it.isMilitary() }.id
+        val snapshot = engine.serializeSnapshot(created)
+
+        val first = engine.setUnitAutomation(
+            engine.loadSnapshot(snapshot), "Rome", unitId, enabled = true,
+        )
+        val second = engine.setUnitAutomation(
+            engine.loadSnapshot(snapshot), "Rome", unitId, enabled = true,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertTrue(first.game.getCivilization("Rome").units.getUnitById(unitId)!!.isAutomated())
+        Assert.assertTrue(engine.playerProjection(first.game, "Rome").ownUnits
+            .single { it.id == unitId }.automated)
+
+        engine.setUnitAutomation(first.game, "Rome", unitId, enabled = false)
+        Assert.assertFalse(first.game.getCivilization("Rome").units.getUnitById(unitId)!!.isAutomated())
+    }
+
+    @Test
+    fun unitAutomationRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val unitId = game.getCivilization("Rome").units.getCivUnits().first { it.isMilitary() }.id
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.setUnitAutomation(game, "Rome", unitId, enabled = true)
+        }
+        ownerEngine.endTurn(game, "Rome")
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.setUnitAutomation(game, "Rome", unitId, enabled = true)
+        }
     }
 
     @Test
@@ -651,6 +692,7 @@ class AuthoritativeGameExecutionContextTests {
         otherCivilization.flagsCountdown["SENTINEL_SECRET_PLAN"] = 999
         otherCivilization.units.getCivUnits().first().instanceName = "SENTINEL_HIDDEN_UNIT_NAME"
         otherCivilization.units.getCivUnits().first().action = "moveTo 999,999"
+        otherCivilization.units.getCivUnits().first().automated = true
 
         val projection = engine.playerProjection(game, "Rome")
         val serialized = Json.encodeToString(PlayerProjection.serializer(), projection)
@@ -662,7 +704,8 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(serialized.contains("SENTINEL_SECRET_PLAN"))
         Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
         Assert.assertTrue(projection.visibleForeignUnits.all {
-            it.movementDestinationX == null && it.movementDestinationY == null
+            it.movementDestinationX == null && it.movementDestinationY == null &&
+                !it.automated && !it.exploring
         })
     }
 

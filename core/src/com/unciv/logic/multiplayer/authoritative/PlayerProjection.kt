@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 9
+        const val CURRENT_PROJECTION_VERSION = 10
     }
 }
 
@@ -95,6 +95,8 @@ data class ProjectedUnit(
     val currentMovement: Float,
     val movementDestinationX: Int? = null,
     val movementDestinationY: Int? = null,
+    val automated: Boolean = false,
+    val exploring: Boolean = false,
 )
 
 @Serializable
@@ -107,7 +109,7 @@ data class ProjectedTileVisibility(
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
         val ownUnits = actor.units.getCivUnits()
-            .map { unitProjection(it, includeMovementOrder = true) }
+            .map { unitProjection(it, includePrivateOrders = true) }
             .sortedBy { it.id }
             .toList()
         val visibleForeignUnits = game.tileMap.tileList.asSequence()
@@ -115,7 +117,7 @@ object PlayerProjectionBuilder {
             .flatMap { it.getUnits() }
             .filter { it.civ != actor }
             .filter { !it.isInvisible(actor) || it.getTile() in actor.viewableInvisibleUnitsTiles }
-            .map { unitProjection(it, includeMovementOrder = false) }
+            .map { unitProjection(it, includePrivateOrders = false) }
             .sortedWith(compareBy<ProjectedUnit> { it.civilizationId }.thenBy { it.id })
             .toList()
         return PlayerProjection(
@@ -188,8 +190,8 @@ object PlayerProjectionBuilder {
         )
     }
 
-    private fun unitProjection(unit: MapUnit, includeMovementOrder: Boolean): ProjectedUnit {
-        val destination = if (includeMovementOrder && unit.isMoving())
+    private fun unitProjection(unit: MapUnit, includePrivateOrders: Boolean): ProjectedUnit {
+        val destination = if (includePrivateOrders && unit.isMoving())
             unit.getMovementDestination().position else null
         return ProjectedUnit(
         id = unit.id,
@@ -201,6 +203,8 @@ object PlayerProjectionBuilder {
         currentMovement = unit.currentMovement,
         movementDestinationX = destination?.x,
         movementDestinationY = destination?.y,
+        automated = includePrivateOrders && unit.isAutomated(),
+        exploring = includePrivateOrders && unit.isExploring(),
     )
     }
 

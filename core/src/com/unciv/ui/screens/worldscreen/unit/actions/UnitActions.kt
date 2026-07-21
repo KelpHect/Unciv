@@ -2,7 +2,6 @@ package com.unciv.ui.screens.worldscreen.unit.actions
 
 import com.unciv.GUI
 import com.unciv.UncivGame
-import com.unciv.logic.automation.unit.UnitAutomation
 import com.unciv.logic.civilization.diplomacy.DiplomaticModifiers
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.Tile
@@ -148,8 +147,7 @@ object UnitActions {
             })
         if (unit.isAutomated())
             yield(UnitAction(UnitActionType.StopAutomation, 10f) {
-                unit.action = null
-                unit.automated = false
+                GUI.getMap().setUnitAutomation(unit, enabled = false)
             })
 
         addPromoteActions(unit)
@@ -376,8 +374,7 @@ object UnitActions {
             isCurrentAction = unit.isAutomated(),
             useFrequency = 25f,
             action = {
-                unit.automated = true
-                UnitAutomation.automateUnitMoves(unit)
+                GUI.getMap().setUnitAutomation(unit, enabled = true)
             }.takeIf { unit.hasMovement() }
         ))
     }

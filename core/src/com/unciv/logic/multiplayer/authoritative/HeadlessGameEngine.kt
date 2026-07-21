@@ -175,6 +175,35 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Enables or disables broad unit automation and executes its immediate
+     * canonical action through the shared rules implementation. */
+    fun setUnitAutomation(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        enabled: Boolean,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change unit automation outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        if (enabled) {
+            require(!unit.isAutomated()) { "Unit is already automated" }
+            require(unit.hasMovement()) { "Unit has no movement available for automation" }
+            unit.automated = true
+            com.unciv.logic.automation.unit.UnitAutomation.automateUnitMoves(unit)
+        } else {
+            require(unit.isAutomated()) { "Unit is not automated" }
+            unit.action = null
+            unit.automated = false
+        }
+        return result(game)
+    }
+
     /** Swaps a controlled unit with the compatible friendly unit occupying the
      * destination, using the shared movement implementation and canonical state. */
     fun swapUnits(

@@ -200,6 +200,28 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setUnitAutomationIfOpen(
+        gameId: String,
+        unitId: Int,
+        enabled: Boolean,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetUnitAutomation &&
+                    current.pending.unitId == unitId && current.pending.enabled == enabled) {
+                    "Resolve the pending authoritative command before changing automation"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setUnitAutomation(unitId, enabled)
+            else -> {
+                bus.refresh()
+                bus.setUnitAutomation(unitId, enabled)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

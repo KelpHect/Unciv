@@ -274,6 +274,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitAutomationRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setUnitAutomationIfOpen(GAME_ID, 42, true))
+        session.openGame(GAME_ID)
+        val outcome = session.setUnitAutomationIfOpen(GAME_ID, 42, true)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(42 to true), transport.automationOrders)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -613,6 +632,7 @@ class AuthoritativeMultiplayerSessionTests {
         val movementOrders = mutableListOf<Triple<Int, Int, Int>>()
         val cancelledMovementOrders = mutableListOf<Int>()
         val explorationOrders = mutableListOf<Pair<Int, Boolean>>()
+        val automationOrders = mutableListOf<Pair<Int, Boolean>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -745,6 +765,26 @@ class AuthoritativeMultiplayerSessionTests {
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",
                 projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun setUnitAutomation(
+            gameId: String,
+            request: ApiV3SetUnitAutomationRequest,
+        ): ApiV3CommandAccepted {
+            automationOrders += request.unitId to request.enabled
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownUnits = current.projection.ownUnits.map { unit ->
+                        if (unit.id == request.unitId) unit.copy(automated = request.enabled) else unit
+                    },
+                ),
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

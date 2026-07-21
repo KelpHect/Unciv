@@ -1308,6 +1308,49 @@ The database tests used only
 `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
 The disposable container was stopped and automatically removed after the run.
 
+## Authoritative generic unit automation and projection v10
+
+Generic Automate and Stop Automation now use the closed
+`SetUnitAutomation(unitId, enabled)` API-v3 command. Rust derives the actor and
+civilization from authenticated membership. The private worker validates the
+canonical current turn, ownership, current automation state, and movement
+availability before enabling automation, then invokes the shared
+`UnitAutomation.automateUnitMoves` implementation. Later automated actions run
+inside the existing server-owned turn engine through `MapUnit.doAction()`.
+Disabling automation clears its canonical action and flag on the server.
+
+Projection v10 adds explicit `automated` and `exploring` booleans for owned
+units. Both fields are forced false for visible foreign units, and the foreign
+secret test now seeds a real automated foreign unit to prove the order does not
+cross the projection boundary. The shared Rust/Kotlin fixture moved to
+`player-projection-v10.fixture.json` and remains closed to unknown canonical
+fields.
+
+For explicitly opened v3 games, Automate, Stop Automation, Explore, and Stop
+Exploration submit through the authoritative session and perform no local
+canonical mutation. Other game modes preserve their existing paths. Rust HTTP,
+PostgreSQL, and worker plumbing for these commands now lives in focused
+`unit_orders.rs` modules; movement files no longer own automation concerns.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 32 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55480/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :tests:test :server:test --no-daemon --no-build-cache
+# 823 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The PostgreSQL run used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was stopped and automatically removed. `main.rs`
+remains six lines, and the largest Rust source file remains 729 lines.
+
 ## Authoritative specialist allocation vertical slice
 
 Projection v7 adds an owned-city-only specialist allowlist containing each

@@ -33,6 +33,10 @@ pub enum GameCommand {
         unit_id: i32,
         enabled: bool,
     },
+    SetUnitAutomation {
+        unit_id: i32,
+        enabled: bool,
+    },
     SwapUnits {
         unit_id: i32,
         destination_x: i32,

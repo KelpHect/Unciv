@@ -120,6 +120,8 @@ pub struct ProjectedUnit {
     pub current_movement: f32,
     pub movement_destination_x: Option<i32>,
     pub movement_destination_y: Option<i32>,
+    pub automated: bool,
+    pub exploring: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -136,7 +138,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v9.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v10.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -157,10 +159,14 @@ mod tests {
         );
         assert_eq!(projection.policies.selectable_policies, ["Tradition"]);
         assert_eq!(projection.own_units[0].movement_destination_x, Some(7));
+        assert!(projection.own_units[0].automated);
+        assert!(!projection.own_units[0].exploring);
         assert_eq!(
             projection.visible_foreign_units[0].movement_destination_x,
             None
         );
+        assert!(!projection.visible_foreign_units[0].automated);
+        assert!(!projection.visible_foreign_units[0].exploring);
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;

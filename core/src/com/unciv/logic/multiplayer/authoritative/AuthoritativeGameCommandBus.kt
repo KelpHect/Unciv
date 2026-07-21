@@ -58,6 +58,14 @@ sealed interface PendingAuthoritativeCommand {
         val enabled: Boolean,
     ) : PendingAuthoritativeCommand
 
+    data class SetUnitAutomation(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val enabled: Boolean,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -300,10 +308,25 @@ class AuthoritativeGameCommandBus(
 
     suspend fun setUnitExploration(unitId: Int, enabled: Boolean) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(unit.exploring != enabled) {
+            "Unit exploration already matches the requested state"
         }
         submitLocked(PendingAuthoritativeCommand.SetUnitExploration(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, enabled,
+        ), current)
+    }
+
+    suspend fun setUnitAutomation(unitId: Int, enabled: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(unit.automated != enabled) {
+            "Unit automation already matches the requested state"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetUnitAutomation(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, enabled,
         ), current)
@@ -693,6 +716,14 @@ class AuthoritativeGameCommandBus(
                     transport.setUnitExploration(
                         gameId,
                         ApiV3SetUnitExplorationRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId, pending.enabled,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.SetUnitAutomation ->
+                    transport.setUnitAutomation(
+                        gameId,
+                        ApiV3SetUnitAutomationRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId, pending.enabled,
                         ),

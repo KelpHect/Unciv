@@ -24,7 +24,7 @@
     "citizenFocus": "gold_focus",
     "selectableCitizenFocuses": ["no_focus", "manual", "food_focus", "production_focus", "gold_focus", "science_focus", "culture_focus", "faith_focus", "gold_growth_focus", "production_growth_focus"]
   }],
-  "ownUnits": [{ "id": 17, "civilizationId": "Rome", "name": "Warrior", "x": 3, "y": -1, "health": 91, "currentMovement": 1.5, "movementDestinationX": 7, "movementDestinationY": 2 }],
+  "ownUnits": [{ "id": 17, "civilizationId": "Rome", "name": "Warrior", "x": 3, "y": -1, "health": 91, "currentMovement": 1.5, "movementDestinationX": 7, "movementDestinationY": 2, "automated": true, "exploring": false }],
   "exploredTiles": [{ "x": 2, "y": -1, "visible": true }, { "x": 3, "y": -1, "visible": false }],
-  "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null }]
+  "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false }]
 }

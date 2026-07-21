@@ -123,6 +123,28 @@ fn set_unit_exploration_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn set_unit_automation_contract_is_typed_and_closed() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_unit_automation", "unit_id": 42, "enabled": true
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetUnitAutomation {
+            unit_id: 42,
+            enabled: true
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_unit_automation", "unit_id": 42, "enabled": true,
+            "actor": "Rome"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

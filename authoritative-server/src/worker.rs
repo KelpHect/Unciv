@@ -15,6 +15,7 @@ use crate::CommitProposal;
 mod city_population;
 mod protocol;
 mod unit_movement;
+mod unit_orders;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     ChooseFreeTechnologyIntent, CreatedGame, MoveConstructionIntent, MoveUnitIntent,
@@ -22,8 +23,8 @@ pub use protocol::{
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, SetUnitExplorationIntent, SwapUnitsIntent,
-    WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    SetResearchPathIntent, SetSpecialistCountIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SwapUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

@@ -548,6 +548,26 @@ class WorldMapHolder(
         }
     }
 
+    internal fun setUnitAutomation(unit: MapUnit, enabled: Boolean) {
+        if (!isAuthoritativeGame()) {
+            if (enabled) {
+                unit.automated = true
+                com.unciv.logic.automation.unit.UnitAutomation.automateUnitMoves(unit)
+            } else {
+                unit.action = null
+                unit.automated = false
+            }
+            worldScreen.shouldUpdate = true
+            return
+        }
+        submitAuthoritativeUnitCommand("unit automation", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.setUnitAutomationIfOpen(worldScreen.gameInfo.gameId, unit.id, enabled)
+        }) {
+            removeUnitActionOverlay()
+        }
+    }
+
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.

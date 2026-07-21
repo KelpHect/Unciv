@@ -2469,3 +2469,51 @@ Verification on 2026-07-21:
   source is 729 lines and every Rust source remains below 800 lines.
 
 Direct combat remains the next major authoritative unit-action gap.
+
+## Authoritative normal unit attacks
+
+Normal API-v3 unit combat now uses the closed
+`AttackWithUnit(unitId, targetX, targetY)` command. The coordinate identifies
+player intent, not a trusted defender or outcome. Authenticated membership
+supplies the civilization, and the Kotlin worker reloads canonical state before
+deriving ownership, current turn, attack availability, war status, visibility,
+target combatant, reachable attack-from tiles, movement and siege setup.
+
+`UnitAttackExecutor` orders otherwise-equivalent attack-from choices by
+remaining movement and canonical coordinates, then delegates the complete
+mutation to the existing Kotlin `Battle` engine. The server therefore owns
+combat RNG, damage, interception, withdrawal, civilian and military capture,
+unit destruction, city defeat/conquest for unit attacks, post-combat movement,
+XP, promotions, triggered uniques, diplomacy effects, pillage interactions,
+notifications, and stable state hashing. Rust implements no battle rules.
+
+Both right-click attacks and the battle-panel attack control submit the typed
+command for explicitly opened authoritative games before any local mutation.
+Single-player, hotseat, legacy multiplayer, and server-owned AI retain the
+existing local/shared Kotlin execution paths. City-originated bombardment and
+empty-tile nuclear targeting remain separate explicit command gaps; they are
+not falsely represented as completed by this unit-attack command.
+
+Verification on 2026-07-21:
+
+- Repeated unit combat from the same canonical snapshot produced the same state
+  hash and projected attacker state. Foreign accounts, out-of-turn actors, and
+  friendly/non-enemy targets were rejected without a successful engine result.
+- Command-bus and session tests prove only explicitly opened games route the
+  attack and the payload excludes paths, defender identity, damage, random
+  values, movement/setup claims, actor identity, and outcomes.
+- `cargo test --all-targets`: 44 active Rust library tests and all 7 HTTP/OpenAPI
+  tests passed; 8 database tests were explicitly gated from that invocation.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The exact-name disposable test container was removed afterward.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: 868 shared
+  JVM tests completed with 13 intentional skips and zero failures, plus all 4
+  worker protocol tests.
+- Rust formatting, warnings-as-errors Clippy, generated OpenAPI parity,
+  `git diff --check`, and module-size review passed. `main.rs` remains 6 lines,
+  `lib.rs` remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+City bombardment is the next combat command gap, followed by explicit nuclear
+strike targeting and air-sweep handling.

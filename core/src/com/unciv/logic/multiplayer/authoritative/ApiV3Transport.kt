@@ -26,6 +26,7 @@ interface ApiV3Transport {
     suspend fun pillageTile(gameId: String, request: ApiV3PillageTileRequest): ApiV3CommandAccepted
     suspend fun foundCity(gameId: String, request: ApiV3FoundCityRequest): ApiV3CommandAccepted
     suspend fun paradropUnit(gameId: String, request: ApiV3ParadropUnitRequest): ApiV3CommandAccepted
+    suspend fun attackWithUnit(gameId: String, request: ApiV3AttackWithUnitRequest): ApiV3CommandAccepted
     suspend fun upgradeUnits(gameId: String, request: ApiV3UpgradeUnitsRequest): ApiV3CommandAccepted
     suspend fun promoteUnit(gameId: String, request: ApiV3PromoteUnitRequest): ApiV3CommandAccepted
     suspend fun setCityUnitPromotionPreference(gameId: String, request: ApiV3SetCityUnitPromotionPreferenceRequest): ApiV3CommandAccepted

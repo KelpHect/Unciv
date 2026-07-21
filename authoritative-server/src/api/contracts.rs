@@ -191,6 +191,17 @@ pub(super) struct ParadropUnitRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct AttackWithUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
+    pub(super) target_x: i32,
+    pub(super) target_y: i32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct UpgradeUnitsRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

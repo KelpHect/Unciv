@@ -264,6 +264,11 @@ class WorldMapHolder(
                     .firstOrNull { it.tileToAttack == tile }
             if (unit.canAttack() && attackableTile != null) {
                 /** ****** Right-click Attack ****** */
+                if (submitAuthoritativeUnitAttackIfOpen(unit, tile)) {
+                    localShouldUpdate = true
+                    worldScreen.shouldUpdate = localShouldUpdate
+                    return
+                }
                 val attacker = MapUnitCombatant(unit)
                 if (!Battle.movePreparingAttack(attacker, attackableTile)) return
                 if (!SoundPlayer.play(UncivSound(attacker.getName())))
@@ -379,6 +384,19 @@ class WorldMapHolder(
             ?.isGameOpen(worldScreen.gameInfo.gameId) == true
 
     fun usesAuthoritativeCommands(): Boolean = isAuthoritativeGame()
+
+    internal fun submitAuthoritativeUnitAttackIfOpen(unit: MapUnit, target: Tile): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("unit attack", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession?.attackWithUnitIfOpen(
+                worldScreen.gameInfo.gameId,
+                unit.id,
+                target.position.x,
+                target.position.y,
+            )
+        }) { removeUnitActionOverlay() }
+        return true
+    }
 
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,

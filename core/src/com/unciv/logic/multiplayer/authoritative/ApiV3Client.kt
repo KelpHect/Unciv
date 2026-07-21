@@ -232,6 +232,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun attackWithUnit(
+        gameId: String,
+        request: ApiV3AttackWithUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/attack-with-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

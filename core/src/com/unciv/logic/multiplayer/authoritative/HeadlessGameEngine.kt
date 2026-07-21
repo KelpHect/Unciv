@@ -4,6 +4,7 @@ import com.unciv.Constants
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
+import com.unciv.logic.battle.UnitAttackExecutor
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.files.UncivFiles
@@ -134,6 +135,31 @@ class HeadlessGameEngine(
             ?: error("Paradrop destination is outside the canonical map")
         require(UnitParadrop.paradrop(unit, destination)) {
             "Unit cannot paradrop to the requested canonical destination"
+        }
+        return result(game)
+    }
+
+    /** Executes a normal unit attack while the worker derives the defender,
+     * attack-from tile, movement, setup, combat randomness, and every outcome. */
+    fun attackWithUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        targetX: Int,
+        targetY: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot attack outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
+            ?: error("Attack target is outside the canonical map")
+        require(UnitAttackExecutor.attack(unit, target) != null) {
+            "Unit cannot attack the requested canonical target"
         }
         return result(game)
     }

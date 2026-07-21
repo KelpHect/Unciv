@@ -65,6 +65,11 @@ pub enum GameCommand {
         destination_x: i32,
         destination_y: i32,
     },
+    AttackWithUnit {
+        unit_id: i32,
+        target_x: i32,
+        target_y: i32,
+    },
     UpgradeUnits {
         unit_ids: Vec<i32>,
         target_unit_name: String,

@@ -110,6 +110,10 @@ pub(crate) async fn run() {
             post(paradrop_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/attack-with-unit",
+            post(attack_with_unit),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/upgrade-units",
             post(upgrade_units),
         )

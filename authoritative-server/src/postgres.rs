@@ -11,7 +11,7 @@ use crate::auth::{
 };
 use crate::projection::PlayerProjection;
 use crate::worker::{
-    AdoptPolicyIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
+    AdoptPolicyIntent, AttackWithUnitIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, FoundCityIntent,
     MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent,
     PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,

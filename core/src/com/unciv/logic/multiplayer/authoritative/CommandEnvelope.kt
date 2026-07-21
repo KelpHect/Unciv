@@ -103,6 +103,12 @@ sealed interface GameCommand {
         val destinationY: Int,
     ) : GameCommand
 
+    data class AttackWithUnit(
+        val unitId: Int,
+        val targetX: Int,
+        val targetY: Int,
+    ) : GameCommand
+
     data class UpgradeUnits(
         val unitIds: List<Int>,
         val targetUnitName: String,

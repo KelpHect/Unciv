@@ -104,6 +104,15 @@ sealed interface PendingAuthoritativeCommand {
         val destinationY: Int,
     ) : PendingAuthoritativeCommand
 
+    data class AttackWithUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val targetX: Int,
+        val targetY: Int,
+    ) : PendingAuthoritativeCommand
+
     data class UpgradeUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -474,6 +483,20 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.ParadropUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, destinationX, destinationY,
+        ), current)
+    }
+
+    suspend fun attackWithUnit(unitId: Int, targetX: Int, targetY: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any {
+            it.x == targetX && it.y == targetY && it.visible
+        }) { "Attack target is absent from the current visible projection" }
+        submitLocked(PendingAuthoritativeCommand.AttackWithUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, targetX, targetY,
         ), current)
     }
 
@@ -1033,6 +1056,15 @@ class AuthoritativeGameCommandBus(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId,
                             pending.destinationX, pending.destinationY,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.AttackWithUnit ->
+                    transport.attackWithUnit(
+                        gameId,
+                        ApiV3AttackWithUnitRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
+                            pending.targetX, pending.targetY,
                         ),
                     )
                 is PendingAuthoritativeCommand.UpgradeUnits ->

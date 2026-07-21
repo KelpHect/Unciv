@@ -902,6 +902,68 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun unitAttackIsCanonicalDeterministicAndProjected() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        rome.getDiplomacyManager(greece)!!.declareWar()
+        val attacker = rome.units.getCivUnits().first { !it.isCivilian() }
+        val defender = greece.units.getCivUnits().first { !it.isCivilian() }
+        val target = attacker.currentTile.neighbors.first { it.isLand && it.militaryUnit == null }
+        defender.removeFromTile()
+        defender.putInTile(target)
+        rome.cache.updateViewableTiles()
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.attackWithUnit(
+            engine.loadSnapshot(snapshot), "Rome", attacker.id,
+            target.position.x, target.position.y,
+        )
+        val second = engine.attackWithUnit(
+            engine.loadSnapshot(snapshot), "Rome", attacker.id,
+            target.position.x, target.position.y,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val resultAttacker = first.game.getCivilization("Rome").units.getUnitById(attacker.id)!!
+        Assert.assertEquals(1, resultAttacker.attacksThisTurn)
+        val projected = engine.playerProjection(first.game, "Rome")
+        Assert.assertEquals(resultAttacker.health, projected.ownUnits.single { it.id == attacker.id }.health)
+    }
+
+    @Test
+    fun unitAttackRejectsForeignOutOfTurnAndNonEnemyTargets() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val attacker = rome.units.getCivUnits().first { !it.isCivilian() }
+        val friendly = rome.units.getCivUnits().first { it.isCivilian() }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.attackWithUnit(
+                game, "Rome", attacker.id,
+                friendly.currentTile.position.x, friendly.currentTile.position.y,
+            )
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.attackWithUnit(
+                game, "Rome", attacker.id,
+                friendly.currentTile.position.x, friendly.currentTile.position.y,
+            )
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.attackWithUnit(
+                game, "Rome", attacker.id,
+                friendly.currentTile.position.x, friendly.currentTile.position.y,
+            )
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

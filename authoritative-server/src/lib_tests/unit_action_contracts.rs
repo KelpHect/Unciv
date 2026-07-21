@@ -180,6 +180,25 @@ fn paradrop_unit_contract_contains_only_intent_coordinates() {
 }
 
 #[test]
+fn attack_with_unit_contract_excludes_paths_damage_rng_and_actor() {
+    let serialized = serde_json::to_value(GameCommand::AttackWithUnit {
+        unit_id: 42,
+        target_x: 3,
+        target_y: -2,
+    })
+    .unwrap();
+    assert_eq!(
+        serialized,
+        serde_json::json!({
+            "type": "attack_with_unit",
+            "unit_id": 42,
+            "target_x": 3,
+            "target_y": -2,
+        })
+    );
+}
+
+#[test]
 fn upgrade_units_contract_excludes_cost_resources_and_actor() {
     let command = GameCommand::UpgradeUnits {
         unit_ids: vec![42, 43],

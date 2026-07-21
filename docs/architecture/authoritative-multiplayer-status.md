@@ -1354,6 +1354,49 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative friendly-unit swapping and movement modules
+
+`SwapUnits(unitId, destination)` now crosses the complete API-v3 authority
+boundary as a distinct closed command. It carries no actor, target-unit,
+movement-cost, escort, or client-legality claims. Rust derives the actor from
+membership, while the Kotlin worker validates the canonical turn, unit
+ownership, map coordinate, current-turn reachability, compatible friendly
+occupancy, movement points, and escort rules before calling shared
+`swapMoveToTile(..., keepEscorting = true)` behavior.
+
+Opened-v3 swap controls submit through the session/command bus and never call
+the local swap method. The bus binds the stable unit ID and coordinate to the
+current player projection, preserves idempotency keys across ambiguous retries,
+and refreshes after accepted/stale outcomes. Local, hotseat, and legacy paths
+retain their existing direct behavior.
+
+The Rust movement path was split proactively before adding this command.
+Handlers now live in `api/unit_movement.rs`, transaction orchestration in
+`postgres/unit_movement.rs`, and private worker calls in
+`worker/unit_movement.rs`. This reduced `api/commands.rs` from 692 to 646 lines,
+`postgres/commands.rs` from 779 to 729, and `worker.rs` from 694 to 662. The new
+focused modules own both ordinary movement and swaps; `main.rs` remains six
+lines and every Rust source file remains below 800 lines.
+
+Verification passed the canonical swap engine test, closed Rust and Kotlin
+wire-shape tests, projection-bound command-bus test, explicit-open session
+test, generated OpenAPI parity, 28 active Rust library tests, seven HTTP/
+OpenAPI tests, formatting, strict all-target/all-feature Clippy with warnings
+denied, and `git diff --check`. All eight database integration tests passed
+serially against the pinned PostgreSQL 19 Beta 2 digest on port 55476; the
+disposable container was then stopped and removed. The complete JDK 21
+regression passed 809 shared tests and four server tests with zero failures/
+errors and 13 intentional skips.
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55476/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Authoritative world-map unit movement
 
 The existing `MoveUnit(unitId, destination)` command now owns the ordinary

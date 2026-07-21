@@ -34,6 +34,15 @@ sealed interface PendingAuthoritativeCommand {
         val destinationY: Int,
     ) : PendingAuthoritativeCommand
 
+    data class SwapUnits(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
+    ) : PendingAuthoritativeCommand
+
     data class EndTurn(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -228,6 +237,26 @@ class AuthoritativeGameCommandBus(
             "Destination is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.MoveUnit(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            unitId = unitId,
+            destinationX = destinationX,
+            destinationY = destinationY,
+        ), current)
+    }
+
+    suspend fun swapUnits(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any {
+            it.x == destinationX && it.y == destinationY
+        }) {
+            "Destination is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SwapUnits(
             commandId = commandIdFactory(),
             expectedRevision = current.committedRevision,
             observedStateHash = current.canonicalStateHash,
@@ -580,6 +609,13 @@ class AuthoritativeGameCommandBus(
                         pending.unitId,
                         pending.destinationX,
                         pending.destinationY,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(
+                    gameId,
+                    ApiV3SwapUnitsRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitId, pending.destinationX, pending.destinationY,
                     ),
                 )
                 is PendingAuthoritativeCommand.EndTurn -> transport.endTurn(

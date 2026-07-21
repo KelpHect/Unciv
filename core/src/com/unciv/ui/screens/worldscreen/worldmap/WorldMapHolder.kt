@@ -379,22 +379,32 @@ class WorldMapHolder(
         destinationThisTurn: Tile,
     ) {
         val selectedUnit = selectedUnits.first()
-        Concurrency.runOnNonDaemonThreadPool("Move authoritative unit") {
-            val outcome = try {
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    selectedUnit.id,
-                    destinationThisTurn.position.x,
-                    destinationThisTurn.position.y,
-                )
-            } catch (ex: Exception) {
+        submitAuthoritativeUnitCommand("unit move", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
+                worldScreen.gameInfo.gameId,
+                selectedUnit.id,
+                destinationThisTurn.position.x,
+                destinationThisTurn.position.y,
+            )
+        }) {
+            if (selectedUnits.size > 1)
+                moveUnitToTargetTile(selectedUnits.drop(1), requestedTarget)
+            else removeUnitActionOverlay()
+        }
+    }
+
+    private fun submitAuthoritativeUnitCommand(
+        description: String,
+        submit: suspend () -> AuthoritativeCommandOutcome?,
+        onAccepted: () -> Unit,
+    ) {
+        Concurrency.runOnNonDaemonThreadPool("Submit authoritative $description") {
+            val outcome = try { submit() }
+            catch (ex: Exception) {
                 if (ex is CancellationException) throw ex
                 launchOnGLThread {
                     removeUnitActionOverlay()
-                    ToastPopup(
-                        "Could not submit authoritative unit move: [${ex.message ?: "Unknown"}]",
-                        worldScreen,
-                    )
+                    ToastPopup("Could not submit authoritative $description: [${ex.message ?: "Unknown"}]", worldScreen)
                 }
                 return@runOnNonDaemonThreadPool
             }
@@ -402,25 +412,23 @@ class WorldMapHolder(
                 when (outcome) {
                     is AuthoritativeCommandOutcome.Accepted -> {
                         worldScreen.gameInfo.isUpToDate = false
-                        if (selectedUnits.size > 1)
-                            moveUnitToTargetTile(selectedUnits.drop(1), requestedTarget)
-                        else removeUnitActionOverlay()
-                        ToastPopup("Unit move committed by the authoritative server", worldScreen)
+                        onAccepted()
+                        ToastPopup("${description.replaceFirstChar { it.uppercase() }} committed by the authoritative server", worldScreen)
                     }
                     is AuthoritativeCommandOutcome.StaleRefreshed -> {
                         worldScreen.gameInfo.isUpToDate = false
                         removeUnitActionOverlay()
-                        ToastPopup("Game changed on the server - unit was not moved", worldScreen)
+                        ToastPopup("Game changed on the server - $description was not committed", worldScreen)
                     }
                     is AuthoritativeCommandOutcome.Rejected -> {
                         removeUnitActionOverlay()
-                        ToastPopup("Server rejected unit move: [${outcome.code}]", worldScreen)
+                        ToastPopup("Server rejected $description: [${outcome.code}]", worldScreen)
                     }
                     AuthoritativeCommandOutcome.RetryRequired ->
                         ToastPopup("Server response was lost - retry will use the same command", worldScreen)
                     null -> {
                         removeUnitActionOverlay()
-                        ToastPopup("Authoritative game was closed before unit movement", worldScreen)
+                        ToastPopup("Authoritative game was closed before $description", worldScreen)
                     }
                 }
                 worldScreen.shouldUpdate = true
@@ -474,8 +482,14 @@ class WorldMapHolder(
 
     internal fun swapMoveUnitToTargetTile(selectedUnit: MapUnit, targetTile: Tile) {
         if (isAuthoritativeGame()) {
-            removeUnitActionOverlay()
-            ToastPopup("Unit swapping is not available for authoritative games yet", worldScreen)
+            submitAuthoritativeUnitCommand("unit swap", submit = {
+                worldScreen.game.onlineMultiplayer.authoritativeSession?.swapUnitsIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    selectedUnit.id,
+                    targetTile.position.x,
+                    targetTile.position.y,
+                )
+            }) { removeUnitActionOverlay() }
             return
         }
         markUnitMoveTutorialComplete(selectedUnit)

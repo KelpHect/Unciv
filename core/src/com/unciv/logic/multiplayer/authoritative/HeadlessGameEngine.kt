@@ -97,6 +97,37 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Swaps a controlled unit with the compatible friendly unit occupying the
+     * destination, using the shared movement implementation and canonical state. */
+    fun swapUnits(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        destination: HexCoord,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot swap units outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(destination in game.tileMap) { "Destination is outside the canonical map" }
+        val destinationTile = game.tileMap[destination]
+        require(unit.movement.canUnitSwapTo(destinationTile)) {
+            "Unit cannot swap with the destination occupant"
+        }
+        val origin = unit.getTile()
+        unit.movement.swapMoveToTile(destinationTile, keepEscorting = true)
+        check(unit.getTile() == destinationTile) { "Unit swap did not reach the destination" }
+        check(destinationTile.getUnits().any { it == unit }) { "Swapped unit is absent from destination" }
+        check(origin.getUnits().any { it.civ == actorCivilization }) {
+            "Unit swap did not move a friendly occupant to the origin"
+        }
+        return result(game)
+    }
+
     /** Adds one explicitly named construction to a city owned by the
      * authenticated civilization. The shared construction model remains the
      * source of truth for prerequisites, queue capacity, and uniqueness. */

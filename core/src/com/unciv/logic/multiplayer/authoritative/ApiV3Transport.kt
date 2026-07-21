@@ -17,6 +17,7 @@ interface ApiV3Transport {
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection
     suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted
+    suspend fun swapUnits(gameId: String, request: ApiV3SwapUnitsRequest): ApiV3CommandAccepted
     suspend fun queueConstruction(gameId: String, request: ApiV3QueueConstructionRequest): ApiV3CommandAccepted
     suspend fun queueConstructionAtTile(gameId: String, request: ApiV3QueueConstructionAtTileRequest): ApiV3CommandAccepted
     suspend fun setPerpetualConstruction(gameId: String, request: ApiV3SetPerpetualConstructionRequest): ApiV3CommandAccepted

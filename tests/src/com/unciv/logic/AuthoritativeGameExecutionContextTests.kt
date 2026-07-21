@@ -255,6 +255,30 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun swapUnitsUsesCanonicalFriendlyOccupancyAndMovementRules() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(3)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val origin = testGame.getTile(HexCoord.Zero)
+        val destination = testGame.getTile(HexCoord(1, 0))
+        val moving = testGame.addUnit("Warrior", civilization, origin)
+        val displaced = testGame.addUnit("Warrior", civilization, destination)
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.swapUnits(
+            testGame.gameInfo,
+            civilization.civName,
+            moving.id,
+            destination.position,
+        )
+
+        Assert.assertEquals(destination, moving.currentTile)
+        Assert.assertEquals(origin, displaced.currentTile)
+    }
+
+    @Test
     fun queueConstructionUsesCanonicalCityOwnershipAndBuildability() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

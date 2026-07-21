@@ -14,14 +14,15 @@ use crate::CommitProposal;
 
 mod city_population;
 mod protocol;
+mod unit_movement;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
     MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, WorkerCapabilities, WorkerManifest,
-    WorkerRuleset,
+    SetResearchPathIntent, SetSpecialistCountIntent, SwapUnitsIntent, WorkerCapabilities,
+    WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 
@@ -403,39 +404,6 @@ impl EngineWorkerClient {
         Ok(ProjectedState {
             projection: serde_json::from_value(projection)
                 .map_err(|_| WorkerClientError::Protocol)?,
-        })
-    }
-
-    pub async fn move_unit(
-        &self,
-        actor_id: &str,
-        manifest: &WorkerManifest,
-        previous_revision: u64,
-        snapshot: &str,
-        intent: MoveUnitIntent<'_>,
-    ) -> Result<CommitProposal, WorkerClientError> {
-        let response = self
-            .execute(
-                actor_id,
-                manifest,
-                WorkerOperation::MoveUnit {
-                    snapshot,
-                    actor_civilization_id: intent.actor_civilization_id,
-                    unit_id: intent.unit_id,
-                    destination_x: intent.destination_x,
-                    destination_y: intent.destination_y,
-                },
-            )
-            .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
         })
     }
 

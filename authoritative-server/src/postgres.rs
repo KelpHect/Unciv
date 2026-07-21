@@ -16,7 +16,7 @@ use crate::worker::{
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
     SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, WorkerManifest,
+    SetResearchPathIntent, SetSpecialistCountIntent, SwapUnitsIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -90,6 +90,7 @@ mod commands;
 mod games;
 mod outbox;
 mod security;
+mod unit_movement;
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

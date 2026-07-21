@@ -211,6 +211,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = listOf(unit),
+                exploredTiles = listOf(ProjectedTileVisibility(1, 0, visible = true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.swapUnitsIfOpen(GAME_ID, 42, 1, 0))
+        session.openGame(GAME_ID)
+        val outcome = session.swapUnitsIfOpen(GAME_ID, 42, 1, 0)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple(42, 1, 0)), transport.unitSwaps)
+        session.close()
+    }
+
+    @Test
     fun researchRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val transport = FakeTransport().apply {
             restored = true
@@ -525,6 +547,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
         val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
+        val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
         val freeTechnologyNames = mutableListOf<String>()
@@ -595,6 +618,21 @@ class AuthoritativeMultiplayerSessionTests {
                 canonicalStateHash = "hash-8",
                 projectionHash = "projection-hash-8",
                 projection = current.projection.copy(ownUnits = listOf(movedUnit)),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun swapUnits(
+            gameId: String,
+            request: ApiV3SwapUnitsRequest,
+        ): ApiV3CommandAccepted {
+            unitSwaps += Triple(request.unitId, request.destinationX, request.destinationY)
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

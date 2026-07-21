@@ -68,6 +68,12 @@ sealed interface GameCommand {
         val destinationY: Int,
     ) : GameCommand
 
+    data class SwapUnits(
+        val unitId: Int,
+        val destinationX: Int,
+        val destinationY: Int,
+    ) : GameCommand
+
     data class QueueConstruction(
         val cityId: String,
         val constructionName: String,

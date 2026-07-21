@@ -10,6 +10,7 @@ mod games;
 mod notifications;
 mod openapi;
 mod state;
+mod unit_movement;
 
 use auth::*;
 use auth_helpers::*;
@@ -18,6 +19,7 @@ use commands::*;
 use game_helpers::*;
 pub(super) use games::*;
 pub(super) use notifications::*;
+use unit_movement::*;
 
 pub(super) use std::{
     net::{IpAddr, SocketAddr},

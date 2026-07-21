@@ -118,6 +118,11 @@ sealed interface GameCommand {
         val count: Int,
     ) : GameCommand
 
+    data class SetManualSpecialists(
+        val cityId: String,
+        val enabled: Boolean,
+    ) : GameCommand
+
     data class SetResearchPath(val technologyName: String) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand

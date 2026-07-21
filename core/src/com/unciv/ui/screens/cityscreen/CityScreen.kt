@@ -543,6 +543,53 @@ class CityScreen(
         }
     }
 
+    internal fun submitAuthoritativeManualSpecialists(enabled: Boolean) {
+        if (authoritativeSpecialistSubmissionInProgress) return
+        authoritativeSpecialistSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Set authoritative specialist mode") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.setManualSpecialistsIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    enabled,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeSpecialistSubmissionInProgress = false
+                    ToastPopup("Could not submit specialist mode: [${ex.message ?: "Unknown"}]", this@CityScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Specialist mode committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - specialist mode was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Server rejected specialist mode: [${outcome.code}]", this@CityScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
+                    }
+                    null -> {
+                        authoritativeSpecialistSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before specialist mode", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
     /** Ask whether user wants to buy [selectedTile] for gold.
      *
      * Used from onClick and keyboard dispatch, thus only minimal parameters are passed,

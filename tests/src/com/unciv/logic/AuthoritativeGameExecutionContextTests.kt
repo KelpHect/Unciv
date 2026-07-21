@@ -489,6 +489,30 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(0, city.population.specialistAllocations["Merchant"])
     }
 
+    @Test
+    fun disablingManualSpecialistsReassignsPopulationCanonically() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val specialistBuilding = testGame.createBuilding()
+        specialistBuilding.specialistSlots.add("Merchant", 1)
+        city.cityConstructions.addBuilding(specialistBuilding)
+        city.workedTiles.clear()
+        city.manualSpecialists = true
+        city.population.specialistAllocations["Merchant"] = 1
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.setManualSpecialists(
+            testGame.gameInfo, civilization.civName, city.id, false,
+        )
+
+        Assert.assertFalse(city.manualSpecialists)
+        Assert.assertEquals(0, city.population.getFreePopulation())
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotMoveAnotherCivilizationsUnit() {
         val creator = HeadlessGameEngine(serverContext { serverTime })

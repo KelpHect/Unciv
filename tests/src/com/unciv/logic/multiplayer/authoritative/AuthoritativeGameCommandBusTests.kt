@@ -56,6 +56,17 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun manualSpecialistModeRequestIsClosedAndActorless() {
+        val encoded = Json.encodeToString(
+            ApiV3SetManualSpecialistsRequest.serializer(),
+            ApiV3SetManualSpecialistsRequest("command", 7, "hash", "city-1", false),
+        )
+        assertTrue(encoded.contains("\"enabled\":false"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("allocations"))
+    }
+
+    @Test
     fun cityTileAssignmentIsBoundToTheProjectedCityTile() = runBlocking {
         val tile = ProjectedCityTile(2, -1, worked = true, locked = false)
         val initial = projection(7, "hash-7", cityQueue = emptyList(), assignableTiles = listOf(tile))
@@ -95,6 +106,26 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
         assertEquals(2, transport.specialistCountRequests.single().count)
         assertEquals("specialist-command", transport.specialistCountRequests.single().commandId)
+    }
+
+    @Test
+    fun manualSpecialistModeRequiresProjectedSlots() = runBlocking {
+        val specialist = ProjectedSpecialist("Scientist", assigned = 1, capacity = 2)
+        val initial = projection(7, "hash-7", cityQueue = emptyList(), specialists = listOf(specialist))
+        val committed = projection(8, "hash-8", cityQueue = emptyList(), specialists = listOf(specialist))
+        val transport = FakeTransport(initial).apply {
+            onSetManualSpecialists = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "mode-command" }
+        bus.refresh()
+
+        val outcome = bus.setManualSpecialists("city-1", false)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(false, transport.manualSpecialistRequests.single().enabled)
     }
 
     @Test
@@ -530,6 +561,7 @@ class AuthoritativeGameCommandBusTests {
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
+        val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
@@ -564,6 +596,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetSpecialistCount: suspend (ApiV3SetSpecialistCountRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSetManualSpecialists: suspend (ApiV3SetManualSpecialistsRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
@@ -670,6 +705,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             specialistCountRequests += request
             return onSetSpecialistCount(request)
+        }
+        override suspend fun setManualSpecialists(
+            gameId: String,
+            request: ApiV3SetManualSpecialistsRequest,
+        ): ApiV3CommandAccepted {
+            manualSpecialistRequests += request
+            return onSetManualSpecialists(request)
         }
         override suspend fun setResearchPath(
             gameId: String,

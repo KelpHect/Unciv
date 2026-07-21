@@ -454,6 +454,28 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setManualSpecialistsIfOpen(
+        gameId: String,
+        cityId: String,
+        enabled: Boolean,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetManualSpecialists &&
+                    current.pending.cityId == cityId && current.pending.enabled == enabled) {
+                    "Resolve the pending authoritative command before changing specialist mode"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setManualSpecialists(cityId, enabled)
+            else -> {
+                bus.refresh()
+                bus.setManualSpecialists(cityId, enabled)
+            }
+        }
+    }
+
     suspend fun closeGame(gameId: String) {
         mutex.withLock { games.remove(gameId) }
         openedGameIds -= gameId

@@ -114,6 +114,10 @@ pub(crate) async fn run() {
             post(set_specialist_count),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-manual-specialists",
+            post(set_manual_specialists),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-research-path",
             post(set_research_path),
         )

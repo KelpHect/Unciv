@@ -135,6 +135,14 @@ sealed interface PendingAuthoritativeCommand {
         val count: Int,
     ) : PendingAuthoritativeCommand
 
+    data class SetManualSpecialists(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val enabled: Boolean,
+    ) : PendingAuthoritativeCommand
+
     data class SetResearchPath(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -395,6 +403,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setManualSpecialists(cityId: String, enabled: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(city.specialists.isNotEmpty()) {
+            "City has no projected specialist slots"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetManualSpecialists(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, enabled,
+        ), current)
+    }
+
     private fun requireProjectedQueueEntry(
         current: ApiV3GameProjection,
         cityId: String,
@@ -581,6 +602,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3SetSpecialistCountRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.specialistName, pending.count,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetManualSpecialists -> transport.setManualSpecialists(
+                    gameId,
+                    ApiV3SetManualSpecialistsRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.enabled,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetResearchPath -> transport.setResearchPath(

@@ -436,6 +436,24 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun setManualSpecialists(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        enabled: Boolean,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet && !city.isInResistance()) {
+            "City specialist mode cannot be changed manually"
+        }
+        city.manualSpecialists = enabled
+        if (!enabled) city.reassignPopulation()
+        check(city.manualSpecialists == enabled) {
+            "Manual specialist mode was not committed"
+        }
+        return result(game)
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,

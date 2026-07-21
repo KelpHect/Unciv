@@ -31,6 +31,7 @@ use super::*;
         buy_city_tile,
         set_city_tile_assignment,
         set_specialist_count,
+        set_manual_specialists,
         set_research_path,
         adopt_policy,
         choose_free_technology
@@ -59,6 +60,7 @@ use super::*;
         BuyCityTileRequest,
         SetCityTileAssignmentRequest,
         SetSpecialistCountRequest,
+        SetManualSpecialistsRequest,
         unciv_authoritative_server::CityTileAssignment,
         SetResearchPathRequest,
         AdoptPolicyRequest,
@@ -126,6 +128,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "buy_city_tile",
             "set_city_tile_assignment",
             "set_specialist_count",
+            "set_manual_specialists",
             "set_research_path",
             "adopt_policy",
             "choose_free_technology",

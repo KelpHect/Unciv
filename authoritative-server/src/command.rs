@@ -74,6 +74,10 @@ pub enum GameCommand {
         specialist_name: String,
         count: u32,
     },
+    SetManualSpecialists {
+        city_id: String,
+        enabled: bool,
+    },
     SetResearchPath {
         technology_name: String,
     },

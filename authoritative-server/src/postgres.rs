@@ -14,8 +14,9 @@ use crate::worker::{
     AdoptPolicyIntent, BuyCityTileIntent, ChooseFreeTechnologyIntent, EngineWorkerClient,
     MoveConstructionIntent, MoveUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, WorkerManifest,
+    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
+    WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

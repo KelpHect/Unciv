@@ -41,6 +41,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/buy-city-tile",
         "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
         "/api/v3/games/{game_id}/commands/set-specialist-count",
+        "/api/v3/games/{game_id}/commands/set-manual-specialists",
         "/api/v3/games/{game_id}/commands/set-research-path",
         "/api/v3/games/{game_id}/commands/adopt-policy",
         "/api/v3/games/{game_id}/commands/choose-free-technology",
@@ -84,6 +85,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "BuyCityTileRequest",
         "SetCityTileAssignmentRequest",
         "SetSpecialistCountRequest",
+        "SetManualSpecialistsRequest",
     ] {
         assert_eq!(
             document["components"]["schemas"][schema]["additionalProperties"], false,

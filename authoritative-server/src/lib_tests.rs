@@ -350,6 +350,28 @@ fn specialist_count_contract_excludes_capacity_population_and_actor() {
 }
 
 #[test]
+fn manual_specialist_mode_contract_is_boolean_and_closed() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_manual_specialists", "city_id": "city-1", "enabled": false
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetManualSpecialists {
+            city_id: "city-1".to_owned(),
+            enabled: false,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_manual_specialists", "city_id": "city-1",
+            "enabled": "automatic"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn set_research_path_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_research_path",

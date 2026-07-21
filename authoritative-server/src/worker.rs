@@ -12,14 +12,15 @@ use tokio::{
 
 use crate::CommitProposal;
 
+mod city_population;
 mod protocol;
 pub use protocol::{
     AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
     MoveConstructionIntent, MoveUnitIntent, ProjectedState, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, WorkerCapabilities, WorkerManifest,
-    WorkerRuleset,
+    RemoveConstructionIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
+    WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 
@@ -63,55 +64,6 @@ fn commit_proposal(
 }
 
 impl EngineWorkerClient {
-    pub async fn set_specialist_count(
-        &self,
-        actor_id: &str,
-        manifest: &WorkerManifest,
-        previous_revision: u64,
-        snapshot: &str,
-        intent: SetSpecialistCountIntent<'_>,
-    ) -> Result<CommitProposal, WorkerClientError> {
-        let response = self
-            .execute(
-                actor_id,
-                manifest,
-                WorkerOperation::SetSpecialistCount {
-                    snapshot,
-                    actor_civilization_id: intent.actor_civilization_id,
-                    city_id: intent.city_id,
-                    specialist_name: intent.specialist_name,
-                    count: intent.count,
-                },
-            )
-            .await?;
-        commit_proposal(previous_revision, response)
-    }
-
-    pub async fn set_city_tile_assignment(
-        &self,
-        actor_id: &str,
-        manifest: &WorkerManifest,
-        previous_revision: u64,
-        snapshot: &str,
-        intent: SetCityTileAssignmentIntent<'_>,
-    ) -> Result<CommitProposal, WorkerClientError> {
-        let response = self
-            .execute(
-                actor_id,
-                manifest,
-                WorkerOperation::SetCityTileAssignment {
-                    snapshot,
-                    actor_civilization_id: intent.actor_civilization_id,
-                    city_id: intent.city_id,
-                    x: intent.x,
-                    y: intent.y,
-                    assignment: intent.assignment,
-                },
-            )
-            .await?;
-        commit_proposal(previous_revision, response)
-    }
-
     pub async fn purchase_construction_at_tile(
         &self,
         actor_id: &str,

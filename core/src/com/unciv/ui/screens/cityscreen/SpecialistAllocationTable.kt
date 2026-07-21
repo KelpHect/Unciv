@@ -29,19 +29,27 @@ class SpecialistAllocationTable(private val cityScreen: CityScreen) : Table(Base
         clear()
 
         // Auto/Manual Specialists Toggle
-        if (cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()) {
+        if (cityScreen.canCityBeChanged()) {
             val toggleButton = if (city.manualSpecialists) {
                 "Manual Specialists".toTextButton(smallButtonStyle)
                    .onActivation {
-                       city.manualSpecialists = false
-                       city.reassignPopulation()
-                       cityScreen.update()
+                       if (cityScreen.isAuthoritativeGame())
+                           cityScreen.submitAuthoritativeManualSpecialists(false)
+                       else {
+                           city.manualSpecialists = false
+                           city.reassignPopulation()
+                           cityScreen.update()
+                       }
                    }
             } else {
                 "Auto Specialists".toTextButton(smallButtonStyle)
                     .onActivation {
-                        city.manualSpecialists = true
-                        update()
+                        if (cityScreen.isAuthoritativeGame())
+                            cityScreen.submitAuthoritativeManualSpecialists(true)
+                        else {
+                            city.manualSpecialists = true
+                            update()
+                        }
                     }
             }
             add(toggleButton).colspan(5).row()

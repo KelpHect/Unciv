@@ -1317,6 +1317,43 @@ The disposable container was stopped and automatically removed. The complete
 JDK 21 regression passed 794 shared tests and four server tests with zero
 failures/errors and 13 intentional shared skips.
 
+## Authoritative manual-specialist mode
+
+API v3 now exposes the closed boolean `SetManualSpecialists(cityId, enabled)`
+command. Enabling the mode freezes specialist assignment for explicit player
+control. Disabling it invokes the shared Kotlin `City.reassignPopulation()`
+path inside the authoritative worker, so specialist clearing, tile selection,
+and city-stat recomputation use canonical state and the existing Unciv rules.
+
+The public request contains no actor, population allocation, focus, or derived
+yield fields. Rust authenticates, forwards the typed intent, and commits only
+the worker result under the existing revision/idempotency transaction. The
+client bus requires an owned projected city with specialist slots. For opened
+v3 games, the specialist auto/manual toggle submits this command and performs
+no local mutation; local, hotseat, legacy multiplayer, and API-v2 behavior are
+unchanged.
+
+The module-size review triggered an early split at 764 lines: city-population
+worker methods now live in `worker/city_population.rs`. `worker.rs` returns to
+a focused transport façade, all Rust files remain below 800 lines, and
+`main.rs` remains six lines.
+
+Focused verification:
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+# 25 library tests and 7 HTTP/OpenAPI tests passed; 8 DB tests ignored without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
+# passed
+.\gradlew.bat :tests:test --tests 'com.unciv.logic.AuthoritativeGameExecutionContextTests.disablingManualSpecialistsReassignsPopulationCanonically' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.manualSpecialistModeRequiresProjectedSlots' --tests 'com.unciv.logic.multiplayer.authoritative.AuthoritativeGameCommandBusTests.manualSpecialistModeRequestIsClosedAndActorless' --no-daemon
+# passed
+```
+
+All eight database integration tests passed serially against the sole pinned
+PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
+The complete JDK 21 regression passed 797 shared tests and four server tests
+with zero failures/errors and 13 intentional shared skips.
+
 ## Typed perpetual construction selection
 
 Perpetual city production now has its own `SetPerpetualConstruction` command

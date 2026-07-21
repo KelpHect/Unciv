@@ -115,6 +115,12 @@ sealed interface GameCommand {
         val queuedImprovementName: String?,
     ) : GameCommand
 
+    data class SetRoadConnectionOrder(
+        val unitId: Int,
+        val destinationX: Int?,
+        val destinationY: Int?,
+    ) : GameCommand
+
     data class SetCityUnitPromotionPreference(
         val cityId: String,
         val baseUnitName: String,

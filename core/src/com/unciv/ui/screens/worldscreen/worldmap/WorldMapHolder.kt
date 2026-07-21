@@ -567,6 +567,13 @@ class WorldMapHolder(
             worldScreen.shouldUpdate = true
             return
         }
+        if (!enabled && unit.isAutomatingRoadConnection()) {
+            submitAuthoritativeUnitCommand("road connection cancellation", submit = {
+                worldScreen.game.onlineMultiplayer.authoritativeSession
+                    ?.setRoadConnectionOrderIfOpen(worldScreen.gameInfo.gameId, unit.id, null, null)
+            }) { removeUnitActionOverlay() }
+            return
+        }
         submitAuthoritativeUnitCommand("unit automation", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.setUnitAutomationIfOpen(worldScreen.gameInfo.gameId, unit.id, enabled)
@@ -697,6 +704,21 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when the destination was submitted to an authoritative server. */
+    fun setRoadConnectionOrder(unit: MapUnit, destination: Tile): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("road connection order", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.setRoadConnectionOrderIfOpen(
+                    worldScreen.gameInfo.gameId,
+                    unit.id,
+                    destination.position.x,
+                    destination.position.y,
+                )
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.
@@ -779,7 +801,7 @@ class WorldMapHolder(
 
             if (validTile) {
                 val roadPath: List<Tile>? =
-                    if (UncivGame.Current.settings.useAStarPathfinding) selectedUnit.movement.getRoadPath(selectedUnit.getTile())
+                    if (UncivGame.Current.settings.useAStarPathfinding) selectedUnit.movement.getRoadPath(tile)
                     else MapPathing.getRoadPath(selectedUnit.civ, selectedUnit.getTile(), tile)
                 launchOnGLThread {
                     if (roadPath == null) { // give the regular tile overlays with no road connection

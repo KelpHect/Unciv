@@ -250,6 +250,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setRoadConnectionOrder(
+        gameId: String,
+        request: ApiV3SetRoadConnectionOrderRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-road-connection-order") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

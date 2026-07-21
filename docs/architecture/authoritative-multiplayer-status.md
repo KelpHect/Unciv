@@ -2300,3 +2300,50 @@ The disposable container was verified by exact name and image, then removed.
 Every Rust source remains below 800 lines; the largest is
 `postgres/commands.rs` at 729 lines, while `main.rs` remains a six-line entry
 point.
+
+## Authoritative road-connection orders and projection v16
+
+Road destination selection now crosses API v3 through nullable-destination
+`SetRoadConnectionOrder(unitId, destinationX?, destinationY?)`. Both null means
+cancel; both coordinates present mean start or replace. The client supplies no
+actor, civilization, road tier, movement result, improvement duration, or path.
+Rust rejects half-present coordinates before worker execution, while the Kotlin
+worker derives the membership civilization, owned unit, current turn, available
+road technology, matching builder unique, canonical destination, and complete
+path.
+
+The worker stores its computed path before calling shared `RoadToAutomation`.
+That keeps headless execution independent of a local `UncivGame` pathfinding
+setting and makes later turns replay the server-selected route. Immediate
+movement, road repair, and road construction also run server-side. The existing
+Stop Automation control sends the same command with a null destination for an
+active road order and uses shared cleanup. A corrected A* preview now requests
+the clicked destination rather than the unit's current tile. Single-player,
+hotseat, legacy multiplayer, and server-owned AI retain their shared Kotlin
+paths.
+
+Projection v16 exposes the destination and ordered road path only on the owning
+unit. Visible foreign units receive null destination coordinates and an empty
+path; the shared closed Rust/Kotlin fixture and canonical projection test enforce
+that private-order boundary. Pillage remains the next worker-action gap.
+
+Verification on 2026-07-21 passed:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+# regenerated api-v3.json and checked-in parity passed
+cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+# 40 active library and 7 HTTP/OpenAPI tests passed; 8 DB tests gated without a URL
+cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings
+# passed
+UNCIV_V3_DATABASE_URL=postgres://unciv:unciv@127.0.0.1:55480/unciv \
+  cargo test --manifest-path authoritative-server/Cargo.toml \
+  postgres::integration_tests -- --ignored --test-threads=1
+# all 8 PostgreSQL integration tests passed
+.\gradlew.bat :server:test :tests:test --no-daemon --no-build-cache
+# 853 shared and 4 server tests passed; zero failures/errors; 13 intentional shared skips
+```
+
+The database lane used only
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The disposable container was verified by exact name and image, then removed.

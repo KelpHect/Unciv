@@ -25,10 +25,10 @@ pub use protocol::{
     QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
     SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
     SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
-    SetTileImprovementOrderIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
-    SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest,
-    WorkerRuleset,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
+    WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

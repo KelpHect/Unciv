@@ -240,6 +240,35 @@ fn tile_improvement_order_excludes_tile_cost_turn_and_actor_claims() {
 }
 
 #[test]
+fn road_connection_order_contains_only_unit_and_optional_destination() {
+    let command = GameCommand::SetRoadConnectionOrder {
+        unit_id: 42,
+        destination_x: Some(7),
+        destination_y: Some(-2),
+    };
+    let serialized = serde_json::to_string(&command).unwrap();
+    assert!(serialized.contains("\"destination_x\":7"));
+    for forbidden in [
+        "actor",
+        "civilization",
+        "path",
+        "road_tier",
+        "movement",
+        "cost",
+    ] {
+        assert!(!serialized.contains(forbidden));
+    }
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_road_connection_order", "unit_id": 42,
+            "destination_x": 7, "destination_y": -2,
+            "path": [{"x": 1, "y": 0}]
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn swap_units_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "swap_units", "unit_id": 42, "destination_x": 2, "destination_y": -1

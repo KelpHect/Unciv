@@ -414,6 +414,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun roadConnectionOrderRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Worker", 1, 0, 100, 2f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = listOf(unit),
+                exploredTiles = listOf(ProjectedTileVisibility(4, -1, visible = true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setRoadConnectionOrderIfOpen(GAME_ID, 42, 4, -1))
+        session.openGame(GAME_ID)
+        val outcome = session.setRoadConnectionOrderIfOpen(GAME_ID, 42, 4, -1)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple(42, 4, -1)), transport.roadConnectionOrders)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -761,6 +783,7 @@ class AuthoritativeMultiplayerSessionTests {
         val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
         val renamedUnits = mutableListOf<Pair<Int, String?>>()
         val improvementOrders = mutableListOf<Triple<Int, String?, String?>>()
+        val roadConnectionOrders = mutableListOf<Triple<Int, Int?, Int?>>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -1024,6 +1047,21 @@ class AuthoritativeMultiplayerSessionTests {
             improvementOrders += Triple(
                 request.unitId, request.improvementName, request.queuedImprovementName,
             )
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun setRoadConnectionOrder(
+            gameId: String,
+            request: ApiV3SetRoadConnectionOrderRequest,
+        ): ApiV3CommandAccepted {
+            roadConnectionOrders += Triple(request.unitId, request.destinationX, request.destinationY)
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",

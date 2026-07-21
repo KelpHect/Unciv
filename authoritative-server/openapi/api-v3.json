@@ -3309,6 +3309,110 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-road-connection-order": {
+      "post": {
+        "tags": [],
+        "operationId": "set_road_connection_order",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRoadConnectionOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/set-specialist-count": {
       "post": {
         "tags": [],
@@ -5272,6 +5376,24 @@
         },
         "additionalProperties": false
       },
+      "ProjectedRoadPathTile": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedSpecialist": {
         "type": "object",
         "required": [
@@ -5330,7 +5452,8 @@
           "exploring",
           "promotions",
           "availablePromotions",
-          "improvementOrder"
+          "improvementOrder",
+          "roadConnectionPath"
         ],
         "properties": {
           "automated": {
@@ -5417,6 +5540,26 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "roadConnectionDestinationX": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "roadConnectionDestinationY": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "roadConnectionPath": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedRoadPathTile"
             }
           },
           "x": {
@@ -6054,6 +6197,50 @@
           },
           "technology_name": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetRoadConnectionOrderRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destination_x": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "destination_y": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

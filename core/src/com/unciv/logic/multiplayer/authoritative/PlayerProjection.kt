@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 15
+        const val CURRENT_PROJECTION_VERSION = 16
     }
 }
 
@@ -112,6 +112,9 @@ data class ProjectedUnit(
     val availablePromotions: List<String> = emptyList(),
     val instanceName: String? = null,
     val improvementOrder: List<ProjectedImprovementOrderEntry> = emptyList(),
+    val roadConnectionDestinationX: Int? = null,
+    val roadConnectionDestinationY: Int? = null,
+    val roadConnectionPath: List<ProjectedRoadPathTile> = emptyList(),
 )
 
 @Serializable
@@ -119,6 +122,9 @@ data class ProjectedImprovementOrderEntry(
     val improvementName: String,
     val turnsRemaining: Int,
 )
+
+@Serializable
+data class ProjectedRoadPathTile(val x: Int, val y: Int)
 
 @Serializable
 data class ProjectedTileVisibility(
@@ -246,6 +252,13 @@ object PlayerProjectionBuilder {
             unit.currentTile.getImprovementQueueSnapshot().map {
                 ProjectedImprovementOrderEntry(it.first, it.second)
             }
+        else emptyList(),
+        roadConnectionDestinationX = if (includePrivateOrders)
+            unit.automatedRoadConnectionDestination?.x else null,
+        roadConnectionDestinationY = if (includePrivateOrders)
+            unit.automatedRoadConnectionDestination?.y else null,
+        roadConnectionPath = if (includePrivateOrders)
+            unit.automatedRoadConnectionPath.orEmpty().map { ProjectedRoadPathTile(it.x, it.y) }
         else emptyList(),
     )
     }

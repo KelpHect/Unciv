@@ -302,4 +302,57 @@ impl PostgresGameRepository {
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
+
+    pub async fn execute_set_road_connection_order(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (unit_id, destination_x, destination_y) = match &envelope.command {
+            crate::GameCommand::SetRoadConnectionOrder {
+                unit_id,
+                destination_x,
+                destination_y,
+            } => (*unit_id, *destination_x, *destination_y),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if destination_x.is_some() != destination_y.is_some() {
+            return Err(CommitError::InvalidCommand);
+        }
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .set_road_connection_order(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                SetRoadConnectionOrderIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    unit_id,
+                    destination_x,
+                    destination_y,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker road connection order failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
 }

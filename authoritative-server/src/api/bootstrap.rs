@@ -118,6 +118,10 @@ pub(crate) async fn run() {
             post(set_tile_improvement_order),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-road-connection-order",
+            post(set_road_connection_order),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/swap-units",
             post(swap_units),
         )

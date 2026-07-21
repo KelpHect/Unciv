@@ -388,6 +388,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setRoadConnectionOrderIfOpen(
+        gameId: String,
+        unitId: Int,
+        destinationX: Int?,
+        destinationY: Int?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetRoadConnectionOrder &&
+                    current.pending.unitId == unitId &&
+                    current.pending.destinationX == destinationX &&
+                    current.pending.destinationY == destinationY) {
+                    "Resolve the pending authoritative command before changing the road order"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.setRoadConnectionOrder(unitId, destinationX, destinationY)
+            else -> {
+                bus.refresh()
+                bus.setRoadConnectionOrder(unitId, destinationX, destinationY)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

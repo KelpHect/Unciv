@@ -170,6 +170,15 @@ sealed interface WorkerOperation {
         val queuedImprovementName: String?,
     ) : WorkerOperation
 
+    @Serializable @SerialName("set_road_connection_order")
+    data class SetRoadConnectionOrder(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val destinationX: Int?,
+        val destinationY: Int?,
+    ) : WorkerOperation
+
     @Serializable @SerialName("swap_units")
     data class SwapUnits(
         val snapshot: String,
@@ -512,6 +521,22 @@ class AuthoritativeEngineWorker {
                     operation.unitId,
                     operation.improvementName,
                     operation.queuedImprovementName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetRoadConnectionOrder -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                require((operation.destinationX == null) == (operation.destinationY == null)) {
+                    "Road destination coordinates must both be present or absent"
+                }
+                val destination = operation.destinationX?.let {
+                    com.unciv.logic.map.HexCoord(it, operation.destinationY!!)
+                }
+                val result = engine.setRoadConnectionOrder(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                    destination,
                 )
                 responseForGame(engine, result.game)
             }

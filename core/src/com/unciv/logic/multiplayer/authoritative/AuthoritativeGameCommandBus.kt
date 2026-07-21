@@ -124,6 +124,15 @@ sealed interface PendingAuthoritativeCommand {
         val queuedImprovementName: String?,
     ) : PendingAuthoritativeCommand
 
+    data class SetRoadConnectionOrder(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val destinationX: Int?,
+        val destinationY: Int?,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -507,6 +516,28 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.SetTileImprovementOrder(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, improvementName, queuedImprovementName,
+        ), current)
+    }
+
+    suspend fun setRoadConnectionOrder(
+        unitId: Int,
+        destinationX: Int?,
+        destinationY: Int?,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Unit is absent from the current player projection"
+        }
+        require((destinationX == null) == (destinationY == null)) {
+            "Road destination coordinates must both be present or absent"
+        }
+        if (destinationX != null && destinationY != null)
+            require(current.projection.exploredTiles.any {
+                it.x == destinationX && it.y == destinationY
+            }) { "Road destination is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.SetRoadConnectionOrder(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, destinationX, destinationY,
         ), current)
     }
 
@@ -962,6 +993,15 @@ class AuthoritativeGameCommandBus(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.unitId,
                             pending.improvementName, pending.queuedImprovementName,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.SetRoadConnectionOrder ->
+                    transport.setRoadConnectionOrder(
+                        gameId,
+                        ApiV3SetRoadConnectionOrderRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
+                            pending.destinationX, pending.destinationY,
                         ),
                     )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(

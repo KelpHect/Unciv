@@ -8,6 +8,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
+import com.unciv.logic.map.MapPathing
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
@@ -320,6 +321,64 @@ class HeadlessGameEngine(
             "An unchanged active order cannot add a follow-up"
         }
         unit.action = null
+        return result(game)
+    }
+
+    /** Starts or cancels a canonical multi-turn road order. The client names
+     * only a destination; path, road tier, movement, and work are server-owned. */
+    fun setRoadConnectionOrder(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        destination: HexCoord?,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot change road orders outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+
+        if (destination == null) {
+            require(unit.isAutomatingRoadConnection()) { "Unit has no canonical road order" }
+            actorCivilization.getWorkerAutomation().roadToAutomation.stopAndCleanAutomation(unit)
+            return result(game)
+        }
+
+        val bestRoad = actorCivilization.tech.getBestRoadAvailable()
+        require(bestRoad != com.unciv.logic.map.tile.RoadStatus.None) {
+            "Civilization has no available road technology"
+        }
+        val canBuildRoad = unit.getMatchingUniques(UniqueType.BuildImprovements).any {
+            it.params[0] == "Land" || it.params[0] in Constants.all ||
+                (it.params[0] == "Road" && bestRoad in setOf(
+                    com.unciv.logic.map.tile.RoadStatus.Road,
+                    com.unciv.logic.map.tile.RoadStatus.Railroad,
+                )) ||
+                (it.params[0] == "Railroad" &&
+                    bestRoad == com.unciv.logic.map.tile.RoadStatus.Railroad)
+        }
+        require(canBuildRoad && !unit.isEmbarked()) { "Unit cannot build the available road" }
+        require(destination in game.tileMap) { "Road destination is outside the canonical map" }
+        val destinationTile = game.tileMap[destination]
+        require(destinationTile != unit.currentTile) { "Road destination equals the unit's current tile" }
+        require(MapPathing.isValidRoadPathTile(actorCivilization, destinationTile)) {
+            "Road destination is not canonically reachable or buildable"
+        }
+        val path = MapPathing.getRoadPath(actorCivilization, unit.currentTile, destinationTile)
+            ?: error("No canonical road path reaches the destination")
+        require(path.size > 1 && path.first() == unit.currentTile && path.last() == destinationTile) {
+            "Canonical road path is invalid"
+        }
+
+        unit.automatedRoadConnectionDestination = destination
+        unit.automatedRoadConnectionPath = path.map { it.position }
+        unit.action = UnitActionType.ConnectRoad.value
+        unit.automated = true
+        if (unit.hasMovement())
+            com.unciv.logic.automation.unit.UnitAutomation.automateUnitMoves(unit)
         return result(game)
     }
 

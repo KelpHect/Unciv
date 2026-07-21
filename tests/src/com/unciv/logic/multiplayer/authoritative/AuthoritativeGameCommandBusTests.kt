@@ -301,6 +301,34 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun roadConnectionOrderContainsNoClientPathTierMovementOrActor() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Worker", 2, -1, 100, 2f)
+        val initial = projection(
+            7, "hash-7",
+            ownUnits = listOf(unit),
+            exploredTiles = listOf(ProjectedTileVisibility(7, -2, true)),
+        )
+        val transport = FakeTransport(initial).apply {
+            onRoadConnectionOrder = { request ->
+                current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "road-command" }
+        bus.refresh()
+
+        assertTrue(bus.setRoadConnectionOrder(42, 7, -2)
+            is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.roadConnectionOrderRequests.single()
+        assertEquals(Triple(42, 7, -2), Triple(
+            request.unitId, request.destinationX, request.destinationY,
+        ))
+        val encoded = Json.encodeToString(ApiV3SetRoadConnectionOrderRequest.serializer(), request)
+        for (forbidden in listOf("actor", "civilization", "path", "road_tier", "movement", "cost"))
+            assertTrue(!encoded.contains(forbidden))
+    }
+
+    @Test
     fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
         val initial = projection(
             7, "hash-7",
@@ -979,6 +1007,7 @@ class AuthoritativeGameCommandBusTests {
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
         val renameUnitRequests = mutableListOf<ApiV3RenameUnitRequest>()
         val improvementOrderRequests = mutableListOf<ApiV3SetTileImprovementOrderRequest>()
+        val roadConnectionOrderRequests = mutableListOf<ApiV3SetRoadConnectionOrderRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -1031,6 +1060,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onImprovementOrder: suspend (ApiV3SetTileImprovementOrderRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onRoadConnectionOrder: suspend (ApiV3SetRoadConnectionOrderRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1189,6 +1221,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             improvementOrderRequests += request
             return onImprovementOrder(request)
+        }
+        override suspend fun setRoadConnectionOrder(
+            gameId: String,
+            request: ApiV3SetRoadConnectionOrderRequest,
+        ): ApiV3CommandAccepted {
+            roadConnectionOrderRequests += request
+            return onRoadConnectionOrder(request)
         }
         override suspend fun swapUnits(
             gameId: String,

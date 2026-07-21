@@ -28,6 +28,7 @@ interface ApiV3Transport {
     suspend fun setCityUnitPromotionPreference(gameId: String, request: ApiV3SetCityUnitPromotionPreferenceRequest): ApiV3CommandAccepted
     suspend fun renameUnit(gameId: String, request: ApiV3RenameUnitRequest): ApiV3CommandAccepted
     suspend fun setTileImprovementOrder(gameId: String, request: ApiV3SetTileImprovementOrderRequest): ApiV3CommandAccepted
+    suspend fun setRoadConnectionOrder(gameId: String, request: ApiV3SetRoadConnectionOrderRequest): ApiV3CommandAccepted
     suspend fun swapUnits(gameId: String, request: ApiV3SwapUnitsRequest): ApiV3CommandAccepted
     suspend fun queueConstruction(gameId: String, request: ApiV3QueueConstructionRequest): ApiV3CommandAccepted
     suspend fun queueConstructionAtTile(gameId: String, request: ApiV3QueueConstructionAtTileRequest): ApiV3CommandAccepted

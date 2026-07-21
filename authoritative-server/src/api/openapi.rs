@@ -32,6 +32,7 @@ use super::*;
         set_city_unit_promotion_preference,
         rename_unit,
         set_tile_improvement_order,
+        set_road_connection_order,
         swap_units,
         queue_construction,
         queue_construction_at_tile,
@@ -76,6 +77,7 @@ use super::*;
         SetCityUnitPromotionPreferenceRequest,
         RenameUnitRequest,
         SetTileImprovementOrderRequest,
+        SetRoadConnectionOrderRequest,
         unciv_authoritative_server::UnitPosture,
         SwapUnitsRequest,
         QueueConstructionRequest,
@@ -148,7 +150,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
     Json(CapabilitiesResponse {
         protocol_version: PROTOCOL_VERSION,
         projection_version: PROJECTION_VERSION,
-        commands: [
+        commands: vec![
             "join_game",
             "move_unit",
             "move_unit_toward",
@@ -162,6 +164,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "set_city_unit_promotion_preference",
             "rename_unit",
             "set_tile_improvement_order",
+            "set_road_connection_order",
             "swap_units",
             "queue_construction",
             "queue_construction_at_tile",

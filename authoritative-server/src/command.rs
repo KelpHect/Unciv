@@ -72,6 +72,11 @@ pub enum GameCommand {
         improvement_name: Option<String>,
         queued_improvement_name: Option<String>,
     },
+    SetRoadConnectionOrder {
+        unit_id: i32,
+        destination_x: Option<i32>,
+        destination_y: Option<i32>,
+    },
     SetCityUnitPromotionPreference {
         city_id: String,
         base_unit_name: String,

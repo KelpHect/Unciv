@@ -14,6 +14,7 @@ import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
+import com.unciv.logic.map.MapPathing
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.metadata.GameSetupInfo
@@ -657,6 +658,71 @@ class AuthoritativeGameExecutionContextTests {
             ownerEngine.setTileImprovementOrder(
                 game, "Rome", worker.id, improvement.name, null,
             )
+        }
+    }
+
+    @Test
+    fun roadConnectionOrderIsCanonicalDeterministicPrivateAndCancelable() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().currentTile.position)
+        val roadImprovement = game.ruleset.roadImprovement!!
+        roadImprovement.techRequired?.let { civilization.tech.techsResearched.add(it) }
+        val worker = civilization.units.addUnit("Worker", city)!!
+        val destination = game.tileMap.tileList.first { tile ->
+            tile != worker.currentTile && civilization.hasExplored(tile) &&
+                (MapPathing.getRoadPath(civilization, worker.currentTile, tile)?.size ?: 0) > 2
+        }
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.setRoadConnectionOrder(
+            engine.loadSnapshot(snapshot), "Rome", worker.id, destination.position,
+        )
+        val second = engine.setRoadConnectionOrder(
+            engine.loadSnapshot(snapshot), "Rome", worker.id, destination.position,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val projected = engine.playerProjection(first.game, "Rome").ownUnits.single { it.id == worker.id }
+        Assert.assertEquals(destination.position.x, projected.roadConnectionDestinationX)
+        Assert.assertTrue(projected.roadConnectionPath.size > 2)
+        val foreign = first.game.getCivilization("Greece")
+        foreign.viewableTiles = foreign.viewableTiles +
+            projected.let { first.game.tileMap[HexCoord(it.x, it.y)] }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        val foreignProjection = foreignEngine.playerProjection(first.game, "Greece").visibleForeignUnits
+            .single { it.id == worker.id }
+        Assert.assertEquals(null, foreignProjection.roadConnectionDestinationX)
+        Assert.assertTrue(foreignProjection.roadConnectionPath.isEmpty())
+
+        val cancelled = engine.setRoadConnectionOrder(first.game, "Rome", worker.id, null)
+        val cancelledUnit = cancelled.game.getCivilization("Rome").units.getUnitById(worker.id)!!
+        Assert.assertEquals(null, cancelledUnit.automatedRoadConnectionDestination)
+        Assert.assertEquals(null, cancelledUnit.automatedRoadConnectionPath)
+        Assert.assertTrue(!cancelledUnit.isAutomated())
+    }
+
+    @Test
+    fun roadConnectionOrderRejectsForeignActorsAndOutOfTurnOwners() {
+        val ownerEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = ownerEngine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val city = civilization.addCity(civilization.units.getCivUnits().first().currentTile.position)
+        game.ruleset.roadImprovement!!.techRequired?.let { civilization.tech.techsResearched.add(it) }
+        val worker = civilization.units.addUnit("Worker", city)!!
+        val destination = game.tileMap.tileList.first { tile ->
+            tile != worker.currentTile && civilization.hasExplored(tile) &&
+                MapPathing.getRoadPath(civilization, worker.currentTile, tile) != null
+        }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.setRoadConnectionOrder(game, "Rome", worker.id, destination.position)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            ownerEngine.setRoadConnectionOrder(game, "Rome", worker.id, destination.position)
         }
     }
 

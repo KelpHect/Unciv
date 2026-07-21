@@ -11,12 +11,13 @@ use crate::auth::{
 };
 use crate::projection::PlayerProjection;
 use crate::worker::{
-    AdoptPolicyIntent, BuyCityTileIntent, ChooseFreeTechnologyIntent, EngineWorkerClient,
-    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, PurchaseConstructionAtTileIntent,
-    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
-    SetResearchPathIntent, SetSpecialistCountIntent, SwapUnitsIntent, WorkerManifest,
+    AdoptPolicyIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
+    ChooseFreeTechnologyIntent, EngineWorkerClient, MoveConstructionIntent, MoveUnitIntent,
+    MoveUnitTowardIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
+    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
+    ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetSpecialistCountIntent, SwapUnitsIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

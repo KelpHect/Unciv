@@ -43,6 +43,13 @@ sealed interface PendingAuthoritativeCommand {
         val destinationY: Int,
     ) : PendingAuthoritativeCommand
 
+    data class CancelUnitMovementOrder(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SwapUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -268,6 +275,18 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.MoveUnitToward(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, destinationX, destinationY,
+        ), current)
+    }
+
+    suspend fun cancelUnitMovementOrder(unitId: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(unit.movementDestinationX != null && unit.movementDestinationY != null) {
+            "Unit has no projected movement order"
+        }
+        submitLocked(PendingAuthoritativeCommand.CancelUnitMovementOrder(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
         ), current)
     }
 
@@ -643,6 +662,14 @@ class AuthoritativeGameCommandBus(
                         pending.unitId, pending.destinationX, pending.destinationY,
                     ),
                 )
+                is PendingAuthoritativeCommand.CancelUnitMovementOrder ->
+                    transport.cancelUnitMovementOrder(
+                        gameId,
+                        ApiV3CancelUnitMovementOrderRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
+                        ),
+                    )
                 is PendingAuthoritativeCommand.SwapUnits -> transport.swapUnits(
                     gameId,
                     ApiV3SwapUnitsRequest(

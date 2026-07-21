@@ -16,13 +16,14 @@ mod city_population;
 mod protocol;
 mod unit_movement;
 pub use protocol::{
-    AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, ChooseFreeTechnologyIntent, CreatedGame,
-    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ProjectedState,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetSpecialistCountIntent,
-    SwapUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    AdoptPolicyIntent, AssignedPlayer, BuyCityTileIntent, CancelUnitMovementOrderIntent,
+    ChooseFreeTechnologyIntent, CreatedGame, MoveConstructionIntent, MoveUnitIntent,
+    MoveUnitTowardIntent, ProjectedState, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
+    SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetPerpetualConstructionIntent,
+    SetResearchPathIntent, SetSpecialistCountIntent, SwapUnitsIntent, WorkerCapabilities,
+    WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

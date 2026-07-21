@@ -233,6 +233,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun movementOrderCancellationRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val ordered = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 0f,
+            movementDestinationX = 7, movementDestinationY = 2,
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(ordered)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.cancelUnitMovementOrderIfOpen(GAME_ID, 42))
+        session.openGame(GAME_ID)
+        val outcome = session.cancelUnitMovementOrderIfOpen(GAME_ID, 42)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(42), transport.cancelledMovementOrders)
+        session.close()
+    }
+
+    @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -570,6 +592,7 @@ class AuthoritativeMultiplayerSessionTests {
         val endTurnCommandIds = mutableListOf<String>()
         val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
         val movementOrders = mutableListOf<Triple<Int, Int, Int>>()
+        val cancelledMovementOrders = mutableListOf<Int>()
         val unitSwaps = mutableListOf<Triple<Int, Int, Int>>()
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
@@ -661,6 +684,29 @@ class AuthoritativeMultiplayerSessionTests {
                         if (unit.id == request.unitId) unit.copy(
                             movementDestinationX = request.destinationX,
                             movementDestinationY = request.destinationY,
+                        ) else unit
+                    },
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun cancelUnitMovementOrder(
+            gameId: String,
+            request: ApiV3CancelUnitMovementOrderRequest,
+        ): ApiV3CommandAccepted {
+            cancelledMovementOrders += request.unitId
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    ownUnits = current.projection.ownUnits.map { unit ->
+                        if (unit.id == request.unitId) unit.copy(
+                            movementDestinationX = null,
+                            movementDestinationY = null,
                         ) else unit
                     },
                 ),

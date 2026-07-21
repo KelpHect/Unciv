@@ -42,6 +42,40 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun movementOrderCancellationContainsOnlyTheStableUnitId() {
+        val encoded = Json.encodeToString(
+            ApiV3CancelUnitMovementOrderRequest.serializer(),
+            ApiV3CancelUnitMovementOrderRequest("command", 7, "hash", 42),
+        )
+        assertTrue(encoded.contains("\"unit_id\":42"))
+        assertTrue(!encoded.contains("action"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
+    fun movementOrderCancellationRequiresAProjectedCanonicalOrder() = runBlocking {
+        val ordered = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 0f,
+            movementDestinationX = 7, movementDestinationY = 2,
+        )
+        val initial = projection(7, "hash-7", ownUnits = listOf(ordered))
+        val committed = projection(8, "hash-8", ownUnits = listOf(
+            ordered.copy(movementDestinationX = null, movementDestinationY = null),
+        ))
+        val transport = FakeTransport(initial).apply {
+            onCancelMovementOrder = { request ->
+                current = committed
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "cancel-command" }
+        bus.refresh()
+
+        assertTrue(bus.cancelUnitMovementOrder(42) is AuthoritativeCommandOutcome.Accepted)
+        assertEquals("cancel-command", transport.cancelMovementOrderRequests.single().commandId)
+    }
+
+    @Test
     fun movementOrderIsBoundToProjectedUnitAndExploredDestination() = runBlocking {
         val initial = projection(
             7, "hash-7",
@@ -710,6 +744,7 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
+        val cancelMovementOrderRequests = mutableListOf<ApiV3CancelUnitMovementOrderRequest>()
         val swapRequests = mutableListOf<ApiV3SwapUnitsRequest>()
         val queueRequests = mutableListOf<ApiV3QueueConstructionRequest>()
         val tileQueueRequests = mutableListOf<ApiV3QueueConstructionAtTileRequest>()
@@ -732,6 +767,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onMoveToward: suspend (ApiV3MoveUnitTowardRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onCancelMovementOrder: suspend (ApiV3CancelUnitMovementOrderRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSwapUnits: suspend (ApiV3SwapUnitsRequest) -> ApiV3CommandAccepted = {
@@ -820,6 +858,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             moveTowardRequests += request
             return onMoveToward(request)
+        }
+        override suspend fun cancelUnitMovementOrder(
+            gameId: String,
+            request: ApiV3CancelUnitMovementOrderRequest,
+        ): ApiV3CommandAccepted {
+            cancelMovementOrderRequests += request
+            return onCancelMovementOrder(request)
         }
         override suspend fun swapUnits(
             gameId: String,

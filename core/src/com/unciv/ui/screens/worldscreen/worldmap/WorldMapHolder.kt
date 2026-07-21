@@ -516,6 +516,20 @@ class WorldMapHolder(
         removeUnitActionOverlay()
     }
 
+    internal fun cancelUnitMovementOrder(unit: MapUnit) {
+        if (!isAuthoritativeGame()) {
+            unit.action = null
+            worldScreen.shouldUpdate = true
+            return
+        }
+        submitAuthoritativeUnitCommand("movement-order cancellation", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.cancelUnitMovementOrderIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) {
+            removeUnitActionOverlay()
+        }
+    }
+
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.

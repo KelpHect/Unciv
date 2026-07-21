@@ -88,6 +88,13 @@ sealed interface WorkerOperation {
         val destinationY: Int,
     ) : WorkerOperation
 
+    @Serializable @SerialName("cancel_unit_movement_order")
+    data class CancelUnitMovementOrder(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+    ) : WorkerOperation
+
     @Serializable @SerialName("swap_units")
     data class SwapUnits(
         val snapshot: String,
@@ -329,6 +336,15 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.unitId,
                     HexCoord(operation.destinationX, operation.destinationY),
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.CancelUnitMovementOrder -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.cancelUnitMovementOrder(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
                 )
                 responseForGame(engine, result.game)
             }

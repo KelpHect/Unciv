@@ -139,7 +139,9 @@ object UnitActions {
         // General actions
         addAutomateActions(unit)
         if (unit.isMoving())
-            yield(UnitAction(UnitActionType.StopMovement, 20f) { unit.action = null })
+            yield(UnitAction(UnitActionType.StopMovement, 20f) {
+                GUI.getMap().cancelUnitMovementOrder(unit)
+            })
         if (unit.isExploring())
             yield(UnitAction(UnitActionType.StopExploration, 20f) { unit.action = null })
         if (unit.isAutomated())

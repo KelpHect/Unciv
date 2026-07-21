@@ -157,6 +157,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun cancelUnitMovementOrderIfOpen(
+        gameId: String,
+        unitId: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.CancelUnitMovementOrder &&
+                    current.pending.unitId == unitId) {
+                    "Resolve the pending authoritative command before cancelling another order"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.cancelUnitMovementOrder(unitId)
+            else -> {
+                bus.refresh()
+                bus.cancelUnitMovementOrder(unitId)
+            }
+        }
+    }
+
     suspend fun swapUnitsIfOpen(
         gameId: String,
         unitId: Int,

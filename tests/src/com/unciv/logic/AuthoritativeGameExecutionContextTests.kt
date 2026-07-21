@@ -279,6 +279,13 @@ class AuthoritativeGameExecutionContextTests {
         )
         Assert.assertEquals(destination.position.x, projectedUnit.movementDestinationX)
         Assert.assertEquals(destination.position.y, projectedUnit.movementDestinationY)
+
+        engine.cancelUnitMovementOrder(game, "Rome", unit.id)
+
+        val cancelled = engine.playerProjection(game, "Rome").ownUnits.single { it.id == unit.id }
+        Assert.assertEquals(null, unit.action)
+        Assert.assertEquals(null, cancelled.movementDestinationX)
+        Assert.assertEquals(null, cancelled.movementDestinationY)
     }
 
     @Test

@@ -1354,6 +1354,42 @@ PostgreSQL 19 Beta 2 digest. The disposable container was stopped and removed.
 The complete JDK 21 regression passed 797 shared tests and four server tests
 with zero failures/errors and 13 intentional shared skips.
 
+## Authoritative movement-order cancellation
+
+`CancelUnitMovementOrder(unitId)` now owns the Stop Movement action for an
+explicitly opened v3 game. Its closed request contains only the stable unit ID
+plus revision/idempotency metadata. The command bus requires the current own-
+unit projection to contain a canonical movement destination, and the worker
+independently revalidates membership-derived actor, current turn, ownership,
+and an existing moving state before clearing only that unit's canonical order.
+
+`UnitActions` routes Stop Movement through `WorldMapHolder` and the
+authoritative session without assigning `unit.action = null` locally. Local,
+hotseat, saved-game, legacy multiplayer, and API-v2 paths retain the existing
+direct mutation. Accepted/stale outcomes mark the disposable cache out of date,
+and an ambiguous response retains the original command ID.
+
+All Rust additions remain in the focused movement modules. Verification passed
+canonical set/cancel projection behavior, closed Rust/Kotlin request shapes,
+projected-order command-bus gating, explicit-open session routing, 30 active
+Rust library tests, seven HTTP/OpenAPI tests, generated OpenAPI parity,
+formatting, strict all-target/all-feature Clippy with warnings denied, and
+`git diff --check`. All eight database integration tests passed serially
+against the pinned PostgreSQL 19 Beta 2 digest on port 55478; the disposable
+container was then stopped and removed. The complete JDK 21 regression passed
+816 shared tests and four server tests with zero failures/errors and 13
+intentional skips. Every Rust source file remains below 800 lines; the largest
+is `postgres/commands.rs` at 729.
+
+```text
+cargo test --manifest-path authoritative-server/Cargo.toml
+cargo clippy --manifest-path authoritative-server/Cargo.toml \
+  --all-targets --all-features -- -D warnings
+UNCIV_V3_DATABASE_URL=postgres://unciv_test:unciv_test_password@127.0.0.1:55478/unciv_v3_test \
+  cargo test --manifest-path authoritative-server/Cargo.toml --lib -- --ignored --test-threads=1
+.\gradlew.bat :tests:test :server:test --no-daemon
+```
+
 ## Authoritative multi-turn movement orders and projection v9
 
 `MoveUnitToward(unitId, finalDestination)` now preserves the legacy long-distance

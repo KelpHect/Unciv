@@ -74,6 +74,8 @@ sealed interface GameCommand {
         val destinationY: Int,
     ) : GameCommand
 
+    data class CancelUnitMovementOrder(val unitId: Int) : GameCommand
+
     data class SwapUnits(
         val unitId: Int,
         val destinationX: Int,

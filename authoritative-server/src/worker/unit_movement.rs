@@ -1,6 +1,28 @@
 use super::*;
 
 impl EngineWorkerClient {
+    pub async fn cancel_unit_movement_order(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: CancelUnitMovementOrderIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::CancelUnitMovementOrder {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn move_unit_toward(
         &self,
         actor_id: &str,

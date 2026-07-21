@@ -130,6 +130,24 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun cancelUnitMovementOrder(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot cancel a unit order outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        require(unit.isMoving()) { "Unit has no canonical movement order" }
+        unit.action = null
+        return result(game)
+    }
+
     /** Swaps a controlled unit with the compatible friendly unit occupying the
      * destination, using the shared movement implementation and canonical state. */
     fun swapUnits(

@@ -160,6 +160,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun cancelUnitMovementOrder(
+        gameId: String,
+        request: ApiV3CancelUnitMovementOrderRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/cancel-unit-movement-order") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun swapUnits(
         gameId: String,
         request: ApiV3SwapUnitsRequest,

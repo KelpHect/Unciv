@@ -30,6 +30,19 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun cityTileAssignmentRequestUsesClosedSnakeCaseState() {
+        val encoded = Json.encodeToString(
+            ApiV3SetCityTileAssignmentRequest.serializer(),
+            ApiV3SetCityTileAssignmentRequest(
+                "command", 7, "hash", "city-1", 2, -1, CityTileAssignment.Locked,
+            ),
+        )
+        assertTrue(encoded.contains("\"assignment\":\"locked\""))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("population"))
+    }
+
+    @Test
     fun queueConstructionUsesOnlyProjectedCityAndConstructionIds() = runBlocking {
         val initial = projection(0, "hash-0", cityQueue = emptyList())
         val committed = projection(1, "hash-1", cityQueue = listOf("Monument"))

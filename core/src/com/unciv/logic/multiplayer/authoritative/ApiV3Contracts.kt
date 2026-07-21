@@ -190,6 +190,17 @@ data class ApiV3BuyCityTileRequest(
 )
 
 @Serializable
+data class ApiV3SetCityTileAssignmentRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    val x: Int,
+    val y: Int,
+    val assignment: CityTileAssignment,
+)
+
+@Serializable
 data class ApiV3SetResearchPathRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

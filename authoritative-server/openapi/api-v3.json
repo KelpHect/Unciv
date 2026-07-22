@@ -1524,6 +1524,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/choose-great-person": {
+      "post": {
+        "tags": [],
+        "operationId": "choose_great_person",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseGreatPersonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/disband-unit": {
       "post": {
         "tags": [],
@@ -5926,6 +6040,35 @@
         },
         "additionalProperties": false
       },
+      "ChooseGreatPersonRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_name"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CitizenFocus": {
         "type": "string",
         "enum": [
@@ -6543,7 +6686,8 @@
           "found_religion",
           "enhance_religion",
           "reform_religion",
-          "cast_diplomatic_vote"
+          "cast_diplomatic_vote",
+          "pick_great_person"
         ]
       },
       "PillageTileRequest": {
@@ -6595,7 +6739,8 @@
           "exploredTiles",
           "visibleForeignUnits",
           "pendingCityDispositions",
-          "diplomaticVoteCandidates"
+          "diplomaticVoteCandidates",
+          "selectableGreatPeople"
         ],
         "properties": {
           "civilizationId": {
@@ -6663,6 +6808,12 @@
           },
           "research": {
             "$ref": "#/components/schemas/ProjectedResearch"
+          },
+          "selectableGreatPeople": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "turn": {
             "type": "integer",

@@ -30,9 +30,10 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
     val pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
     val diplomaticVoteCandidates: List<String> = emptyList(),
+    val selectableGreatPeople: List<String> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 20
+        const val CURRENT_PROJECTION_VERSION = 21
     }
 }
 
@@ -263,6 +264,7 @@ object PlayerProjectionBuilder {
                 .sortedBy { it.cityId }
                 .toList(),
             diplomaticVoteCandidates = diplomaticVoteCandidates(actor),
+            selectableGreatPeople = GreatPersonChoiceExecutor.availableChoices(actor),
         )
     }
 
@@ -379,6 +381,9 @@ internal object AuthoritativeTurnReadiness {
                 add(PendingEndTurnAction.FoundOrExpandPantheon)
         }
         if (civilization.mayVoteForDiplomaticVictory()) add(PendingEndTurnAction.CastDiplomaticVote)
+        if (GreatPersonChoiceExecutor.availableChoices(civilization).isNotEmpty()) {
+            add(PendingEndTurnAction.PickGreatPerson)
+        }
     }
 }
 
@@ -393,4 +398,5 @@ enum class PendingEndTurnAction(val wireName: String) {
     @SerialName("enhance_religion") EnhanceReligion("enhance_religion"),
     @SerialName("reform_religion") ReformReligion("reform_religion"),
     @SerialName("cast_diplomatic_vote") CastDiplomaticVote("cast_diplomatic_vote"),
+    @SerialName("pick_great_person") PickGreatPerson("pick_great_person"),
 }

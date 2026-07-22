@@ -811,6 +811,35 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeGreatPersonChoiceRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            greatPersonFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(
+                    pendingTurnActions = listOf(PendingEndTurnAction.PickGreatPerson),
+                    selectableGreatPeople = listOf("Great Scientist"),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.chooseGreatPersonIfOpen(GAME_ID, "Great Scientist"))
+        session.openGame(GAME_ID)
+        assertTrue(session.chooseGreatPersonIfOpen(
+            GAME_ID, "Great Scientist",
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.chooseGreatPersonIfOpen(
+            GAME_ID, "Great Scientist",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.greatPersonCommandIds.size)
+        assertEquals(transport.greatPersonCommandIds[0], transport.greatPersonCommandIds[1])
+        session.close()
+    }
+
+    @Test
     fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
@@ -1020,11 +1049,13 @@ class AuthoritativeMultiplayerSessionTests {
         val governanceCommandIds = mutableListOf<String>()
         val dispositionCommandIds = mutableListOf<String>()
         val voteCommandIds = mutableListOf<String>()
+        val greatPersonCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
         var tilePurchaseFailuresRemaining = 0
         var governanceFailuresRemaining = 0
         var dispositionFailuresRemaining = 0
         var voteFailuresRemaining = 0
+        var greatPersonFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -1622,6 +1653,28 @@ class AuthoritativeMultiplayerSessionTests {
                 projection = current.projection.copy(
                     pendingTurnActions = emptyList(),
                     diplomaticVoteCandidates = emptyList(),
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun chooseGreatPerson(
+            gameId: String,
+            request: ApiV3ChooseGreatPersonRequest,
+        ): ApiV3CommandAccepted {
+            greatPersonCommandIds += request.commandId
+            if (greatPersonFailuresRemaining > 0) {
+                greatPersonFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(
+                    pendingTurnActions = emptyList(),
+                    selectableGreatPeople = emptyList(),
                 ),
             )
             return ApiV3CommandAccepted(

@@ -17,6 +17,7 @@ mod city_economy;
 mod city_governance;
 mod city_population;
 mod diplomacy;
+mod great_people;
 mod protocol;
 mod unit_actions;
 mod unit_movement;
@@ -24,9 +25,9 @@ mod unit_orders;
 pub use protocol::{
     AdoptPolicyIntent, AirSweepIntent, AssignedPlayer, AttackWithUnitIntent, BombardWithCityIntent,
     BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
-    ChooseFreeTechnologyIntent, CreatedGame, DisbandUnitIntent, FoundCityIntent,
-    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
-    ParadropUnitIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
+    ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, CreatedGame, DisbandUnitIntent,
+    FoundCityIntent, LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent,
+    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
     QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
     ResolveCityDispositionIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,

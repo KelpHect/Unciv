@@ -2875,3 +2875,59 @@ Verification on 2026-07-22:
 Trade negotiation, religion choices and religious unit actions, and
 great-person selection remain distinct command families for the continuing
 coverage audit.
+
+## Authoritative free great-person selection
+
+The coverage audit found that `GreatPersonPickerScreen` directly spawned a
+unit, decremented `freeGreatPeople`, and changed the Maya long-count pool. API
+v3 now uses the closed `ChooseGreatPerson(unitName)` command. The request does
+not claim actor identity, capital or placement location, whether the choice is
+Maya-restricted, remaining free choices, or placement success.
+
+Player projection version 21 adds the `pick_great_person` pending-turn action
+and the player-scoped `selectableGreatPeople` allowlist. A focused
+`GreatPersonChoiceExecutor` derives the choice set from the pinned ruleset,
+civilization replacements, game settings, free-choice count, city presence,
+and Maya's remaining long-count pool. Projection and worker execution share
+that implementation.
+
+The private Kotlin worker revalidates authenticated civilization assignment,
+current turn, the pending choice, and selected unit. It then uses the existing
+state-seeded Kotlin unit-placement engine, consumes the free-choice and Maya
+counters only after placement succeeds, and retains the pending choice if no
+canonical placement is possible. AI players continue to select and place free
+great people inside server-owned deterministic turn automation. Rust remains
+the public control plane and sole revisioned committer, with API, worker, and
+persistence routing split into focused `great_people` modules.
+
+The picker submits only the projected unit name for an explicitly opened
+authoritative game and performs no local spawn or counter mutation. Ambiguous
+responses retain the same command ID. Single-player, hotseat, saved-game,
+legacy multiplayer, and server-owned AI paths retain their existing Kotlin
+engine behavior.
+
+Verification on 2026-07-22:
+
+- Focused engine tests cover projected choices, successful state-seeded unit
+  placement, post-success counter consumption, replay rejection, Maya pool
+  restriction, foreign-account rejection, out-of-turn rejection, and
+  fail-closed unplaceable naval choices that preserve the pending counter.
+  Command-bus tests prove only the unit name crosses the boundary; session
+  tests prove an opened game is required and lost responses retry the same
+  idempotency key.
+- `./gradlew :tests:test :server:test --no-daemon`: 898 shared JVM tests
+  completed with 13 intentional skips and zero failures, plus all 4 worker
+  protocol tests.
+- `cargo test --all-features`: 52 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed, including generated OpenAPI parity and the shared
+  projection-v21 fixture.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55440. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines.
+
+Trade negotiation and religion choices/actions remain the major uncovered
+player-command families for the continuing coverage audit.

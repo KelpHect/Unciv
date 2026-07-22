@@ -202,6 +202,10 @@ pub(crate) async fn run() {
             post(cast_diplomatic_vote),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/choose-great-person",
+            post(choose_great_person),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

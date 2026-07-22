@@ -195,6 +195,9 @@ pub enum GameCommand {
     CastDiplomaticVote {
         candidate_civilization_id: Option<String>,
     },
+    ChooseGreatPerson {
+        unit_name: String,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

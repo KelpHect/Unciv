@@ -20,10 +20,15 @@ class PlayerProjectionContractTests {
 
         assertEquals(3, projection.protocolVersion)
         assertEquals(
-            listOf(PendingEndTurnAction.PickPolicy, PendingEndTurnAction.CastDiplomaticVote),
+            listOf(
+                PendingEndTurnAction.PickPolicy,
+                PendingEndTurnAction.CastDiplomaticVote,
+                PendingEndTurnAction.PickGreatPerson,
+            ),
             projection.pendingTurnActions,
         )
         assertEquals(listOf("Greece"), projection.diplomaticVoteCandidates)
+        assertEquals(listOf("Great Engineer", "Great Scientist"), projection.selectableGreatPeople)
         assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
@@ -93,6 +98,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v20.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v21.fixture.json") }
         .first { it.isFile }
 }

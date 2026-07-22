@@ -254,6 +254,10 @@ sealed interface GameCommand {
         val candidateCivilizationId: String?,
     ) : GameCommand
 
+    data class ChooseGreatPerson(
+        val unitName: String,
+    ) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,

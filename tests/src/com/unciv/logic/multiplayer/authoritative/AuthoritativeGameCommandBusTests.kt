@@ -1132,6 +1132,37 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("votes"))
     }
 
+    @Test
+    fun greatPersonChoiceIsBoundToTheProjectedUnit() = runBlocking {
+        val initial = projection(
+            3,
+            "hash-3",
+            pendingTurnActions = listOf(PendingEndTurnAction.PickGreatPerson),
+            selectableGreatPeople = listOf("Great Scientist"),
+        )
+        val committed = projection(4, "hash-4")
+        val transport = FakeTransport(initial).apply {
+            onChooseGreatPerson = { request ->
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "great-person-command" }
+        bus.refresh()
+
+        assertTrue(bus.chooseGreatPerson("Great Scientist") is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.greatPersonRequests.single()
+        assertEquals(ApiV3ChooseGreatPersonRequest(
+            "great-person-command", 3, "hash-3", "Great Scientist",
+        ), request)
+        val encoded = Json.encodeToString(ApiV3ChooseGreatPersonRequest.serializer(), request)
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("capital"))
+        assertTrue(!encoded.contains("maya"))
+        assertTrue(!encoded.contains("free_great"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1305,6 +1336,7 @@ class AuthoritativeGameCommandBusTests {
         pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
         pendingTurnActions: List<PendingEndTurnAction> = emptyList(),
         diplomaticVoteCandidates: List<String> = emptyList(),
+        selectableGreatPeople: List<String> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -1341,6 +1373,7 @@ class AuthoritativeGameCommandBusTests {
             visibleForeignUnits = emptyList(),
             pendingCityDispositions = pendingCityDispositions,
             diplomaticVoteCandidates = diplomaticVoteCandidates,
+            selectableGreatPeople = selectableGreatPeople,
         ),
     )
 
@@ -1396,6 +1429,7 @@ class AuthoritativeGameCommandBusTests {
         val cityGovernanceRequests = mutableListOf<ApiV3SetCityGovernanceRequest>()
         val cityDispositionRequests = mutableListOf<ApiV3ResolveCityDispositionRequest>()
         val diplomaticVoteRequests = mutableListOf<ApiV3CastDiplomaticVoteRequest>()
+        val greatPersonRequests = mutableListOf<ApiV3ChooseGreatPersonRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1502,6 +1536,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onCastDiplomaticVote: suspend (ApiV3CastDiplomaticVoteRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onChooseGreatPerson: suspend (ApiV3ChooseGreatPersonRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
@@ -1780,6 +1817,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             diplomaticVoteRequests += request
             return onCastDiplomaticVote(request)
+        }
+        override suspend fun chooseGreatPerson(
+            gameId: String,
+            request: ApiV3ChooseGreatPersonRequest,
+        ): ApiV3CommandAccepted {
+            greatPersonRequests += request
+            return onChooseGreatPerson(request)
         }
         override suspend fun setCityTileAssignment(
             gameId: String,

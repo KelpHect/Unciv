@@ -365,6 +365,13 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "candidateCivilizationId")]
         candidate_civilization_id: Option<&'a str>,
     },
+    ChooseGreatPerson {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitName")]
+        unit_name: &'a str,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -656,6 +663,11 @@ pub struct ResolveCityDispositionIntent<'a> {
 pub struct CastDiplomaticVoteIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub candidate_civilization_id: Option<&'a str>,
+}
+
+pub struct ChooseGreatPersonIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_name: &'a str,
 }
 
 pub struct SetCityTileAssignmentIntent<'a> {

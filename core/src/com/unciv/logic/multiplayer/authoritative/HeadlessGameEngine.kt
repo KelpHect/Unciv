@@ -1163,6 +1163,21 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun chooseGreatPerson(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitName: String,
+    ): EngineResult {
+        val actor = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot choose a great person outside their turn"
+        }
+        GreatPersonChoiceExecutor.execute(actor, unitName)
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

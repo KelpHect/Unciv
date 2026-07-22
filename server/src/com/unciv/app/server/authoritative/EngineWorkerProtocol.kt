@@ -356,6 +356,13 @@ sealed interface WorkerOperation {
         val candidateCivilizationId: String?,
     ) : WorkerOperation
 
+    @Serializable @SerialName("choose_great_person")
+    data class ChooseGreatPerson(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitName: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
         val snapshot: String,
@@ -840,6 +847,15 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.candidateCivilizationId,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.ChooseGreatPerson -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.chooseGreatPerson(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitName,
                 )
                 responseForGame(engine, result.game)
             }

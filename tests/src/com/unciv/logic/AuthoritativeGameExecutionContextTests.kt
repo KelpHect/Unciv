@@ -1509,6 +1509,74 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun greatPersonChoiceIsProjectedPlacedAndConsumedCanonically() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(5)
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        testGame.addCity(actor, testGame.getTile(HexCoord.Zero))
+        actor.greatPeople.freeGreatPeople = 1
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val projection = engine.playerProjection(testGame.gameInfo, actor.civName)
+        val choice = projection.selectableGreatPeople.first {
+            !testGame.gameInfo.ruleset.units.getValue(it).isWaterUnit
+        }
+        val previousUnits = actor.units.getCivUnits().count()
+
+        Assert.assertTrue(PendingEndTurnAction.PickGreatPerson in projection.pendingTurnActions)
+        projection.selectableGreatPeople.firstOrNull {
+            testGame.gameInfo.ruleset.units.getValue(it).isWaterUnit
+        }?.let { unplaceableNavalChoice ->
+            Assert.assertThrows(IllegalStateException::class.java) {
+                engine.chooseGreatPerson(testGame.gameInfo, actor.civName, unplaceableNavalChoice)
+            }
+            Assert.assertEquals(1, actor.greatPeople.freeGreatPeople)
+        }
+        engine.chooseGreatPerson(testGame.gameInfo, actor.civName, choice)
+
+        Assert.assertEquals(previousUnits + 1, actor.units.getCivUnits().count())
+        Assert.assertTrue(actor.units.getCivUnits().any { it.name == choice })
+        Assert.assertEquals(0, actor.greatPeople.freeGreatPeople)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseGreatPerson(testGame.gameInfo, actor.civName, choice)
+        }
+    }
+
+    @Test
+    fun greatPersonChoiceEnforcesMayaPoolOwnershipAndTurn() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(5)
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        testGame.addCity(actor, testGame.getTile(HexCoord.Zero))
+        val other = testGame.addCiv()
+        other.playerId = "account-2"
+        actor.greatPeople.freeGreatPeople = 1
+        actor.greatPeople.mayaLimitedFreeGP = 1
+        val allowed = actor.greatPeople.getGreatPeople().first().name
+        actor.greatPeople.longCountGPPool = hashSetOf(allowed)
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        Assert.assertEquals(
+            listOf(allowed),
+            engine.playerProjection(testGame.gameInfo, actor.civName).selectableGreatPeople,
+        )
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseGreatPerson(testGame.gameInfo, actor.civName, "Warrior")
+        }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.chooseGreatPerson(testGame.gameInfo, actor.civName, allowed)
+        }
+        testGame.gameInfo.currentPlayer = other.civName
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseGreatPerson(testGame.gameInfo, actor.civName, allowed)
+        }
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotQueueConstructionInAnotherCivilizationsCity() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

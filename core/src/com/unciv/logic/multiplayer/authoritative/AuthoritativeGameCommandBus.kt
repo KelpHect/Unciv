@@ -314,6 +314,13 @@ sealed interface PendingAuthoritativeCommand {
         val candidateCivilizationId: String?,
     ) : PendingAuthoritativeCommand
 
+    data class ChooseGreatPerson(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitName: String,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -952,6 +959,18 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun chooseGreatPerson(unitName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(PendingEndTurnAction.PickGreatPerson in current.projection.pendingTurnActions &&
+            unitName in current.projection.selectableGreatPeople) {
+            "Great person is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.ChooseGreatPerson(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitName,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1402,6 +1421,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3CastDiplomaticVoteRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.candidateCivilizationId,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ChooseGreatPerson -> transport.chooseGreatPerson(
+                    gameId,
+                    ApiV3ChooseGreatPersonRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitName,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

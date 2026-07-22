@@ -471,6 +471,35 @@ fn diplomatic_vote_contract_contains_only_the_optional_candidate() {
 }
 
 #[test]
+fn great_person_choice_contract_contains_only_the_unit_name() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "choose_great_person", "unit_name": "Great Scientist"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::ChooseGreatPerson {
+            unit_name: "Great Scientist".to_owned(),
+        }
+    );
+    for untrusted in [
+        "actor_id",
+        "capital_id",
+        "is_maya_choice",
+        "free_great_people",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "choose_great_person", "unit_name": "Great Scientist"
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn citizen_policy_contracts_are_typed_and_closed() {
     let avoid: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_avoid_growth", "city_id": "city-1", "enabled": true

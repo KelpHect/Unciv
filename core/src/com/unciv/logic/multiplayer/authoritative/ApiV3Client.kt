@@ -439,6 +439,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun chooseGreatPerson(
+        gameId: String,
+        request: ApiV3ChooseGreatPersonRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/choose-great-person") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

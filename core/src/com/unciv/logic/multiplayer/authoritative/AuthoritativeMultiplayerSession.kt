@@ -996,6 +996,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun chooseGreatPersonIfOpen(
+        gameId: String,
+        unitName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ChooseGreatPerson &&
+                    current.pending.unitName == unitName) {
+                    "Resolve the pending authoritative command before choosing another great person"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.chooseGreatPerson(unitName)
+            else -> {
+                bus.refresh()
+                bus.chooseGreatPerson(unitName)
+            }
+        }
+    }
+
     suspend fun setCityTileAssignmentIfOpen(
         gameId: String,
         cityId: String,

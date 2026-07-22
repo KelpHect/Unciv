@@ -412,6 +412,14 @@ data class ApiV3CastDiplomaticVoteRequest(
 )
 
 @Serializable
+data class ApiV3ChooseGreatPersonRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_name") val unitName: String,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

@@ -2088,6 +2088,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/demand-city-state-tribute": {
+      "post": {
+        "tags": [],
+        "operationId": "demand_city_state_tribute",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateTributeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/denounce-civilization": {
       "post": {
         "tags": [],
@@ -2468,6 +2552,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/gift-city-state-gold": {
+      "post": {
+        "tags": [],
+        "operationId": "gift_city_state_gold",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateGoldGiftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -5001,6 +5169,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-city-state-protection": {
+      "post": {
+        "tags": [],
+        "operationId": "set_city_state_protection",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateProtectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/set-city-tile-assignment": {
       "post": {
         "tags": [],
@@ -7215,6 +7467,107 @@
           "stop_razing"
         ]
       },
+      "CityStateGoldGiftRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "CityStateProtectionRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id",
+          "protect"
+        ],
+        "properties": {
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "protect": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CityStateTributeRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id",
+          "worker"
+        ],
+        "properties": {
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "worker": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "CityTileAssignment": {
         "type": "string",
         "enum": [
@@ -8033,9 +8386,16 @@
           "tradePartners",
           "pendingTradeRequests",
           "diplomacyPartners",
-          "diplomacyPrompts"
+          "diplomacyPrompts",
+          "cityStatePartners"
         ],
         "properties": {
+          "cityStatePartners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityStatePartner"
+            }
+          },
           "civilizationId": {
             "type": "string"
           },
@@ -8279,6 +8639,47 @@
           },
           "cityName": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityStatePartner": {
+        "type": "object",
+        "required": [
+          "civilizationId",
+          "availableGoldGifts",
+          "canPledgeProtection",
+          "canRevokeProtection",
+          "canDemandWorker"
+        ],
+        "properties": {
+          "availableGoldGifts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "canDemandWorker": {
+            "type": "boolean"
+          },
+          "canPledgeProtection": {
+            "type": "boolean"
+          },
+          "canRevokeProtection": {
+            "type": "boolean"
+          },
+          "civilizationId": {
+            "type": "string"
+          },
+          "tributeGoldAmount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           }
         },
         "additionalProperties": false

@@ -36,11 +36,22 @@ data class PlayerProjection(
     val pendingTradeRequests: List<ProjectedTradeRequest> = emptyList(),
     val diplomacyPartners: List<ProjectedDiplomacyPartner> = emptyList(),
     val diplomacyPrompts: List<ProjectedDiplomacyPrompt> = emptyList(),
+    val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 25
+        const val CURRENT_PROJECTION_VERSION = 26
     }
 }
+
+@Serializable
+data class ProjectedCityStatePartner(
+    val civilizationId: String,
+    val availableGoldGifts: List<Int>,
+    val canPledgeProtection: Boolean,
+    val canRevokeProtection: Boolean,
+    val tributeGoldAmount: Int?,
+    val canDemandWorker: Boolean,
+)
 
 @Serializable
 data class ProjectedDiplomacyPartner(
@@ -249,6 +260,7 @@ object PlayerProjectionBuilder {
             pendingTradeRequests = TradeCommandExecutor.pendingRequests(actor),
             diplomacyPartners = DiplomacyCommandExecutor.partners(actor),
             diplomacyPrompts = DiplomacyCommandExecutor.prompts(actor),
+            cityStatePartners = CityStateCommandExecutor.partners(actor),
             ownCities = actor.cities.map {
                 ProjectedCity(
                     id = it.id,

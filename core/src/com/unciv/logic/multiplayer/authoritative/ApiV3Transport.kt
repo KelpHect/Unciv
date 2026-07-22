@@ -62,6 +62,9 @@ interface ApiV3Transport {
     suspend fun offerFriendship(gameId: String, request: ApiV3DiplomacyPartnerRequest): ApiV3CommandAccepted
     suspend fun makeDiplomaticDemand(gameId: String, request: ApiV3DiplomaticDemandRequest): ApiV3CommandAccepted
     suspend fun respondToDiplomaticPrompt(gameId: String, request: ApiV3DiplomaticPromptResponseRequest): ApiV3CommandAccepted
+    suspend fun giftCityStateGold(gameId: String, request: ApiV3CityStateGoldGiftRequest): ApiV3CommandAccepted
+    suspend fun setCityStateProtection(gameId: String, request: ApiV3CityStateProtectionRequest): ApiV3CommandAccepted
+    suspend fun demandCityStateTribute(gameId: String, request: ApiV3CityStateTributeRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

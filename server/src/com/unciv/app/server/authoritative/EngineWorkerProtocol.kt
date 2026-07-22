@@ -418,6 +418,13 @@ sealed interface WorkerOperation {
     @Serializable @SerialName("respond_to_diplomatic_prompt")
     data class RespondToDiplomaticPrompt(val snapshot: String, val actorCivilizationId: String, val promptId: String, val accept: Boolean) : WorkerOperation
 
+    @Serializable @SerialName("gift_city_state_gold")
+    data class GiftCityStateGold(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val amount: Int) : WorkerOperation
+    @Serializable @SerialName("set_city_state_protection")
+    data class SetCityStateProtection(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val protect: Boolean) : WorkerOperation
+    @Serializable @SerialName("demand_city_state_tribute")
+    data class DemandCityStateTribute(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val worker: Boolean) : WorkerOperation
+
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
         val snapshot: String,
@@ -974,6 +981,18 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.RespondToDiplomaticPrompt -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.respondToDiplomaticPrompt(game, operation.actorCivilizationId, operation.promptId, operation.accept).game)
+            }
+            is WorkerOperation.GiftCityStateGold -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.giftCityStateGold(game, operation.actorCivilizationId, operation.cityStateCivilizationId, operation.amount).game)
+            }
+            is WorkerOperation.SetCityStateProtection -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.setCityStateProtection(game, operation.actorCivilizationId, operation.cityStateCivilizationId, operation.protect).game)
+            }
+            is WorkerOperation.DemandCityStateTribute -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.demandCityStateTribute(game, operation.actorCivilizationId, operation.cityStateCivilizationId, operation.worker).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

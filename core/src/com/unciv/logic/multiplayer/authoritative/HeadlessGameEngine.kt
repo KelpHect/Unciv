@@ -100,6 +100,21 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun giftCityStateGold(game: GameInfo, actorCivilizationId: String, cityStateId: String, amount: Int): EngineResult {
+        CityStateCommandExecutor.giftGold(game, authenticatedCivilization(game, actorCivilizationId), cityStateId, amount)
+        return result(game)
+    }
+
+    fun setCityStateProtection(game: GameInfo, actorCivilizationId: String, cityStateId: String, protect: Boolean): EngineResult {
+        CityStateCommandExecutor.setProtection(game, authenticatedCivilization(game, actorCivilizationId), cityStateId, protect)
+        return result(game)
+    }
+
+    fun demandCityStateTribute(game: GameInfo, actorCivilizationId: String, cityStateId: String, worker: Boolean): EngineResult {
+        CityStateCommandExecutor.demandTribute(game, authenticatedCivilization(game, actorCivilizationId), cityStateId, worker)
+        return result(game)
+    }
+
     private fun authenticatedCivilization(game: GameInfo, civilizationId: String): Civilization =
         game.civilizations.singleOrNull { it.civID == civilizationId && it.playerId == executionContext.actorId }
             ?: error("Authenticated actor is not assigned to this civilization")

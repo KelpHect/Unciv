@@ -2102,6 +2102,36 @@ class AuthoritativeGameExecutionContextTests {
         })
     }
 
+    @Test
+    fun cityStateGoldAndProtectionAreCanonicalAndProjectionBound() {
+        val setup = testSetup().apply { gameParameters.numberOfCityStates = 1 }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val cityState = game.getAliveCityStates().single()
+        rome.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        rome.addGold(500 - rome.gold)
+
+        val before = engine.playerProjection(game, "Rome").cityStatePartners.single()
+        Assert.assertEquals(cityState.civID, before.civilizationId)
+        Assert.assertEquals(listOf(250, 500), before.availableGoldGifts)
+        Assert.assertTrue(before.canPledgeProtection)
+
+        engine.giftCityStateGold(game, "Rome", cityState.civID, 250)
+        Assert.assertEquals(250, rome.gold)
+        Assert.assertTrue(cityState.getDiplomacyManager(rome)!!.getInfluence() > 0)
+        engine.setCityStateProtection(game, "Rome", cityState.civID, true)
+        Assert.assertFalse(engine.playerProjection(game, "Rome").cityStatePartners.single().canPledgeProtection)
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.giftCityStateGold(game, "Rome", cityState.civID, 251)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setCityStateProtection(game, "Rome", cityState.civID, false)
+        }
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

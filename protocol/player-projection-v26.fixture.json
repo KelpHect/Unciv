@@ -72,5 +72,13 @@
     "requestingCivilizationId": "Greece",
     "type": "friendship",
     "demand": null
+  }],
+  "cityStatePartners": [{
+    "civilizationId": "Geneva",
+    "availableGoldGifts": [250],
+    "canPledgeProtection": true,
+    "canRevokeProtection": false,
+    "tributeGoldAmount": 75,
+    "canDemandWorker": false
   }]
 }

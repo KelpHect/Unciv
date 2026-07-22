@@ -468,6 +468,30 @@ pub(super) enum WorkerOperation<'a> {
         prompt_id: &'a str,
         accept: bool,
     },
+    GiftCityStateGold {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityStateCivilizationId")]
+        city_state_civilization_id: &'a str,
+        amount: u32,
+    },
+    SetCityStateProtection {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityStateCivilizationId")]
+        city_state_civilization_id: &'a str,
+        protect: bool,
+    },
+    DemandCityStateTribute {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityStateCivilizationId")]
+        city_state_civilization_id: &'a str,
+        worker: bool,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

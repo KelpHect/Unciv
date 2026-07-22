@@ -1,0 +1,26 @@
+use crate::GameCommand;
+
+#[test]
+fn city_state_commands_reject_client_claimed_rules_and_outcomes() {
+    let valid = serde_json::json!({
+        "type": "gift_city_state_gold",
+        "city_state_civilization_id": "Geneva",
+        "amount": 250
+    });
+    assert!(serde_json::from_value::<GameCommand>(valid.clone()).is_ok());
+    for field in ["actor", "influence_gained", "treasury_after", "can_execute"] {
+        let mut forged = valid.clone();
+        forged[field] = serde_json::json!(999);
+        assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+    }
+
+    let tribute = serde_json::json!({
+        "type": "demand_city_state_tribute",
+        "city_state_civilization_id": "Geneva",
+        "worker": true
+    });
+    assert!(serde_json::from_value::<GameCommand>(tribute.clone()).is_ok());
+    let mut forged = tribute;
+    forged["willingness"] = serde_json::json!(1000);
+    assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+}

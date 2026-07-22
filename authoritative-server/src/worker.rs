@@ -16,6 +16,7 @@ mod city_disposition;
 mod city_economy;
 mod city_governance;
 mod city_population;
+mod city_state;
 mod diplomacy;
 mod great_people;
 mod intents;
@@ -26,6 +27,7 @@ mod trade;
 mod unit_actions;
 mod unit_movement;
 mod unit_orders;
+pub use city_state::{CityStateGoldGiftIntent, CityStateProtectionIntent, CityStateTributeIntent};
 pub use intents::{
     AdoptPolicyIntent, CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent,
     ChooseGreatPersonIntent, ResetCitizensIntent, ResolveCityDispositionIntent,

@@ -374,6 +374,9 @@ sealed interface PendingAuthoritativeCommand {
     data class OfferFriendship(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String) : PendingAuthoritativeCommand
     data class MakeDiplomaticDemand(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String, val demand: DiplomaticDemand) : PendingAuthoritativeCommand
     data class RespondToDiplomaticPrompt(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val promptId: String, val accept: Boolean) : PendingAuthoritativeCommand
+    data class GiftCityStateGold(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val amount: Int) : PendingAuthoritativeCommand
+    data class SetCityStateProtection(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val protect: Boolean) : PendingAuthoritativeCommand
+    data class DemandCityStateTribute(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val worker: Boolean) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1132,6 +1135,30 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.RespondToDiplomaticPrompt(commandIdFactory(), current.committedRevision, current.canonicalStateHash, promptId, accept), current)
     }
 
+    suspend fun giftCityStateGold(cityStateId: String, amount: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.cityStatePartners.singleOrNull { it.civilizationId == cityStateId }
+            ?: error("City-state is absent from the current player projection")
+        require(amount in partner.availableGoldGifts) { "Gold gift is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.GiftCityStateGold(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId, amount), current)
+    }
+
+    suspend fun setCityStateProtection(cityStateId: String, protect: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.cityStatePartners.singleOrNull { it.civilizationId == cityStateId }
+            ?: error("City-state is absent from the current player projection")
+        require(if (protect) partner.canPledgeProtection else partner.canRevokeProtection) { "Protection action is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.SetCityStateProtection(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId, protect), current)
+    }
+
+    suspend fun demandCityStateTribute(cityStateId: String, worker: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.cityStatePartners.singleOrNull { it.civilizationId == cityStateId }
+            ?: error("City-state is absent from the current player projection")
+        require(if (worker) partner.canDemandWorker else partner.tributeGoldAmount != null) { "Tribute action is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.DemandCityStateTribute(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId, worker), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1625,6 +1652,9 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.OfferFriendship -> transport.offerFriendship(gameId, ApiV3DiplomacyPartnerRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId))
                 is PendingAuthoritativeCommand.MakeDiplomaticDemand -> transport.makeDiplomaticDemand(gameId, ApiV3DiplomaticDemandRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId, pending.demand))
                 is PendingAuthoritativeCommand.RespondToDiplomaticPrompt -> transport.respondToDiplomaticPrompt(gameId, ApiV3DiplomaticPromptResponseRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.promptId, pending.accept))
+                is PendingAuthoritativeCommand.GiftCityStateGold -> transport.giftCityStateGold(gameId, ApiV3CityStateGoldGiftRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.amount))
+                is PendingAuthoritativeCommand.SetCityStateProtection -> transport.setCityStateProtection(gameId, ApiV3CityStateProtectionRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.protect))
+                is PendingAuthoritativeCommand.DemandCityStateTribute -> transport.demandCityStateTribute(gameId, ApiV3CityStateTributeRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.worker))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

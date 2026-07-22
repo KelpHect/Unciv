@@ -3134,3 +3134,50 @@ Verification on 2026-07-22:
 
 The coverage audit continues with authoritative city-state interactions,
 espionage, and remaining special-action families.
+
+## Authoritative city-state gifts, protection, and tribute
+
+API v3 now covers the core city-state interactions for gifting 250/500/1000
+gold, pledging or withdrawing protection, and demanding either canonical gold
+tribute or a worker. Projection version 26 exposes only known living
+city-states and the authenticated player's currently legal/affordable action
+allowlist; military-pressure calculations, influence internals, RNG state,
+treasury outcomes, and actor identity remain server-only.
+
+The focused Kotlin `CityStateCommandExecutor` re-derives current turn, account
+assignment, contact, war state, gift denomination, treasury, protection
+cooldowns, influence, tribute willingness, nearby canonical military force,
+city population, recent bullying, and worker availability before invoking the
+existing `CityStateFunctions`. Worker tribute continues to use the existing
+state-derived server RNG. Rust transports typed intent but implements no game
+rule and remains the sole revisioned committer.
+
+For explicitly opened v3 games, gold-gift, protection, and tribute buttons
+submit through the authoritative session and return before legacy mutation.
+Single-player, hotseat, saves, legacy multiplayer, and local/server-owned AI
+retain their existing Kotlin behavior. Improvement gifts, diplomatic marriage,
+city-state peace, and protector response prompts remain separate follow-up
+coverage rather than being overstated as complete.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin tests prove projection-bound gift denominations, canonical
+  treasury/influence effects, protection legality, forged-amount rejection,
+  and out-of-turn rejection. Rust closed-contract tests reject claimed actor,
+  willingness, influence, treasury, and outcome fields.
+- `./gradlew :tests:test :server:test --no-daemon` completed 915 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test` passed 60 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in that lane. Generated
+  OpenAPI parity and the shared projection-v26 fixture passed.
+- `cargo fmt` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55435. The disposable `unciv-v3-city-state-pg19b2` container was
+  removed and verified absent afterward.
+- `git diff --check` and module-size review passed. `main.rs` remains 6 lines,
+  `lib.rs` remains 28 lines, and the largest Rust source is 781 lines.
+
+The next city-state slice covers improvement gifts, diplomatic marriage,
+city-state peace, and protector-response prompts before moving to espionage.

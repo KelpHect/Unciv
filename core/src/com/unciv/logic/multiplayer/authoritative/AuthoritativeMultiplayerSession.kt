@@ -1112,6 +1112,12 @@ class AuthoritativeMultiplayerSession(
         { it is PendingAuthoritativeCommand.MakeDiplomaticDemand && it.otherCivilizationId == otherId && it.demand == demand }, { it.makeDiplomaticDemand(otherId, demand) })
     suspend fun respondToDiplomaticPromptIfOpen(gameId: String, promptId: String, accept: Boolean) = withDiplomacyBus(gameId,
         { it is PendingAuthoritativeCommand.RespondToDiplomaticPrompt && it.promptId == promptId && it.accept == accept }, { it.respondToDiplomaticPrompt(promptId, accept) })
+    suspend fun giftCityStateGoldIfOpen(gameId: String, cityStateId: String, amount: Int) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.GiftCityStateGold && it.cityStateId == cityStateId && it.amount == amount }, { it.giftCityStateGold(cityStateId, amount) })
+    suspend fun setCityStateProtectionIfOpen(gameId: String, cityStateId: String, protect: Boolean) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.SetCityStateProtection && it.cityStateId == cityStateId && it.protect == protect }, { it.setCityStateProtection(cityStateId, protect) })
+    suspend fun demandCityStateTributeIfOpen(gameId: String, cityStateId: String, worker: Boolean) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.DemandCityStateTribute && it.cityStateId == cityStateId && it.worker == worker }, { it.demandCityStateTribute(cityStateId, worker) })
 
     private suspend fun withDiplomacyBus(
         gameId: String,

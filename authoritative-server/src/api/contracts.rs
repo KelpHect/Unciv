@@ -538,6 +538,36 @@ pub(super) struct DiplomaticPromptResponseRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct CityStateGoldGiftRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_state_civilization_id: String,
+    pub(super) amount: u32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CityStateProtectionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_state_civilization_id: String,
+    pub(super) protect: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CityStateTributeRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_state_civilization_id: String,
+    pub(super) worker: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SetCityTileAssignmentRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

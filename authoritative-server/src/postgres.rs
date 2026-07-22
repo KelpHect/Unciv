@@ -98,6 +98,7 @@ mod city_disposition;
 mod city_economy;
 mod city_governance;
 mod city_population;
+mod city_state;
 mod commands;
 mod diplomacy;
 mod games;

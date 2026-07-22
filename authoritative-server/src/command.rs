@@ -261,6 +261,18 @@ pub enum GameCommand {
         prompt_id: String,
         accept: bool,
     },
+    GiftCityStateGold {
+        city_state_civilization_id: String,
+        amount: u32,
+    },
+    SetCityStateProtection {
+        city_state_civilization_id: String,
+        protect: bool,
+    },
+    DemandCityStateTribute {
+        city_state_civilization_id: String,
+        worker: bool,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

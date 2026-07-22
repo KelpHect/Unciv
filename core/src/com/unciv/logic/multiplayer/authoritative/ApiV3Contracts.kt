@@ -499,6 +499,33 @@ data class ApiV3DiplomaticPromptResponseRequest(
 )
 
 @Serializable
+data class ApiV3CityStateGoldGiftRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_state_civilization_id") val cityStateCivilizationId: String,
+    val amount: Int,
+)
+
+@Serializable
+data class ApiV3CityStateProtectionRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_state_civilization_id") val cityStateCivilizationId: String,
+    val protect: Boolean,
+)
+
+@Serializable
+data class ApiV3CityStateTributeRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_state_civilization_id") val cityStateCivilizationId: String,
+    val worker: Boolean,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

@@ -254,6 +254,18 @@ pub(crate) async fn run() {
             post(respond_to_diplomatic_prompt),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/gift-city-state-gold",
+            post(gift_city_state_gold),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/set-city-state-protection",
+            post(set_city_state_protection),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/demand-city-state-tribute",
+            post(demand_city_state_tribute),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

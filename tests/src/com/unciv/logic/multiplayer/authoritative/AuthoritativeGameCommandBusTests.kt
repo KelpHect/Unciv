@@ -1927,6 +1927,9 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun offerFriendship(gameId: String, request: ApiV3DiplomacyPartnerRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun makeDiplomaticDemand(gameId: String, request: ApiV3DiplomaticDemandRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun respondToDiplomaticPrompt(gameId: String, request: ApiV3DiplomaticPromptResponseRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun giftCityStateGold(gameId: String, request: ApiV3CityStateGoldGiftRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun setCityStateProtection(gameId: String, request: ApiV3CityStateProtectionRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun demandCityStateTribute(gameId: String, request: ApiV3CityStateTributeRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
         private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {
             current = current.copy(committedRevision = revision + 1, canonicalStateHash = "trade-hash", projectionHash = "trade-projection-hash")

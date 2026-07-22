@@ -1459,6 +1459,7 @@ class AuthoritativeGameCommandBusTests {
             pendingTurnActions = pendingTurnActions,
             research = ProjectedResearch(
                 currentTechnology = null,
+                researchedTechnologies = emptyList(),
                 queue = emptyList(),
                 queueEntries = emptyList(),
                 overflowScience = 0,

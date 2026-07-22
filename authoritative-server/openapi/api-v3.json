@@ -11206,6 +11206,7 @@
       "ProjectedResearch": {
         "type": "object",
         "required": [
+          "researchedTechnologies",
           "queue",
           "queueEntries",
           "overflowScience",
@@ -11248,6 +11249,12 @@
               "$ref": "#/components/schemas/ProjectedResearchQueueEntry"
             }
           },
+          "researchedTechnologies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "selectableTargets": {
             "type": "array",
             "items": {
@@ -11267,6 +11274,13 @@
         "properties": {
           "cost": {
             "type": "integer",
+            "format": "int32"
+          },
+          "estimatedTurns": {
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32"
           },
           "storedScience": {

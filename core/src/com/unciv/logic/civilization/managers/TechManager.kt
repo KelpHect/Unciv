@@ -140,17 +140,21 @@ class TechManager : IsPartOfGameInfoSerialization {
     }
 
     @Readonly
-    fun turnsToTech(techName: String): String {
+    fun estimatedTurnsToTech(techName: String): Int? {
         val remainingCost = remainingScienceToTech(techName).toDouble()
         return when {
-            remainingCost <= 0f -> (0).tr()
-            civInfo.stats.statsForNextTurn.science <= 0f -> Fonts.infinity.toString()
+            remainingCost <= 0f -> 0
+            civInfo.stats.statsForNextTurn.science <= 0f -> null
             else -> max(
                 1,
                 ceil(remainingCost / civInfo.stats.statsForNextTurn.science).toInt()
-            ).tr()
+            )
         }
     }
+
+    @Readonly
+    fun turnsToTech(techName: String): String =
+        estimatedTurnsToTech(techName)?.tr() ?: Fonts.infinity.toString()
     
     @Readonly fun isResearched(techName: String): Boolean { return techsResearched.contains(techName) }
     @Readonly fun isResearched(construction: INonPerpetualConstruction): Boolean = construction.requiredTechs().all{ requiredTech -> isResearched(requiredTech) }

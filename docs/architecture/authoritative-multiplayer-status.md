@@ -4048,3 +4048,45 @@ Verification on 2026-07-22:
   attempt on Windows-reserved port 55454 was removed cleanly before retry. The
   successful disposable `unciv-v3-research-projection-pg19b2` container,
   network, and volume were also removed and cleanup was verified.
+
+## Projection-owned researched history and turn estimates
+
+Player projection version 38 adds the authenticated civilization's sorted
+researched-technology names and a nullable numeric turn estimate to each queued
+research entry. `null` means current science income cannot advance that item;
+zero and positive estimates remain numeric protocol data. Display localization
+and the infinity glyph stay client presentation only.
+
+The numeric calculation lives in `TechManager.estimatedTurnsToTech`, while the
+existing `turnsToTech` display method delegates to it. This keeps one Kotlin
+domain rule for single-player, legacy UI, the headless worker, and projections.
+No Rust research rule or client-side authoritative calculation was introduced.
+
+For an opened v3 game, `TechPickerScreen` no longer eagerly calculates every
+technology's local researchability or turn estimate. Before the projection
+arrives it renders no researched state or estimate and keeps submission
+disabled. Afterward it derives researched coloring, queue estimates, and legal
+replace/append/free highlighting only from projection v38. Connecting-line
+state also uses projected researched history instead of the disposable local
+`TechManager` cache.
+
+Rust validates that researched names are sorted, queue entries align exactly
+with queue names, and all projected stored science, costs, overflow, and numeric
+estimates are nonnegative. A malformed private-worker projection fails as a
+protocol error before it can cross the public API boundary.
+
+Verification on 2026-07-22:
+
+- Deterministic tests cover shared-domain estimate parity, researched history,
+  queue estimates, strict projection-v38 Rust/Kotlin round trips, malformed
+  semantic rejection, session/bus regressions, and server-worker behavior.
+- Rust's 84 active library tests and 7 HTTP/OpenAPI tests pass, including
+  generated OpenAPI parity. `cargo fmt --check` and warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings` pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes the broad 935-test JVM
+  and server suite with 13 intentional skips.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-research-history-pg19b2` container, network, and volume were removed
+  and cleanup was verified.

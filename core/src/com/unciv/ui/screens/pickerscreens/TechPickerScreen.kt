@@ -68,8 +68,8 @@ class TechPickerScreen(
     }
 
     // All these are to counter performance problems when updating buttons for all techs.
-    private var researchableTechs = ruleset.technologies.keys
-            .filter { civTech.canBeResearched(it) }.toHashSet()
+    private var researchableTechs = if (isAuthoritativeGame()) hashSetOf() else
+        ruleset.technologies.keys.filter { civTech.canBeResearched(it) }.toHashSet()
 
     private val currentTechColor = skinStrings.getUIColor("TechPickerScreen/CurrentTechColor", colorFromRGB(72, 147, 175))
     private val researchedTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchedTechColor", colorFromRGB(255, 215, 0))
@@ -77,7 +77,8 @@ class TechPickerScreen(
     private val queuedTechColor = skinStrings.getUIColor("TechPickerScreen/QueuedTechColor", colorFromRGB(7*2, 46*2, 43*2))
     private val researchedFutureTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchedFutureTechColor", colorFromRGB(127, 50, 0))
 
-    private val turnsToTech = ruleset.technologies.values.associateBy({ it.name }, { civTech.turnsToTech(it.name) })
+    private val turnsToTech = if (isAuthoritativeGame()) emptyMap() else
+        ruleset.technologies.values.associateBy({ it.name }, { civTech.turnsToTech(it.name) })
 
     init {
         setDefaultCloseAction()
@@ -109,7 +110,9 @@ class TechPickerScreen(
         val tech = centerOnTech ?: civInfo.tech.currentTechnology()
         if (tech != null) {
             // select only if there it doesn't mess up tempTechsToResearch
-            if (civInfo.tech.isResearched(tech.name) || civInfo.tech.techsToResearch.size <= 1)
+            if (isAuthoritativeGame())
+                centerOnTechnology(tech)
+            else if (civInfo.tech.isResearched(tech.name) || civInfo.tech.techsToResearch.size <= 1)
                 selectTechnology(tech, queue = false, center = true)
             else centerOnTechnology(tech)
         } else {
@@ -320,8 +323,11 @@ class TechPickerScreen(
     }
 
     private fun setButtonsInfo() {
+        val authoritative = isAuthoritativeGame()
+        val projectedResearch = authoritativeResearch
+        val projectedQueueEntries = projectedResearch?.queueEntries?.associateBy { it.technologyName }.orEmpty()
         for ((techName, techButton) in techNameToButton) {
-            val isResearched = civTech.isResearched(techName)
+            val isResearched = isResearchedForDisplay(techName)
             techButton.setButtonColor(when {
                 isResearched && techName != Constants.futureTech -> researchedTechColor
                 isResearched -> researchedFutureTechColor
@@ -336,8 +342,13 @@ class TechPickerScreen(
                 techButton.text.color = colorFromRGB(154, 98, 16)
             }
 
-            if (isAuthoritativeGame()) {
-                techButton.turns.setText("")
+            if (authoritative) {
+                val estimate = projectedQueueEntries[techName]?.estimatedTurns
+                techButton.turns.setText(when {
+                    techName !in projectedQueueEntries -> ""
+                    estimate == null -> Fonts.infinity.toString()
+                    else -> estimate.tr()
+                } + if (techName in projectedQueueEntries) "${Fonts.turn}".tr() else "")
             } else if (!isResearched || techName == Constants.futureTech) {
                 techButton.turns.setText(turnsToTech[techName] + "${Fonts.turn}".tr())
             }
@@ -349,6 +360,10 @@ class TechPickerScreen(
 
         addOrderIndicators()
     }
+
+    private fun isResearchedForDisplay(technologyName: String): Boolean =
+        if (isAuthoritativeGame()) technologyName in authoritativeResearch?.researchedTechnologies.orEmpty()
+        else civTech.isResearched(technologyName)
 
     private fun addConnectingLines() {
         techTable.pack() // required for the table to have the button positions set, so topTable.stageToLocalCoordinates will be correct
@@ -387,14 +402,14 @@ class TechPickerScreen(
                 techTable.stageToLocalCoordinates(prerequisiteCoords)
 
                 val lineColor = when {
-                    civTech.isResearched(tech.name) && !tech.isContinuallyResearchable() -> Color.WHITE.cpy()
-                    civTech.isResearched(prerequisite) -> researchableTechColor
+                    isResearchedForDisplay(tech.name) && !tech.isContinuallyResearchable() -> Color.WHITE.cpy()
+                    isResearchedForDisplay(prerequisite) -> researchableTechColor
                     tempTechsToResearch.contains(tech.name) -> currentTechColor
                     else -> Color.WHITE.cpy()
                 }
 
                 val lineSize = when {
-                    tempTechsToResearch.contains(tech.name) && !civTech.isResearched(prerequisite) -> 4f
+                    tempTechsToResearch.contains(tech.name) && !isResearchedForDisplay(prerequisite) -> 4f
                     else -> 2f
                 }
 

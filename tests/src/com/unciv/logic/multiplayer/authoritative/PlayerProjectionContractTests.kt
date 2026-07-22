@@ -42,7 +42,9 @@ class PlayerProjectionContractTests {
         assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Archery"), projection.research.appendableTargets)
         assertEquals(14, projection.research.queueEntries.first().storedScience)
+        assertEquals(4, projection.research.queueEntries.first().estimatedTurns)
         assertEquals(3, projection.research.overflowScience)
+        assertEquals(listOf("Agriculture", "Mining"), projection.research.researchedTechnologies)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
         assertEquals(CitizenFocus.GoldFocus, projection.ownCities.single().citizenFocus)
@@ -115,6 +117,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v37.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v38.fixture.json") }
         .first { it.isFile }
 }

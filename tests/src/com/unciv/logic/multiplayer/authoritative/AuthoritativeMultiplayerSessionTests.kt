@@ -1123,6 +1123,7 @@ class AuthoritativeMultiplayerSessionTests {
             pendingTurnActions = emptyList(),
             research = ProjectedResearch(
                 currentTechnology = null,
+                researchedTechnologies = emptyList(),
                 queue = emptyList(),
                 queueEntries = emptyList(),
                 overflowScience = 0,

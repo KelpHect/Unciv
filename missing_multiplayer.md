@@ -52,13 +52,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   legal targets; restore any intentionally disabled multi-tile interaction with
   bounded typed commands if it remains a supported feature.
 - [ ] Research: implement removal and reordering of queued technologies and
-  project researched-tech history, future turn estimates, and public event data
-  needed by the full projection-only research UI. Replace and append destination
-  selection are complete: projection v37 exposes distinct legal target sets,
-  canonical queue progress/cost/overflow, and the worker derives all missing
-  prerequisites without accepting a client-authored queue. The current picker
-  exposes no removal or drag-reordering control; any future operation needs a
-  bounded server semantic that preserves prerequisite validity.
+  project public research event data needed by the full projection-only research
+  UI. Replace/append/free selection and projection-owned researched history,
+  queue progress/cost/overflow, and turn estimates are complete in projection
+  v38. The worker derives all missing prerequisites without accepting a
+  client-authored queue. The current picker exposes no removal or drag-reordering
+  control; any future operation needs a bounded server semantic that preserves
+  prerequisite validity. Projection-only screen entry must also replace the
+  temporary local-cache flag currently used to choose ordinary versus free-tech
+  picker mode.
 - [ ] Policies and ideology: implement ideology selection, tenets, and any
   supported mod-defined multi-choice policy flow; project public ideology/event
   data required by the UI.

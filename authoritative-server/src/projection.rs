@@ -300,6 +300,7 @@ pub enum CitizenFocus {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedResearch {
     pub current_technology: Option<String>,
+    pub researched_technologies: Vec<String>,
     pub queue: Vec<String>,
     pub queue_entries: Vec<ProjectedResearchQueueEntry>,
     pub overflow_science: i32,
@@ -314,6 +315,7 @@ pub struct ProjectedResearchQueueEntry {
     pub technology_name: String,
     pub stored_science: i32,
     pub cost: i32,
+    pub estimated_turns: Option<i32>,
 }
 
 impl ProjectedResearch {
@@ -328,8 +330,13 @@ impl ProjectedResearch {
                     technology_name == &entry.technology_name
                         && entry.stored_science >= 0
                         && entry.cost >= 0
+                        && entry.estimated_turns.is_none_or(|turns| turns >= 0)
                 })
             && self.overflow_science >= 0
+            && self
+                .researched_technologies
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
     }
 }
 
@@ -435,7 +442,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v37.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v38.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -450,6 +457,10 @@ mod tests {
         assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
         assert_eq!(projection.research.appendable_targets, ["Archery"]);
         assert_eq!(projection.research.queue_entries[0].stored_science, 14);
+        assert_eq!(
+            projection.research.queue_entries[0].estimated_turns,
+            Some(4)
+        );
         assert_eq!(projection.research.overflow_science, 3);
         assert!(projection.research.is_consistent());
         assert_eq!(projection.diplomacy_partners[0].civilization_id, "Greece");
@@ -570,12 +581,15 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v37.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v38.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
         projection.research.queue_entries[0].technology_name = "Pottery".into();
         projection.research.queue_entries[0].cost = -1;
+        assert!(!projection.research.is_consistent());
+        projection.research.queue_entries[0].cost = 35;
+        projection.research.researched_technologies.reverse();
         assert!(!projection.research.is_consistent());
     }
 

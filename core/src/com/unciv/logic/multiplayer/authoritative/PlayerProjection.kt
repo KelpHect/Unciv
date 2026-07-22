@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 43
+        const val CURRENT_PROJECTION_VERSION = 44
     }
 }
 
@@ -213,7 +213,7 @@ data class ProjectedCity(
     val isPuppet: Boolean = false,
     val isBeingRazed: Boolean = false,
     val availableGovernanceActions: List<CityGovernanceAction> = emptyList(),
-    val bombardTargets: List<ProjectedTargetCoordinate> = emptyList(),
+    val bombardTargets: List<ProjectedBombardTarget> = emptyList(),
 )
 
 @Serializable
@@ -322,7 +322,44 @@ data class ProjectedAttackTarget(
     val y: Int,
     val attackFromX: Int,
     val attackFromY: Int,
+    val preview: ProjectedCombatPreview,
 )
+
+@Serializable
+data class ProjectedBombardTarget(
+    val x: Int,
+    val y: Int,
+    val preview: ProjectedCombatPreview,
+)
+
+@Serializable
+data class ProjectedCombatPreview(
+    val attackerBaseStrength: Int,
+    val defenderBaseStrength: Int,
+    val attackerEffectiveStrength: Int,
+    val defenderEffectiveStrength: Int,
+    val attackerModifiers: List<ProjectedCombatModifier>,
+    val defenderModifiers: List<ProjectedCombatModifier>,
+    val attackerHealth: Int,
+    val attackerMaxHealth: Int,
+    val defenderHealth: Int,
+    val defenderMaxHealth: Int,
+    val attackerMinRemainingHealth: Int? = null,
+    val attackerMaxRemainingHealth: Int? = null,
+    val defenderMinRemainingHealth: Int? = null,
+    val defenderMaxRemainingHealth: Int? = null,
+    val outcome: ProjectedCombatOutcome? = null,
+)
+
+@Serializable
+data class ProjectedCombatModifier(val label: String, val percent: Int)
+
+@Serializable
+enum class ProjectedCombatOutcome {
+    @SerialName("captured") Captured,
+    @SerialName("occupied") Occupied,
+    @SerialName("no_estimate") NoEstimate,
+}
 
 @Serializable
 data class ProjectedUnitTransformAction(val actionId: String, val targetUnitName: String)

@@ -1,6 +1,50 @@
 use crate::projection::{
-    PlayerProjection, ProjectedMovementDestination, ProjectedTargetCoordinate,
+    PlayerProjection, ProjectedCombatPreview, ProjectedMovementDestination,
+    ProjectedTargetCoordinate,
 };
+
+impl ProjectedCombatPreview {
+    fn is_consistent(&self) -> bool {
+        let health_is_valid =
+            |health: i32, maximum: i32| maximum > 0 && (0..=maximum).contains(&health);
+        let modifiers_are_valid = |modifiers: &[crate::projection::ProjectedCombatModifier]| {
+            modifiers.len() <= 64
+                && modifiers.iter().all(|modifier| {
+                    !modifier.label.is_empty() && modifier.label.chars().count() <= 200
+                })
+                && modifiers.windows(2).all(|pair| pair[0] < pair[1])
+        };
+        let remaining = [
+            self.attacker_min_remaining_health,
+            self.attacker_max_remaining_health,
+            self.defender_min_remaining_health,
+            self.defender_max_remaining_health,
+        ];
+        let remaining_is_valid = match self.outcome {
+            Some(_) => remaining.iter().all(Option::is_none),
+            None => {
+                remaining.iter().all(Option::is_some)
+                    && (0..=self.attacker_health)
+                        .contains(&self.attacker_min_remaining_health.unwrap())
+                    && (self.attacker_min_remaining_health.unwrap()..=self.attacker_health)
+                        .contains(&self.attacker_max_remaining_health.unwrap())
+                    && (0..=self.defender_health)
+                        .contains(&self.defender_min_remaining_health.unwrap())
+                    && (self.defender_min_remaining_health.unwrap()..=self.defender_health)
+                        .contains(&self.defender_max_remaining_health.unwrap())
+            }
+        };
+        self.attacker_base_strength >= 0
+            && self.defender_base_strength >= 0
+            && self.attacker_effective_strength >= 1
+            && self.defender_effective_strength >= 1
+            && health_is_valid(self.attacker_health, self.attacker_max_health)
+            && health_is_valid(self.defender_health, self.defender_max_health)
+            && modifiers_are_valid(&self.attacker_modifiers)
+            && modifiers_are_valid(&self.defender_modifiers)
+            && remaining_is_valid
+    }
+}
 
 impl PlayerProjection {
     pub fn movement_is_consistent(&self) -> bool {
@@ -64,6 +108,9 @@ impl PlayerProjection {
         let coordinates_are_sorted = |coordinates: &[ProjectedTargetCoordinate]| {
             coordinates.len() <= 10_000 && coordinates.windows(2).all(|pair| pair[0] < pair[1])
         };
+        let coordinate_pairs_are_sorted = |coordinates: &[(i32, i32)]| {
+            coordinates.len() <= 10_000 && coordinates.windows(2).all(|pair| pair[0] < pair[1])
+        };
         if self.visible_foreign_units.iter().any(|unit| {
             !unit.attack_targets.is_empty()
                 || !unit.nuclear_target_candidates.is_empty()
@@ -84,11 +131,27 @@ impl PlayerProjection {
             return false;
         }
         self.own_cities.iter().all(|city| {
-            coordinates_are_sorted(&city.bombard_targets)
-                && city.bombard_targets.iter().all(&coordinate_is_visible)
+            coordinate_pairs_are_sorted(
+                &city
+                    .bombard_targets
+                    .iter()
+                    .map(|target| (target.x, target.y))
+                    .collect::<Vec<_>>(),
+            ) && city.bombard_targets.iter().all(|target| {
+                coordinate_is_visible(&ProjectedTargetCoordinate {
+                    x: target.x,
+                    y: target.y,
+                }) && target.preview.is_consistent()
+            })
         }) && self.own_units.iter().all(|unit| {
             unit.attack_targets.len() <= 10_000
-                && unit.attack_targets.windows(2).all(|pair| pair[0] < pair[1])
+                && coordinate_pairs_are_sorted(
+                    &unit
+                        .attack_targets
+                        .iter()
+                        .map(|target| (target.x, target.y))
+                        .collect::<Vec<_>>(),
+                )
                 && unit.attack_targets.iter().all(|target| {
                     coordinate_is_visible(&ProjectedTargetCoordinate {
                         x: target.x,
@@ -96,7 +159,7 @@ impl PlayerProjection {
                     }) && coordinate_is_visible(&ProjectedTargetCoordinate {
                         x: target.attack_from_x,
                         y: target.attack_from_y,
-                    })
+                    }) && target.preview.is_consistent()
                 })
                 && coordinates_are_sorted(&unit.nuclear_target_candidates)
                 && unit.nuclear_target_candidates.iter().all(|target| {

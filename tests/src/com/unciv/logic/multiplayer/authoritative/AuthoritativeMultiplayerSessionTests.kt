@@ -476,7 +476,7 @@ class AuthoritativeMultiplayerSessionTests {
     fun unitAttackRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val attacker = ProjectedUnit(
             42, "Rome", "Warrior", 0, 0, 100, 2f,
-            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0)),
+            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0, testCombatPreview())),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -501,7 +501,7 @@ class AuthoritativeMultiplayerSessionTests {
     fun cityBombardRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val city = ProjectedCity(
             "city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList(),
-            bombardTargets = listOf(ProjectedTargetCoordinate(2, 0)),
+            bombardTargets = listOf(ProjectedBombardTarget(2, 0, testCombatPreview())),
         )
         val transport = FakeTransport().apply {
             restored = true

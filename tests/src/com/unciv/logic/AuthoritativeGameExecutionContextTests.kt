@@ -1268,6 +1268,15 @@ class AuthoritativeGameExecutionContextTests {
             .single { it.x == target.position.x && it.y == target.position.y }
         Assert.assertTrue(projectedTarget.attackFromX != target.position.x ||
             projectedTarget.attackFromY != target.position.y)
+        Assert.assertTrue(projectedTarget.preview.attackerEffectiveStrength > 0)
+        Assert.assertTrue(projectedTarget.preview.defenderEffectiveStrength > 0)
+        Assert.assertTrue(projectedTarget.preview.attackerMinRemainingHealth!! <=
+            projectedTarget.preview.attackerMaxRemainingHealth!!)
+        Assert.assertTrue(projectedTarget.preview.defenderMinRemainingHealth!! <=
+            projectedTarget.preview.defenderMaxRemainingHealth!!)
+        Assert.assertEquals(projectedTarget.preview, engine.playerProjection(game, "Rome")
+            .ownUnits.single { it.id == attacker.id }.attackTargets
+            .single { it.x == target.position.x && it.y == target.position.y }.preview)
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.attackWithUnit(
@@ -1332,9 +1341,12 @@ class AuthoritativeGameExecutionContextTests {
         defender.removeFromTile()
         defender.putInTile(target)
         rome.cache.updateViewableTiles()
-        Assert.assertTrue(engine.playerProjection(game, "Rome").ownCities
+        val projectedTarget = engine.playerProjection(game, "Rome").ownCities
             .single { it.id == city.id }.bombardTargets
-            .any { it.x == target.position.x && it.y == target.position.y })
+            .single { it.x == target.position.x && it.y == target.position.y }
+        Assert.assertEquals(city.health, projectedTarget.preview.attackerHealth)
+        Assert.assertEquals(city.health, projectedTarget.preview.attackerMinRemainingHealth)
+        Assert.assertTrue(projectedTarget.preview.defenderMinRemainingHealth!! < defender.health)
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.bombardWithCity(

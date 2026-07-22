@@ -4,6 +4,8 @@
 mod command;
 mod hashing;
 #[cfg(test)]
+mod projection_combat_tests;
+#[cfg(test)]
 mod projection_escort_tests;
 mod projection_validation;
 mod repository;
@@ -24,7 +26,7 @@ pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 43;
+pub const PROJECTION_VERSION: u16 = 44;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

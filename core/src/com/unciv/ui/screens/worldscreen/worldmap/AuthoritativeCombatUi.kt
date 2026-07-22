@@ -5,6 +5,8 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedAttackTarget
+import com.unciv.logic.multiplayer.authoritative.ProjectedBombardTarget
+import com.unciv.logic.multiplayer.authoritative.ProjectedCombatPreview
 import com.unciv.ui.screens.worldscreen.WorldScreen
 
 internal enum class AuthoritativeCombatAction { Attack, NuclearStrike, AirSweep }
@@ -22,11 +24,20 @@ internal object AuthoritativeCombatUi {
             ?.attackTargets
             ?.singleOrNull { it.x == tile.position.x && it.y == tile.position.y }
 
-    fun canBombard(worldScreen: WorldScreen, city: City, tile: Tile): Boolean =
+    fun bombardTarget(worldScreen: WorldScreen, city: City, tile: Tile): ProjectedBombardTarget? =
         projection(worldScreen)?.ownCities
             ?.singleOrNull { it.id == city.id }
             ?.bombardTargets
-            ?.any { it.x == tile.position.x && it.y == tile.position.y } == true
+            ?.singleOrNull { it.x == tile.position.x && it.y == tile.position.y }
+
+    fun canBombard(worldScreen: WorldScreen, city: City, tile: Tile): Boolean =
+        bombardTarget(worldScreen, city, tile) != null
+
+    fun unitPreview(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): ProjectedCombatPreview? =
+        attackTarget(worldScreen, unit, tile)?.preview
+
+    fun bombardPreview(worldScreen: WorldScreen, city: City, tile: Tile): ProjectedCombatPreview? =
+        bombardTarget(worldScreen, city, tile)?.preview
 
     fun canNuclearStrike(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): Boolean =
         projection(worldScreen)?.ownUnits

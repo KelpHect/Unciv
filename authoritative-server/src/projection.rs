@@ -253,7 +253,7 @@ pub struct ProjectedCity {
     pub is_puppet: bool,
     pub is_being_razed: bool,
     pub available_governance_actions: Vec<CityGovernanceAction>,
-    pub bombard_targets: Vec<ProjectedTargetCoordinate>,
+    pub bombard_targets: Vec<ProjectedBombardTarget>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -434,13 +434,57 @@ pub struct ProjectedTargetCoordinate {
     pub y: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedAttackTarget {
     pub x: i32,
     pub y: i32,
     pub attack_from_x: i32,
     pub attack_from_y: i32,
+    pub preview: ProjectedCombatPreview,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedBombardTarget {
+    pub x: i32,
+    pub y: i32,
+    pub preview: ProjectedCombatPreview,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCombatPreview {
+    pub attacker_base_strength: i32,
+    pub defender_base_strength: i32,
+    pub attacker_effective_strength: i32,
+    pub defender_effective_strength: i32,
+    pub attacker_modifiers: Vec<ProjectedCombatModifier>,
+    pub defender_modifiers: Vec<ProjectedCombatModifier>,
+    pub attacker_health: i32,
+    pub attacker_max_health: i32,
+    pub defender_health: i32,
+    pub defender_max_health: i32,
+    pub attacker_min_remaining_health: Option<i32>,
+    pub attacker_max_remaining_health: Option<i32>,
+    pub defender_min_remaining_health: Option<i32>,
+    pub defender_max_remaining_health: Option<i32>,
+    pub outcome: Option<ProjectedCombatOutcome>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCombatModifier {
+    pub label: String,
+    pub percent: i32,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectedCombatOutcome {
+    Captured,
+    Occupied,
+    NoEstimate,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -489,7 +533,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v43.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -587,19 +631,20 @@ mod tests {
             [ProjectedMovementDestination { x: 2, y: -1 }]
         );
         assert!(projection.movement_is_consistent());
+        let attack = &projection.own_units[0].attack_targets[0];
         assert_eq!(
-            projection.own_units[0].attack_targets,
-            [ProjectedAttackTarget {
-                x: 2,
-                y: -1,
-                attack_from_x: 3,
-                attack_from_y: -1,
-            }]
+            (
+                attack.x,
+                attack.y,
+                attack.attack_from_x,
+                attack.attack_from_y
+            ),
+            (2, -1, 3, -1)
         );
-        assert_eq!(
-            projection.own_cities[0].bombard_targets,
-            [ProjectedTargetCoordinate { x: 2, y: -1 }]
-        );
+        assert_eq!(attack.preview.attacker_effective_strength, 11);
+        let bombard = &projection.own_cities[0].bombard_targets[0];
+        assert_eq!((bombard.x, bombard.y), (2, -1));
+        assert_eq!(bombard.preview.defender_min_remaining_health, Some(70));
         assert!(projection.combat_is_consistent());
         assert!(projection.own_units[0].automated);
         assert!(!projection.own_units[0].exploring);
@@ -680,7 +725,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v43.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -694,7 +739,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v43.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();
@@ -720,36 +765,6 @@ mod tests {
         let mut out_of_turn = projection;
         out_of_turn.is_current_turn = false;
         assert!(!out_of_turn.movement_is_consistent());
-    }
-
-    #[test]
-    fn combat_metadata_rejects_hidden_duplicate_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v43.fixture.json");
-        let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
-
-        let mut hidden_attack = projection.clone();
-        hidden_attack.own_units[0].attack_targets[0].x = 5;
-        assert!(!hidden_attack.combat_is_consistent());
-
-        let mut hidden_bombard = projection.clone();
-        hidden_bombard.own_cities[0].bombard_targets[0] = ProjectedTargetCoordinate { x: 5, y: -1 };
-        assert!(!hidden_bombard.combat_is_consistent());
-
-        let mut duplicate = projection.clone();
-        duplicate.own_units[0]
-            .nuclear_target_candidates
-            .push(ProjectedTargetCoordinate { x: 2, y: -1 });
-        assert!(!duplicate.combat_is_consistent());
-
-        let mut foreign = projection.clone();
-        foreign.visible_foreign_units[0]
-            .air_sweep_targets
-            .push(ProjectedTargetCoordinate { x: 2, y: -1 });
-        assert!(!foreign.combat_is_consistent());
-
-        let mut out_of_turn = projection;
-        out_of_turn.is_current_turn = false;
-        assert!(!out_of_turn.combat_is_consistent());
     }
 
     #[test]

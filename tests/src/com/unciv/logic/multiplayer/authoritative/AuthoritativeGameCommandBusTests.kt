@@ -348,7 +348,7 @@ class AuthoritativeGameCommandBusTests {
     fun unitAttackRequestContainsOnlyAttackerAndVisibleTargetIntent() = runBlocking {
         val attacker = ProjectedUnit(
             42, "Rome", "Warrior", 0, 0, 100, 2f,
-            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0)),
+            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0, testCombatPreview())),
         )
         val defender = ProjectedUnit(84, "Greece", "Warrior", 1, 0, 100, 2f)
         val base = projection(7, "hash-7", ownUnits = listOf(attacker))
@@ -388,7 +388,7 @@ class AuthoritativeGameCommandBusTests {
     fun cityBombardRequestContainsOnlyOwnedCityAndVisibleTargetIntent() = runBlocking {
         val city = ProjectedCity(
             "city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList(),
-            bombardTargets = listOf(ProjectedTargetCoordinate(2, 0)),
+            bombardTargets = listOf(ProjectedBombardTarget(2, 0, testCombatPreview())),
         )
         val defender = ProjectedUnit(84, "Greece", "Warrior", 2, 0, 100, 2f)
         val base = projection(7, "hash-7")

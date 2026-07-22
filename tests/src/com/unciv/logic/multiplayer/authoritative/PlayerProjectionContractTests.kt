@@ -56,14 +56,20 @@ class PlayerProjectionContractTests {
             projection.ownUnits.single().moveDestinations)
         assertEquals(listOf(ProjectedMovementDestination(2, -1)),
             projection.ownUnits.single().swapDestinations)
-        assertEquals(listOf(ProjectedAttackTarget(2, -1, 3, -1)),
-            projection.ownUnits.single().attackTargets)
+        val attackTarget = projection.ownUnits.single().attackTargets.single()
+        assertEquals(ProjectedTargetCoordinate(2, -1),
+            ProjectedTargetCoordinate(attackTarget.x, attackTarget.y))
+        assertEquals(11, attackTarget.preview.attackerEffectiveStrength)
+        assertEquals(listOf(ProjectedCombatModifier("Flanking", 10)),
+            attackTarget.preview.attackerModifiers)
         assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
             projection.ownUnits.single().nuclearTargetCandidates)
         assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
             projection.ownUnits.single().airSweepTargets)
-        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
-            projection.ownCities.single().bombardTargets)
+        assertEquals(ProjectedTargetCoordinate(2, -1), projection.ownCities.single()
+            .bombardTargets.single().let { ProjectedTargetCoordinate(it.x, it.y) })
+        assertEquals(70, projection.ownCities.single().bombardTargets.single()
+            .preview.defenderMinRemainingHealth)
         assertTrue(projection.ownUnits.single().automated)
         assertTrue(!projection.ownUnits.single().exploring)
         assertEquals(UnitPosture.Fortify, projection.ownUnits.single().posture)
@@ -140,6 +146,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v43.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v44.fixture.json") }
         .first { it.isFile }
 }

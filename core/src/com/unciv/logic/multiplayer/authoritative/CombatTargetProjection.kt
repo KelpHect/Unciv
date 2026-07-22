@@ -1,6 +1,9 @@
 package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.logic.battle.TargetHelper
+import com.unciv.logic.battle.Battle
+import com.unciv.logic.battle.CityCombatant
+import com.unciv.logic.battle.MapUnitCombatant
 import com.unciv.logic.city.City
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
@@ -23,6 +26,12 @@ internal object CombatTargetProjection {
                     it.tileToAttack.position.y,
                     it.tileToAttackFrom.position.x,
                     it.tileToAttackFrom.position.y,
+                    CombatPreviewProjection.build(
+                        MapUnitCombatant(unit),
+                        Battle.getMapCombatantOfTile(it.tileToAttack)
+                            ?: error("Canonical attack target has no defender"),
+                        it.tileToAttackFrom,
+                    ),
                 )
             }
             .sortedWith(compareBy<ProjectedAttackTarget> { it.x }.thenBy { it.y })
@@ -30,11 +39,22 @@ internal object CombatTargetProjection {
             .toList()
     }
 
-    fun bombardTargets(city: City, enabled: Boolean): List<ProjectedTargetCoordinate> {
+    fun bombardTargets(city: City, enabled: Boolean): List<ProjectedBombardTarget> {
         if (!enabled || !city.canBombard()) return emptyList()
         return TargetHelper.getBombardableTiles(city)
-            .map { ProjectedTargetCoordinate(it.position.x, it.position.y) }
-            .sortedWith(compareBy<ProjectedTargetCoordinate> { it.x }.thenBy { it.y })
+            .map {
+                ProjectedBombardTarget(
+                    it.position.x,
+                    it.position.y,
+                    CombatPreviewProjection.build(
+                        CityCombatant(city),
+                        Battle.getMapCombatantOfTile(it)
+                            ?: error("Canonical bombard target has no defender"),
+                        city.getCenterTile(),
+                    ),
+                )
+            }
+            .sortedWith(compareBy<ProjectedBombardTarget> { it.x }.thenBy { it.y })
             .take(MAX_TARGETS_PER_ENTITY)
             .toList()
     }

@@ -18,6 +18,8 @@ import com.unciv.logic.battle.MapUnitCombatant
 import com.unciv.logic.battle.Nuke
 import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.multiplayer.authoritative.ProjectedCombatOutcome
+import com.unciv.logic.multiplayer.authoritative.ProjectedCombatPreview
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.translations.tr
@@ -140,6 +142,13 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         clear()
         add("${action.first} ${target.position.x},${target.position.y}".toLabel()).colspan(2).row()
+        val preview = when (attacker) {
+            is CityCombatant -> AuthoritativeCombatUi.bombardPreview(worldScreen, attacker.city, target)
+            is MapUnitCombatant -> if (action.second == AuthoritativeCombatAction.Attack)
+                AuthoritativeCombatUi.unitPreview(worldScreen, attacker.unit, target) else null
+            else -> null
+        }
+        if (preview != null) addAuthoritativePreview(preview)
         val actionButton = action.first.toTextButton().apply { color = Color.RED }
         if (!worldScreen.isPlayersTurn) {
             actionButton.disable()
@@ -168,6 +177,65 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
         addBorderAllowOpacity(2f, Color.WHITE)
         addRoundCloseButton(this) { hide() }
         setPosition(stage.width / 2 - width / 2, 5f)
+    }
+
+    /** Renders canonical estimates already present in the player projection.
+     * No local combat rule or hidden defender state is consulted here. */
+    private fun addAuthoritativePreview(preview: ProjectedCombatPreview) {
+        add("${preview.attackerBaseStrength}${Fonts.strength}".toLabel())
+        add("${preview.defenderBaseStrength}${Fonts.strength}".toLabel()).row()
+
+        val attackerModifiers = preview.attackerModifiers.map { getModifierTable(it.label, it.percent) }
+        val defenderModifiers = preview.defenderModifiers.map { getModifierTable(it.label, it.percent) }
+        if (attackerModifiers.isNotEmpty() || defenderModifiers.isNotEmpty()) {
+            add(createModifiersScroll(attackerModifiers)).pad(0f).uniformX().fillY()
+            add(createModifiersScroll(defenderModifiers)).pad(0f).uniformX().fillY().row()
+            add("${preview.attackerEffectiveStrength}${Fonts.strength}".toLabel())
+            add("${preview.defenderEffectiveStrength}${Fonts.strength}".toLabel()).row()
+        }
+
+        when (preview.outcome) {
+            ProjectedCombatOutcome.Captured -> add("Captured!".toLabel()).colspan(2).row()
+            ProjectedCombatOutcome.Occupied -> add("Occupied!".toLabel()).colspan(2).row()
+            ProjectedCombatOutcome.NoEstimate -> Unit
+            null -> {
+                val attackerMinimum = requireNotNull(preview.attackerMinRemainingHealth)
+                val attackerMaximum = requireNotNull(preview.attackerMaxRemainingHealth)
+                val defenderMinimum = requireNotNull(preview.defenderMinRemainingHealth)
+                val defenderMaximum = requireNotNull(preview.defenderMaxRemainingHealth)
+                add(getHealthBar(
+                    preview.attackerMaxHealth,
+                    preview.attackerHealth,
+                    attackerMaximum,
+                    attackerMinimum,
+                ))
+                add(getHealthBar(
+                    preview.defenderMaxHealth,
+                    preview.defenderHealth,
+                    defenderMaximum,
+                    defenderMinimum,
+                    true,
+                )).row()
+                add(healthEstimate(
+                    preview.attackerHealth,
+                    attackerMinimum,
+                    attackerMaximum,
+                ).toLabel())
+                add(healthEstimate(
+                    preview.defenderHealth,
+                    defenderMinimum,
+                    defenderMaximum,
+                ).toLabel()).row()
+            }
+        }
+    }
+
+    private fun healthEstimate(health: Int, minimum: Int, maximum: Int): String = when {
+        minimum == health -> health.toString()
+        minimum == maximum -> "$health → $minimum (${health - minimum})"
+        else -> "$health → $minimum-$maximum (~${
+            listOf(health - minimum, health - maximum).average().roundToInt()
+        })"
     }
 
     private fun selectedCombatant(): ICombatant? {

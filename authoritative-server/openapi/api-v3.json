@@ -10893,7 +10893,8 @@
           "x",
           "y",
           "attackFromX",
-          "attackFromY"
+          "attackFromY",
+          "preview"
         ],
         "properties": {
           "attackFromX": {
@@ -10903,6 +10904,31 @@
           "attackFromY": {
             "type": "integer",
             "format": "int32"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/ProjectedCombatPreview"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedBombardTarget": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "preview"
+        ],
+        "properties": {
+          "preview": {
+            "$ref": "#/components/schemas/ProjectedCombatPreview"
           },
           "x": {
             "type": "integer",
@@ -10963,7 +10989,7 @@
           "bombardTargets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+              "$ref": "#/components/schemas/ProjectedBombardTarget"
             }
           },
           "citizenFocus": {
@@ -11164,6 +11190,131 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCombatModifier": {
+        "type": "object",
+        "required": [
+          "label",
+          "percent"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "percent": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCombatOutcome": {
+        "type": "string",
+        "enum": [
+          "captured",
+          "occupied",
+          "no_estimate"
+        ]
+      },
+      "ProjectedCombatPreview": {
+        "type": "object",
+        "required": [
+          "attackerBaseStrength",
+          "defenderBaseStrength",
+          "attackerEffectiveStrength",
+          "defenderEffectiveStrength",
+          "attackerModifiers",
+          "defenderModifiers",
+          "attackerHealth",
+          "attackerMaxHealth",
+          "defenderHealth",
+          "defenderMaxHealth"
+        ],
+        "properties": {
+          "attackerBaseStrength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerEffectiveStrength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerMaxHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerMaxRemainingHealth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "attackerMinRemainingHealth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "attackerModifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCombatModifier"
+            }
+          },
+          "defenderBaseStrength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defenderEffectiveStrength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defenderHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defenderMaxHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defenderMaxRemainingHealth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "defenderMinRemainingHealth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "defenderModifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCombatModifier"
+            }
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedCombatOutcome"
+              }
+            ]
           }
         },
         "additionalProperties": false

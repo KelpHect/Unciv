@@ -4414,3 +4414,46 @@ Verification on 2026-07-22:
   19beta2`. The disposable container, network, and volume were removed and
   verified. No compile, test, formatting, Clippy, OpenAPI, or database error is
   deferred.
+
+## Canonical combat confirmation previews (projection v44)
+
+Visible unit-attack and city-bombard target entries now carry the exact bounded
+display data needed by the confirmation panel: base and effective strengths,
+sorted modifier labels and percentages, current/max health, deterministic
+minimum/maximum remaining-health estimates, and closed capture/occupation
+outcomes. `CombatPreviewProjection` derives those fields with the same shared
+`BattleDamage` functions used by canonical execution. The client cannot submit
+any preview value and no Rust combat-rule implementation was introduced.
+
+The opened-v3 `BattleTable` reads only the synchronized projection for direct
+combat confirmation. It no longer consults local defender state, strength,
+modifiers, or damage calculations. Preview metadata exists only on target
+coordinates already proven visible and attackable by the private worker, is
+bounded to 64 modifiers per combatant and 200 characters per label, and is
+absent from foreign and out-of-turn action lists. Nuclear candidates still do
+not disclose blast victims, and air sweeps still do not disclose interceptors;
+their deliberately coarse confirmation avoids a hidden-state oracle.
+
+Projection v44 has one strict Rust/Kotlin fixture and semantic validation for
+visibility, ordering, health bounds, modifier bounds, outcome/damage
+exclusivity, foreign data, and out-of-turn data. Deterministic engine tests
+compare repeated canonical previews and prove city bombard/ordinary combat
+ranges.
+
+Verification on 2026-07-22:
+
+- `./gradlew :tests:test :server:test --no-daemon` passes 950 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets` passes 90 active Rust library tests and all 7
+  HTTP/OpenAPI tests. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
+  parity, and `git diff --check` pass.
+- All 17 serialized integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55461; the live server reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-combat-preview-pg19b2` container, network, and volume were removed
+  and cleanup was verified.
+- The broad gate caught nullable projected health fields being passed directly
+  to non-null UI helpers after adding the closed `no_estimate` outcome. The UI
+  now fails closed with `requireNotNull` only in the ordinary damage branch;
+  the full gate was rerun cleanly, so no error is deferred.

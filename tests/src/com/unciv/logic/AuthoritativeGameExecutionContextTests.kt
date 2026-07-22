@@ -2132,6 +2132,25 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun cityStateWarAndPeaceAreCanonical() {
+        val setup = testSetup().apply { gameParameters.numberOfCityStates = 1 }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val cityState = game.getAliveCityStates().single()
+        rome.diplomacyFunctions.makeCivilizationsMeet(cityState)
+
+        Assert.assertTrue(engine.playerProjection(game, "Rome").cityStatePartners.single().canDeclareWar)
+        engine.declareWar(game, "Rome", cityState.civID)
+        Assert.assertTrue(rome.isAtWarWith(cityState))
+        rome.getDiplomacyManager(cityState)!!.removeFlag(DiplomacyFlags.DeclaredWar)
+        cityState.getDiplomacyManager(rome)!!.removeFlag(DiplomacyFlags.DeclaredWar)
+        Assert.assertTrue(engine.playerProjection(game, "Rome").cityStatePartners.single().canNegotiatePeace)
+        engine.negotiateCityStatePeace(game, "Rome", cityState.civID)
+        Assert.assertFalse(rome.isAtWarWith(cityState))
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

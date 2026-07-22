@@ -39,7 +39,7 @@ data class PlayerProjection(
     val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 26
+        const val CURRENT_PROJECTION_VERSION = 27
     }
 }
 
@@ -51,6 +51,17 @@ data class ProjectedCityStatePartner(
     val canRevokeProtection: Boolean,
     val tributeGoldAmount: Int?,
     val canDemandWorker: Boolean,
+    val improvementGifts: List<ProjectedCityStateImprovementGift>,
+    val canNegotiatePeace: Boolean,
+    val canDeclareWar: Boolean,
+)
+
+@Serializable
+data class ProjectedCityStateImprovementGift(
+    val x: Int,
+    val y: Int,
+    val improvementName: String,
+    val goldCost: Int,
 )
 
 @Serializable

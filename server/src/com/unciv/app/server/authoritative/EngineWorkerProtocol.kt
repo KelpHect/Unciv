@@ -424,6 +424,10 @@ sealed interface WorkerOperation {
     data class SetCityStateProtection(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val protect: Boolean) : WorkerOperation
     @Serializable @SerialName("demand_city_state_tribute")
     data class DemandCityStateTribute(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val worker: Boolean) : WorkerOperation
+    @Serializable @SerialName("gift_city_state_improvement")
+    data class GiftCityStateImprovement(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val x: Int, val y: Int, val improvementName: String) : WorkerOperation
+    @Serializable @SerialName("negotiate_city_state_peace")
+    data class NegotiateCityStatePeace(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -993,6 +997,14 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.DemandCityStateTribute -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.demandCityStateTribute(game, operation.actorCivilizationId, operation.cityStateCivilizationId, operation.worker).game)
+            }
+            is WorkerOperation.GiftCityStateImprovement -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.giftCityStateImprovement(game, operation.actorCivilizationId, operation.cityStateCivilizationId, operation.x, operation.y, operation.improvementName).game)
+            }
+            is WorkerOperation.NegotiateCityStatePeace -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.negotiateCityStatePeace(game, operation.actorCivilizationId, operation.cityStateCivilizationId).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

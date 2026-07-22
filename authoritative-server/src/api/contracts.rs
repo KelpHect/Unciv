@@ -568,6 +568,27 @@ pub(super) struct CityStateTributeRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct CityStateImprovementGiftRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_state_civilization_id: String,
+    pub(super) x: i32,
+    pub(super) y: i32,
+    pub(super) improvement_name: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CityStatePeaceRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_state_civilization_id: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SetCityTileAssignmentRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

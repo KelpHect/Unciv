@@ -52,7 +52,12 @@ object DiplomacyCommandExecutor {
 
     fun declareWar(game: GameInfo, actor: Civilization, otherId: String) {
         requireCurrentActor(game, actor)
-        val diplomacy = diplomacyWith(game, actor, otherId)
+        val other = game.civilizations.singleOrNull { it.civID == otherId }
+            ?: error("Unknown diplomatic counterpart")
+        require(other != actor && (other.isMajorCiv() || other.isCityState) && !other.isDefeated() && actor.knows(other)) {
+            "Civilization is not an available war counterpart"
+        }
+        val diplomacy = actor.getDiplomacyManager(other)!!
         require(!game.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)) {
             "Diplomatic relationships cannot change in this game"
         }

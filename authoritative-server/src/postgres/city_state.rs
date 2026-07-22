@@ -1,6 +1,9 @@
 use super::commands::WorkerCommandState;
 use super::*;
-use crate::worker::{CityStateGoldGiftIntent, CityStateProtectionIntent, CityStateTributeIntent};
+use crate::worker::{
+    CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
+    CityStateTributeIntent,
+};
 
 impl PostgresGameRepository {
     async fn execute_city_state<F, Fut>(
@@ -47,6 +50,8 @@ impl PostgresGameRepository {
             Gift(u32),
             Protection(bool),
             Tribute(bool),
+            Improvement { x: i32, y: i32, name: String },
+            Peace,
         }
         let (city_state, action) = match &envelope.command {
             crate::GameCommand::GiftCityStateGold {
@@ -64,6 +69,22 @@ impl PostgresGameRepository {
                 city_state_civilization_id,
                 worker,
             } => (city_state_civilization_id.clone(), Action::Tribute(*worker)),
+            crate::GameCommand::GiftCityStateImprovement {
+                city_state_civilization_id,
+                x,
+                y,
+                improvement_name,
+            } => (
+                city_state_civilization_id.clone(),
+                Action::Improvement {
+                    x: *x,
+                    y: *y,
+                    name: improvement_name.clone(),
+                },
+            ),
+            crate::GameCommand::NegotiateCityStatePeace {
+                city_state_civilization_id,
+            } => (city_state_civilization_id.clone(), Action::Peace),
             _ => return Err(CommitError::InvalidCommand),
         };
         let revision = envelope.expected_revision;
@@ -111,6 +132,35 @@ impl PostgresGameRepository {
                                 city_state_civilization_id: &city_state,
                                 worker: worker_tribute,
                             },
+                        )
+                        .await
+                }
+                Action::Improvement { x, y, name } => {
+                    worker
+                        .gift_city_state_improvement(
+                            &actor.to_string(),
+                            &state.manifest,
+                            revision,
+                            &state.snapshot,
+                            CityStateImprovementGiftIntent {
+                                actor_civilization_id: &civilization,
+                                city_state_civilization_id: &city_state,
+                                x,
+                                y,
+                                improvement_name: &name,
+                            },
+                        )
+                        .await
+                }
+                Action::Peace => {
+                    worker
+                        .negotiate_city_state_peace(
+                            &actor.to_string(),
+                            &state.manifest,
+                            revision,
+                            &state.snapshot,
+                            &civilization,
+                            &city_state,
                         )
                         .await
                 }

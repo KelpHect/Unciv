@@ -1,12 +1,19 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.Constants
 import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
+import com.unciv.logic.trade.TradeLogic
+import com.unciv.logic.trade.TradeOffer
+import com.unciv.logic.trade.TradeOfferType
+import com.unciv.models.ruleset.tile.ResourceType
 import com.unciv.models.ruleset.unique.UniqueType
 
 /** City-state intents executed against canonical state by the private worker. */
 object CityStateCommandExecutor {
     private val goldGiftAmounts = listOf(250, 500, 1000)
+    private const val improvementGiftCost = 200
 
     fun partners(actor: Civilization): List<ProjectedCityStatePartner> = actor.getKnownCivs()
         .asSequence()
@@ -24,6 +31,10 @@ object CityStateCommandExecutor {
                 },
                 canDemandWorker = peaceful && functions.getTributeWillingness(actor, demandingWorker = true) >= 0 &&
                     hasBuildableWorker(cityState),
+                improvementGifts = improvementGifts(actor, cityState),
+                canNegotiatePeace = canNegotiatePeace(actor, cityState),
+                canDeclareWar = !actor.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange) &&
+                    actor.getDiplomacyManager(cityState)!!.canDeclareWar(),
             )
         }
         .sortedBy { it.civilizationId }
@@ -62,6 +73,32 @@ object CityStateCommandExecutor {
         if (worker) functions.tributeWorker(actor) else functions.tributeGold(actor)
     }
 
+    fun giftImprovement(game: GameInfo, actor: Civilization, cityStateId: String, x: Int, y: Int, improvementName: String) {
+        requireCurrentActor(game, actor)
+        val cityState = cityState(game, actor, cityStateId)
+        val gift = improvementGifts(actor, cityState).singleOrNull {
+            it.x == x && it.y == y && it.improvementName == improvementName
+        } ?: error("Improvement gift is not legal in canonical state")
+        require(actor.gold >= gift.goldCost) { "Insufficient canonical gold for improvement gift" }
+        val tile = game.tileMap[x, y]
+        val improvement = game.ruleset.tileImprovements[improvementName]
+            ?: error("Unknown canonical improvement")
+        actor.addGold(-gift.goldCost)
+        tile.stopWorkingOnImprovement()
+        tile.setImprovement(improvement)
+        cityState.cache.updateCivResources()
+    }
+
+    fun negotiatePeace(game: GameInfo, actor: Civilization, cityStateId: String) {
+        requireCurrentActor(game, actor)
+        val cityState = cityState(game, actor, cityStateId)
+        require(canNegotiatePeace(actor, cityState)) { "City-state peace is not legal in canonical state" }
+        val trade = TradeLogic(actor, cityState)
+        trade.currentTrade.ourOffers.add(TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = game.speed))
+        trade.currentTrade.theirOffers.add(TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = game.speed))
+        trade.acceptTrade()
+    }
+
     private fun cityState(game: GameInfo, actor: Civilization, id: String): Civilization {
         val cityState = game.civilizations.singleOrNull { it.civID == id }
             ?: error("Unknown city-state")
@@ -76,5 +113,31 @@ object CityStateCommandExecutor {
 
     private fun hasBuildableWorker(cityState: Civilization): Boolean = cityState.gameInfo.ruleset.units.values.any {
         it.hasUnique(UniqueType.BuildImprovements) && it.isCivilian() && it.isBuildable(cityState)
+    }
+
+    private fun improvementGifts(actor: Civilization, cityState: Civilization): List<ProjectedCityStateImprovementGift> {
+        if (actor.gold < improvementGiftCost || actor.isAtWarWith(cityState) ||
+            cityState.getDiplomacyManager(actor)!!.getInfluence() < 60) return emptyList()
+        return cityState.cities.asSequence().flatMap { it.getTiles().asSequence() }
+            .filter { tile ->
+                val resource = tile.tileResource
+                resource != null && cityState.canSeeResource(resource) && resource.resourceType != ResourceType.Bonus &&
+                    (tile.improvement == null || !resource.isImprovedBy(tile.improvement!!))
+            }
+            .flatMap { tile -> cityState.gameInfo.ruleset.tileImprovements.values.asSequence()
+                .filter { improvement -> improvement.turnsToBuild != -1 && tile.tileResource!!.isImprovedBy(improvement.name) &&
+                    tile.improvementFunctions.canBuildImprovement(improvement, cityState.state) }
+                .map { ProjectedCityStateImprovementGift(tile.position.x, tile.position.y, it.name, improvementGiftCost) }
+            }
+            .sortedWith(compareBy<ProjectedCityStateImprovementGift> { it.x }.thenBy { it.y }.thenBy { it.improvementName })
+            .toList()
+    }
+
+    private fun canNegotiatePeace(actor: Civilization, cityState: Civilization): Boolean {
+        if (!actor.isAtWarWith(cityState)) return false
+        if (cityState.allyCiv?.let { actor.isAtWarWith(it) } == true) return false
+        val diplomacy = actor.getDiplomacyManager(cityState) ?: return false
+        if (diplomacy.hasFlag(DiplomacyFlags.DeclaredWar)) return false
+        return !actor.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)
     }
 }

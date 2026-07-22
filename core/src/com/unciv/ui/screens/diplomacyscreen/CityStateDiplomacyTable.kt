@@ -263,6 +263,12 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                 "Negotiate Peace",
                 true
             ) {
+                if (diplomacyScreen.usesAuthoritativeCommands()) {
+                    diplomacyScreen.submitAuthoritativeDiplomacy("negotiate city-state peace") {
+                        it.negotiateCityStatePeaceIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
+                    }
+                    return@ConfirmPopup
+                }
                 val tradeLogic = TradeLogic(viewingCiv, otherCiv)
                 tradeLogic.currentTrade.ourOffers.add(
                     TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = viewingCiv.gameInfo.speed)
@@ -394,6 +400,15 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                     val improveTileButton =
                         "Build [${tileImprovement}] on [${improvableTile.tileResource}] (200 Gold)".toTextButton()
                     improveTileButton.onClick {
+                        if (diplomacyScreen.usesAuthoritativeCommands()) {
+                            diplomacyScreen.submitAuthoritativeDiplomacy("gift city-state improvement") {
+                                it.giftCityStateImprovementIfOpen(
+                                    viewingCiv.gameInfo.gameId, otherCiv.civID,
+                                    improvableTile.position.x, improvableTile.position.y, tileImprovement.name,
+                                )
+                            }
+                            return@onClick
+                        }
                         viewingCiv.addGold(-200)
                         improvableTile.stopWorkingOnImprovement()
                         improvableTile.setImprovement(tileImprovement)

@@ -79,6 +79,9 @@
     "canPledgeProtection": true,
     "canRevokeProtection": false,
     "tributeGoldAmount": 75,
-    "canDemandWorker": false
+    "canDemandWorker": false,
+    "improvementGifts": [],
+    "canNegotiatePeace": false,
+    "canDeclareWar": true
   }]
 }

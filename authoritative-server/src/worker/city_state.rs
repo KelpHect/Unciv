@@ -15,6 +15,13 @@ pub struct CityStateTributeIntent<'a> {
     pub city_state_civilization_id: &'a str,
     pub worker: bool,
 }
+pub struct CityStateImprovementGiftIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_state_civilization_id: &'a str,
+    pub x: i32,
+    pub y: i32,
+    pub improvement_name: &'a str,
+}
 
 impl EngineWorkerClient {
     pub async fn gift_city_state_gold(
@@ -78,6 +85,52 @@ impl EngineWorkerClient {
                     actor_civilization_id: intent.actor_civilization_id,
                     city_state_civilization_id: intent.city_state_civilization_id,
                     worker: intent.worker,
+                },
+            )
+            .await?;
+        commit_proposal(revision, response)
+    }
+    pub async fn gift_city_state_improvement(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        revision: u64,
+        snapshot: &str,
+        intent: CityStateImprovementGiftIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::GiftCityStateImprovement {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_state_civilization_id: intent.city_state_civilization_id,
+                    x: intent.x,
+                    y: intent.y,
+                    improvement_name: intent.improvement_name,
+                },
+            )
+            .await?;
+        commit_proposal(revision, response)
+    }
+    pub async fn negotiate_city_state_peace(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        revision: u64,
+        snapshot: &str,
+        actor_civilization_id: &str,
+        city_state_civilization_id: &str,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::NegotiateCityStatePeace {
+                    snapshot,
+                    actor_civilization_id,
+                    city_state_civilization_id,
                 },
             )
             .await?;

@@ -377,6 +377,8 @@ sealed interface PendingAuthoritativeCommand {
     data class GiftCityStateGold(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val amount: Int) : PendingAuthoritativeCommand
     data class SetCityStateProtection(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val protect: Boolean) : PendingAuthoritativeCommand
     data class DemandCityStateTribute(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val worker: Boolean) : PendingAuthoritativeCommand
+    data class GiftCityStateImprovement(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val x: Int, val y: Int, val improvementName: String) : PendingAuthoritativeCommand
+    data class NegotiateCityStatePeace(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1107,11 +1109,12 @@ class AuthoritativeGameCommandBus(
     private suspend fun partnerDiplomacy(otherId: String, action: PartnerDiplomacyAction) = mutex.withLock {
         val current = requireSynchronized()
         val partner = current.projection.diplomacyPartners.singleOrNull { it.civilizationId == otherId }
-            ?: error("Diplomatic counterpart is absent from the current player projection")
+        val cityState = current.projection.cityStatePartners.singleOrNull { it.civilizationId == otherId }
+        require(partner != null || cityState != null) { "Diplomatic counterpart is absent from the current player projection" }
         val allowed = when (action) {
-            PartnerDiplomacyAction.DeclareWar -> partner.canDeclareWar
-            PartnerDiplomacyAction.Denounce -> partner.canDenounce
-            PartnerDiplomacyAction.OfferFriendship -> partner.canOfferFriendship
+            PartnerDiplomacyAction.DeclareWar -> partner?.canDeclareWar == true || cityState?.canDeclareWar == true
+            PartnerDiplomacyAction.Denounce -> partner?.canDenounce == true
+            PartnerDiplomacyAction.OfferFriendship -> partner?.canOfferFriendship == true
         }
         require(allowed) { "Diplomatic action is absent from the current player projection" }
         val commandId = commandIdFactory()
@@ -1157,6 +1160,24 @@ class AuthoritativeGameCommandBus(
             ?: error("City-state is absent from the current player projection")
         require(if (worker) partner.canDemandWorker else partner.tributeGoldAmount != null) { "Tribute action is absent from the current player projection" }
         submitLocked(PendingAuthoritativeCommand.DemandCityStateTribute(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId, worker), current)
+    }
+
+    suspend fun giftCityStateImprovement(cityStateId: String, x: Int, y: Int, improvementName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.cityStatePartners.singleOrNull { it.civilizationId == cityStateId }
+            ?: error("City-state is absent from the current player projection")
+        require(partner.improvementGifts.any { it.x == x && it.y == y && it.improvementName == improvementName }) {
+            "Improvement gift is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.GiftCityStateImprovement(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId, x, y, improvementName), current)
+    }
+
+    suspend fun negotiateCityStatePeace(cityStateId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.cityStatePartners.any { it.civilizationId == cityStateId && it.canNegotiatePeace }) {
+            "City-state peace is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.NegotiateCityStatePeace(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId), current)
     }
 
     suspend fun setCityTileAssignment(
@@ -1655,6 +1676,8 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.GiftCityStateGold -> transport.giftCityStateGold(gameId, ApiV3CityStateGoldGiftRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.amount))
                 is PendingAuthoritativeCommand.SetCityStateProtection -> transport.setCityStateProtection(gameId, ApiV3CityStateProtectionRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.protect))
                 is PendingAuthoritativeCommand.DemandCityStateTribute -> transport.demandCityStateTribute(gameId, ApiV3CityStateTributeRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.worker))
+                is PendingAuthoritativeCommand.GiftCityStateImprovement -> transport.giftCityStateImprovement(gameId, ApiV3CityStateImprovementGiftRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.x, pending.y, pending.improvementName))
+                is PendingAuthoritativeCommand.NegotiateCityStatePeace -> transport.negotiateCityStatePeace(gameId, ApiV3CityStatePeaceRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

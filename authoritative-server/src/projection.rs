@@ -46,6 +46,18 @@ pub struct ProjectedCityStatePartner {
     pub can_revoke_protection: bool,
     pub tribute_gold_amount: Option<u32>,
     pub can_demand_worker: bool,
+    pub improvement_gifts: Vec<ProjectedCityStateImprovementGift>,
+    pub can_negotiate_peace: bool,
+    pub can_declare_war: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityStateImprovementGift {
+    pub x: i32,
+    pub y: i32,
+    pub improvement_name: String,
+    pub gold_cost: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -297,7 +309,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v26.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v27.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

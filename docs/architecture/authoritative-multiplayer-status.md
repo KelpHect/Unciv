@@ -3181,3 +3181,48 @@ Verification on 2026-07-22:
 
 The next city-state slice covers improvement gifts, diplomatic marriage,
 city-state peace, and protector-response prompts before moving to espionage.
+
+## Authoritative city-state improvements, war, and peace
+
+API v3 now covers resource-improvement gifts selected from exact server-derived
+tile/improvement choices and direct city-state peace. The audit also found and
+fixed a prior boundary defect: the city-state UI used the authoritative war
+route, but its canonical executor and client preflight accepted only major
+civilizations. Projection version 27 now exposes city-state war/peace legality,
+and the same typed `DeclareWar` command safely supports known living major or
+city-state targets.
+
+The Kotlin worker derives the city-state's non-bonus visible resource tiles,
+current improvement state, matching ruleset improvements, build legality,
+influence threshold, actor treasury, and fixed canonical cost. Peace rechecks
+current war, the city-state ally's war, declaration cooldown, and immutable
+relationship rules before invoking the existing symmetric peace trade logic.
+Clients cannot supply cost, resource, influence, treaty duration, war reason,
+or resulting tile/diplomacy state.
+
+For explicitly opened v3 games, improvement-gift and city-state peace buttons
+return before legacy mutations. The shared declare-war button now preflights
+against either the major-civilization or city-state projection. Local, hotseat,
+saves, legacy multiplayer, and AI continue using the shared Kotlin engine.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin tests prove canonical city-state war and peace plus projection
+  allowlists and cooldown handling. Rust closed-contract coverage rejects a
+  client-supplied improvement cost and other rule/outcome claims.
+- `./gradlew :tests:test :server:test --no-daemon` completed 916 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test` passed 60 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in that lane. Generated
+  OpenAPI parity and the shared projection-v27 fixture passed.
+- `cargo fmt` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55434. The disposable `unciv-v3-city-state-peace-pg19b2` container
+  was removed and verified absent afterward.
+- `git diff --check` and module-size review passed. `main.rs` remains 6 lines,
+  `lib.rs` remains 28 lines, and the largest Rust source is 799 lines.
+
+Diplomatic marriage and protector-response prompts remain the final inventoried
+city-state mutations before the coverage audit advances to espionage.

@@ -526,6 +526,25 @@ data class ApiV3CityStateTributeRequest(
 )
 
 @Serializable
+data class ApiV3CityStateImprovementGiftRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_state_civilization_id") val cityStateCivilizationId: String,
+    val x: Int,
+    val y: Int,
+    @SerialName("improvement_name") val improvementName: String,
+)
+
+@Serializable
+data class ApiV3CityStatePeaceRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_state_civilization_id") val cityStateCivilizationId: String,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

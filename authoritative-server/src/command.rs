@@ -273,6 +273,15 @@ pub enum GameCommand {
         city_state_civilization_id: String,
         worker: bool,
     },
+    GiftCityStateImprovement {
+        city_state_civilization_id: String,
+        x: i32,
+        y: i32,
+        improvement_name: String,
+    },
+    NegotiateCityStatePeace {
+        city_state_civilization_id: String,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

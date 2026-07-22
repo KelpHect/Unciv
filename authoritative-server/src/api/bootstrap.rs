@@ -266,6 +266,14 @@ pub(crate) async fn run() {
             post(demand_city_state_tribute),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/gift-city-state-improvement",
+            post(gift_city_state_improvement),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/negotiate-city-state-peace",
+            post(negotiate_city_state_peace),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

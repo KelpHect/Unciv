@@ -1118,6 +1118,11 @@ class AuthoritativeMultiplayerSession(
         { it is PendingAuthoritativeCommand.SetCityStateProtection && it.cityStateId == cityStateId && it.protect == protect }, { it.setCityStateProtection(cityStateId, protect) })
     suspend fun demandCityStateTributeIfOpen(gameId: String, cityStateId: String, worker: Boolean) = withDiplomacyBus(gameId,
         { it is PendingAuthoritativeCommand.DemandCityStateTribute && it.cityStateId == cityStateId && it.worker == worker }, { it.demandCityStateTribute(cityStateId, worker) })
+    suspend fun giftCityStateImprovementIfOpen(gameId: String, cityStateId: String, x: Int, y: Int, improvementName: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.GiftCityStateImprovement && it.cityStateId == cityStateId && it.x == x && it.y == y && it.improvementName == improvementName },
+        { it.giftCityStateImprovement(cityStateId, x, y, improvementName) })
+    suspend fun negotiateCityStatePeaceIfOpen(gameId: String, cityStateId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.NegotiateCityStatePeace && it.cityStateId == cityStateId }, { it.negotiateCityStatePeace(cityStateId) })
 
     private suspend fun withDiplomacyBus(
         gameId: String,

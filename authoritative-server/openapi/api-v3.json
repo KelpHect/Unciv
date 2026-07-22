@@ -2653,6 +2653,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/gift-city-state-improvement": {
+      "post": {
+        "tags": [],
+        "operationId": "gift_city_state_improvement",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateImprovementGiftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/launch-nuclear-strike": {
       "post": {
         "tags": [],
@@ -3146,6 +3230,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/negotiate-city-state-peace": {
+      "post": {
+        "tags": [],
+        "operationId": "negotiate_city_state_peace",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStatePeaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -7502,6 +7670,78 @@
         },
         "additionalProperties": false
       },
+      "CityStateImprovementGiftRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id",
+          "x",
+          "y",
+          "improvement_name"
+        ],
+        "properties": {
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "improvement_name": {
+            "type": "string"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CityStatePeaceRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id"
+        ],
+        "properties": {
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "CityStateProtectionRequest": {
         "type": "object",
         "required": [
@@ -8643,6 +8883,34 @@
         },
         "additionalProperties": false
       },
+      "ProjectedCityStateImprovementGift": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "improvementName",
+          "goldCost"
+        ],
+        "properties": {
+          "goldCost": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "improvementName": {
+            "type": "string"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedCityStatePartner": {
         "type": "object",
         "required": [
@@ -8650,7 +8918,10 @@
           "availableGoldGifts",
           "canPledgeProtection",
           "canRevokeProtection",
-          "canDemandWorker"
+          "canDemandWorker",
+          "improvementGifts",
+          "canNegotiatePeace",
+          "canDeclareWar"
         ],
         "properties": {
           "availableGoldGifts": {
@@ -8661,7 +8932,13 @@
               "minimum": 0
             }
           },
+          "canDeclareWar": {
+            "type": "boolean"
+          },
           "canDemandWorker": {
+            "type": "boolean"
+          },
+          "canNegotiatePeace": {
             "type": "boolean"
           },
           "canPledgeProtection": {
@@ -8672,6 +8949,12 @@
           },
           "civilizationId": {
             "type": "string"
+          },
+          "improvementGifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityStateImprovementGift"
+            }
           },
           "tributeGoldAmount": {
             "type": [

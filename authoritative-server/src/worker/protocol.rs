@@ -492,6 +492,24 @@ pub(super) enum WorkerOperation<'a> {
         city_state_civilization_id: &'a str,
         worker: bool,
     },
+    GiftCityStateImprovement {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityStateCivilizationId")]
+        city_state_civilization_id: &'a str,
+        x: i32,
+        y: i32,
+        #[serde(rename = "improvementName")]
+        improvement_name: &'a str,
+    },
+    NegotiateCityStatePeace {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityStateCivilizationId")]
+        city_state_civilization_id: &'a str,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

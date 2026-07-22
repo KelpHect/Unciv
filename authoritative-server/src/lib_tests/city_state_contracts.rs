@@ -23,4 +23,14 @@ fn city_state_commands_reject_client_claimed_rules_and_outcomes() {
     let mut forged = tribute;
     forged["willingness"] = serde_json::json!(1000);
     assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+
+    let improvement = serde_json::json!({
+        "type": "gift_city_state_improvement",
+        "city_state_civilization_id": "Geneva",
+        "x": 2, "y": -1, "improvement_name": "Plantation"
+    });
+    assert!(serde_json::from_value::<GameCommand>(improvement.clone()).is_ok());
+    let mut forged = improvement;
+    forged["gold_cost"] = serde_json::json!(0);
+    assert!(serde_json::from_value::<GameCommand>(forged).is_err());
 }

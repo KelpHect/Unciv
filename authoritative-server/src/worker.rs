@@ -27,7 +27,10 @@ mod trade;
 mod unit_actions;
 mod unit_movement;
 mod unit_orders;
-pub use city_state::{CityStateGoldGiftIntent, CityStateProtectionIntent, CityStateTributeIntent};
+pub use city_state::{
+    CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
+    CityStateTributeIntent,
+};
 pub use intents::{
     AdoptPolicyIntent, CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent,
     ChooseGreatPersonIntent, ResetCitizensIntent, ResolveCityDispositionIntent,

@@ -297,6 +297,8 @@ sealed interface GameCommand {
     data class GiftCityStateGold(val cityStateCivilizationId: String, val amount: Int) : GameCommand
     data class SetCityStateProtection(val cityStateCivilizationId: String, val protect: Boolean) : GameCommand
     data class DemandCityStateTribute(val cityStateCivilizationId: String, val worker: Boolean) : GameCommand
+    data class GiftCityStateImprovement(val cityStateCivilizationId: String, val x: Int, val y: Int, val improvementName: String) : GameCommand
+    data class NegotiateCityStatePeace(val cityStateCivilizationId: String) : GameCommand
 
     data class SetCityTileAssignment(
         val cityId: String,

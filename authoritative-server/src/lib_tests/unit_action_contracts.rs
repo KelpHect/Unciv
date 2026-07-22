@@ -29,6 +29,39 @@ fn religious_unit_contract_excludes_target_pressure_charges_religion_and_actor()
 }
 
 #[test]
+fn religious_belief_contract_contains_only_names_and_optional_founding_identity() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "choose_religious_beliefs",
+        "belief_names": ["Church Property", "Pagodas"],
+        "religion_icon_name": "Buddhism",
+        "religion_display_name": "The Middle Way"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::ChooseReligiousBeliefs {
+            belief_names: vec!["Church Property".into(), "Pagodas".into()],
+            religion_icon_name: Some("Buddhism".into()),
+            religion_display_name: Some("The Middle Way".into()),
+        }
+    );
+    for untrusted in [
+        "actor",
+        "belief_types",
+        "free_beliefs",
+        "faith_cost",
+        "holy_city_id",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "choose_religious_beliefs", "belief_names": ["God-King"],
+            "religion_icon_name": null, "religion_display_name": null
+        });
+        value[untrusted] = serde_json::json!("forged");
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn move_unit_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "move_unit", "unit_id": 42, "destination_x": -3, "destination_y": 7

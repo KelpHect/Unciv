@@ -29,6 +29,10 @@ class PlayerProjectionContractTests {
         )
         assertEquals(listOf("Greece"), projection.diplomaticVoteCandidates)
         assertEquals(listOf("Great Engineer", "Great Scientist"), projection.selectableGreatPeople)
+        assertEquals(listOf(ReligiousBeliefType.Founder, ReligiousBeliefType.Follower),
+            projection.religionChoice!!.requiredBeliefTypes)
+        assertEquals(listOf("Buddhism", "Christianity"),
+            projection.religionChoice!!.availableReligionIcons)
         assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
@@ -102,6 +106,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v22.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v23.fixture.json") }
         .first { it.isFile }
 }

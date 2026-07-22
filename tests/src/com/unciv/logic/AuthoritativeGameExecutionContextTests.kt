@@ -16,6 +16,7 @@ import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
+import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
@@ -1575,6 +1576,112 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.chooseGreatPerson(testGame.gameInfo, actor.civName, allowed)
         }
+    }
+
+    @Test
+    fun pantheonChoiceIsProjectedValidatedAndCommittedCanonically() {
+        val testGame = TestGame()
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        actor.religionManager.storedFaith = 10_000
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val choice = engine.playerProjection(testGame.gameInfo, actor.civName).religionChoice!!
+        val pantheon = choice.availableBeliefs.first { it.type.name == "Pantheon" }
+
+        Assert.assertEquals(1, choice.requiredBeliefTypes.size)
+        Assert.assertTrue(choice.availableReligionIcons.isEmpty())
+        engine.chooseReligiousBeliefs(
+            testGame.gameInfo, actor.civName, listOf(pantheon.name), null, null,
+        )
+
+        Assert.assertTrue(actor.religionManager.religion!!.hasBelief(pantheon.name))
+        Assert.assertNull(engine.playerProjection(testGame.gameInfo, actor.civName).religionChoice)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName, listOf(pantheon.name), null, null,
+            )
+        }
+    }
+
+    @Test
+    fun religiousChoiceRejectsUnavailableDuplicateForeignAndOutOfTurnClaims() {
+        val testGame = TestGame()
+        val actor = testGame.addCiv().apply { playerId = "account-1" }
+        val other = testGame.addCiv().apply { playerId = "account-2" }
+        actor.religionManager.storedFaith = 10_000
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName, listOf("Not a belief"), null, null,
+            )
+        }
+        val belief = engine.playerProjection(testGame.gameInfo, actor.civName)
+            .religionChoice!!.availableBeliefs.first().name
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName, listOf(belief), null, null,
+            )
+        }
+        testGame.gameInfo.currentPlayer = other.civName
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName, listOf(belief), null, null,
+            )
+        }
+    }
+
+    @Test
+    fun foundingReligionDerivesIdentityBeliefSlotsHolyCityAndProphetConsumption() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(3)
+        val actor = testGame.addCiv().apply { playerId = "account-1" }
+        val city = testGame.addCity(actor, testGame.getTile(HexCoord.Zero))
+        val pantheon = testGame.gameInfo.ruleset.beliefs.values.first {
+            it.type == com.unciv.models.ruleset.BeliefType.Pantheon
+        }
+        actor.religionManager.storedFaith = 10_000
+        actor.religionManager.chooseBeliefs(listOf(pantheon))
+        val prophet = testGame.addUnit("Great Prophet", actor, city.getCenterTile())
+        prophet.religion = actor.religionManager.religion!!.name
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        Assert.assertTrue(ReligiousUnitAction.FoundReligion in
+            engine.playerProjection(testGame.gameInfo, actor.civName)
+                .ownUnits.single { it.id == prophet.id }.availableReligiousActions)
+        engine.useReligiousUnit(
+            testGame.gameInfo, actor.civName, prophet.id, ReligiousUnitAction.FoundReligion,
+        )
+        Assert.assertNull(actor.units.getUnitById(prophet.id))
+        val choice = engine.playerProjection(testGame.gameInfo, actor.civName).religionChoice!!
+        val chosenBeliefs = choice.requiredBeliefTypes.map { requiredType ->
+            choice.availableBeliefs.first { it.type == requiredType }
+        }.map { it.name }
+        val icon = choice.availableReligionIcons.first()
+
+        Assert.assertTrue(choice.requiresReligionIdentity)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName,
+                List(choice.requiredBeliefTypes.size) { chosenBeliefs.first() }, icon, "Duplicate",
+            )
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.chooseReligiousBeliefs(
+                testGame.gameInfo, actor.civName, chosenBeliefs, icon, "",
+            )
+        }
+        engine.chooseReligiousBeliefs(
+            testGame.gameInfo, actor.civName, chosenBeliefs, icon, "Server Faith",
+        )
+
+        Assert.assertEquals(icon, actor.religionManager.religion!!.name)
+        Assert.assertEquals("Server Faith", actor.religionManager.religion!!.displayName)
+        Assert.assertEquals(icon, city.religion.religionThisIsTheHolyCityOf)
+        Assert.assertTrue(chosenBeliefs.all(actor.religionManager.religion!!::hasBelief))
     }
 
     @Test(expected = IllegalStateException::class)

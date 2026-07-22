@@ -210,6 +210,10 @@ pub(crate) async fn run() {
             post(use_religious_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/choose-religious-beliefs",
+            post(choose_religious_beliefs),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

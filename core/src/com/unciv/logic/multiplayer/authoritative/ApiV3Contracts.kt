@@ -429,6 +429,16 @@ data class ApiV3UseReligiousUnitRequest(
 )
 
 @Serializable
+data class ApiV3ChooseReligiousBeliefsRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("belief_names") val beliefNames: List<String>,
+    @SerialName("religion_icon_name") val religionIconName: String? = null,
+    @SerialName("religion_display_name") val religionDisplayName: String? = null,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

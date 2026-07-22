@@ -19,6 +19,8 @@ internal object ReligiousUnitActionExecutor {
 
     private val ReligiousUnitAction.unitActionType: UnitActionType
         get() = when (this) {
+            ReligiousUnitAction.FoundReligion -> UnitActionType.FoundReligion
+            ReligiousUnitAction.EnhanceReligion -> UnitActionType.EnhanceReligion
             ReligiousUnitAction.SpreadReligion -> UnitActionType.SpreadReligion
             ReligiousUnitAction.RemoveHeresy -> UnitActionType.RemoveHeresy
         }

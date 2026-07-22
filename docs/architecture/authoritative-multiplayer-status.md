@@ -2934,9 +2934,11 @@ player-command families for the continuing coverage audit.
 
 ## Authoritative religious-unit actions
 
-API v3 now routes missionary spreading and inquisitor heresy removal through
-the closed `UseReligiousUnit(unitId, action)` command, where `action` is only
-`spread_religion` or `remove_heresy`. The request cannot claim a target city,
+API v3 now routes prophet founding/enhancement, missionary spreading, and
+inquisitor heresy removal through the closed
+`UseReligiousUnit(unitId, action)` command. Its action enum contains only
+`found_religion`, `enhance_religion`, `spread_religion`, and `remove_heresy`.
+The request cannot claim a target city,
 religion, pressure amount, remaining charges, diplomatic effect, actor, or
 outcome.
 
@@ -2978,3 +2980,61 @@ Verification on 2026-07-22:
 
 Trade negotiation and multi-step religion belief choices remain the major
 uncovered player-command families for the continuing coverage audit.
+
+## Authoritative religion and belief choices
+
+API v3 now covers pantheon founding/expansion, religion founding, religion
+enhancement, and free-belief reform with the closed
+`ChooseReligiousBeliefs(beliefNames, religionIconName?, religionDisplayName?)`
+command. The request cannot claim belief types, slot counts, availability,
+faith cost, free-belief grants, holy-city identity, actor identity, triggers,
+or resulting religion state.
+
+Player projection version 23 adds one player-scoped `religionChoice` object.
+It contains the exact required belief-slot types, conditionally allowed and
+globally unclaimed belief names and types, unused religion icons when founding,
+and whether founding identity is required. A focused
+`ReligionChoiceExecutor` derives this projection and re-derives it during
+worker execution, so stale or forged selections fail closed.
+
+The Kotlin worker first owns prophet expenditure through the closed religious
+unit action, deriving the founding city and pending choice state. It then
+validates authenticated civilization assignment, current turn, pending choice
+mode, exact and wildcard slot coverage, distinct belief
+selection, global belief uniqueness, civilization conditionals, icon
+availability, reserved and duplicate names, and whether identity fields are
+permitted. It then calls the existing Kotlin religion manager to charge faith
+or consume free beliefs, establish the holy city, apply pressure and beliefs,
+run triggers, update stats, and advance the religion state. All AI religious
+choices remain in server-owned deterministic turn automation.
+
+For explicitly opened v3 games both belief picker variants submit the typed
+command and return before their legacy local mutation callbacks. Ambiguous
+responses retain the same command ID. Single-player, hotseat, saves, and
+legacy multiplayer retain their existing picker and Kotlin-engine behavior.
+Rust remains rule-free and the only revisioned committer; religion API,
+persistence, and worker transport remain in the focused `religion` modules.
+
+Verification on 2026-07-22:
+
+- Focused engine tests cover projected and committed pantheon selection, full
+  religion founding identity, belief slots, holy-city derivation, unavailable
+  selections, foreign-account rejection, and out-of-turn rejection.
+  Projection and command-bus tests cover the v23 closed view and request shape;
+  the session test proves explicit-open routing and same-key retry after a lost
+  response. Rust rejects forged actor, slot, grant, cost, and holy-city fields.
+- `./gradlew :tests:test :server:test --no-daemon`: 909 JVM tests completed
+  with 13 intentional skips and zero failures, including all worker protocol
+  tests.
+- `cargo test`: 54 active Rust library tests and all 7 HTTP/OpenAPI tests
+  passed; 8 database-only tests were intentionally skipped in this lane.
+  Generated OpenAPI parity and the shared projection-v23 fixture passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55438. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting and warnings-as-errors Clippy passed. `main.rs` remains 6
+  lines, `lib.rs` remains 28, and the largest Rust source is 763 lines.
+
+Trade negotiation remains the major uncovered player-command family for the
+continuing coverage audit.

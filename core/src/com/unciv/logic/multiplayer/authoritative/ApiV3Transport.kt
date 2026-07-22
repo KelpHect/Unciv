@@ -51,6 +51,7 @@ interface ApiV3Transport {
     suspend fun castDiplomaticVote(gameId: String, request: ApiV3CastDiplomaticVoteRequest): ApiV3CommandAccepted
     suspend fun chooseGreatPerson(gameId: String, request: ApiV3ChooseGreatPersonRequest): ApiV3CommandAccepted
     suspend fun useReligiousUnit(gameId: String, request: ApiV3UseReligiousUnitRequest): ApiV3CommandAccepted
+    suspend fun chooseReligiousBeliefs(gameId: String, request: ApiV3ChooseReligiousBeliefsRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

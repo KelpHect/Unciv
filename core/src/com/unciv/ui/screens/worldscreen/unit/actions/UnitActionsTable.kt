@@ -196,6 +196,8 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
 
     private fun activateAction(unitAction: UnitAction, unit: MapUnit) {
         val authoritativeReligiousAction = when (unitAction.type) {
+            UnitActionType.FoundReligion -> ReligiousUnitAction.FoundReligion
+            UnitActionType.EnhanceReligion -> ReligiousUnitAction.EnhanceReligion
             UnitActionType.SpreadReligion -> ReligiousUnitAction.SpreadReligion
             UnitActionType.RemoveHeresy -> ReligiousUnitAction.RemoveHeresy
             else -> null

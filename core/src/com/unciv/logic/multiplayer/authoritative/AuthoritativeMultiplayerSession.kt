@@ -1039,6 +1039,33 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun chooseReligiousBeliefsIfOpen(
+        gameId: String,
+        beliefNames: List<String>,
+        religionIconName: String?,
+        religionDisplayName: String?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ChooseReligiousBeliefs &&
+                    current.pending.beliefNames == beliefNames &&
+                    current.pending.religionIconName == religionIconName &&
+                    current.pending.religionDisplayName == religionDisplayName) {
+                    "Resolve the pending authoritative command before choosing other religious beliefs"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.chooseReligiousBeliefs(
+                beliefNames, religionIconName, religionDisplayName,
+            )
+            else -> {
+                bus.refresh()
+                bus.chooseReligiousBeliefs(beliefNames, religionIconName, religionDisplayName)
+            }
+        }
+    }
+
     suspend fun setCityTileAssignmentIfOpen(
         gameId: String,
         cityId: String,

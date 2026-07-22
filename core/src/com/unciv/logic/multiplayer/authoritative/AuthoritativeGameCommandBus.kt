@@ -329,6 +329,15 @@ sealed interface PendingAuthoritativeCommand {
         val action: ReligiousUnitAction,
     ) : PendingAuthoritativeCommand
 
+    data class ChooseReligiousBeliefs(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val beliefNames: List<String>,
+        val religionIconName: String?,
+        val religionDisplayName: String?,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -992,6 +1001,32 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun chooseReligiousBeliefs(
+        beliefNames: List<String>,
+        religionIconName: String?,
+        religionDisplayName: String?,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val choice = current.projection.religionChoice
+            ?: error("Religious choice is absent from the current player projection")
+        require(beliefNames.size == choice.requiredBeliefTypes.size &&
+            beliefNames.distinct().size == beliefNames.size &&
+            beliefNames.all { name -> choice.availableBeliefs.any { it.name == name } }) {
+            "Religious beliefs are absent from the current player projection"
+        }
+        if (choice.requiresReligionIdentity) {
+            require(religionIconName in choice.availableReligionIcons && !religionDisplayName.isNullOrBlank()) {
+                "Religion identity is absent from the current player projection"
+            }
+        } else require(religionIconName == null && religionDisplayName == null) {
+            "Religion identity is not accepted for this projected choice"
+        }
+        submitLocked(PendingAuthoritativeCommand.ChooseReligiousBeliefs(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            beliefNames, religionIconName, religionDisplayName,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1456,6 +1491,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3UseReligiousUnitRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.unitId, pending.action,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ChooseReligiousBeliefs -> transport.chooseReligiousBeliefs(
+                    gameId,
+                    ApiV3ChooseReligiousBeliefsRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.beliefNames, pending.religionIconName, pending.religionDisplayName,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

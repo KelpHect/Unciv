@@ -1189,6 +1189,39 @@ class AuthoritativeGameCommandBusTests {
             assertTrue(!encoded.contains(forged))
     }
 
+    @Test
+    fun religiousBeliefChoiceIsBoundToProjectedSlotsBeliefsAndIdentity() = runBlocking {
+        val initial = projection(3, "hash-3").copy(
+            projection = projection(3, "hash-3").projection.copy(
+                religionChoice = ProjectedReligionChoice(
+                    listOf(ReligiousBeliefType.Founder, ReligiousBeliefType.Follower),
+                    listOf(
+                        ProjectedReligiousBelief("Church Property", ReligiousBeliefType.Founder),
+                        ProjectedReligiousBelief("Pagodas", ReligiousBeliefType.Follower),
+                    ),
+                    listOf("Buddhism"),
+                    requiresReligionIdentity = true,
+                ),
+            ),
+        )
+        val transport = FakeTransport(initial)
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "belief-command" }
+        bus.refresh()
+
+        assertTrue(bus.chooseReligiousBeliefs(
+            listOf("Church Property", "Pagodas"), "Buddhism", "The Middle Way",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.religiousBeliefRequests.single()
+        assertEquals(ApiV3ChooseReligiousBeliefsRequest(
+            "belief-command", 3, "hash-3", listOf("Church Property", "Pagodas"),
+            "Buddhism", "The Middle Way",
+        ), request)
+        val encoded = Json.encodeToString(ApiV3ChooseReligiousBeliefsRequest.serializer(), request)
+        for (forged in listOf("actor", "belief_types", "free_beliefs", "faith_cost", "holy_city"))
+            assertTrue(!encoded.contains(forged))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1457,6 +1490,7 @@ class AuthoritativeGameCommandBusTests {
         val diplomaticVoteRequests = mutableListOf<ApiV3CastDiplomaticVoteRequest>()
         val greatPersonRequests = mutableListOf<ApiV3ChooseGreatPersonRequest>()
         val religiousUnitRequests = mutableListOf<ApiV3UseReligiousUnitRequest>()
+        val religiousBeliefRequests = mutableListOf<ApiV3ChooseReligiousBeliefsRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1865,6 +1899,22 @@ class AuthoritativeGameCommandBusTests {
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,
                 request.expectedRevision + 1, "religious-unit-hash",
+            )
+        }
+        override suspend fun chooseReligiousBeliefs(
+            gameId: String,
+            request: ApiV3ChooseReligiousBeliefsRequest,
+        ): ApiV3CommandAccepted {
+            religiousBeliefRequests += request
+            current = current.copy(
+                committedRevision = request.expectedRevision + 1,
+                canonicalStateHash = "religious-beliefs-hash",
+                projectionHash = "religious-beliefs-projection-hash",
+                projection = current.projection.copy(religionChoice = null),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                request.expectedRevision + 1, "religious-beliefs-hash",
             )
         }
         override suspend fun setCityTileAssignment(

@@ -1196,6 +1196,25 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun chooseReligiousBeliefs(
+        game: GameInfo,
+        actorCivilizationId: String,
+        beliefNames: List<String>,
+        religionIconName: String?,
+        religionDisplayName: String?,
+    ): EngineResult {
+        val actor = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot choose religious beliefs outside their turn"
+        }
+        ReligionChoiceExecutor.execute(
+            actor, beliefNames, religionIconName, religionDisplayName,
+        )
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

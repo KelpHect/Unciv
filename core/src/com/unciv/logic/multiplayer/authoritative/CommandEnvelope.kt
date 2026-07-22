@@ -263,6 +263,12 @@ sealed interface GameCommand {
         val action: ReligiousUnitAction,
     ) : GameCommand
 
+    data class ChooseReligiousBeliefs(
+        val beliefNames: List<String>,
+        val religionIconName: String? = null,
+        val religionDisplayName: String? = null,
+    ) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,
@@ -302,6 +308,8 @@ sealed interface GameCommand {
 
 @Serializable
 enum class ReligiousUnitAction {
+    @SerialName("found_religion") FoundReligion,
+    @SerialName("enhance_religion") EnhanceReligion,
     @SerialName("spread_religion") SpreadReligion,
     @SerialName("remove_heresy") RemoveHeresy,
 }

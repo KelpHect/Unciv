@@ -31,10 +31,31 @@ data class PlayerProjection(
     val pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
     val diplomaticVoteCandidates: List<String> = emptyList(),
     val selectableGreatPeople: List<String> = emptyList(),
+    val religionChoice: ProjectedReligionChoice? = null,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 22
+        const val CURRENT_PROJECTION_VERSION = 23
     }
+}
+
+@Serializable
+data class ProjectedReligionChoice(
+    val requiredBeliefTypes: List<ReligiousBeliefType>,
+    val availableBeliefs: List<ProjectedReligiousBelief>,
+    val availableReligionIcons: List<String>,
+    val requiresReligionIdentity: Boolean,
+)
+
+@Serializable
+data class ProjectedReligiousBelief(val name: String, val type: ReligiousBeliefType)
+
+@Serializable
+enum class ReligiousBeliefType {
+    @SerialName("pantheon") Pantheon,
+    @SerialName("founder") Founder,
+    @SerialName("follower") Follower,
+    @SerialName("enhancer") Enhancer,
+    @SerialName("any") Any,
 }
 
 @Serializable
@@ -266,6 +287,7 @@ object PlayerProjectionBuilder {
                 .toList(),
             diplomaticVoteCandidates = diplomaticVoteCandidates(actor),
             selectableGreatPeople = GreatPersonChoiceExecutor.availableChoices(actor),
+            religionChoice = ReligionChoiceExecutor.projection(actor),
         )
     }
 

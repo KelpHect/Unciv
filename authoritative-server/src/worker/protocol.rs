@@ -380,6 +380,17 @@ pub(super) enum WorkerOperation<'a> {
         unit_id: i32,
         action: crate::ReligiousUnitAction,
     },
+    ChooseReligiousBeliefs {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "beliefNames")]
+        belief_names: &'a [String],
+        #[serde(rename = "religionIconName")]
+        religion_icon_name: Option<&'a str>,
+        #[serde(rename = "religionDisplayName")]
+        religion_display_name: Option<&'a str>,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -682,6 +693,13 @@ pub struct UseReligiousUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
     pub action: crate::ReligiousUnitAction,
+}
+
+pub struct ChooseReligiousBeliefsIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub belief_names: &'a [String],
+    pub religion_icon_name: Option<&'a str>,
+    pub religion_display_name: Option<&'a str>,
 }
 
 pub struct SetCityTileAssignmentIntent<'a> {

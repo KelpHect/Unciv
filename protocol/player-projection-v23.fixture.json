@@ -36,5 +36,14 @@
   "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [], "instanceName": null, "improvementOrder": [], "roadConnectionDestinationX": null, "roadConnectionDestinationY": null, "roadConnectionPath": [], "availableReligiousActions": [] }],
   "pendingCityDispositions": [{ "cityId": "captured-city", "cityName": "Athens", "availableActions": ["liberate", "annex", "puppet", "raze"] }],
   "diplomaticVoteCandidates": ["Greece"],
-  "selectableGreatPeople": ["Great Engineer", "Great Scientist"]
+  "selectableGreatPeople": ["Great Engineer", "Great Scientist"],
+  "religionChoice": {
+    "requiredBeliefTypes": ["founder", "follower"],
+    "availableBeliefs": [
+      { "name": "Church Property", "type": "founder" },
+      { "name": "Pagodas", "type": "follower" }
+    ],
+    "availableReligionIcons": ["Buddhism", "Christianity"],
+    "requiresReligionIdentity": true
+  }
 }

@@ -42,8 +42,20 @@ pub enum UnitPosture {
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReligiousUnitAction {
+    FoundReligion,
+    EnhanceReligion,
     SpreadReligion,
     RemoveHeresy,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReligiousBeliefType {
+    Pantheon,
+    Founder,
+    Follower,
+    Enhancer,
+    Any,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -208,6 +220,11 @@ pub enum GameCommand {
     UseReligiousUnit {
         unit_id: i32,
         action: ReligiousUnitAction,
+    },
+    ChooseReligiousBeliefs {
+        belief_names: Vec<String>,
+        religion_icon_name: Option<String>,
+        religion_display_name: Option<String>,
     },
     SetCityTileAssignment {
         city_id: String,

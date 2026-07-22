@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{CityDispositionAction, CityGovernanceAction, ReligiousUnitAction, UnitPosture};
+use crate::{
+    CityDispositionAction, CityGovernanceAction, ReligiousBeliefType, ReligiousUnitAction,
+    UnitPosture,
+};
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
@@ -26,6 +29,23 @@ pub struct PlayerProjection {
     pub pending_city_dispositions: Vec<ProjectedCityDisposition>,
     pub diplomatic_vote_candidates: Vec<String>,
     pub selectable_great_people: Vec<String>,
+    pub religion_choice: Option<ProjectedReligionChoice>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedReligionChoice {
+    pub required_belief_types: Vec<ReligiousBeliefType>,
+    pub available_beliefs: Vec<ProjectedReligiousBelief>,
+    pub available_religion_icons: Vec<String>,
+    pub requires_religion_identity: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedReligiousBelief {
+    pub name: String,
+    pub r#type: ReligiousBeliefType,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -193,7 +213,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v22.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v23.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -210,6 +230,12 @@ mod tests {
             projection.selectable_great_people,
             ["Great Engineer", "Great Scientist"]
         );
+        let religion_choice = projection.religion_choice.as_ref().unwrap();
+        assert_eq!(
+            religion_choice.required_belief_types,
+            [ReligiousBeliefType::Founder, ReligiousBeliefType::Follower]
+        );
+        assert!(religion_choice.requires_religion_identity);
         assert_eq!(
             projection.own_units[0].available_religious_actions,
             [ReligiousUnitAction::SpreadReligion]

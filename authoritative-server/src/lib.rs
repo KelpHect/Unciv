@@ -13,13 +13,14 @@ pub mod worker;
 
 pub use command::{
     CitizenFocus, CityDispositionAction, CityGovernanceAction, CityTileAssignment, CommandAccepted,
-    CommandEnvelope, CommitProposal, GameCommand, ReligiousUnitAction, UnitPosture,
+    CommandEnvelope, CommitProposal, GameCommand, ReligiousBeliefType, ReligiousUnitAction,
+    UnitPosture,
 };
 pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 22;
+pub const PROJECTION_VERSION: u16 = 23;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

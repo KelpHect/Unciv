@@ -6,10 +6,12 @@ import com.unciv.models.ruleset.BeliefType
 import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.translations.tr
+import com.unciv.ui.screens.worldscreen.WorldScreen
 
 class PantheonPickerScreen(
-    choosingCiv: Civilization
-) : ReligionPickerScreenCommon(choosingCiv) {
+    choosingCiv: Civilization,
+    worldScreen: WorldScreen? = null,
+) : ReligionPickerScreenCommon(choosingCiv, worldScreen = worldScreen) {
     private var selectedPantheon: Belief? = null
     private val selection = Selection()
 
@@ -30,7 +32,9 @@ class PantheonPickerScreen(
             topTable.add(beliefButton).row()
         }
 
-        setOKAction("Choose a pantheon") {
+        setOKAction("Choose a pantheon", authoritativeChoice = {
+            AuthoritativeReligionChoice(listOf(selectedPantheon!!.name))
+        }) {
             chooseBeliefs(listOf(selectedPantheon!!), useFreeBeliefs = usingFreeBeliefs())
         }
     }

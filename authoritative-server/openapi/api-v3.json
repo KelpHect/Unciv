@@ -1638,6 +1638,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/choose-religious-beliefs": {
+      "post": {
+        "tags": [],
+        "operationId": "choose_religious_beliefs",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseReligiousBeliefsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/disband-unit": {
       "post": {
         "tags": [],
@@ -6183,6 +6297,50 @@
         },
         "additionalProperties": false
       },
+      "ChooseReligiousBeliefsRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "belief_names"
+        ],
+        "properties": {
+          "belief_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "religion_display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "religion_icon_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "CitizenFocus": {
         "type": "string",
         "enum": [
@@ -6920,6 +7078,16 @@
             "format": "int32",
             "minimum": 0
           },
+          "religionChoice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedReligionChoice"
+              }
+            ]
+          },
           "research": {
             "$ref": "#/components/schemas/ProjectedResearch"
           },
@@ -7146,6 +7314,55 @@
           "storedCulture": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedReligionChoice": {
+        "type": "object",
+        "required": [
+          "requiredBeliefTypes",
+          "availableBeliefs",
+          "availableReligionIcons",
+          "requiresReligionIdentity"
+        ],
+        "properties": {
+          "availableBeliefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedReligiousBelief"
+            }
+          },
+          "availableReligionIcons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredBeliefTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReligiousBeliefType"
+            }
+          },
+          "requiresReligionIdentity": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedReligiousBelief": {
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ReligiousBeliefType"
           }
         },
         "additionalProperties": false
@@ -7653,9 +7870,21 @@
         },
         "additionalProperties": false
       },
+      "ReligiousBeliefType": {
+        "type": "string",
+        "enum": [
+          "pantheon",
+          "founder",
+          "follower",
+          "enhancer",
+          "any"
+        ]
+      },
       "ReligiousUnitAction": {
         "type": "string",
         "enum": [
+          "found_religion",
+          "enhance_religion",
           "spread_religion",
           "remove_heresy"
         ]

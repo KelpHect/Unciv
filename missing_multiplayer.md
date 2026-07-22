@@ -52,10 +52,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   projection v42 and is worker-owned. Exact current-turn escort movement now
   uses one atomic `MoveUnit` intent with an optional projected companion ID;
   the worker validates both units and moves them together without persisting
-  the legacy cache-only `escorting` flag. Multi-turn escort orders remain: they
-  need explicit durable server semantics rather than pretending that cache flag
-  can survive worker snapshot reloads. Pending serialized unit orders execute inside the
-  worker immediately before authoritative end turn. Whole-turn, military,
+  the legacy cache-only `escorting` flag. Multi-turn escort orders are now
+  durable canonical `MoveUnitToward` orders: a nullable stable companion ID is
+  saved with the route-owning unit, revalidated and reconstructed only inside
+  the worker, projected only to the owner, cleared by cancellation/replacement
+  through either pair member, and proven across snapshot reload. Pending
+  serialized unit orders execute inside the worker immediately before
+  authoritative end turn. Whole-turn, military,
   civilian, and economy autoplay controls are fail-closed for opened v3 games;
   if retained as a product feature, implement them as explicit server-owned AI
   operations rather than client automation.
@@ -254,14 +257,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (944 JVM tests, 13
-  intentional skips).
-- Rust passes 87 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- `./gradlew :tests:test :server:test --no-daemon` passes (950 JVM/server tests,
+  13 intentional skips).
+- Rust passes 90 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 28-line facade, and the largest Rust sources
-  are 781 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 6 lines, `lib.rs` is a 32-line facade, and the largest Rust sources
+  are 783 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

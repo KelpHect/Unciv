@@ -48,6 +48,7 @@ sealed interface PendingAuthoritativeCommand {
         val unitId: Int,
         val destinationX: Int,
         val destinationY: Int,
+        val escortUnitId: Int? = null,
     ) : PendingAuthoritativeCommand
 
     data class CancelUnitMovementOrder(
@@ -588,7 +589,12 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
-    suspend fun moveUnitToward(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
+    suspend fun moveUnitToward(
+        unitId: Int,
+        destinationX: Int,
+        destinationY: Int,
+        escortUnitId: Int? = null,
+    ) = mutex.withLock {
         val current = requireSynchronized()
         val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
         require(unit != null) {
@@ -602,9 +608,17 @@ class AuthoritativeGameCommandBus(
         }) {
             "Destination is absent from the current player projection"
         }
+        if (escortUnitId != null) {
+            require(escortUnitId != unitId) { "Escort unit must differ from the moving unit" }
+            val escort = current.projection.ownUnits.singleOrNull { it.id == escortUnitId }
+            require(escort != null) { "Escort unit is absent from the current player projection" }
+            require(escort.x == unit.x && escort.y == unit.y && escort.currentMovement > 0f) {
+                "Escort unit cannot start a paired movement order from the current projection"
+            }
+        }
         submitLocked(PendingAuthoritativeCommand.MoveUnitToward(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
-            unitId, destinationX, destinationY,
+            unitId, destinationX, destinationY, escortUnitId,
         ), current)
     }
 
@@ -1573,6 +1587,7 @@ class AuthoritativeGameCommandBus(
                     ApiV3MoveUnitTowardRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.unitId, pending.destinationX, pending.destinationY,
+                        pending.escortUnitId,
                     ),
                 )
                 is PendingAuthoritativeCommand.CancelUnitMovementOrder ->

@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 42
+        const val CURRENT_PROJECTION_VERSION = 43
     }
 }
 
@@ -285,6 +285,7 @@ data class ProjectedUnit(
     val currentMovement: Float,
     val movementDestinationX: Int? = null,
     val movementDestinationY: Int? = null,
+    val movementEscortUnitId: Int? = null,
     val automated: Boolean = false,
     val exploring: Boolean = false,
     val posture: UnitPosture? = null,
@@ -490,28 +491,9 @@ object PlayerProjectionBuilder {
     ): ProjectedUnit {
         val destination = if (includePrivateOrders && unit.isMoving())
             unit.getMovementDestination().position else null
-        val moveDestinations = if (includePrivateOrders && canIssueTurnCommands && unit.hasMovement())
-            unit.movement.getDistanceToTiles().keys.asSequence()
-                .filter { tile ->
-                    tile != unit.getTile() && when {
-                        tile in unit.civ.viewableTiles -> unit.movement.canMoveTo(tile)
-                        else -> unit.movement.isUnknownTileWeShouldAssumeToBePassable(tile) &&
-                            !unit.baseUnit.movesLikeAirUnits
-                    }
-                }
-                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
-                .distinct()
-                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
-                .toList()
-        else emptyList()
-        val swapDestinations = if (includePrivateOrders && canIssueTurnCommands && unit.hasMovement())
-            unit.movement.getUnitSwappableTiles()
-                .filter { it in unit.civ.viewableTiles }
-                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
-                .distinct()
-                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
-                .toList()
-        else emptyList()
+        val movementEnabled = includePrivateOrders && canIssueTurnCommands
+        val moveDestinations = MovementTargetProjection.exactDestinations(unit, movementEnabled)
+        val swapDestinations = MovementTargetProjection.swapDestinations(unit, movementEnabled)
         return ProjectedUnit(
         id = unit.id,
         civilizationId = unit.civ.civID,
@@ -522,6 +504,7 @@ object PlayerProjectionBuilder {
         currentMovement = unit.currentMovement,
         movementDestinationX = destination?.x,
         movementDestinationY = destination?.y,
+        movementEscortUnitId = if (destination == null) null else unit.movementEscortUnitId,
         automated = includePrivateOrders && unit.isAutomated(),
         exploring = includePrivateOrders && unit.isExploring(),
         posture = if (includePrivateOrders) unitPosture(unit) else null,

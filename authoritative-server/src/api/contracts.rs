@@ -110,6 +110,7 @@ pub(super) struct MoveUnitTowardRequest {
     pub(super) unit_id: i32,
     pub(super) destination_x: i32,
     pub(super) destination_y: i32,
+    pub(super) escort_unit_id: Option<i32>,
 }
 
 #[derive(Deserialize, ToSchema)]

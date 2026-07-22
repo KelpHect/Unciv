@@ -662,7 +662,10 @@ class AuthoritativeGameCommandBusTests {
         val initial = projection(
             7, "hash-7",
             exploredTiles = listOf(ProjectedTileVisibility(7, 2, visible = false)),
-            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)),
+            ownUnits = listOf(
+                ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f),
+                ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f),
+            ),
         )
         val committed = initial.copy(committedRevision = 8, canonicalStateHash = "hash-8")
         val transport = FakeTransport(initial).apply {
@@ -674,8 +677,10 @@ class AuthoritativeGameCommandBusTests {
         val bus = AuthoritativeGameCommandBus(gameId, transport) { "order-command" }
         bus.refresh()
 
-        assertTrue(bus.moveUnitToward(42, 7, 2) is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(bus.moveUnitToward(42, 7, 2, escortUnitId = 43)
+            is AuthoritativeCommandOutcome.Accepted)
         assertEquals("order-command", transport.moveTowardRequests.single().commandId)
+        assertEquals(43, transport.moveTowardRequests.single().escortUnitId)
     }
 
     @Test

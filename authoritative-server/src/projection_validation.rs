@@ -4,11 +4,11 @@ use crate::projection::{
 
 impl PlayerProjection {
     pub fn movement_is_consistent(&self) -> bool {
-        if self
-            .visible_foreign_units
-            .iter()
-            .any(|unit| !unit.move_destinations.is_empty() || !unit.swap_destinations.is_empty())
-        {
+        if self.visible_foreign_units.iter().any(|unit| {
+            !unit.move_destinations.is_empty()
+                || !unit.swap_destinations.is_empty()
+                || unit.movement_escort_unit_id.is_some()
+        }) {
             return false;
         }
         if !self.is_current_turn
@@ -19,13 +19,28 @@ impl PlayerProjection {
             return false;
         }
         self.own_units.iter().all(|unit| {
+            let escort_is_consistent = unit.movement_escort_unit_id.is_none_or(|escort_id| {
+                escort_id != unit.id
+                    && unit.movement_destination_x.is_some()
+                    && unit.movement_destination_y.is_some()
+                    && self.own_units.iter().any(|escort| {
+                        escort.id == escort_id && escort.x == unit.x && escort.y == unit.y
+                    })
+                    && self
+                        .own_units
+                        .iter()
+                        .filter(|other| other.movement_escort_unit_id == Some(escort_id))
+                        .count()
+                        == 1
+            });
             let sorted_and_not_current = |destinations: &[ProjectedMovementDestination]| {
                 destinations.windows(2).all(|pair| pair[0] < pair[1])
                     && destinations
                         .iter()
                         .all(|destination| destination.x != unit.x || destination.y != unit.y)
             };
-            sorted_and_not_current(&unit.move_destinations)
+            escort_is_consistent
+                && sorted_and_not_current(&unit.move_destinations)
                 && unit.move_destinations.iter().all(|destination| {
                     !self.explored_tiles.iter().any(|tile| {
                         tile.x == destination.x && tile.y == destination.y && !tile.visible

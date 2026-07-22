@@ -491,14 +491,6 @@ class WorldMapHolder(
         val movementIntent = AuthoritativeMovementUi.movementIntent(
             worldScreen, selectedUnit, requestedTarget,
         )
-        if (escortUnit != null && movementIntent != AuthoritativeMovementIntent.ExactMove) {
-            removeUnitActionOverlay()
-            ToastPopup(
-                "Escort pairs currently require a server-projected exact destination",
-                worldScreen,
-            )
-            return
-        }
         val isMultiTurnOrder = !isParadrop && movementIntent == AuthoritativeMovementIntent.MoveToward
         val description = when {
             isParadrop -> "unit paradrop"
@@ -520,6 +512,7 @@ class WorldMapHolder(
                     selectedUnit.id,
                     requestedTarget.position.x,
                     requestedTarget.position.y,
+                    escortUnit?.id,
                 )
             else worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
                     worldScreen.gameInfo.gameId,

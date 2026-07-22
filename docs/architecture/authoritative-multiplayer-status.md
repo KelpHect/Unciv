@@ -4373,3 +4373,44 @@ Verification on 2026-07-22:
   request shape changed. The artifact was regenerated and the entire Rust suite
   rerun cleanly; no compile, test, formatting, Clippy, OpenAPI, or database
   error remains deferred.
+
+## Durable authoritative escort orders (projection v43)
+
+`MoveUnitToward` now accepts the same optional stable companion ID as exact
+movement. The canonical snapshot persists that relationship as nullable
+`movementEscortUnitId` on the route-owning unit; it does not serialize or trust
+the legacy transient escort cache. On each authoritative automated-order phase,
+the Kotlin engine resolves both owned units, revalidates co-location, non-air
+types, one civilian plus one military unit, movement, and route reachability,
+then reconstructs the shared-engine escort only for the atomic step. Arrival,
+blocking, replacement, exact movement, swapping, or cancellation clears stale
+pair metadata. Cancellation through either member clears the same canonical
+order.
+
+Projection v43 exposes the companion ID only beside the owning player's private
+movement destination. Foreign projections reject or omit it, exact destination
+choices for an active pair are intersected across both canonical units, and
+swap choices are suppressed until the pair is cancelled or replaced. The
+opened-v3 world map can therefore submit a long-distance formation without
+running client rules or depending on cache state. Single-player, hotseat,
+saved-game, legacy/API-v2, and server AI paths continue using the shared Kotlin
+engine; older saves deserialize the additive nullable field as absent.
+
+Verification on 2026-07-22:
+
+- A deterministic engine test creates a paired route, serializes and reloads
+  the canonical snapshot, proves owner projection and co-located server-side
+  execution, and proves cancellation through the companion leaves no dangling
+  route. Foreign sentinel tests prove the private pair ID is absent.
+- Kotlin command-bus/session tests preserve the companion through preflight,
+  request serialization, explicit-open submission, and retry state. Rust tests
+  cover omitted/present public IDs, camel-case worker transport, and reject
+  self, missing, destination-less, and foreign projection metadata.
+- `./gradlew :tests:test :server:test --no-daemon` passes 950 JVM/server tests
+  with 13 intentional skips. Rust passes 90 active library tests and all 7
+  HTTP/OpenAPI tests; formatting and warnings-as-errors Clippy pass.
+- All 17 serialized integration tests pass against only the pinned PostgreSQL
+  19 Beta 2 digest on port 55460, whose live server reported `PostgreSQL
+  19beta2`. The disposable container, network, and volume were removed and
+  verified. No compile, test, formatting, Clippy, OpenAPI, or database error is
+  deferred.

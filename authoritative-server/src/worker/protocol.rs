@@ -85,6 +85,8 @@ pub(super) enum WorkerOperation<'a> {
         destination_x: i32,
         #[serde(rename = "destinationY")]
         destination_y: i32,
+        #[serde(rename = "escortUnitId")]
+        escort_unit_id: Option<i32>,
     },
     CancelUnitMovementOrder {
         snapshot: &'a str,

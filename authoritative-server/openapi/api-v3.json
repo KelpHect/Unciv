@@ -10552,6 +10552,13 @@
             "type": "integer",
             "format": "int32"
           },
+          "escort_unit_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
           "expected_revision": {
             "type": "integer",
             "format": "int64",
@@ -11913,6 +11920,13 @@
             "format": "int32"
           },
           "movementDestinationY": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "movementEscortUnitId": {
             "type": [
               "integer",
               "null"

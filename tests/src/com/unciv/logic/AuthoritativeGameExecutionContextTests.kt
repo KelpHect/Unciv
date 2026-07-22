@@ -553,6 +553,57 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun escortedMoveTowardSurvivesSnapshotReloadAndExecutesAsOneServerOrder() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val military = rome.units.getCivUnits().first { it.isMilitary() }
+        val civilian = rome.units.getCivUnits().first { it.isCivilian() }
+        civilian.removeFromTile()
+        civilian.putInTile(military.getTile())
+        val destination = game.tileMap.tileList.filter { tile ->
+            tile != military.currentTile &&
+                military.movement.canReach(tile) &&
+                civilian.movement.canReach(tile) &&
+                military.movement.getTileToMoveToThisTurn(tile) != tile
+        }.maxBy { military.currentTile.aerialDistanceTo(it) }
+        destination.setExplored(rome, true)
+
+        engine.moveUnitToward(game, "Rome", military.id, destination.position, civilian.id)
+        val reloaded = engine.loadSnapshot(engine.serializeSnapshot(game))
+        val reloadedRome = reloaded.getCivilization("Rome")
+        val reloadedMilitary = reloadedRome.units.getUnitById(military.id)!!
+        val reloadedCivilian = reloadedRome.units.getUnitById(civilian.id)!!
+
+        Assert.assertEquals(civilian.id, reloadedMilitary.movementEscortUnitId)
+        Assert.assertEquals(reloadedMilitary.currentTile, reloadedCivilian.currentTile)
+        Assert.assertEquals(
+            civilian.id,
+            engine.playerProjection(reloaded, "Rome").ownUnits
+                .single { it.id == military.id }.movementEscortUnitId,
+        )
+
+        val cancelledReload = engine.loadSnapshot(engine.serializeSnapshot(game))
+        val cancelledRome = cancelledReload.getCivilization("Rome")
+        engine.cancelUnitMovementOrder(cancelledReload, "Rome", civilian.id)
+        Assert.assertNull(cancelledRome.units.getUnitById(military.id)!!.action)
+        Assert.assertNull(cancelledRome.units.getUnitById(military.id)!!.movementEscortUnitId)
+        Assert.assertNull(cancelledRome.units.getUnitById(civilian.id)!!.movementEscortUnitId)
+
+        reloadedMilitary.currentMovement = reloadedMilitary.getMaxMovement().toFloat()
+        reloadedCivilian.currentMovement = reloadedCivilian.getMaxMovement().toFloat()
+        val before = reloadedMilitary.currentTile
+        reloadedMilitary.doAction()
+
+        Assert.assertNotEquals(before, reloadedMilitary.currentTile)
+        Assert.assertEquals(reloadedMilitary.currentTile, reloadedCivilian.currentTile)
+        Assert.assertEquals(
+            if (reloadedMilitary.currentTile == destination) null else civilian.id,
+            reloadedMilitary.movementEscortUnitId,
+        )
+    }
+
+    @Test
     fun explorationIsStartedAndStoppedOnlyByTheAuthoritativeEngine() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game
@@ -2386,6 +2437,7 @@ class AuthoritativeGameExecutionContextTests {
         otherCivilization.flagsCountdown["SENTINEL_SECRET_PLAN"] = 999
         otherCivilization.units.getCivUnits().first().instanceName = "SENTINEL_HIDDEN_UNIT_NAME"
         otherCivilization.units.getCivUnits().first().action = "moveTo 999,999"
+        otherCivilization.units.getCivUnits().first().movementEscortUnitId = 987654
         otherCivilization.units.getCivUnits().first().automated = true
 
         val projection = engine.playerProjection(game, "Rome")
@@ -2399,6 +2451,7 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(serialized.contains("SENTINEL_HIDDEN_UNIT_NAME"))
         Assert.assertTrue(projection.visibleForeignUnits.all {
             it.movementDestinationX == null && it.movementDestinationY == null &&
+                it.movementEscortUnitId == null &&
                 !it.automated && !it.exploring && it.posture == null &&
                 it.promotions.isEmpty() && it.promotionXp == null &&
                 it.nextPromotionXp == null && it.availablePromotions.isEmpty() &&

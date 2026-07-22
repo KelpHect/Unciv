@@ -66,6 +66,9 @@ class MapUnit : IsPartOfGameInfoSerialization {
     // work, automation, fortifying, ...
     // Connect roads implies automated is true. It is specified by the action type.
     var action: String? = null
+    /** Stable companion for a server-owned multi-turn escort movement order.
+     * Null for legacy cache-only formations and ordinary movement orders. */
+    var movementEscortUnitId: Int? = null
     var automated: Boolean = false
 
     // We can infer who we are escorting based on our tile
@@ -222,6 +225,7 @@ class MapUnit : IsPartOfGameInfoSerialization {
         toReturn.currentMovement = currentMovement
         toReturn.health = health
         toReturn.action = action
+        toReturn.movementEscortUnitId = movementEscortUnitId
         toReturn.automated = automated
         toReturn.escorting = escorting
         toReturn.automatedRoadConnectionDestination = automatedRoadConnectionDestination
@@ -848,6 +852,21 @@ class MapUnit : IsPartOfGameInfoSerialization {
     fun doAction() {
         if (action == null && !isAutomated()) return
         if (!hasMovement()) return  // We've already done stuff this turn, and can't do any more stuff
+        if (isMoving() && movementEscortUnitId != null) {
+            val orderedEscort = civ.units.getUnitById(movementEscortUnitId!!)
+            if (orderedEscort == null || orderedEscort == this ||
+                orderedEscort.getTile() != getTile() ||
+                orderedEscort.baseUnit.movesLikeAirUnits || baseUnit.movesLikeAirUnits ||
+                orderedEscort.isCivilian() == isCivilian() ||
+                !orderedEscort.movement.canReach(getMovementDestination())
+            ) {
+                action = null
+                movementEscortUnitId = null
+                return
+            }
+            if (!orderedEscort.hasMovement()) return
+            startEscorting()
+        }
         if (isEscorting() && !getOtherEscortUnit()!!.hasMovement()) return
 
         val enemyUnitsInWalkingDistance = movement.getDistanceToTiles().keys
@@ -855,6 +874,10 @@ class MapUnit : IsPartOfGameInfoSerialization {
         if (enemyUnitsInWalkingDistance.isNotEmpty()) {
             if (isMoving()) // stop on enemy in sight
                 action = null
+            if (action == null) {
+                movementEscortUnitId = null
+                if (isEscorting()) stopEscorting()
+            }
             if (!(isExploring() || isAutomated()))  // have fleeing code
                 return  // Don't you dare move.
         }
@@ -866,6 +889,8 @@ class MapUnit : IsPartOfGameInfoSerialization {
             if (!movement.canReach(destinationTile)) { // That tile that we were moving towards is now unreachable -
                 // for instance we headed towards an unknown tile and it's apparently unreachable
                 action = null
+                movementEscortUnitId = null
+                if (isEscorting()) stopEscorting()
                 return
             }
             val gotTo = movement.headTowards(destinationTile)
@@ -873,9 +898,17 @@ class MapUnit : IsPartOfGameInfoSerialization {
                 // pathway blocked? Are we still at the same spot as start of turn?
                 if (movementMemories.last().position == currentTile.position)
                     action = null
+                if (action == null) {
+                    movementEscortUnitId = null
+                    if (isEscorting()) stopEscorting()
+                }
                 return
             }
-            if (gotTo.position == destinationTile.position) action = null
+            if (gotTo.position == destinationTile.position) {
+                action = null
+                movementEscortUnitId = null
+                if (isEscorting()) stopEscorting()
+            }
             if (hasMovement()) doAction()
             return
         }

@@ -312,23 +312,27 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun multiTurnMovementOrderRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val units = listOf(
+            ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f),
+            ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(
-                ownUnits = listOf(unit),
+                ownUnits = units,
                 exploredTiles = listOf(ProjectedTileVisibility(7, 2, visible = false)),
             ))
         }
         val session = session(transport)
         session.restore()
 
-        assertEquals(null, session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2))
+        assertEquals(null, session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2, escortUnitId = 43))
         session.openGame(GAME_ID)
-        val outcome = session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2)
+        val outcome = session.moveUnitTowardIfOpen(GAME_ID, 42, 7, 2, escortUnitId = 43)
 
         assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
         assertEquals(listOf(Triple(42, 7, 2)), transport.movementOrders)
+        assertEquals(43, transport.moveTowardRequests.single().escortUnitId)
         session.close()
     }
 
@@ -1232,6 +1236,7 @@ class AuthoritativeMultiplayerSessionTests {
         val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val movementOrders = mutableListOf<Triple<Int, Int, Int>>()
+        val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val cancelledMovementOrders = mutableListOf<Int>()
         val explorationOrders = mutableListOf<Pair<Int, Boolean>>()
         val automationOrders = mutableListOf<Pair<Int, Boolean>>()
@@ -1399,6 +1404,7 @@ class AuthoritativeMultiplayerSessionTests {
             gameId: String,
             request: ApiV3MoveUnitTowardRequest,
         ): ApiV3CommandAccepted {
+            moveTowardRequests += request
             movementOrders += Triple(request.unitId, request.destinationX, request.destinationY)
             current = current.copy(
                 committedRevision = current.committedRevision + 1,

@@ -783,35 +783,22 @@ class HeadlessGameEngine(
         }
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
-        val escortUnit = escortUnitId?.let { id ->
-            require(id != unitId) { "Escort unit must differ from the moving unit" }
-            actorCivilization.units.getUnitById(id)
-                ?: error("Escort unit is not controlled by the authenticated actor")
-        }
         require(destination in game.tileMap) { "Destination is outside the canonical map" }
         val destinationTile = game.tileMap[destination]
         require(destinationTile != unit.getTile()) { "Unit is already at the destination" }
-        if (escortUnit != null) {
-            require(escortUnit.getTile() == unit.getTile()) { "Escort units are not co-located" }
-            require(!unit.baseUnit.movesLikeAirUnits && !escortUnit.baseUnit.movesLikeAirUnits) {
-                "Air units cannot form an escort pair"
-            }
-            require(unit.isCivilian() != escortUnit.isCivilian()) {
-                "Escort pair must contain one civilian and one military unit"
-            }
-            require(escortUnit.movement.canReachInCurrentTurn(destinationTile)) {
-                "Destination is not reachable by the escort unit this turn"
-            }
-            require(escortUnit.movement.canMoveTo(destinationTile)) {
-                "Escort unit cannot enter the destination"
-            }
-        }
+        val escortUnit = AuthoritativeEscortMovement.resolve(
+            actorCivilization, unit, escortUnitId, destinationTile,
+        )
+        if (escortUnit != null)
+            AuthoritativeEscortMovement.requireExactDestination(escortUnit, destinationTile)
         require(unit.movement.canReachInCurrentTurn(destinationTile)) {
             "Destination is not reachable this turn"
         }
         require(unit.movement.canMoveTo(destinationTile)) {
             "Unit cannot enter the destination"
         }
+        AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, unit)
+        escortUnit?.let { AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, it) }
         unit.action = null
         escortUnit?.action = null
         if (escortUnit != null) unit.startEscorting()
@@ -833,6 +820,7 @@ class HeadlessGameEngine(
         actorCivilizationId: String,
         unitId: Int,
         destination: HexCoord,
+        escortUnitId: Int? = null,
     ): EngineResult {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
@@ -849,12 +837,14 @@ class HeadlessGameEngine(
         }
         require(destinationTile != unit.getTile()) { "Unit is already at the destination" }
         require(unit.movement.canReach(destinationTile)) { "Destination is not reachable" }
-        val origin = unit.getTile()
+        val escortUnit = AuthoritativeEscortMovement.resolve(
+            actorCivilization, unit, escortUnitId, destinationTile,
+        )
+        AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, unit)
+        escortUnit?.let { AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, it) }
         unit.action = null
-        unit.movement.headTowards(destinationTile)
-        check(unit.getTile() != origin) { "Movement order made no canonical progress" }
-        unit.action = if (unit.getTile() == destinationTile) null else
-            "moveTo ${destination.x},${destination.y}"
+        escortUnit?.action = null
+        AuthoritativeEscortMovement.moveToward(unit, escortUnit, destinationTile)
         return result(game)
     }
 
@@ -871,8 +861,11 @@ class HeadlessGameEngine(
         }
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
-        require(unit.isMoving()) { "Unit has no canonical movement order" }
+        require(unit.isMoving() || actorCivilization.units.getCivUnits().any {
+            it.isMoving() && it.movementEscortUnitId == unit.id
+        }) { "Unit has no canonical movement order" }
         unit.action = null
+        AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, unit)
         return result(game)
     }
 
@@ -1015,6 +1008,13 @@ class HeadlessGameEngine(
         require(unit.movement.canUnitSwapTo(destinationTile)) {
             "Unit cannot swap with the destination occupant"
         }
+        val swappedUnit = if (unit.isCivilian()) destinationTile.civilianUnit
+            else destinationTile.militaryUnit
+        require(swappedUnit != null && swappedUnit.civ == actorCivilization) {
+            "Destination has no compatible controlled unit to swap"
+        }
+        AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, unit)
+        AuthoritativeEscortMovement.clearOrderReferences(actorCivilization, swappedUnit)
         val origin = unit.getTile()
         unit.movement.swapMoveToTile(destinationTile, keepEscorting = true)
         check(unit.getTile() == destinationTile) { "Unit swap did not reach the destination" }

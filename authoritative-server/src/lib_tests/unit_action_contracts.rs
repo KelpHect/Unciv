@@ -243,9 +243,22 @@ fn move_unit_toward_contract_excludes_client_path_and_order_state() {
         GameCommand::MoveUnitToward {
             unit_id: 42,
             destination_x: 7,
-            destination_y: 2
+            destination_y: 2,
+            escort_unit_id: None,
         }
     );
+    let escorted: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "move_unit_toward", "unit_id": 42, "destination_x": 7,
+        "destination_y": 2, "escort_unit_id": 43
+    }))
+    .unwrap();
+    assert!(matches!(
+        escorted,
+        GameCommand::MoveUnitToward {
+            escort_unit_id: Some(43),
+            ..
+        }
+    ));
     assert!(
         serde_json::from_value::<GameCommand>(serde_json::json!({
             "type": "move_unit_toward", "unit_id": 42, "destination_x": 7,

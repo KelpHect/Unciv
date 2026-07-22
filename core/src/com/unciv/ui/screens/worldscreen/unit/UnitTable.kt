@@ -22,6 +22,7 @@ import com.unciv.ui.components.input.onClick
 import com.unciv.ui.images.padTopDescent
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeMovementUi
 import com.unciv.ui.screens.worldscreen.unit.presenter.CityPresenter
 import com.unciv.ui.screens.worldscreen.unit.presenter.SpyPresenter
 import com.unciv.ui.screens.worldscreen.unit.presenter.SummaryPresenter
@@ -207,7 +208,9 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
         val previousNumberOfSelectedUnits = selectedUnits.size
 
         // Do not select a different unit or city center if we click on it to swap our current unit to it
-        if (selectedUnitIsSwapping && selectedUnit != null && selectedUnit!!.movement.canUnitSwapTo(selectedTile)) return
+        if (selectedUnitIsSwapping && previouslySelectedUnit != null &&
+            (AuthoritativeMovementUi.canSwap(worldScreen, previouslySelectedUnit, selectedTile)
+                ?: previouslySelectedUnit.movement.canUnitSwapTo(selectedTile))) return
         // Do no select a different unit while in Air Sweep mode
         if (selectedUnit != null && selectedUnit!!.isPreparingAirSweep()) return
 

@@ -11260,6 +11260,24 @@
         },
         "additionalProperties": false
       },
+      "ProjectedMovementDestination": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedPolicies": {
         "type": "object",
         "required": [
@@ -11735,7 +11753,9 @@
           "availableGreatPersonActions",
           "canGift",
           "availableTransformActions",
-          "availableTriggerActions"
+          "availableTriggerActions",
+          "moveDestinations",
+          "swapDestinations"
         ],
         "properties": {
           "automated": {
@@ -11804,6 +11824,12 @@
               "null"
             ]
           },
+          "moveDestinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedMovementDestination"
+            }
+          },
           "movementDestinationX": {
             "type": [
               "integer",
@@ -11869,6 +11895,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedRoadPathTile"
+            }
+          },
+          "swapDestinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedMovementDestination"
             }
           },
           "x": {

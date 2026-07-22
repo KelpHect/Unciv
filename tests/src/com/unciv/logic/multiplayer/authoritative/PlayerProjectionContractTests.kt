@@ -52,6 +52,10 @@ class PlayerProjectionContractTests {
         assertEquals("Warrior", projection.ownCities.single().unitPromotionPreferences.single().baseUnitName)
         assertTrue(projection.ownCities.single().unitPromotionPreferences.single().enabled)
         assertEquals(7, projection.ownUnits.single().movementDestinationX)
+        assertEquals(listOf(ProjectedMovementDestination(2, -1)),
+            projection.ownUnits.single().moveDestinations)
+        assertEquals(listOf(ProjectedMovementDestination(2, -1)),
+            projection.ownUnits.single().swapDestinations)
         assertTrue(projection.ownUnits.single().automated)
         assertTrue(!projection.ownUnits.single().exploring)
         assertEquals(UnitPosture.Fortify, projection.ownUnits.single().posture)
@@ -82,6 +86,10 @@ class PlayerProjectionContractTests {
             projection.visibleForeignUnits.single().roadConnectionPath)
         assertEquals(emptyList<ReligiousUnitAction>(),
             projection.visibleForeignUnits.single().availableReligiousActions)
+        assertEquals(emptyList<ProjectedMovementDestination>(),
+            projection.visibleForeignUnits.single().moveDestinations)
+        assertEquals(emptyList<ProjectedMovementDestination>(),
+            projection.visibleForeignUnits.single().swapDestinations)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
@@ -118,6 +126,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v39.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v40.fixture.json") }
         .first { it.isFile }
 }

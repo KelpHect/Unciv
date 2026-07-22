@@ -23,6 +23,7 @@ import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
+import com.unciv.logic.multiplayer.authoritative.ProjectedMovementDestination
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
@@ -2659,6 +2660,57 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertThrows(IllegalStateException::class.java) {
             engine.triggerUnitUnique(game, "Rome", unit.id, actions.last().actionId)
         }
+    }
+
+    @Test
+    fun movementLegalityProjectionUsesCanonicalRulesWithoutLeakingFogOrForeignOptions() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val projection = engine.playerProjection(game, "Rome")
+        val visibleCoordinates = projection.exploredTiles.asSequence()
+            .filter { it.visible }
+            .map { it.x to it.y }
+            .toSet()
+
+        for (projected in projection.ownUnits) {
+            val unit = rome.units.getUnitById(projected.id)!!
+            val expectedMoves = unit.movement.getDistanceToTiles().keys.asSequence()
+                .filter { tile ->
+                    tile != unit.getTile() && when {
+                        tile in rome.viewableTiles -> unit.movement.canMoveTo(tile)
+                        else -> unit.movement.isUnknownTileWeShouldAssumeToBePassable(tile) &&
+                            !unit.baseUnit.movesLikeAirUnits
+                    }
+                }
+                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
+                .distinct()
+                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
+                .toList()
+            val expectedSwaps = unit.movement.getUnitSwappableTiles()
+                .filter { it in rome.viewableTiles }
+                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
+                .distinct()
+                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
+                .toList()
+            Assert.assertEquals(expectedMoves, projected.moveDestinations)
+            Assert.assertEquals(expectedSwaps, projected.swapDestinations)
+            val exploredCoordinates = projection.exploredTiles
+                .map { it.x to it.y }
+                .toSet()
+            Assert.assertTrue(projected.moveDestinations.all {
+                (it.x to it.y) in visibleCoordinates || (it.x to it.y) !in exploredCoordinates
+            })
+            Assert.assertTrue(projected.swapDestinations
+                .all { (it.x to it.y) in visibleCoordinates })
+        }
+        Assert.assertTrue(projection.visibleForeignUnits
+            .all { it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() })
+
+        game.currentPlayer = "Greece"
+        val outOfTurn = engine.playerProjection(game, "Rome")
+        Assert.assertTrue(outOfTurn.ownUnits
+            .all { it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() })
     }
 
     private fun testSetup(): GameSetupInfo {

@@ -258,7 +258,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitMovementRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 0, 0, 100, 2f,
+            moveDestinations = listOf(ProjectedMovementDestination(1, 0)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(
@@ -629,7 +632,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitSwapRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 0, 0, 100, 2f,
+            swapDestinations = listOf(ProjectedMovementDestination(1, 0)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(

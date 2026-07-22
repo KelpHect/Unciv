@@ -57,6 +57,45 @@ pub struct PlayerProjection {
     pub event_prompts: Vec<ProjectedEventPrompt>,
 }
 
+impl PlayerProjection {
+    pub fn movement_is_consistent(&self) -> bool {
+        if self
+            .visible_foreign_units
+            .iter()
+            .any(|unit| !unit.move_destinations.is_empty() || !unit.swap_destinations.is_empty())
+        {
+            return false;
+        }
+        if !self.is_current_turn
+            && self.own_units.iter().any(|unit| {
+                !unit.move_destinations.is_empty() || !unit.swap_destinations.is_empty()
+            })
+        {
+            return false;
+        }
+        self.own_units.iter().all(|unit| {
+            let sorted_and_not_current = |destinations: &[ProjectedMovementDestination]| {
+                destinations.windows(2).all(|pair| pair[0] < pair[1])
+                    && destinations
+                        .iter()
+                        .all(|destination| destination.x != unit.x || destination.y != unit.y)
+            };
+            sorted_and_not_current(&unit.move_destinations)
+                && unit.move_destinations.iter().all(|destination| {
+                    !self.explored_tiles.iter().any(|tile| {
+                        tile.x == destination.x && tile.y == destination.y && !tile.visible
+                    })
+                })
+                && sorted_and_not_current(&unit.swap_destinations)
+                && unit.swap_destinations.iter().all(|destination| {
+                    self.explored_tiles.iter().any(|tile| {
+                        tile.x == destination.x && tile.y == destination.y && tile.visible
+                    })
+                })
+        })
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedEventPrompt {
@@ -410,6 +449,15 @@ pub struct ProjectedUnit {
     pub can_gift: bool,
     pub available_transform_actions: Vec<ProjectedUnitTransformAction>,
     pub available_trigger_actions: Vec<ProjectedUnitTriggerAction>,
+    pub move_destinations: Vec<ProjectedMovementDestination>,
+    pub swap_destinations: Vec<ProjectedMovementDestination>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedMovementDestination {
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -458,7 +506,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v39.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -547,6 +595,15 @@ mod tests {
         );
         assert_eq!(projection.policies.selectable_policies, ["Tradition"]);
         assert_eq!(projection.own_units[0].movement_destination_x, Some(7));
+        assert_eq!(
+            projection.own_units[0].move_destinations,
+            [ProjectedMovementDestination { x: 2, y: -1 }]
+        );
+        assert_eq!(
+            projection.own_units[0].swap_destinations,
+            [ProjectedMovementDestination { x: 2, y: -1 }]
+        );
+        assert!(projection.movement_is_consistent());
         assert!(projection.own_units[0].automated);
         assert!(!projection.own_units[0].exploring);
         assert_eq!(projection.own_units[0].posture, Some(UnitPosture::Fortify));
@@ -586,6 +643,16 @@ mod tests {
         assert!(!projection.visible_foreign_units[0].automated);
         assert!(!projection.visible_foreign_units[0].exploring);
         assert_eq!(projection.visible_foreign_units[0].posture, None);
+        assert!(
+            projection.visible_foreign_units[0]
+                .move_destinations
+                .is_empty()
+        );
+        assert!(
+            projection.visible_foreign_units[0]
+                .swap_destinations
+                .is_empty()
+        );
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;
@@ -601,7 +668,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v39.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -611,6 +678,36 @@ mod tests {
         projection.research.queue_entries[0].cost = 35;
         projection.research.researched_technologies.reverse();
         assert!(!projection.research.is_consistent());
+    }
+
+    #[test]
+    fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
+        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
+        let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
+
+        let mut hidden = projection.clone();
+        hidden.own_units[0].move_destinations[0] = ProjectedMovementDestination { x: 3, y: -1 };
+        assert!(!hidden.movement_is_consistent());
+
+        let mut unseen_swap = projection.clone();
+        unseen_swap.own_units[0].swap_destinations[0] = ProjectedMovementDestination { x: 9, y: 9 };
+        assert!(!unseen_swap.movement_is_consistent());
+
+        let mut duplicate = projection.clone();
+        duplicate.own_units[0]
+            .move_destinations
+            .push(ProjectedMovementDestination { x: 2, y: -1 });
+        assert!(!duplicate.movement_is_consistent());
+
+        let mut foreign = projection.clone();
+        foreign.visible_foreign_units[0]
+            .swap_destinations
+            .push(ProjectedMovementDestination { x: 2, y: -1 });
+        assert!(!foreign.movement_is_consistent());
+
+        let mut out_of_turn = projection;
+        out_of_turn.is_current_turn = false;
+        assert!(!out_of_turn.movement_is_consistent());
     }
 
     #[test]

@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 39
+        const val CURRENT_PROJECTION_VERSION = 40
     }
 }
 
@@ -301,7 +301,12 @@ data class ProjectedUnit(
     val canGift: Boolean = false,
     val availableTransformActions: List<ProjectedUnitTransformAction> = emptyList(),
     val availableTriggerActions: List<ProjectedUnitTriggerAction> = emptyList(),
+    val moveDestinations: List<ProjectedMovementDestination> = emptyList(),
+    val swapDestinations: List<ProjectedMovementDestination> = emptyList(),
 )
+
+@Serializable
+data class ProjectedMovementDestination(val x: Int, val y: Int)
 
 @Serializable
 data class ProjectedUnitTransformAction(val actionId: String, val targetUnitName: String)
@@ -331,8 +336,9 @@ data class ProjectedTileVisibility(
 
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
+        val canIssueTurnCommands = game.currentPlayer == actor.civID
         val ownUnits = actor.units.getCivUnits()
-            .map { unitProjection(it, includePrivateOrders = true) }
+            .map { unitProjection(it, includePrivateOrders = true, canIssueTurnCommands) }
             .sortedBy { it.id }
             .toList()
         val visibleForeignUnits = game.tileMap.tileList.asSequence()
@@ -340,7 +346,7 @@ object PlayerProjectionBuilder {
             .flatMap { it.getUnits() }
             .filter { it.civ != actor }
             .filter { !it.isInvisible(actor) || it.getTile() in actor.viewableInvisibleUnitsTiles }
-            .map { unitProjection(it, includePrivateOrders = false) }
+            .map { unitProjection(it, includePrivateOrders = false, canIssueTurnCommands = false) }
             .sortedWith(compareBy<ProjectedUnit> { it.civilizationId }.thenBy { it.id })
             .toList()
         return PlayerProjection(
@@ -461,9 +467,35 @@ object PlayerProjectionBuilder {
             .map { it.civID }
             .toList()
 
-    private fun unitProjection(unit: MapUnit, includePrivateOrders: Boolean): ProjectedUnit {
+    private fun unitProjection(
+        unit: MapUnit,
+        includePrivateOrders: Boolean,
+        canIssueTurnCommands: Boolean,
+    ): ProjectedUnit {
         val destination = if (includePrivateOrders && unit.isMoving())
             unit.getMovementDestination().position else null
+        val moveDestinations = if (includePrivateOrders && canIssueTurnCommands && unit.hasMovement())
+            unit.movement.getDistanceToTiles().keys.asSequence()
+                .filter { tile ->
+                    tile != unit.getTile() && when {
+                        tile in unit.civ.viewableTiles -> unit.movement.canMoveTo(tile)
+                        else -> unit.movement.isUnknownTileWeShouldAssumeToBePassable(tile) &&
+                            !unit.baseUnit.movesLikeAirUnits
+                    }
+                }
+                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
+                .distinct()
+                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
+                .toList()
+        else emptyList()
+        val swapDestinations = if (includePrivateOrders && canIssueTurnCommands && unit.hasMovement())
+            unit.movement.getUnitSwappableTiles()
+                .filter { it in unit.civ.viewableTiles }
+                .map { ProjectedMovementDestination(it.position.x, it.position.y) }
+                .distinct()
+                .sortedWith(compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y })
+                .toList()
+        else emptyList()
         return ProjectedUnit(
         id = unit.id,
         civilizationId = unit.civ.civID,
@@ -505,6 +537,8 @@ object PlayerProjectionBuilder {
             UnitTransformCommandExecutor.projectedActions(unit) else emptyList(),
         availableTriggerActions = if (includePrivateOrders)
             UnitTriggerCommandExecutor.projectedActions(unit) else emptyList(),
+        moveDestinations = moveDestinations,
+        swapDestinations = swapDestinations,
     )
     }
 

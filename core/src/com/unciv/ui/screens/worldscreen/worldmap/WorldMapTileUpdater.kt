@@ -89,7 +89,17 @@ object WorldMapTileUpdater {
         // Z-Layer: 0
         // Highlight suitable tiles in swapping-mode
         if (worldScreen.bottomUnitTable.selectedUnitIsSwapping) {
-            val unitSwappableTiles = unit.movement.getUnitSwappableTiles()
+            val projectedDestinations = if (!AuthoritativeMovementUi.isOpen(worldScreen)) null
+            else AuthoritativeMovementUi.projection(worldScreen)?.ownUnits
+                ?.singleOrNull { it.id == unit.id }
+                ?.swapDestinations
+                ?.map { it.x to it.y }
+                ?.toSet() ?: emptySet()
+            val unitSwappableTiles = projectedDestinations?.let { destinations ->
+                tileGroups.keys.asSequence().filter {
+                    (it.position.x to it.position.y) in destinations
+                }
+            } ?: unit.movement.getUnitSwappableTiles()
             val swapUnitsTileOverlayColor = Color.PURPLE
             for (tile in unitSwappableTiles)  {
                 tileGroups[tile]!!.layerOverlay.showHighlight(swapUnitsTileOverlayColor,
@@ -123,7 +133,18 @@ object WorldMapTileUpdater {
 
         val isAirUnit = unit.baseUnit.movesLikeAirUnits
         val moveTileOverlayColor = if (unit.isPreparingParadrop()) Color.BLUE else Color.WHITE
-        val tilesInMoveRange = unit.movement.getReachableTilesInCurrentTurn()
+        val projectedDestinations = if (unit.isPreparingParadrop() ||
+            !AuthoritativeMovementUi.isOpen(worldScreen)) null
+            else AuthoritativeMovementUi.projection(worldScreen)?.ownUnits
+                ?.singleOrNull { it.id == unit.id }
+                ?.moveDestinations
+                ?.map { it.x to it.y }
+                ?.toSet() ?: emptySet()
+        val tilesInMoveRange = projectedDestinations?.let { destinations ->
+            tileGroups.keys.asSequence().filter {
+                (it.position.x to it.position.y) in destinations
+            }
+        } ?: unit.movement.getReachableTilesInCurrentTurn()
         // Prepare special Nuke blast radius display
         val nukeBlastRadius = if (unit.isNuclearWeapon() && selectedTile != null && selectedTile != unit.getTile())
             unit.getNukeBlastRadius() else -1
@@ -148,7 +169,7 @@ object WorldMapTileUpdater {
             }
 
             // Highlight tile unit can move to
-            if (unit.movement.canMoveTo(tile) ||
+            if (projectedDestinations != null || unit.movement.canMoveTo(tile) ||
                 unit.movement.isUnknownTileWeShouldAssumeToBePassable(tile) && !unit.baseUnit.movesLikeAirUnits
             ) {
                 if (UncivGame.Current.settings.useCirclesToIndicateMovableTiles) {

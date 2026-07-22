@@ -31,7 +31,11 @@ interface OverlayButtonData{
 const val buttonSize = 60f
 const val smallerCircleSizes = 25f
 
-class MoveHereOverlayButtonData(val unitToTurnsToDestination: HashMap<MapUnit, Int>, val tile: Tile) :
+class MoveHereOverlayButtonData(
+    val unitToTurnsToDestination: HashMap<MapUnit, Int>,
+    val tile: Tile,
+    private val showTurns: Boolean = true,
+) :
     OverlayButtonData {
     override fun createButton(worldMapHolder: WorldMapHolder): Actor {
         return getMoveHereButton(worldMapHolder)
@@ -47,7 +51,7 @@ class MoveHereOverlayButtonData(val unitToTurnsToDestination: HashMap<MapUnit, I
             .surroundWithCircle(buttonSize - 2, false)
             .surroundWithCircle(buttonSize, false, ImageGetter.CHARCOAL)
 
-        if (!isParadrop) {
+        if (!isParadrop && showTurns) {
             val numberCircle = unitToTurnsToDestination.values.maxOrNull()!!.tr().toLabel(fontSize = 14)
                 .apply { setAlignment(Align.center) }
                 .surroundWithCircle(smallerCircleSizes - 2, color = BaseScreen.skinStrings.skinConfig.baseColor.darken(0.3f))

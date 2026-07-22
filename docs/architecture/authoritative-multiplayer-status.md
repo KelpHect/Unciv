@@ -4180,3 +4180,61 @@ Verification on 2026-07-22:
   on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
   `unciv-v3-turn-readiness-pg19b2` container, network, and volume were removed,
   and cleanup was verified.
+
+## Projection-owned movement and swap legality (projection v40)
+
+Player projection version 40 adds two bounded coordinate allowlists to each
+owned unit: exact destinations reachable in the current turn and compatible
+friendly swap destinations. They are populated only for the authenticated
+current actor. Visible foreign units and out-of-turn owned units always receive
+empty lists. Explored-but-not-visible tiles are excluded so hidden blockers do
+not become an oracle. Genuinely unexplored tiles retain the shared engine's
+uniform assume-passable treatment, preserving normal fog exploration without
+consulting hidden terrain or occupancy.
+
+The Rust boundary now rejects malformed movement metadata before public API
+delivery: foreign or out-of-turn options, duplicates/non-sorted lists, current
+unit coordinates, and destinations on explored hidden tiles are protocol
+errors. Exact `MoveUnit` and `SwapUnits` client preflight is bound to the
+selected projected unit's allowlist. `MoveUnitToward` accepts only an owned unit
+with movement during the actor's turn and an explored final target; the private
+worker still derives and validates the complete route.
+
+For an explicitly opened v3 game, tile highlights, tile selection, right-click,
+single-tap, move overlays, swap-mode availability, and command submission now
+consume the synchronized projection. The client no longer computes a path or
+first-turn destination before sending movement intent. If synchronization is
+missing or retrying, the adapter fails closed rather than falling back to the
+disposable local rules model. Local, hotseat, saves, legacy multiplayer, and
+server-owned AI continue using the shared Kotlin engine unchanged.
+
+The audit also made a remaining boundary explicit in `missing_multiplayer.md`:
+combat outcomes are authoritative, but attack/bombard/nuclear/air-sweep target
+discovery and preview still consult client rule objects. That work is not
+misreported as complete.
+
+Verification on 2026-07-22:
+
+- Deterministic engine tests compare every projected destination with shared
+  `UnitMovement` results, require swaps to remain visible, allow only visible or
+  uniformly unknown exact movement, exclude foreign legality, and clear all
+  lists out of turn. Command-bus/session tests cover exact allowlist rejection,
+  explored multi-turn intent, explicit-open routing, and swap allowlists.
+- Strict Rust/Kotlin projection-v40 fixtures round-trip exactly. Rust semantic
+  tests reject hidden, duplicate, foreign, and out-of-turn movement metadata.
+  The generated OpenAPI contract includes the new closed DTO and matches the
+  checked-in artifact.
+- `./gradlew :tests:test :server:test --no-daemon` passes 944 JVM tests with 13
+  intentional skips and zero failures or errors. Rust passes 87 active library
+  tests and 7 HTTP/OpenAPI tests. `cargo fmt --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` pass.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55456; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-movement-pg19b2` container, network, and volume were removed, and
+  cleanup was verified.
+- The broad gates initially caught a stale OpenAPI artifact and two v39-style
+  session fixtures. Both were corrected and the complete gates were rerun to a
+  clean result; no compile, test, formatting, Clippy, or database error remains
+  deferred.

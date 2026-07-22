@@ -13,6 +13,7 @@ import com.unciv.models.translations.tr
 import com.unciv.ui.popups.ConfirmPopup
 import com.unciv.ui.popups.hasOpenPopups
 import com.unciv.ui.screens.pickerscreens.PromotionPickerScreen
+import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeMovementUi
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getActionDefaultPage
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getPagingActions
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getUnitActions
@@ -218,7 +219,13 @@ object UnitActions {
         val worldScreen = GUI.getWorldScreen()
         if (worldScreen.bottomUnitTable.selectedUnits.size > 1) return
         // Only show the swap action if there is at least one possible swap movement
-        if (unit.movement.getUnitSwappableTiles().none()) return
+        val hasSwap = if (AuthoritativeMovementUi.isOpen(worldScreen))
+            AuthoritativeMovementUi.projection(worldScreen)?.ownUnits
+                ?.singleOrNull { it.id == unit.id }
+                ?.swapDestinations
+                ?.isNotEmpty() == true
+        else unit.movement.getUnitSwappableTiles().any()
+        if (!hasSwap) return
         yield(UnitAction(
             type = UnitActionType.SwapUnits,
             isCurrentAction = worldScreen.bottomUnitTable.selectedUnitIsSwapping,

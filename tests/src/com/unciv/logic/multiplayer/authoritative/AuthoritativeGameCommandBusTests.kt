@@ -676,6 +676,21 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun exactMoveAndSwapRejectDestinationsNotPublishedForTheUnit() = runBlocking {
+        val initial = movementProjection(7, "hash-7", 42)
+        val transport = FakeTransport(initial)
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "rejected-command" }
+        bus.refresh()
+
+        val moveFailure = runCatching { bus.moveUnit(42, 9, 9) }.exceptionOrNull()
+        val swapFailure = runCatching { bus.swapUnits(42, 9, 9) }.exceptionOrNull()
+        assertTrue(moveFailure is IllegalArgumentException)
+        assertTrue(swapFailure is IllegalArgumentException)
+        assertTrue(transport.moveRequests.isEmpty())
+        assertTrue(transport.swapRequests.isEmpty())
+    }
+
+    @Test
     fun cityTileAssignmentRequestUsesClosedSnakeCaseState() {
         val encoded = Json.encodeToString(
             ApiV3SetCityTileAssignmentRequest.serializer(),
@@ -1528,7 +1543,11 @@ class AuthoritativeGameCommandBusTests {
         revision = revision,
         hash = hash,
         exploredTiles = listOf(ProjectedTileVisibility(2, 3, visible = true)),
-        ownUnits = listOf(ProjectedUnit(unitId, "Rome", "Warrior", 0, 0, 100, 2f)),
+        ownUnits = listOf(ProjectedUnit(
+            unitId, "Rome", "Warrior", 0, 0, 100, 2f,
+            moveDestinations = listOf(ProjectedMovementDestination(2, 3)),
+            swapDestinations = listOf(ProjectedMovementDestination(2, 3)),
+        )),
     )
 
     private fun accepted(commandId: String, previous: Long, committed: Long, hash: String) =

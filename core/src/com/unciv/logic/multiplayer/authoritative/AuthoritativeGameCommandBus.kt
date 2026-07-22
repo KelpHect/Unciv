@@ -551,13 +551,14 @@ class AuthoritativeGameCommandBus(
 
     suspend fun moveUnit(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Unit is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any {
+        require(unit.moveDestinations.any {
             it.x == destinationX && it.y == destinationY
         }) {
-            "Destination is absent from the current player projection"
+            "Destination is absent from the unit's projected exact moves"
         }
         submitLocked(PendingAuthoritativeCommand.MoveUnit(
             commandId = commandIdFactory(),
@@ -571,8 +572,12 @@ class AuthoritativeGameCommandBus(
 
     suspend fun moveUnitToward(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Unit is absent from the current player projection"
+        }
+        require(current.projection.isCurrentTurn && unit.currentMovement > 0f) {
+            "Unit cannot receive a movement order in the current projection"
         }
         require(current.projection.exploredTiles.any {
             it.x == destinationX && it.y == destinationY
@@ -854,13 +859,14 @@ class AuthoritativeGameCommandBus(
 
     suspend fun swapUnits(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Unit is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any {
+        require(unit.swapDestinations.any {
             it.x == destinationX && it.y == destinationY
         }) {
-            "Destination is absent from the current player projection"
+            "Destination is absent from the unit's projected swaps"
         }
         submitLocked(PendingAuthoritativeCommand.SwapUnits(
             commandId = commandIdFactory(),

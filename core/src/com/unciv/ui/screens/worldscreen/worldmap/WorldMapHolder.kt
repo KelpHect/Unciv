@@ -198,13 +198,19 @@ class WorldMapHolder(
 
             // Todo: valid tiles for actions should be handled internally, not here.
             val canPerformActionsOnTile = if (previousSelectedUnitIsSwapping) {
-                previousSelectedUnits.first().movement.canUnitSwapTo(tile)
+                AuthoritativeMovementUi.canSwap(worldScreen, previousSelectedUnits.first(), tile)
+                    ?: previousSelectedUnits.first().movement.canUnitSwapTo(tile)
             } else if(previousSelectedUnitIsConnectingRoad) {
                 true
             } else {
                 previousSelectedUnits.any {
-                    it.movement.canMoveTo(tile) ||
+                    val authoritativeIntent = if (it.isPreparingParadrop()) null
+                        else AuthoritativeMovementUi.movementIntent(worldScreen, it, tile)
+                    authoritativeIntent?.let { intent ->
+                        intent != AuthoritativeMovementIntent.Unavailable
+                    } ?: (it.movement.canMoveTo(tile) ||
                         (it.movement.isUnknownTileWeShouldAssumeToBePassable(tile) && !it.baseUnit.movesLikeAirUnits)
+                    )
                 }
             }
 
@@ -254,7 +260,8 @@ class WorldMapHolder(
 
         if (worldScreen.bottomUnitTable.selectedUnitIsSwapping) {
             /** ****** Right-click Swap ****** */
-            if (unit.movement.canUnitSwapTo(tile)) {
+            if (AuthoritativeMovementUi.canSwap(worldScreen, unit, tile)
+                    ?: unit.movement.canUnitSwapTo(tile)) {
                 swapMoveUnitToTargetTile(unit, tile)
                 localShouldUpdate = true
             }
@@ -279,7 +286,9 @@ class WorldMapHolder(
                 if (attackableTile.combatant != null)
                     worldScreen.battleAnimationDeferred(attacker, damageToAttacker, attackableTile.combatant, damageToDefender)
                 localShouldUpdate = true
-            } else if (unit.movement.canReach(tile)) {
+            } else if (AuthoritativeMovementUi.movementIntent(worldScreen, unit, tile)?.let {
+                    it != AuthoritativeMovementIntent.Unavailable
+                } ?: unit.movement.canReach(tile)) {
                 /** ****** Right-click Move ****** */
                 moveUnitToTargetTile(listOf(unit), tile)
                 localShouldUpdate = true
@@ -304,6 +313,11 @@ class WorldMapHolder(
 
         val selectedUnit = selectedUnits.first()
         markUnitMoveTutorialComplete(selectedUnit) // not too expensive to have it repeat too often
+
+        if (isAuthoritativeGame() && !selectedUnit.isPreparingParadrop()) {
+            submitAuthoritativeUnitMove(selectedUnits, targetTile, destinationThisTurn = null)
+            return
+        }
 
         Concurrency.run("TileToMoveTo") {
             // these are the heavy parts, finding where we want to go
@@ -444,25 +458,29 @@ class WorldMapHolder(
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,
         requestedTarget: Tile,
-        destinationThisTurn: Tile,
+        destinationThisTurn: Tile?,
     ) {
         val selectedUnit = selectedUnits.first()
         val isParadrop = selectedUnit.isPreparingParadrop()
-        val isMultiTurnOrder = destinationThisTurn != requestedTarget
+        val movementIntent = AuthoritativeMovementUi.movementIntent(
+            worldScreen, selectedUnit, requestedTarget,
+        )
+        val isMultiTurnOrder = !isParadrop && movementIntent == AuthoritativeMovementIntent.MoveToward
         val description = when {
             isParadrop -> "unit paradrop"
             isMultiTurnOrder -> "unit movement order"
             else -> "unit move"
         }
         submitAuthoritativeUnitCommand(description, submit = {
-            if (isParadrop)
+            if (isParadrop) {
+                val paradropDestination = checkNotNull(destinationThisTurn)
                 worldScreen.game.onlineMultiplayer.authoritativeSession?.paradropUnitIfOpen(
                     worldScreen.gameInfo.gameId,
                     selectedUnit.id,
-                    destinationThisTurn.position.x,
-                    destinationThisTurn.position.y,
+                    paradropDestination.position.x,
+                    paradropDestination.position.y,
                 )
-            else if (isMultiTurnOrder)
+            } else if (isMultiTurnOrder)
                 worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitTowardIfOpen(
                     worldScreen.gameInfo.gameId,
                     selectedUnit.id,
@@ -472,8 +490,8 @@ class WorldMapHolder(
             else worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
                     worldScreen.gameInfo.gameId,
                     selectedUnit.id,
-                    destinationThisTurn.position.x,
-                    destinationThisTurn.position.y,
+                    requestedTarget.position.x,
+                    requestedTarget.position.y,
                 )
         }) {
             if (selectedUnits.size > 1)
@@ -863,6 +881,36 @@ class WorldMapHolder(
     }
 
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
+        val authoritativeUnits = selectedUnits.filter {
+            !it.isPreparingParadrop() &&
+                AuthoritativeMovementUi.movementIntent(worldScreen, it, tile)?.let { intent ->
+                    intent != AuthoritativeMovementIntent.Unavailable
+                } == true
+        }
+        if (AuthoritativeMovementUi.isOpen(worldScreen) &&
+            selectedUnits.none { it.isPreparingParadrop() }) {
+            if (authoritativeUnits.isEmpty()) {
+                addTileOverlays(tile)
+                worldScreen.shouldUpdate = true
+                return
+            }
+            val exactMove = authoritativeUnits.all {
+                AuthoritativeMovementUi.movementIntent(worldScreen, it, tile) ==
+                    AuthoritativeMovementIntent.ExactMove
+            }
+            if (UncivGame.Current.settings.singleTapMove && exactMove)
+                moveUnitToTargetTile(authoritativeUnits, tile)
+            else addTileOverlays(
+                tile,
+                MoveHereOverlayButtonData(
+                    HashMap(authoritativeUnits.associateWith { 1 }),
+                    tile,
+                    showTurns = false,
+                ),
+            )
+            worldScreen.shouldUpdate = true
+            return
+        }
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.
              * And so, all UI editing will be done on the main thread.
@@ -920,7 +968,8 @@ class WorldMapHolder(
     }
 
     private fun addTileOverlaysWithUnitSwapping(selectedUnit: MapUnit, tile: Tile) {
-        if (!selectedUnit.movement.canUnitSwapTo(tile)) { // give the regular tile overlays with no unit swapping
+        if (!(AuthoritativeMovementUi.canSwap(worldScreen, selectedUnit, tile)
+                ?: selectedUnit.movement.canUnitSwapTo(tile))) { // give the regular tile overlays with no unit swapping
             addTileOverlays(tile)
             worldScreen.shouldUpdate = true
             return

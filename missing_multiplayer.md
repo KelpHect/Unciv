@@ -38,8 +38,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: partial gameplay and projection families
 
-- [ ] Movement: project canonical legal movement and swap destinations instead
-  of relying on client-side legality for highlighting/preflight.
+- [ ] Combat targeting and previews: project legal attack, bombardment, nuclear,
+  and air-sweep targets plus the bounded public preview data needed by the UI.
+  Canonical combat execution is already server-owned, but opened-v3 target
+  discovery/highlighting still consults disposable client rule objects before
+  deciding which typed command to submit.
 - [ ] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
   cancellation commands. Pending serialized unit orders now execute inside the
@@ -58,7 +61,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Research: implement bounded removal and reordering of queued technologies.
   Replace/append/free selection, researched history, queue progress/cost/
   overflow, turn estimates, and opaque public completion prompts plus their
-  authoritative acknowledgment are complete in projection v39. The worker
+  authoritative acknowledgment were completed in projection v39. The worker
   derives prerequisites and completion identity without accepting a
   client-authored queue or outcome. The current picker exposes no removal or
   drag-reordering control; any future operation needs server semantics that
@@ -242,9 +245,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (942 JVM tests, 13
+- `./gradlew :tests:test :server:test --no-daemon` passes (944 JVM tests, 13
   intentional skips).
-- Rust passes 86 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 87 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

@@ -9,6 +9,8 @@ mod administration;
 mod invitations;
 #[path = "reconciliation_integration_tests.rs"]
 mod reconciliation;
+#[path = "replica_fault_integration_tests.rs"]
+mod replica_faults;
 #[path = "snapshot_integration_tests.rs"]
 mod snapshots;
 

@@ -3925,3 +3925,41 @@ Verification on 2026-07-22:
 Detection is now operational and fail-closed. Deterministic reviewed repair,
 prior-snapshot journal recovery, and retention/compaction remain tracked as
 separate work because the audit must never silently rewrite canonical history.
+
+## Multi-replica CAS and database-connection fault proof
+
+The PostgreSQL suite now creates two `PostgresGameRepository` instances with
+independent connection pools and distinct application identities, matching two
+Rust service replicas rather than cloning one in-memory test double. Both submit
+different, valid worker proposals for the same game and expected revision only
+after a shared barrier releases them concurrently.
+
+PostgreSQL's game-row lock serializes the final authority boundary. Exactly one
+replica commits the compressed snapshot, immutable revision, command journal,
+head, and revision outbox event; the other receives a stale conflict identifying
+canonical revision one. Counts prove there is exactly one row at every commit
+boundary. Replaying the winner's command ID through the other pool returns the
+original acceptance despite a deliberately different retry proposal, modeling
+a response lost after commit without re-executing canonical state.
+
+A second test holds the canonical game lock, starts a commit through a separately
+named victim pool, observes that backend waiting on the PostgreSQL lock, and
+terminates it with `pg_terminate_backend`. The commit returns a storage failure.
+After releasing the controlling lock, revision, snapshot, journal, and outbox
+counts all remain zero beyond revision zero. Retrying the identical command ID
+through the recovered victim pool commits revision one, and the reconciliation
+tool reports no findings.
+
+Verification on 2026-07-22:
+
+- The two focused tests pass without timing sleeps for the race: a barrier starts
+  both replicas together, while `pg_stat_activity` lock evidence identifies the
+  exact backend selected for controlled termination.
+- All 17 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55456; the live server reported `19beta2`. The disposable
+  `unciv-v3-replica-fault-pg19b2` container was removed and cleanup verified.
+
+Independent-replica revision CAS and a commit-boundary database-connection fault
+are now proven. Actual database/service failover plus Rust-process, Kotlin-worker,
+HTTP-response, and outbox-boundary termination tests remain explicitly tracked.

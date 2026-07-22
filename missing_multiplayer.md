@@ -87,11 +87,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   The bounded read-only CLI now detects invalid heads/chains, missing or orphaned
   snapshots, commands and commit-outbox events, owner/civilization membership
   damage, quarantine state, and invalid compressed/canonical snapshot bytes.
-- [ ] Add controlled process fault tests that kill/restart Rust, the Kotlin
-  worker, and database connections at execution, commit, response, and outbox
-  boundaries. Prove no phantom revision and safe same-command retry.
-- [ ] Test multi-replica races and failover against PostgreSQL CAS, including two
-  valid commands at one expected revision with exactly one accepted head.
+- [ ] Complete controlled process fault tests for Rust process death, Kotlin
+  worker death, lost HTTP responses, and outbox-dispatch boundaries. Forced
+  database-connection termination while blocked at the canonical commit lock is
+  covered: it leaves no phantom rows and the same command retries safely.
+- [ ] Test actual PostgreSQL/service failover and reconnection under load. The
+  independent-replica CAS race is covered: two valid commands at one expected
+  revision produce exactly one complete head and one stale conflict.
 
 ## P0: projection confidentiality and protocol hardening
 
@@ -226,10 +228,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 ## Current verification health
 
 - No known compile, test, formatting, clippy, or database integration error is
-  being deferred from the reconciliation milestone.
+  being deferred from the replica/fault milestone.
 - `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
   intentional skips).
-- Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 15 serialized
+- Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

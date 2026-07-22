@@ -35,6 +35,15 @@ use crate::{
     PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
+use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
+
+fn stored_snapshot(snapshot: &[u8]) -> Result<StoredSnapshot, CommitError> {
+    encode_snapshot(snapshot).map_err(|error| match error {
+        SnapshotCodecError::Codec => CommitError::Storage,
+        _ => CommitError::SnapshotTooLarge,
+    })
+}
+
 #[derive(Clone)]
 pub struct PostgresGameRepository {
     pool: PgPool,
@@ -142,6 +151,7 @@ mod major_diplomacy;
 mod outbox;
 mod religion;
 mod security;
+mod snapshot_codec;
 mod spectators;
 mod trade;
 mod unit_actions;
@@ -166,18 +176,22 @@ impl PostgresGameRepository {
         let payload_hash: String = row.get("payload_hash");
         let snapshot_state_hash: String = row.get("snapshot_state_hash");
         let revision_state_hash: String = row.get("revision_state_hash");
-        let actual_hash = state_hash(&payload);
-        let valid = codec == "identity"
-            && protocol_version == i32::from(PROTOCOL_VERSION)
+        let payload_hash_valid = payload_hash == state_hash(&payload);
+        let decoded = decode_snapshot(
+            &codec,
+            &payload,
+            declared_compressed_size,
+            declared_uncompressed_size,
+        );
+        let canonical_hash = decoded.as_ref().ok().map(|bytes| state_hash(bytes));
+        let valid = protocol_version == i32::from(PROTOCOL_VERSION)
             && validation_status == "valid"
-            && !payload.is_empty()
-            && payload.len() <= MAX_SNAPSHOT_BYTES
-            && declared_compressed_size == payload.len() as i64
-            && declared_uncompressed_size == payload.len() as i64
-            && payload_hash == actual_hash
-            && snapshot_state_hash == actual_hash
-            && revision_state_hash == actual_hash
-            && std::str::from_utf8(&payload).is_ok();
+            && payload_hash_valid
+            && canonical_hash.as_ref() == Some(&snapshot_state_hash)
+            && canonical_hash.as_ref() == Some(&revision_state_hash)
+            && decoded
+                .as_ref()
+                .is_ok_and(|bytes| std::str::from_utf8(bytes).is_ok());
         if !valid {
             let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
             sqlx::query(
@@ -198,7 +212,10 @@ impl PostgresGameRepository {
             tx.commit().await.map_err(CommitError::storage)?;
             return Err(CommitError::GameUnavailable);
         }
-        Ok(String::from_utf8(payload).expect("UTF-8 was validated"))
+        Ok(
+            String::from_utf8(decoded.expect("snapshot codec was validated"))
+                .expect("UTF-8 was validated"),
+        )
     }
 
     /// Revalidates the canonical head without invoking a worker. Operators and
@@ -236,10 +253,7 @@ impl PostgresGameRepository {
     /// content-addressed ruleset manifest and account; the public API will do
     /// that through authenticated setup rather than accepting a save upload.
     pub async fn create_game(&self, game: NewGame) -> Result<(), CommitError> {
-        if game.snapshot.is_empty() || game.snapshot.len() > MAX_SNAPSHOT_BYTES {
-            return Err(CommitError::SnapshotTooLarge);
-        }
-        let payload_hash = state_hash(&game.snapshot);
+        let stored = stored_snapshot(&game.snapshot)?;
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
         let engine_build: String =
             sqlx::query_scalar("SELECT engine_build FROM ruleset_manifests WHERE hash = $1")
@@ -263,14 +277,17 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
-            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, 0, $2, $3, 'identity', $4, $4, $5, $5, $6)",
+            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8, $9)",
         )
         .bind(game.game_id)
         .bind(engine_build)
         .bind(&game.ruleset_manifest_hash)
-        .bind(i64::try_from(game.snapshot.len()).expect("snapshot length fits BIGINT"))
-        .bind(&payload_hash)
-        .bind(&game.snapshot)
+        .bind(stored.codec)
+        .bind(stored.compressed_size)
+        .bind(stored.uncompressed_size)
+        .bind(&stored.canonical_state_hash)
+        .bind(&stored.payload_hash)
+        .bind(&stored.payload)
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;
@@ -278,7 +295,7 @@ impl PostgresGameRepository {
             "INSERT INTO game_revisions (game_id, revision, parent_revision, command_id, snapshot_revision, canonical_state_hash) VALUES ($1, 0, NULL, NULL, 0, $2)",
         )
         .bind(game.game_id)
-        .bind(&payload_hash)
+        .bind(&stored.canonical_state_hash)
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;
@@ -348,6 +365,7 @@ impl PostgresGameRepository {
         if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
             return Err(CommitError::InvalidSnapshotHash);
         }
+        let stored = stored_snapshot(&proposal.snapshot)?;
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
 
         let duplicate = sqlx::query(
@@ -469,25 +487,24 @@ impl PostgresGameRepository {
                 return Err(CommitError::Unauthorized);
             }
         }
-        let snapshot_size =
-            i64::try_from(proposal.snapshot.len()).expect("snapshot length fits BIGINT");
         let manifest_hash: String = head.get("ruleset_manifest_hash");
         let engine_build: String = head.get("engine_build");
-        let payload_hash = state_hash(&proposal.snapshot);
         let command_json =
             serde_json::to_value(&envelope).expect("command envelope is serializable");
 
         sqlx::query(
-            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, $2, $3, $4, 'identity', $5, $5, $6, $7, $8)",
+            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         )
         .bind(envelope.game_id)
         .bind(next_revision_i64)
         .bind(engine_build)
         .bind(manifest_hash)
-        .bind(snapshot_size)
-        .bind(&proposal.canonical_state_hash)
-        .bind(payload_hash)
-        .bind(&proposal.snapshot)
+        .bind(stored.codec)
+        .bind(stored.compressed_size)
+        .bind(stored.uncompressed_size)
+        .bind(&stored.canonical_state_hash)
+        .bind(&stored.payload_hash)
+        .bind(&stored.payload)
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;

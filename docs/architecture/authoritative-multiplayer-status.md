@@ -3834,3 +3834,49 @@ Player join is now explicitly owner-authorized, target-discoverable, retry-safe,
 and atomic at any current revision. Production player-setup UI wiring remains
 tracked; the coverage audit proceeds to the remaining full-v3 lifecycle and
 projection-only UI gaps.
+
+## Bounded canonical snapshot compression
+
+Migration `0010_snapshot_codec.sql` closes the stored codec set to `identity`
+and `zstd`. Existing identity rows remain readable for in-place migration and
+restore compatibility, while every newly created or committed canonical
+snapshot is encoded with pinned Rust `zstd` crate version 0.13.3 at level 3.
+Compression changes storage representation only: the Kotlin worker continues to
+receive the exact canonical UTF-8 `GameInfo` JSON, and revisions/projections keep
+hashing those uncompressed canonical bytes.
+
+The storage boundary now records and verifies two independent hashes. The
+payload hash authenticates the compressed bytes stored in PostgreSQL; the
+canonical state hash authenticates the bounded decompressed bytes and must match
+both the snapshot and immutable revision. Compressed and uncompressed sizes are
+independently capped at 16 MiB in Rust and PostgreSQL. Decompression uses a
+streaming reader capped at 16 MiB plus one sentinel byte and limits the zstd
+back-reference window to 16 MiB, so a small frame cannot allocate or emit an
+unbounded canonical snapshot.
+
+Any unsupported codec, invalid frame, size mismatch, payload-hash mismatch,
+canonical-hash mismatch, invalid UTF-8, or decompression overflow marks the
+immutable snapshot corrupt and quarantines the game. The server never falls
+back to client bytes or rewrites the canonical head.
+
+Verification on 2026-07-22:
+
+- Codec unit tests prove zstd round-trip behavior, distinct compressed and
+  canonical hashes, strict legacy-identity size checks, unknown-codec rejection,
+  and bounded failure when a highly compressed frame expands beyond its claim.
+- The PostgreSQL corruption test proves new revision-zero snapshots are stored
+  as zstd with correct independent sizes/canonical hash, then replaces the frame
+  with invalid zstd bytes whose outer payload hash is valid. Canonical validation
+  still quarantines the game without advancing its head.
+- All 14 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55458; the live server reported `19beta2`. The disposable
+  `unciv-v3-zstd-pg19b2` container was removed and cleanup verified.
+- Rust passed 83 active library tests and all 7 HTTP/OpenAPI tests. `cargo fmt
+  --check` and warnings-as-errors `cargo clippy --all-targets -- -D warnings`
+  passed. The broad 935-test JVM/server regression suite remained green with 13
+  intentional skips.
+
+Canonical snapshots are now compressed with bounded, fail-closed decoding.
+Prior-snapshot journal recovery and retention/compaction remain separately
+tracked because neither may weaken immutable history or command idempotency.

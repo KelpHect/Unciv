@@ -81,8 +81,6 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Implement bounded recovery from the newest valid prior immutable snapshot
   plus journal replay. Current corrupt-head handling quarantines the game but
   does not reconstruct it.
-- [ ] Add snapshot compression with strict compressed and decompressed size
-  limits, streaming quotas, and corruption tests.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [ ] Add reconciliation tooling for missing snapshots, orphan revisions,
@@ -230,7 +228,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   being deferred from the player-invitation milestone.
 - `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
   intentional skips).
-- Rust passes 80 active library tests and 7 HTTP/OpenAPI tests; 14 serialized
+- Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 14 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

@@ -19,6 +19,7 @@ mod city_population;
 mod diplomacy;
 mod great_people;
 mod protocol;
+mod religion;
 mod unit_actions;
 mod unit_movement;
 mod unit_orders;
@@ -35,7 +36,7 @@ pub use protocol::{
     SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
     SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    UpgradeUnitsIntent, UseReligiousUnitIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

@@ -450,6 +450,16 @@ pub(super) struct ChooseGreatPersonRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct UseReligiousUnitRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) unit_id: i32,
+    pub(super) action: unciv_authoritative_server::ReligiousUnitAction,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SetCityTileAssignmentRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

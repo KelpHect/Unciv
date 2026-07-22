@@ -1,6 +1,34 @@
 use crate::*;
 
 #[test]
+fn religious_unit_contract_excludes_target_pressure_charges_religion_and_actor() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "use_religious_unit", "unit_id": 17, "action": "spread_religion"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::UseReligiousUnit {
+            unit_id: 17,
+            action: ReligiousUnitAction::SpreadReligion,
+        }
+    );
+    for untrusted in [
+        "target_city_id",
+        "religion",
+        "pressure",
+        "charges",
+        "actor_civilization_id",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "use_religious_unit", "unit_id": 17, "action": "remove_heresy"
+        });
+        value[untrusted] = serde_json::json!("forged");
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn move_unit_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "move_unit", "unit_id": 42, "destination_x": -3, "destination_y": 7

@@ -11,6 +11,7 @@ import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
@@ -361,6 +362,14 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
         val unitName: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("use_religious_unit")
+    data class UseReligiousUnit(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val action: ReligiousUnitAction,
     ) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
@@ -856,6 +865,16 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.unitName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.UseReligiousUnit -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.useReligiousUnit(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.unitId,
+                    operation.action,
                 )
                 responseForGame(engine, result.game)
             }

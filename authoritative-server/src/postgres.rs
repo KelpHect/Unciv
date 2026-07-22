@@ -23,7 +23,7 @@ use crate::worker::{
     SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
     SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerManifest,
+    UpgradeUnitsIntent, UseReligiousUnitIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -101,6 +101,7 @@ mod diplomacy;
 mod games;
 mod great_people;
 mod outbox;
+mod religion;
 mod security;
 mod unit_actions;
 mod unit_movement;

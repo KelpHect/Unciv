@@ -22,6 +22,7 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.mapunit.movement.UnitMovement
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Spy
 import com.unciv.models.UnitActionType
@@ -694,6 +695,16 @@ class WorldMapHolder(
         submitAuthoritativeUnitCommand("tile pillage", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.pillageTileIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
+    /** Returns true when a closed religious action was submitted to API v3. */
+    fun useReligiousUnit(unit: MapUnit, action: ReligiousUnitAction): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("religious unit action", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.useReligiousUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, action)
         }) { removeUnitActionOverlay() }
         return true
     }

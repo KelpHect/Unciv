@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{CityDispositionAction, CityGovernanceAction, UnitPosture};
+use crate::{CityDispositionAction, CityGovernanceAction, ReligiousUnitAction, UnitPosture};
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
@@ -158,6 +158,7 @@ pub struct ProjectedUnit {
     pub road_connection_destination_x: Option<i32>,
     pub road_connection_destination_y: Option<i32>,
     pub road_connection_path: Vec<ProjectedRoadPathTile>,
+    pub available_religious_actions: Vec<ReligiousUnitAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -192,7 +193,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v21.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v22.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -208,6 +209,15 @@ mod tests {
         assert_eq!(
             projection.selectable_great_people,
             ["Great Engineer", "Great Scientist"]
+        );
+        assert_eq!(
+            projection.own_units[0].available_religious_actions,
+            [ReligiousUnitAction::SpreadReligion]
+        );
+        assert!(
+            projection.visible_foreign_units[0]
+                .available_religious_actions
+                .is_empty()
         );
         assert_eq!(projection.own_cities[0].construction_queue, ["Monument"]);
         assert!(projection.own_cities[0].assignable_tiles[0].worked);
@@ -248,7 +258,7 @@ mod tests {
         assert_eq!(projection.own_units[0].next_promotion_xp, Some(30));
         assert_eq!(
             projection.own_units[0].instance_name.as_deref(),
-            Some("First Legion")
+            Some("First Mission")
         );
         assert_eq!(projection.own_units[0].improvement_order.len(), 2);
         assert_eq!(

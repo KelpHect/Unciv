@@ -39,6 +39,13 @@ pub enum UnitPosture {
     Guard,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReligiousUnitAction {
+    SpreadReligion,
+    RemoveHeresy,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GameCommand {
@@ -197,6 +204,10 @@ pub enum GameCommand {
     },
     ChooseGreatPerson {
         unit_name: String,
+    },
+    UseReligiousUnit {
+        unit_id: i32,
+        action: ReligiousUnitAction,
     },
     SetCityTileAssignment {
         city_id: String,

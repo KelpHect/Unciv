@@ -1163,6 +1163,32 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("free_great"))
     }
 
+    @Test
+    fun religiousUnitActionIsBoundToTheOwnedProjectedUnitAndClosedAction() = runBlocking {
+        val initial = projection(
+            3,
+            "hash-3",
+            ownUnits = listOf(ProjectedUnit(
+                17, "Rome", "Missionary", 0, 0, 100, 2f,
+                availableReligiousActions = listOf(ReligiousUnitAction.SpreadReligion),
+            )),
+        )
+        val transport = FakeTransport(initial)
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "religion-command" }
+        bus.refresh()
+
+        assertTrue(bus.useReligiousUnit(17, ReligiousUnitAction.SpreadReligion)
+            is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.religiousUnitRequests.single()
+        assertEquals(ApiV3UseReligiousUnitRequest(
+            "religion-command", 3, "hash-3", 17, ReligiousUnitAction.SpreadReligion,
+        ), request)
+        val encoded = Json.encodeToString(ApiV3UseReligiousUnitRequest.serializer(), request)
+        for (forged in listOf("actor", "city", "religion_name", "pressure", "charges"))
+            assertTrue(!encoded.contains(forged))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1430,6 +1456,7 @@ class AuthoritativeGameCommandBusTests {
         val cityDispositionRequests = mutableListOf<ApiV3ResolveCityDispositionRequest>()
         val diplomaticVoteRequests = mutableListOf<ApiV3CastDiplomaticVoteRequest>()
         val greatPersonRequests = mutableListOf<ApiV3ChooseGreatPersonRequest>()
+        val religiousUnitRequests = mutableListOf<ApiV3UseReligiousUnitRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1824,6 +1851,21 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             greatPersonRequests += request
             return onChooseGreatPerson(request)
+        }
+        override suspend fun useReligiousUnit(
+            gameId: String,
+            request: ApiV3UseReligiousUnitRequest,
+        ): ApiV3CommandAccepted {
+            religiousUnitRequests += request
+            current = current.copy(
+                committedRevision = request.expectedRevision + 1,
+                canonicalStateHash = "religious-unit-hash",
+                projectionHash = "religious-unit-projection-hash",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                request.expectedRevision + 1, "religious-unit-hash",
+            )
         }
         override suspend fun setCityTileAssignment(
             gameId: String,

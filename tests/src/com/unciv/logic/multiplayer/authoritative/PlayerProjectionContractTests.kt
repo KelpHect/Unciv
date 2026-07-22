@@ -43,7 +43,9 @@ class PlayerProjectionContractTests {
         assertEquals(12, projection.ownUnits.single().promotionXp)
         assertEquals(30, projection.ownUnits.single().nextPromotionXp)
         assertEquals(listOf("Drill II", "Shock I"), projection.ownUnits.single().availablePromotions)
-        assertEquals("First Legion", projection.ownUnits.single().instanceName)
+        assertEquals("First Mission", projection.ownUnits.single().instanceName)
+        assertEquals(listOf(ReligiousUnitAction.SpreadReligion),
+            projection.ownUnits.single().availableReligiousActions)
         assertEquals(listOf("Remove Forest", "Farm"),
             projection.ownUnits.single().improvementOrder.map { it.improvementName })
         assertEquals(8, projection.ownUnits.single().roadConnectionDestinationX)
@@ -62,6 +64,8 @@ class PlayerProjectionContractTests {
         assertEquals(null, projection.visibleForeignUnits.single().roadConnectionDestinationX)
         assertEquals(emptyList<ProjectedRoadPathTile>(),
             projection.visibleForeignUnits.single().roadConnectionPath)
+        assertEquals(emptyList<ReligiousUnitAction>(),
+            projection.visibleForeignUnits.single().availableReligiousActions)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
@@ -98,6 +102,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v21.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v22.fixture.json") }
         .first { it.isFile }
 }

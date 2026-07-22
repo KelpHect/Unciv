@@ -33,7 +33,7 @@ data class PlayerProjection(
     val selectableGreatPeople: List<String> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 21
+        const val CURRENT_PROJECTION_VERSION = 22
     }
 }
 
@@ -128,6 +128,7 @@ data class ProjectedUnit(
     val roadConnectionDestinationX: Int? = null,
     val roadConnectionDestinationY: Int? = null,
     val roadConnectionPath: List<ProjectedRoadPathTile> = emptyList(),
+    val availableReligiousActions: List<ReligiousUnitAction> = emptyList(),
 )
 
 @Serializable
@@ -309,6 +310,8 @@ object PlayerProjectionBuilder {
         roadConnectionPath = if (includePrivateOrders)
             unit.automatedRoadConnectionPath.orEmpty().map { ProjectedRoadPathTile(it.x, it.y) }
         else emptyList(),
+        availableReligiousActions = if (includePrivateOrders)
+            ReligiousUnitActionExecutor.availableActions(unit) else emptyList(),
     )
     }
 

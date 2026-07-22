@@ -448,6 +448,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun useReligiousUnit(
+        gameId: String,
+        request: ApiV3UseReligiousUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/use-religious-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

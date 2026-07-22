@@ -258,6 +258,11 @@ sealed interface GameCommand {
         val unitName: String,
     ) : GameCommand
 
+    data class UseReligiousUnit(
+        val unitId: Int,
+        val action: ReligiousUnitAction,
+    ) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,
@@ -293,6 +298,12 @@ sealed interface GameCommand {
     data class AdoptPolicy(val policyName: String) : GameCommand
 
     data class ChooseFreeTechnology(val technologyName: String) : GameCommand
+}
+
+@Serializable
+enum class ReligiousUnitAction {
+    @SerialName("spread_religion") SpreadReligion,
+    @SerialName("remove_heresy") RemoveHeresy,
 }
 
 sealed interface CommandEnvelopeValidation {

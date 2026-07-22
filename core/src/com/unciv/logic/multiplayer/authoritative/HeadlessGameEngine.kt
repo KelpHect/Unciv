@@ -1178,6 +1178,24 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun useReligiousUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        action: ReligiousUnitAction,
+    ): EngineResult {
+        val actor = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot use a religious unit outside their turn"
+        }
+        val unit = actor.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        ReligiousUnitActionExecutor.execute(unit, action)
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

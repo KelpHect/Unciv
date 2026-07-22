@@ -321,6 +321,14 @@ sealed interface PendingAuthoritativeCommand {
         val unitName: String,
     ) : PendingAuthoritativeCommand
 
+    data class UseReligiousUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val action: ReligiousUnitAction,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -971,6 +979,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun useReligiousUnit(unitId: Int, action: ReligiousUnitAction) = mutex.withLock {
+        val current = requireSynchronized()
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(action in unit.availableReligiousActions) {
+            "Religious unit action is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.UseReligiousUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, action,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1428,6 +1449,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3ChooseGreatPersonRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.unitName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.UseReligiousUnit -> transport.useReligiousUnit(
+                    gameId,
+                    ApiV3UseReligiousUnitRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitId, pending.action,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

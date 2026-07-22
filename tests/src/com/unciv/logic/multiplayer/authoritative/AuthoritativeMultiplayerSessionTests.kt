@@ -840,6 +840,37 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeReligiousUnitActionRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            religiousUnitFailuresRemaining = 1
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = listOf(ProjectedUnit(
+                    17, "Rome", "Missionary", 0, 0, 100, 2f,
+                    availableReligiousActions = listOf(ReligiousUnitAction.SpreadReligion),
+                )),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.useReligiousUnitIfOpen(
+            GAME_ID, 17, ReligiousUnitAction.SpreadReligion,
+        ))
+        session.openGame(GAME_ID)
+        assertTrue(session.useReligiousUnitIfOpen(
+            GAME_ID, 17, ReligiousUnitAction.SpreadReligion,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.useReligiousUnitIfOpen(
+            GAME_ID, 17, ReligiousUnitAction.SpreadReligion,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.religiousUnitCommandIds.size)
+        assertEquals(transport.religiousUnitCommandIds[0], transport.religiousUnitCommandIds[1])
+        session.close()
+    }
+
+    @Test
     fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
@@ -1050,12 +1081,14 @@ class AuthoritativeMultiplayerSessionTests {
         val dispositionCommandIds = mutableListOf<String>()
         val voteCommandIds = mutableListOf<String>()
         val greatPersonCommandIds = mutableListOf<String>()
+        val religiousUnitCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
         var tilePurchaseFailuresRemaining = 0
         var governanceFailuresRemaining = 0
         var dispositionFailuresRemaining = 0
         var voteFailuresRemaining = 0
         var greatPersonFailuresRemaining = 0
+        var religiousUnitFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -1676,6 +1709,24 @@ class AuthoritativeMultiplayerSessionTests {
                     pendingTurnActions = emptyList(),
                     selectableGreatPeople = emptyList(),
                 ),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun useReligiousUnit(
+            gameId: String,
+            request: ApiV3UseReligiousUnitRequest,
+        ): ApiV3CommandAccepted {
+            religiousUnitCommandIds += request.commandId
+            if (religiousUnitFailuresRemaining > 0) {
+                religiousUnitFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

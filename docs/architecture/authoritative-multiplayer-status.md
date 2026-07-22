@@ -2931,3 +2931,50 @@ Verification on 2026-07-22:
 
 Trade negotiation and religion choices/actions remain the major uncovered
 player-command families for the continuing coverage audit.
+
+## Authoritative religious-unit actions
+
+API v3 now routes missionary spreading and inquisitor heresy removal through
+the closed `UseReligiousUnit(unitId, action)` command, where `action` is only
+`spread_religion` or `remove_heresy`. The request cannot claim a target city,
+religion, pressure amount, remaining charges, diplomatic effect, actor, or
+outcome.
+
+Player projection version 22 adds an `availableReligiousActions` allowlist to
+each owned projected unit. Visible foreign units always expose an empty list.
+A focused `ReligiousUnitActionExecutor` shares the existing Kotlin rule path
+used by server-owned AI: the worker derives the unit's canonical tile and city,
+religion, followers, pressure, conversion notification, diplomacy flag,
+action-side effects, charge consumption, and unit destruction.
+
+The private worker revalidates authenticated civilization ownership, current
+turn, unit identity, and current rule eligibility. Rust remains a rule-free
+public control plane and sole revisioned committer, with focused `religion`
+modules for API routing, persistence, and worker transport. For explicitly
+opened v3 games the unit-action table submits the typed command and returns
+before the legacy local action lambda can run. Single-player, hotseat, saves,
+legacy multiplayer, and server AI keep their existing Kotlin behavior.
+
+Verification on 2026-07-22:
+
+- Projection and command-bus tests cover the owned action allowlist, foreign
+  omission, allowlist binding, and a payload that excludes target, pressure,
+  charges, religion, and actor claims. The Rust closed-contract test rejects
+  all such forged fields. The session test proves an explicitly opened game is
+  required and a lost response retries the same idempotency key.
+- `./gradlew :tests:test :server:test --no-daemon`: 904 JVM tests completed
+  with 13 intentional skips and zero failures, including all worker protocol
+  tests.
+- `cargo test`: 53 active Rust library tests and all 7 HTTP/OpenAPI tests
+  passed; 8 database-only tests were intentionally skipped in this lane.
+  Generated OpenAPI parity and the shared projection-v22 fixture passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55439. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, and module-size review passed.
+  `main.rs` remains 6 lines, `lib.rs` remains 27, and the largest Rust source
+  is 745 lines.
+
+Trade negotiation and multi-step religion belief choices remain the major
+uncovered player-command families for the continuing coverage audit.

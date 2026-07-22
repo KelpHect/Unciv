@@ -74,6 +74,18 @@ pub struct ChooseFreeTechnologyIntent<'a> {
 }
 use crate::UnitPosture;
 
+pub struct MoveSpyIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub spy_name: &'a str,
+    pub city_id: Option<&'a str>,
+}
+
+pub struct SetSpyCoupIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub spy_name: &'a str,
+    pub enabled: bool,
+}
+
 pub struct MoveUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,

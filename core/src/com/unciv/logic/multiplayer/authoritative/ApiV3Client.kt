@@ -504,6 +504,10 @@ class ApiV3Client(
         decode(client.post("api/v3/games/$gameId/commands/negotiate-city-state-peace") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun marryCityState(gameId: String, request: ApiV3CityStateMarriageRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/marry-city-state") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun moveSpy(gameId: String, request: ApiV3MoveSpyRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/move-spy") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/set-spy-coup") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
 
     override suspend fun setCityTileAssignment(
         gameId: String,

@@ -69,6 +69,8 @@ interface ApiV3Transport {
     suspend fun giftCityStateImprovement(gameId: String, request: ApiV3CityStateImprovementGiftRequest): ApiV3CommandAccepted
     suspend fun negotiateCityStatePeace(gameId: String, request: ApiV3CityStatePeaceRequest): ApiV3CommandAccepted
     suspend fun marryCityState(gameId: String, request: ApiV3CityStateMarriageRequest): ApiV3CommandAccepted
+    suspend fun moveSpy(gameId: String, request: ApiV3MoveSpyRequest): ApiV3CommandAccepted
+    suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

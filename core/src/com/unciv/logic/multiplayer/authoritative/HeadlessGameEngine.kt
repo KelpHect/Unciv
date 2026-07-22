@@ -135,6 +135,16 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun moveSpy(game: GameInfo, actorCivilizationId: String, spyName: String, cityId: String?): EngineResult {
+        EspionageCommandExecutor.moveSpy(game, authenticatedCivilization(game, actorCivilizationId), spyName, cityId)
+        return result(game)
+    }
+
+    fun setSpyCoup(game: GameInfo, actorCivilizationId: String, spyName: String, enabled: Boolean): EngineResult {
+        EspionageCommandExecutor.setCoup(game, authenticatedCivilization(game, actorCivilizationId), spyName, enabled)
+        return result(game)
+    }
+
     private fun authenticatedCivilization(game: GameInfo, civilizationId: String): Civilization =
         game.civilizations.singleOrNull { it.civID == civilizationId && it.playerId == executionContext.actorId }
             ?: error("Authenticated actor is not assigned to this civilization")

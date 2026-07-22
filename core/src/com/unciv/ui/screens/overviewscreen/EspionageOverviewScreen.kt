@@ -15,6 +15,8 @@ import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.models.Spy
 import com.unciv.models.SpyAction
 import com.unciv.models.translations.tr
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.ui.components.SmallButtonStyle
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.setSize
@@ -29,9 +31,11 @@ import com.unciv.ui.components.input.onRightClick
 import com.unciv.ui.components.widgets.AutoScrollPane
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ConfirmPopup
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import yairm210.purity.annotations.Pure
+import com.unciv.utils.Concurrency
 
 /** On this screen, possible locations of spies are a [City] or the Spy Hideout which we represent as `null` */
 private typealias Location = City?
@@ -336,6 +340,12 @@ class EspionageOverviewScreen(val civInfo: Civilization, val worldScreen: WorldS
         }
 
         private fun move() {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeEspionage("move spy") {
+                    it.moveSpyIfOpen(civInfo.gameInfo.gameId, selectedSpy!!.name, location?.id)
+                }
+                return
+            }
             selectedSpy!!.moveTo(location)
             resetSelection()
             update()
@@ -383,14 +393,51 @@ class EspionageOverviewScreen(val civInfo: Civilization, val worldScreen: WorldS
                         "chance of success?",
                     "Stage Coup"
                 ) {
+                    if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                        submitAuthoritativeEspionage("stage coup") {
+                            it.setSpyCoupIfOpen(civInfo.gameInfo.gameId, spy.name, true)
+                        }
+                        return@ConfirmPopup
+                    }
                     spy.setAction(SpyAction.Coup, 1)
                     fist.color = Color.DARK_GRAY
                     update()
                 }.open()
             } else {
+                if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                    submitAuthoritativeEspionage("cancel coup") {
+                        it.setSpyCoupIfOpen(civInfo.gameInfo.gameId, spy.name, false)
+                    }
+                    return
+                }
                 spy.setAction(SpyAction.CounterIntelligence, 10)
                 fist.color = Color.WHITE
                 update()
+            }
+        }
+    }
+
+    private fun submitAuthoritativeEspionage(
+        label: String,
+        submit: suspend (AuthoritativeMultiplayerSession) -> AuthoritativeCommandOutcome?,
+    ) {
+        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
+            val outcome = try {
+                val session = worldScreen.game.onlineMultiplayer.authoritativeSession
+                    ?: return@runOnNonDaemonThreadPool
+                submit(session)
+            } catch (ex: Exception) {
+                Concurrency.runOnGLThread {
+                    ToastPopup("Could not submit $label: [${ex.message ?: "Unknown"}]", this@EspionageOverviewScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                civInfo.gameInfo.isUpToDate = false
+                resetSelection()
+                val message = if (outcome is AuthoritativeCommandOutcome.Accepted) "$label committed by the authoritative server"
+                    else "$label synchronized with the authoritative server"
+                ToastPopup(message, this@EspionageOverviewScreen)
             }
         }
     }

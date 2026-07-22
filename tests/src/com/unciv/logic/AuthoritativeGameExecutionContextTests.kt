@@ -31,6 +31,7 @@ import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
+import com.unciv.models.SpyAction
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.ruleset.unique.GameContext
@@ -2220,6 +2221,59 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertTrue(rome.isAtWarWith(greece))
         Assert.assertEquals(influenceBefore + 20f, cityState.getDiplomacyManager(rome)!!.getInfluence())
         Assert.assertTrue(rome.popupAlerts.none { it.type == AlertType.AttackedAllyMinor })
+    }
+
+    @Test
+    fun espionageMovementAndCoupIntentAreCanonicalAndProjectionBound() {
+        val setup = testSetup().apply { gameParameters.numberOfCityStates = 1 }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        val cityState = game.getAliveCityStates().single()
+        if (greece.cities.isEmpty()) {
+            val settler = greece.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            greece.addCity(settler.currentTile.position, settler)
+        }
+        val greekCity = greece.getCapital()!!
+        greekCity.getCenterTile().setExplored(rome, true)
+        val spy = rome.espionageManager.addSpy()
+
+        var projected = engine.playerProjection(game, "Rome").spies.single()
+        Assert.assertTrue(greekCity.id in projected.availableCityIds)
+        engine.moveSpy(game, "Rome", spy.name, greekCity.id)
+        Assert.assertEquals(greekCity, spy.getCity())
+        Assert.assertEquals(SpyAction.Moving, spy.action)
+        Assert.assertTrue(engine.playerProjection(game, "Rome").spies.single().canMoveToHideout)
+        engine.moveSpy(game, "Rome", spy.name, null)
+        Assert.assertTrue(spy.isIdle())
+
+        if (cityState.cities.isEmpty()) {
+            val settler = cityState.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            cityState.addCity(settler.currentTile.position, settler)
+        }
+        rome.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        greece.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        cityState.getDiplomacyManager(greece)!!.addInfluence(100f)
+        val cityStateCity = cityState.getCapital()!!
+        cityStateCity.getCenterTile().setExplored(rome, true)
+        spy.moveTo(cityStateCity)
+        spy.setAction(SpyAction.RiggingElections, 10)
+        projected = engine.playerProjection(game, "Rome").spies.single()
+        Assert.assertTrue(projected.canStageCoup)
+        engine.setSpyCoup(game, "Rome", spy.name, true)
+        Assert.assertEquals(SpyAction.Coup, spy.action)
+        Assert.assertEquals(1, spy.turnsRemainingForAction)
+        Assert.assertTrue(engine.playerProjection(game, "Rome").spies.single().canCancelCoup)
+        engine.setSpyCoup(game, "Rome", spy.name, false)
+        Assert.assertEquals(SpyAction.CounterIntelligence, spy.action)
+        Assert.assertEquals(10, spy.turnsRemainingForAction)
+
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.moveSpy(game, "Rome", spy.name, null)
+        }
     }
 
     private fun testSetup(): GameSetupInfo {

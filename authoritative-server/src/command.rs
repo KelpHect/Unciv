@@ -289,6 +289,14 @@ pub enum GameCommand {
     MarryCityState {
         city_state_civilization_id: String,
     },
+    MoveSpy {
+        spy_name: String,
+        city_id: Option<String>,
+    },
+    SetSpyCoup {
+        spy_name: String,
+        enabled: bool,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

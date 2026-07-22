@@ -35,6 +35,36 @@ pub struct PlayerProjection {
     pub diplomacy_partners: Vec<ProjectedDiplomacyPartner>,
     pub diplomacy_prompts: Vec<ProjectedDiplomacyPrompt>,
     pub city_state_partners: Vec<ProjectedCityStatePartner>,
+    pub spies: Vec<ProjectedSpy>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedSpy {
+    pub name: String,
+    pub rank: u32,
+    pub city_id: Option<String>,
+    pub civilization_id: Option<String>,
+    pub action: ProjectedSpyAction,
+    pub turns_remaining: i32,
+    pub available_city_ids: Vec<String>,
+    pub can_move_to_hideout: bool,
+    pub can_stage_coup: bool,
+    pub can_cancel_coup: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectedSpyAction {
+    None,
+    Moving,
+    EstablishNetwork,
+    Surveillance,
+    StealingTech,
+    RiggingElections,
+    Coup,
+    CounterIntelligence,
+    Dead,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -323,7 +353,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v29.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v30.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

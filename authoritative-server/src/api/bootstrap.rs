@@ -281,6 +281,11 @@ pub(crate) async fn run() {
             "/api/v3/games/{game_id}/commands/marry-city-state",
             post(marry_city_state),
         )
+        .route("/api/v3/games/{game_id}/commands/move-spy", post(move_spy))
+        .route(
+            "/api/v3/games/{game_id}/commands/set-spy-coup",
+            post(set_spy_coup),
+        )
         .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),

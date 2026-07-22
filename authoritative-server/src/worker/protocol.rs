@@ -525,6 +525,23 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "cityStateCivilizationId")]
         city_state_civilization_id: &'a str,
     },
+    MoveSpy {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "spyName")]
+        spy_name: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: Option<&'a str>,
+    },
+    SetSpyCoup {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "spyName")]
+        spy_name: &'a str,
+        enabled: bool,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

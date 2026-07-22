@@ -37,10 +37,38 @@ data class PlayerProjection(
     val diplomacyPartners: List<ProjectedDiplomacyPartner> = emptyList(),
     val diplomacyPrompts: List<ProjectedDiplomacyPrompt> = emptyList(),
     val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
+    val spies: List<ProjectedSpy> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 29
+        const val CURRENT_PROJECTION_VERSION = 30
     }
+}
+
+@Serializable
+data class ProjectedSpy(
+    val name: String,
+    val rank: Int,
+    val cityId: String?,
+    val civilizationId: String?,
+    val action: ProjectedSpyAction,
+    val turnsRemaining: Int,
+    val availableCityIds: List<String>,
+    val canMoveToHideout: Boolean,
+    val canStageCoup: Boolean,
+    val canCancelCoup: Boolean,
+)
+
+@Serializable
+enum class ProjectedSpyAction {
+    @SerialName("none") None,
+    @SerialName("moving") Moving,
+    @SerialName("establish_network") EstablishNetwork,
+    @SerialName("surveillance") Surveillance,
+    @SerialName("stealing_tech") StealingTech,
+    @SerialName("rigging_elections") RiggingElections,
+    @SerialName("coup") Coup,
+    @SerialName("counter_intelligence") CounterIntelligence,
+    @SerialName("dead") Dead,
 }
 
 @Serializable
@@ -288,6 +316,7 @@ object PlayerProjectionBuilder {
             diplomacyPartners = DiplomacyCommandExecutor.partners(actor),
             diplomacyPrompts = DiplomacyCommandExecutor.prompts(actor),
             cityStatePartners = CityStateCommandExecutor.partners(actor),
+            spies = EspionageCommandExecutor.spies(actor),
             ownCities = actor.cities.map {
                 ProjectedCity(
                     id = it.id,

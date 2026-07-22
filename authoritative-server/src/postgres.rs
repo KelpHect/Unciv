@@ -101,6 +101,7 @@ mod city_population;
 mod city_state;
 mod commands;
 mod diplomacy;
+mod espionage;
 mod games;
 mod great_people;
 mod major_diplomacy;

@@ -304,6 +304,8 @@ sealed interface GameCommand {
     data class GiftCityStateImprovement(val cityStateCivilizationId: String, val x: Int, val y: Int, val improvementName: String) : GameCommand
     data class NegotiateCityStatePeace(val cityStateCivilizationId: String) : GameCommand
     data class MarryCityState(val cityStateCivilizationId: String) : GameCommand
+    data class MoveSpy(val spyName: String, val cityId: String?) : GameCommand
+    data class SetSpyCoup(val spyName: String, val enabled: Boolean) : GameCommand
 
     data class SetCityTileAssignment(
         val cityId: String,

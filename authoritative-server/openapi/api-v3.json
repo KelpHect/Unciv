@@ -3123,6 +3123,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/move-spy": {
+      "post": {
+        "tags": [],
+        "operationId": "move_spy",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveSpyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/move-unit": {
       "post": {
         "tags": [],
@@ -6367,6 +6451,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/set-spy-coup": {
+      "post": {
+        "tags": [],
+        "operationId": "set_spy_coup",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSpyCoupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/set-tile-improvement-order": {
       "post": {
         "tags": [],
@@ -8645,6 +8813,41 @@
         },
         "additionalProperties": false
       },
+      "MoveSpyRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "spy_name"
+        ],
+        "properties": {
+          "city_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "spy_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "MoveUnitRequest": {
         "type": "object",
         "required": [
@@ -8868,7 +9071,8 @@
           "pendingTradeRequests",
           "diplomacyPartners",
           "diplomacyPrompts",
-          "cityStatePartners"
+          "cityStatePartners",
+          "spies"
         ],
         "properties": {
           "cityStatePartners": {
@@ -8975,6 +9179,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "spies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedSpy"
             }
           },
           "tradePartners": {
@@ -9493,6 +9703,78 @@
           }
         },
         "additionalProperties": false
+      },
+      "ProjectedSpy": {
+        "type": "object",
+        "required": [
+          "name",
+          "rank",
+          "action",
+          "turnsRemaining",
+          "availableCityIds",
+          "canMoveToHideout",
+          "canStageCoup",
+          "canCancelCoup"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ProjectedSpyAction"
+          },
+          "availableCityIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canCancelCoup": {
+            "type": "boolean"
+          },
+          "canMoveToHideout": {
+            "type": "boolean"
+          },
+          "canStageCoup": {
+            "type": "boolean"
+          },
+          "cityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "civilizationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "turnsRemaining": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedSpyAction": {
+        "type": "string",
+        "enum": [
+          "none",
+          "moving",
+          "establish_network",
+          "surveillance",
+          "stealing_tech",
+          "rigging_elections",
+          "coup",
+          "counter_intelligence",
+          "dead"
+        ]
       },
       "ProjectedTileVisibility": {
         "type": "object",
@@ -10633,6 +10915,39 @@
             "minimum": 0
           },
           "specialist_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetSpyCoupRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "spy_name",
+          "enabled"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "spy_name": {
             "type": "string"
           }
         },

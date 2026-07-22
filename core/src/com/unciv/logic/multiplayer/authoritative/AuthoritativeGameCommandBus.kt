@@ -381,6 +381,8 @@ sealed interface PendingAuthoritativeCommand {
     data class GiftCityStateImprovement(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val x: Int, val y: Int, val improvementName: String) : PendingAuthoritativeCommand
     data class NegotiateCityStatePeace(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
     data class MarryCityState(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
+    data class MoveSpy(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val spyName: String, val cityId: String?) : PendingAuthoritativeCommand
+    data class SetSpyCoup(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val spyName: String, val enabled: Boolean) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1198,6 +1200,24 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.MarryCityState(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId), current)
     }
 
+    suspend fun moveSpy(spyName: String, cityId: String?) = mutex.withLock {
+        val current = requireSynchronized()
+        val spy = current.projection.spies.singleOrNull { it.name == spyName }
+            ?: error("Spy is absent from the current player projection")
+        require(if (cityId == null) spy.canMoveToHideout else cityId in spy.availableCityIds) {
+            "Spy destination is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.MoveSpy(commandIdFactory(), current.committedRevision, current.canonicalStateHash, spyName, cityId), current)
+    }
+
+    suspend fun setSpyCoup(spyName: String, enabled: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        val spy = current.projection.spies.singleOrNull { it.name == spyName }
+            ?: error("Spy is absent from the current player projection")
+        require(if (enabled) spy.canStageCoup else spy.canCancelCoup) { "Spy coup action is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.SetSpyCoup(commandIdFactory(), current.committedRevision, current.canonicalStateHash, spyName, enabled), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1698,6 +1718,8 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.GiftCityStateImprovement -> transport.giftCityStateImprovement(gameId, ApiV3CityStateImprovementGiftRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.x, pending.y, pending.improvementName))
                 is PendingAuthoritativeCommand.NegotiateCityStatePeace -> transport.negotiateCityStatePeace(gameId, ApiV3CityStatePeaceRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
                 is PendingAuthoritativeCommand.MarryCityState -> transport.marryCityState(gameId, ApiV3CityStateMarriageRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
+                is PendingAuthoritativeCommand.MoveSpy -> transport.moveSpy(gameId, ApiV3MoveSpyRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.spyName, pending.cityId))
+                is PendingAuthoritativeCommand.SetSpyCoup -> transport.setSpyCoup(gameId, ApiV3SetSpyCoupRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.spyName, pending.enabled))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

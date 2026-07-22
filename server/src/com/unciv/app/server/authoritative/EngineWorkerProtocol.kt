@@ -433,6 +433,10 @@ sealed interface WorkerOperation {
     data class NegotiateCityStatePeace(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String) : WorkerOperation
     @Serializable @SerialName("marry_city_state")
     data class MarryCityState(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String) : WorkerOperation
+    @Serializable @SerialName("move_spy")
+    data class MoveSpy(val snapshot: String, val actorCivilizationId: String, val spyName: String, val cityId: String?) : WorkerOperation
+    @Serializable @SerialName("set_spy_coup")
+    data class SetSpyCoup(val snapshot: String, val actorCivilizationId: String, val spyName: String, val enabled: Boolean) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -1018,6 +1022,14 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.MarryCityState -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.marryCityState(game, operation.actorCivilizationId, operation.cityStateCivilizationId).game)
+            }
+            is WorkerOperation.MoveSpy -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.moveSpy(game, operation.actorCivilizationId, operation.spyName, operation.cityId).game)
+            }
+            is WorkerOperation.SetSpyCoup -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.setSpyCoup(game, operation.actorCivilizationId, operation.spyName, operation.enabled).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

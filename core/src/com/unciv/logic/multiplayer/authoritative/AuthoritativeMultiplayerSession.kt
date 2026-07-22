@@ -1128,6 +1128,10 @@ class AuthoritativeMultiplayerSession(
         { it is PendingAuthoritativeCommand.NegotiateCityStatePeace && it.cityStateId == cityStateId }, { it.negotiateCityStatePeace(cityStateId) })
     suspend fun marryCityStateIfOpen(gameId: String, cityStateId: String) = withDiplomacyBus(gameId,
         { it is PendingAuthoritativeCommand.MarryCityState && it.cityStateId == cityStateId }, { it.marryCityState(cityStateId) })
+    suspend fun moveSpyIfOpen(gameId: String, spyName: String, cityId: String?) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.MoveSpy && it.spyName == spyName && it.cityId == cityId }, { it.moveSpy(spyName, cityId) })
+    suspend fun setSpyCoupIfOpen(gameId: String, spyName: String, enabled: Boolean) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.SetSpyCoup && it.spyName == spyName && it.enabled == enabled }, { it.setSpyCoup(spyName, enabled) })
 
     private suspend fun withDiplomacyBus(
         gameId: String,

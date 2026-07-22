@@ -3297,3 +3297,48 @@ Verification on 2026-07-22:
 
 The inventoried city-state interaction row is complete. The command-coverage
 audit now advances to espionage and remaining private-choice surfaces.
+
+## Authoritative espionage player controls
+
+Projection version 30 exposes only the authenticated civilization's spies:
+their server-owned identity, rank, current assignment, closed action, remaining
+turns, legal explored and unoccupied destinations, and exact move/coup
+allowlists. Dead spies receive no destination allowlist. No foreign spy roster
+or hidden city information is projected.
+
+API v3 now accepts only two espionage intents: move one owned spy to a projected
+city or the hideout, and stage or cancel a canonically legal coup. The focused
+Kotlin executor re-resolves the spy, destination, current turn, living state,
+and coup legality before calling the existing `Spy` domain methods. Technology
+theft, election rigging, coup resolution, counterintelligence, progression, all
+AI espionage, and every random outcome remain in server-owned turn execution.
+Clients cannot submit an actor, target civilization, duration, probability,
+influence, random seed, or outcome.
+
+Every player-authored mutation in `EspionageOverviewScreen.kt` now returns after
+submitting through the authoritative session for an opened v3 game. Local,
+hotseat, saves, legacy multiplayer, and server-owned AI continue through the
+shared Kotlin engine.
+
+Verification on 2026-07-22:
+
+- The focused headless-engine test proves projection-bound movement, hideout
+  return, coup staging/cancellation, exact canonical actions and durations, and
+  out-of-turn rejection. Rust closed-contract tests reject forged rule and
+  outcome fields.
+- `./gradlew :tests:test :server:test --no-daemon` completed 919 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test --all-targets` passed 62 active library tests and all 7
+  HTTP/OpenAPI tests; 8 database-only tests were intentionally skipped in that
+  lane. Generated OpenAPI parity and the shared projection-v30 fixture passed.
+- `cargo fmt --check` and warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings` passed.
+- All 8 serialized integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55471; the live server reported `19beta2`. The disposable
+  `unciv-v3-espionage-pg19` container was removed afterward.
+- Module-size review found a 729-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line façade.
+
+The inventoried player-authored espionage row is complete. The coverage audit
+now advances to remaining private-choice surfaces and lifecycle operations.

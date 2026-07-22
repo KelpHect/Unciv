@@ -12,6 +12,7 @@ use tokio::{
 
 use crate::CommitProposal;
 
+mod city_disposition;
 mod city_economy;
 mod city_governance;
 mod city_population;
@@ -26,9 +27,9 @@ pub use protocol::{
     MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, ProjectedState,
     PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
     QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    RenameUnitIntent, ResetCitizensIntent, SellBuildingIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityGovernanceIntent, SetCityTileAssignmentIntent,
-    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent, SellBuildingIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
     SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,

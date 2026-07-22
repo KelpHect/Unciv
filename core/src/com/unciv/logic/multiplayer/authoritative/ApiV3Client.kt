@@ -421,6 +421,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun resolveCityDisposition(
+        gameId: String,
+        request: ApiV3ResolveCityDispositionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/resolve-city-disposition") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

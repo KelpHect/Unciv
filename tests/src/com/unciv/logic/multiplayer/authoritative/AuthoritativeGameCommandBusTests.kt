@@ -1070,6 +1070,37 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("is_puppet"))
     }
 
+    @Test
+    fun cityDispositionSendsOnlyAProjectedClosedAction() = runBlocking {
+        val decision = ProjectedCityDisposition(
+            "city-1", "Athens", listOf(CityDispositionAction.Annex, CityDispositionAction.Puppet),
+        )
+        val initial = projection(3, "hash-3", pendingCityDispositions = listOf(decision))
+        val committed = projection(4, "hash-4")
+        val transport = FakeTransport(initial).apply {
+            onResolveCityDisposition = { request ->
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "disposition-command" }
+        bus.refresh()
+
+        assertTrue(bus.resolveCityDisposition(
+            "city-1", CityDispositionAction.Puppet,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.cityDispositionRequests.single()
+        assertEquals(ApiV3ResolveCityDispositionRequest(
+            "disposition-command", 3, "hash-3", "city-1", CityDispositionAction.Puppet,
+        ), request)
+        val encoded = Json.encodeToString(ApiV3ResolveCityDispositionRequest.serializer(), request)
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("original_owner"))
+        assertTrue(!encoded.contains("may_annex"))
+        assertTrue(!encoded.contains("can_raze"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1240,6 +1271,7 @@ class AuthoritativeGameCommandBusTests {
         citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
         selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
         ownUnits: List<ProjectedUnit> = emptyList(),
+        pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -1274,6 +1306,7 @@ class AuthoritativeGameCommandBusTests {
             ownUnits = ownUnits,
             exploredTiles = exploredTiles,
             visibleForeignUnits = emptyList(),
+            pendingCityDispositions = pendingCityDispositions,
         ),
     )
 
@@ -1327,6 +1360,7 @@ class AuthoritativeGameCommandBusTests {
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
         val sellBuildingRequests = mutableListOf<ApiV3SellBuildingRequest>()
         val cityGovernanceRequests = mutableListOf<ApiV3SetCityGovernanceRequest>()
+        val cityDispositionRequests = mutableListOf<ApiV3ResolveCityDispositionRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1427,6 +1461,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityGovernance: suspend (ApiV3SetCityGovernanceRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onResolveCityDisposition: suspend (ApiV3ResolveCityDispositionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
@@ -1691,6 +1728,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             cityGovernanceRequests += request
             return onSetCityGovernance(request)
+        }
+        override suspend fun resolveCityDisposition(
+            gameId: String,
+            request: ApiV3ResolveCityDispositionRequest,
+        ): ApiV3CommandAccepted {
+            cityDispositionRequests += request
+            return onResolveCityDisposition(request)
         }
         override suspend fun setCityTileAssignment(
             gameId: String,

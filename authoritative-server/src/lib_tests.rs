@@ -414,6 +414,31 @@ fn city_governance_contract_is_typed_and_excludes_rule_claims() {
 }
 
 #[test]
+fn city_disposition_contract_is_typed_and_excludes_ownership_claims() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "resolve_city_disposition", "city_id": "city-1", "action": "liberate"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::ResolveCityDisposition {
+            city_id: "city-1".to_owned(),
+            action: crate::CityDispositionAction::Liberate,
+        }
+    );
+    for untrusted in ["actor_id", "original_owner", "may_annex", "can_raze"] {
+        let mut value = serde_json::json!({
+            "type": "resolve_city_disposition", "city_id": "city-1", "action": "liberate"
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn citizen_policy_contracts_are_typed_and_closed() {
     let avoid: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_avoid_growth", "city_id": "city-1", "enabled": true

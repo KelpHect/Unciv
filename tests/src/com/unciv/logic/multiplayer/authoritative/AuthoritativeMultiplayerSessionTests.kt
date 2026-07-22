@@ -751,6 +751,37 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeCityDispositionRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
+        val decision = ProjectedCityDisposition(
+            "city-1", "Athens", listOf(CityDispositionAction.Annex, CityDispositionAction.Puppet),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            dispositionFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(pendingCityDispositions = listOf(decision)),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.resolveCityDispositionIfOpen(
+            GAME_ID, "city-1", CityDispositionAction.Puppet,
+        ))
+        session.openGame(GAME_ID)
+        assertTrue(session.resolveCityDispositionIfOpen(
+            GAME_ID, "city-1", CityDispositionAction.Puppet,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.resolveCityDispositionIfOpen(
+            GAME_ID, "city-1", CityDispositionAction.Puppet,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.dispositionCommandIds.size)
+        assertEquals(transport.dispositionCommandIds[0], transport.dispositionCommandIds[1])
+        session.close()
+    }
+
+    @Test
     fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
@@ -958,9 +989,11 @@ class AuthoritativeMultiplayerSessionTests {
         val purchaseCommandIds = mutableListOf<String>()
         val tilePurchaseCommandIds = mutableListOf<String>()
         val governanceCommandIds = mutableListOf<String>()
+        val dispositionCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
         var tilePurchaseFailuresRemaining = 0
         var governanceFailuresRemaining = 0
+        var dispositionFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -1518,6 +1551,25 @@ class AuthoritativeMultiplayerSessionTests {
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-${current.committedRevision + 1}",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun resolveCityDisposition(
+            gameId: String,
+            request: ApiV3ResolveCityDispositionRequest,
+        ): ApiV3CommandAccepted {
+            dispositionCommandIds += request.commandId
+            if (dispositionFailuresRemaining > 0) {
+                dispositionFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(pendingCityDispositions = emptyList()),
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

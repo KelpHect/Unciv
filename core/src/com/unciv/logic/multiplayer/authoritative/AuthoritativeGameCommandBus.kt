@@ -299,6 +299,14 @@ sealed interface PendingAuthoritativeCommand {
         val action: CityGovernanceAction,
     ) : PendingAuthoritativeCommand
 
+    data class ResolveCityDisposition(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val action: CityDispositionAction,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -908,6 +916,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun resolveCityDisposition(cityId: String, action: CityDispositionAction) = mutex.withLock {
+        val current = requireSynchronized()
+        val decision = current.projection.pendingCityDispositions.singleOrNull { it.cityId == cityId }
+            ?: error("City disposition is absent from the current player projection")
+        require(action in decision.availableActions) {
+            "City disposition is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.ResolveCityDisposition(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, action,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1342,6 +1363,13 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.SetCityGovernance -> transport.setCityGovernance(
                     gameId,
                     ApiV3SetCityGovernanceRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.action,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ResolveCityDisposition -> transport.resolveCityDisposition(
+                    gameId,
+                    ApiV3ResolveCityDispositionRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.action,
                     ),

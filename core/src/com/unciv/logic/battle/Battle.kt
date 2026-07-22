@@ -92,16 +92,25 @@ object Battle {
     /**
      * This is meant to be called only after all prerequisite checks have been done.
      */
-    fun attackOrNuke(attacker: ICombatant, attackableTile: AttackableTile): DamageDealt {
+    fun attackOrNuke(
+        attacker: ICombatant,
+        attackableTile: AttackableTile,
+        deferHumanCityDisposition: Boolean = false,
+    ): DamageDealt {
         return if (attacker is MapUnitCombatant && attacker.unit.isNuclearWeapon()) {
             Nuke.NUKE(attacker, attackableTile.tileToAttack)
             DamageDealt.None
         } else {
-            attack(attacker, getMapCombatantOfTile(attackableTile.tileToAttack)!!)
+            attack(attacker, getMapCombatantOfTile(attackableTile.tileToAttack)!!,
+                deferHumanCityDisposition)
         }
     }
 
-    fun attack(attacker: ICombatant, defender: ICombatant): DamageDealt {
+    fun attack(
+        attacker: ICombatant,
+        defender: ICombatant,
+        deferHumanCityDisposition: Boolean = false,
+    ): DamageDealt {
         debug("%s %s attacked %s %s", attacker.getCivInfo().civID, attacker.getName(), defender.getCivInfo().civID, defender.getName())
         val attackedTile = defender.getTile()
         if (attacker is MapUnitCombatant) {
@@ -139,7 +148,7 @@ object Battle {
             defender.getCivInfo().gameInfo.barbarians.campAttacked(attackedTile.position)
 
         // This needs to come BEFORE the move-to-tile, because if we haven't conquered it we can't move there =)
-        handleCityDefeated(defender, attacker)
+        handleCityDefeated(defender, attacker, deferHumanCityDisposition)
 
         
         // Add culture when defeating a barbarian when Honor policy is adopted, gold from enemy killed when honor is complete
@@ -201,7 +210,11 @@ object Battle {
         }
     }
 
-    private fun handleCityDefeated(defender: ICombatant, attacker: ICombatant) {
+    private fun handleCityDefeated(
+        defender: ICombatant,
+        attacker: ICombatant,
+        deferHumanCityDisposition: Boolean,
+    ) {
         if (!defender.isDefeated() || defender !is CityCombatant || attacker !is MapUnitCombatant || 
             (!attacker.isMelee() && !attacker.unit.hasUnique(UniqueType.CanDestroyCities, checkCivInfoUniques = true))
             || attacker.unit.hasUnique(UniqueType.CannotCaptureCities, checkCivInfoUniques = true)
@@ -246,7 +259,7 @@ object Battle {
             )
             attacker.unit.destroy() // Remove the barbarian
         } else
-            conquerCity(defender.city, attacker)
+            conquerCity(defender.city, attacker, deferHumanCityDisposition)
     }
 
     private fun triggerCombatUniques(attacker: ICombatant, defender: ICombatant, attackedTile: Tile) {
@@ -680,7 +693,11 @@ object Battle {
             attacker.unit.action = null // but not, for instance, if it's Set Up - then it should definitely keep the action!
     }
 
-    private fun conquerCity(city: City, attacker: MapUnitCombatant) {
+    private fun conquerCity(
+        city: City,
+        attacker: MapUnitCombatant,
+        deferHumanCityDisposition: Boolean,
+    ) {
         val attackerCiv = attacker.getCivInfo()
 
         attackerCiv.addNotification("We have conquered the city of [${city.name}]!", city.location, NotificationCategory.War, NotificationIcon.War)
@@ -712,7 +729,8 @@ object Battle {
             city.puppetCity(attackerCiv)
             //Although in Civ5 Venice is unable to re-annex their capital, that seems a bit silly. No check for May not annex cities here.
             city.annexCity()
-        } else if (attackerCiv.isHuman() && UncivGame.Current.worldScreen?.autoPlay?.isAutoPlayingAndFullAutoPlayAI() == false) {
+        } else if (attackerCiv.isHuman() && (deferHumanCityDisposition ||
+                UncivGame.Current.worldScreen?.autoPlay?.isAutoPlayingAndFullAutoPlayAI() == false)) {
             // we're not taking our former capital
             attackerCiv.popupAlerts.add(PopupAlert(AlertType.CityConquered, city.id))
         } else automateCityConquer(attackerCiv, city)

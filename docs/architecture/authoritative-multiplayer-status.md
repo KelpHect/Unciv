@@ -2765,3 +2765,58 @@ Verification on 2026-07-22:
 Post-capture city disposition is the next city-governance gap. It needs an
 explicit player-scoped pending decision with server-derived available choices
 before the client can safely submit puppet, annex, raze, liberate, or destroy.
+
+## Authoritative post-capture city disposition
+
+API v3 now preserves human post-capture decisions in headless authoritative
+execution instead of falling through to AI city-conquest automation. A
+captured city remains represented by the canonical `CityConquered` pending
+alert until the authenticated current-turn player submits the closed
+`ResolveCityDisposition(cityId, action)` command. The available actions are
+`liberate`, `annex`, `puppet`, `raze`, and `destroy`, filtered from canonical
+founder, ownership, one-city-challenge, annex-restriction, capital, holy-city,
+and destruction state.
+
+Player projection version 19 adds the player-scoped
+`pendingCityDispositions` list with only city ID, display name, and the closed
+available-action list. The private Kotlin worker revalidates the exact pending
+decision, authenticated civilization assignment, current turn, and selected
+action, then delegates ownership transfer, liberation, annexation, puppeting,
+razing, or destruction to the existing Kotlin engine. Only after successful
+execution does it consume the alert. Rust remains the public control plane and
+sole revisioned committer; API, worker, and persistence routing live in focused
+`city_disposition` modules.
+
+The conquest popup submits only city ID and the selected closed action for an
+explicitly opened authoritative game. It performs no local canonical mutation,
+keeps ambiguous failures retryable with the same command ID, and closes only
+after an accepted commit or stale-state refresh. Single-player, hotseat,
+saved-game, legacy multiplayer, and server-owned AI behavior retain their
+existing Kotlin-engine paths.
+
+Verification on 2026-07-22:
+
+- Focused engine tests prove pending decisions are player-projected, canonical
+  annex resolution consumes the alert only after success, and replay after
+  consumption is rejected. Command-bus tests prove the payload excludes actor,
+  original-owner, annex, and raze claims. Session tests prove commands route
+  only for explicitly opened games and a lost response retries the same
+  idempotency key.
+- `./gradlew :tests:test :server:test --no-daemon`: 890 shared JVM tests
+  completed with 13 intentional skips and zero failures, plus all 4 worker
+  protocol tests.
+- `cargo test --all-features`: 50 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed; generated OpenAPI parity passed with projection
+  version 19.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55442. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+The next coverage audit should continue across diplomacy and trade, religion,
+diplomatic votes, and great-person choices without widening this command into
+a generic client-authored mutation surface.

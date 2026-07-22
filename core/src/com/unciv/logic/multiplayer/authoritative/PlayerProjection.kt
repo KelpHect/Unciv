@@ -28,11 +28,19 @@ data class PlayerProjection(
     val ownUnits: List<ProjectedUnit>,
     val exploredTiles: List<ProjectedTileVisibility>,
     val visibleForeignUnits: List<ProjectedUnit>,
+    val pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 18
+        const val CURRENT_PROJECTION_VERSION = 19
     }
 }
+
+@Serializable
+data class ProjectedCityDisposition(
+    val cityId: String,
+    val cityName: String,
+    val availableActions: List<CityDispositionAction>,
+)
 
 @Serializable
 data class ProjectedCity(
@@ -243,6 +251,16 @@ object PlayerProjectionBuilder {
                 .sortedWith(compareBy<ProjectedTileVisibility> { it.x }.thenBy { it.y })
                 .toList(),
             visibleForeignUnits = visibleForeignUnits,
+            pendingCityDispositions = actor.popupAlerts.asSequence()
+                .filter { it.type == com.unciv.logic.civilization.AlertType.CityConquered }
+                .mapNotNull { alert -> game.getCities().singleOrNull { it.id == alert.value } }
+                .map { city -> ProjectedCityDisposition(
+                    city.id,
+                    city.name,
+                    CityDispositionExecutor.availableActions(city, actor),
+                ) }
+                .sortedBy { it.cityId }
+                .toList(),
         )
     }
 

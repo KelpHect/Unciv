@@ -4,10 +4,13 @@ import com.badlogic.gdx.Gdx
 import com.unciv.UncivGame
 import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.civilization.AlertType
+import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
+import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
@@ -1424,6 +1427,40 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.setCityGovernance(
                 testGame.gameInfo, actor.civName, city.id, CityGovernanceAction.StartRazing,
+            )
+        }
+    }
+
+    @Test
+    fun cityDispositionIsProjectedAndResolvedOnlyFromTheCanonicalPendingDecision() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        testGame.addCity(actor, testGame.getTile(HexCoord.Zero))
+        val captured = testGame.addCity(actor, testGame.getTile(HexCoord(2, 0)))
+        captured.isPuppet = true
+        actor.popupAlerts += PopupAlert(AlertType.CityConquered, captured.id)
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        val decision = engine.playerProjection(testGame.gameInfo, actor.civName)
+            .pendingCityDispositions.single()
+        Assert.assertEquals(captured.id, decision.cityId)
+        Assert.assertEquals(captured.name, decision.cityName)
+        Assert.assertTrue(CityDispositionAction.Annex in decision.availableActions)
+        Assert.assertTrue(CityDispositionAction.Puppet in decision.availableActions)
+
+        engine.resolveCityDisposition(
+            testGame.gameInfo, actor.civName, captured.id, CityDispositionAction.Annex,
+        )
+        Assert.assertFalse(captured.isPuppet)
+        Assert.assertTrue(actor.popupAlerts.none {
+            it.type == AlertType.CityConquered && it.value == captured.id
+        })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.resolveCityDisposition(
+                testGame.gameInfo, actor.civName, captured.id, CityDispositionAction.Annex,
             )
         }
     }

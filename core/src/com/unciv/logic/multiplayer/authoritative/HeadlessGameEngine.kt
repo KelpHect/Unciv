@@ -163,7 +163,7 @@ class HeadlessGameEngine(
             ?: error("Unit is not controlled by the authenticated actor")
         val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
             ?: error("Attack target is outside the canonical map")
-        require(UnitAttackExecutor.attack(unit, target) != null) {
+        require(UnitAttackExecutor.attack(unit, target, deferHumanCityDisposition = true) != null) {
             "Unit cannot attack the requested canonical target"
         }
         return result(game)
@@ -1121,6 +1121,22 @@ class HeadlessGameEngine(
     ): EngineResult {
         val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
         CityGovernanceExecutor.execute(city, action)
+        return result(game)
+    }
+
+    fun resolveCityDisposition(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        action: CityDispositionAction,
+    ): EngineResult {
+        val actor = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot resolve city conquest outside their turn"
+        }
+        CityDispositionExecutor.execute(game, actor, cityId, action)
         return result(game)
     }
 

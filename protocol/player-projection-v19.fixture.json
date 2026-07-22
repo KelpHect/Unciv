@@ -33,5 +33,6 @@
     { "x": 2, "y": -1, "visible": true, "improvementName": "Farm", "improvementPillaged": true, "roadStatus": "Road", "roadPillaged": false },
     { "x": 3, "y": -1, "visible": false, "improvementName": null, "improvementPillaged": null, "roadStatus": null, "roadPillaged": null }
   ],
-  "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [], "instanceName": null, "improvementOrder": [], "roadConnectionDestinationX": null, "roadConnectionDestinationY": null, "roadConnectionPath": [] }]
+  "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [], "instanceName": null, "improvementOrder": [], "roadConnectionDestinationX": null, "roadConnectionDestinationY": null, "roadConnectionPath": [] }],
+  "pendingCityDispositions": [{ "cityId": "captured-city", "cityName": "Athens", "availableActions": ["liberate", "annex", "puppet", "raze"] }]
 }

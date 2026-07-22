@@ -16,6 +16,9 @@ import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.NotificationIcon
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.civilization.diplomacy.*
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
+import com.unciv.logic.multiplayer.authoritative.CityDispositionExecutor
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
@@ -32,8 +35,11 @@ import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.Popup
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.diplomacyscreen.LeaderIntroTable
 import com.unciv.ui.screens.victoryscreen.VictoryScreen
+import com.unciv.utils.Concurrency
+import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import java.util.EnumSet
 import kotlin.text.ifEmpty
@@ -63,6 +69,7 @@ class AlertPopup(
     private val worldScreen: WorldScreen,
     private val popupAlert: PopupAlert
 ): Popup(worldScreen) {
+    private var authoritativeDispositionSubmissionInProgress = false
     
     companion object {
         private const val SEPARATOR_LINE_TO_TEXT_PADDING = 25f
@@ -203,6 +210,11 @@ class AlertPopup(
         addQuestionAboutTheCity(city.name)
         val conqueringCiv = gameInfo.getCurrentPlayerCivilization()
 
+        if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+            addAuthoritativeCityDisposition(city, conqueringCiv)
+            return
+        }
+
         if (city.foundingCivObject != null
                 && city.civ != city.foundingCivObject // can't liberate if the city actually belongs to those guys
                 && conqueringCiv != city.foundingCivObject) { // or belongs originally to us
@@ -228,6 +240,71 @@ class AlertPopup(
             addSeparator()
 
             addRazeOption(city, mayAnnex = mayAnnex, conqueringCiv)
+        }
+    }
+
+    private fun addAuthoritativeCityDisposition(city: City, conqueringCiv: Civilization) {
+        val labels = mapOf(
+            CityDispositionAction.Liberate to "Liberate (city returns to [originalOwner])"
+                .fillPlaceholders(city.foundingCivObject?.civName ?: "original owner"),
+            CityDispositionAction.Annex to "Annex",
+            CityDispositionAction.Puppet to "Puppet",
+            CityDispositionAction.Raze to "Raze",
+            CityDispositionAction.Destroy to "Destroy",
+        )
+        for (action in CityDispositionExecutor.availableActions(city, conqueringCiv)) {
+            val button = labels.getValue(action).toTextButton()
+            button.onActivation {
+                if (authoritativeDispositionSubmissionInProgress) return@onActivation
+                authoritativeDispositionSubmissionInProgress = true
+                submitAuthoritativeCityDisposition(city.id, action)
+            }
+            add(button).row()
+        }
+    }
+
+    private fun submitAuthoritativeCityDisposition(cityId: String, action: CityDispositionAction) {
+        Concurrency.runOnNonDaemonThreadPool("Resolve authoritative city disposition") {
+            val outcome = try {
+                worldScreen.game.onlineMultiplayer.authoritativeSession?.resolveCityDispositionIfOpen(
+                    gameInfo.gameId,
+                    cityId,
+                    action,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeDispositionSubmissionInProgress = false
+                    ToastPopup("Could not submit city disposition: [${ex.message ?: "Unknown"}]", worldScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        gameInfo.isUpToDate = false
+                        close()
+                        ToastPopup("City disposition committed by the authoritative server", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        gameInfo.isUpToDate = false
+                        close()
+                        ToastPopup("Game changed on the server - city disposition was not changed", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeDispositionSubmissionInProgress = false
+                        ToastPopup("Server rejected city disposition: [${outcome.code}]", worldScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeDispositionSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same command", worldScreen)
+                    }
+                    null -> {
+                        authoritativeDispositionSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before city disposition", worldScreen)
+                    }
+                }
+            }
         }
     }
 

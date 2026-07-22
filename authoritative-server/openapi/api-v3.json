@@ -3249,6 +3249,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/resolve-city-disposition": {
+      "post": {
+        "tags": [],
+        "operationId": "resolve_city_disposition",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveCityDispositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/sell-building": {
       "post": {
         "tags": [],
@@ -5683,6 +5797,16 @@
           "production_growth_focus"
         ]
       },
+      "CityDispositionAction": {
+        "type": "string",
+        "enum": [
+          "liberate",
+          "annex",
+          "puppet",
+          "raze",
+          "destroy"
+        ]
+      },
       "CityGovernanceAction": {
         "type": "string",
         "enum": [
@@ -6324,7 +6448,8 @@
           "ownCities",
           "ownUnits",
           "exploredTiles",
-          "visibleForeignUnits"
+          "visibleForeignUnits",
+          "pendingCityDispositions"
         ],
         "properties": {
           "civilizationId": {
@@ -6362,6 +6487,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedUnit"
+            }
+          },
+          "pendingCityDispositions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityDisposition"
             }
           },
           "pendingTurnActions": {
@@ -6495,6 +6626,29 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityDisposition": {
+        "type": "object",
+        "required": [
+          "cityId",
+          "cityName",
+          "availableActions"
+        ],
+        "properties": {
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CityDispositionAction"
+            }
+          },
+          "cityId": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -7158,6 +7312,39 @@
           "city_id"
         ],
         "properties": {
+          "city_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveCityDispositionRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_id",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/CityDispositionAction"
+          },
           "city_id": {
             "type": "string"
           },

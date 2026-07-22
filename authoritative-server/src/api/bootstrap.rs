@@ -194,6 +194,10 @@ pub(crate) async fn run() {
             post(set_city_governance),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/resolve-city-disposition",
+            post(resolve_city_disposition),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{CityGovernanceAction, UnitPosture};
+use crate::{CityDispositionAction, CityGovernanceAction, UnitPosture};
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
@@ -23,6 +23,15 @@ pub struct PlayerProjection {
     pub own_units: Vec<ProjectedUnit>,
     pub explored_tiles: Vec<ProjectedTileVisibility>,
     pub visible_foreign_units: Vec<ProjectedUnit>,
+    pub pending_city_dispositions: Vec<ProjectedCityDisposition>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityDisposition {
+    pub city_id: String,
+    pub city_name: String,
+    pub available_actions: Vec<CityDispositionAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -180,7 +189,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v18.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v19.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -202,6 +211,16 @@ mod tests {
         assert_eq!(
             projection.own_cities[0].available_governance_actions,
             [CityGovernanceAction::StartRazing]
+        );
+        assert_eq!(projection.pending_city_dispositions[0].city_name, "Athens");
+        assert_eq!(
+            projection.pending_city_dispositions[0].available_actions,
+            [
+                CityDispositionAction::Liberate,
+                CityDispositionAction::Annex,
+                CityDispositionAction::Puppet,
+                CityDispositionAction::Raze,
+            ]
         );
         assert_eq!(
             projection.research.current_technology.as_deref(),

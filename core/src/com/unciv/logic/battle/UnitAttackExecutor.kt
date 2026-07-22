@@ -16,11 +16,15 @@ object UnitAttackExecutor {
             )
             .firstOrNull()
 
-    fun attack(unit: MapUnit, target: Tile): Battle.DamageDealt? {
+    fun attack(
+        unit: MapUnit,
+        target: Tile,
+        deferHumanCityDisposition: Boolean = false,
+    ): Battle.DamageDealt? {
         if (!unit.canAttack()) return null
         val attack = findCanonicalAttack(unit, target) ?: return null
         val attacker = MapUnitCombatant(unit)
         if (!Battle.movePreparingAttack(attacker, attack)) return null
-        return Battle.attackOrNuke(attacker, attack)
+        return Battle.attackOrNuke(attacker, attack, deferHumanCityDisposition)
     }
 }

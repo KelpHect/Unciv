@@ -33,6 +33,15 @@ enum class CityGovernanceAction {
 }
 
 @Serializable
+enum class CityDispositionAction {
+    @SerialName("liberate") Liberate,
+    @SerialName("annex") Annex,
+    @SerialName("puppet") Puppet,
+    @SerialName("raze") Raze,
+    @SerialName("destroy") Destroy,
+}
+
+@Serializable
 enum class UnitPosture {
     @SerialName("sleep") Sleep,
     @SerialName("sleep_until_healed") SleepUntilHealed,
@@ -234,6 +243,11 @@ sealed interface GameCommand {
     data class SetCityGovernance(
         val cityId: String,
         val action: CityGovernanceAction,
+    ) : GameCommand
+
+    data class ResolveCityDisposition(
+        val cityId: String,
+        val action: CityDispositionAction,
     ) : GameCommand
 
     data class SetCityTileAssignment(

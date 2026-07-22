@@ -25,6 +25,7 @@ mod unit_actions;
 mod unit_gifts;
 mod unit_movement;
 mod unit_orders;
+mod unit_transforms;
 
 use auth::*;
 use auth_helpers::*;
@@ -48,6 +49,7 @@ use unit_actions::*;
 use unit_gifts::*;
 use unit_movement::*;
 use unit_orders::*;
+use unit_transforms::*;
 
 pub(super) use std::{
     net::{IpAddr, SocketAddr},

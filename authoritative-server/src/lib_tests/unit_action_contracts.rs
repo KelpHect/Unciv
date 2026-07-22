@@ -25,6 +25,40 @@ fn gift_unit_contract_contains_only_the_unit_identifier() {
 }
 
 #[test]
+fn transform_unit_contract_contains_only_unit_and_projected_action_identity() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "transform_unit", "unit_id": 17, "action_id": "a".repeat(64)
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::TransformUnit {
+            unit_id: 17,
+            action_id: "a".repeat(64),
+        }
+    );
+    for untrusted in [
+        "actor_id",
+        "target_unit_name",
+        "source_unit_name",
+        "resource_cost",
+        "movement",
+        "side_effects",
+        "placement",
+        "outcome",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "transform_unit", "unit_id": 17, "action_id": "a".repeat(64)
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn great_person_unit_action_contract_excludes_yields_targets_and_outcomes() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "use_great_person_unit", "unit_id": 17, "action": "conduct_trade_mission"

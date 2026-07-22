@@ -1938,6 +1938,7 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun useGreatPersonUnit(gameId: String, request: ApiV3UseGreatPersonUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun giftUnit(gameId: String, request: ApiV3GiftUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
         private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {

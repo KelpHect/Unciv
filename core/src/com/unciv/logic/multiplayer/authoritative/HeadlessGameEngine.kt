@@ -1327,6 +1327,22 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun transformUnit(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        actionId: String,
+    ): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot transform a unit outside their turn"
+        }
+        val unit = actor.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        UnitTransformCommandExecutor.execute(unit, actionId)
+        return result(game)
+    }
+
     fun chooseReligiousBeliefs(
         game: GameInfo,
         actorCivilizationId: String,

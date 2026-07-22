@@ -239,6 +239,10 @@ pub enum GameCommand {
     GiftUnit {
         unit_id: i32,
     },
+    TransformUnit {
+        unit_id: i32,
+        action_id: String,
+    },
     ChooseReligiousBeliefs {
         belief_names: Vec<String>,
         religion_icon_name: Option<String>,

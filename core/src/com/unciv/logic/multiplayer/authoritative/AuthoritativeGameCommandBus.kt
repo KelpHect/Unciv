@@ -343,6 +343,7 @@ sealed interface PendingAuthoritativeCommand {
         val action: GreatPersonUnitAction,
     ) : PendingAuthoritativeCommand
     data class GiftUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
+    data class TransformUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
 
     data class ChooseReligiousBeliefs(
         override val commandId: String,
@@ -1080,6 +1081,17 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun transformUnit(unitId: Int, actionId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any {
+            it.id == unitId && it.availableTransformActions.any { action -> action.actionId == actionId }
+        }) { "Unit transformation is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.TransformUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, actionId,
+        ), current)
+    }
+
     suspend fun chooseReligiousBeliefs(
         beliefNames: List<String>,
         religionIconName: String?,
@@ -1735,6 +1747,12 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.GiftUnit -> transport.giftUnit(
                     gameId, ApiV3GiftUnitRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.unitId,
+                    ),
+                )
+                is PendingAuthoritativeCommand.TransformUnit -> transport.transformUnit(
+                    gameId, ApiV3TransformUnitRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitId, pending.actionId,
                     ),
                 )
                 is PendingAuthoritativeCommand.ChooseReligiousBeliefs -> transport.chooseReligiousBeliefs(

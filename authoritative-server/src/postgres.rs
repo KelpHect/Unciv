@@ -26,8 +26,8 @@ use crate::worker::{
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
     SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, TradePartnerIntent,
-    TradeRequestIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent, UseReligiousUnitIntent,
-    WorkerManifest,
+    TradeRequestIntent, TransformUnitIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    UseReligiousUnitIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -116,6 +116,7 @@ mod unit_actions;
 mod unit_gifts;
 mod unit_movement;
 mod unit_orders;
+mod unit_transforms;
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

@@ -2382,6 +2382,44 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun unitTransformationIsProjectedAndExecutedByCanonicalWorker() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        if (rome.cities.isEmpty()) {
+            val settler = rome.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            rome.addCity(settler.currentTile.position, settler)
+        }
+        val transformable = com.unciv.models.ruleset.unit.BaseUnit().apply {
+            name = "Server Transformer"
+            cost = 40
+            movement = 2
+            strength = 8
+            unitType = "Melee"
+            uniques.add("Can transform to [Scout]")
+            uniques.add("Can transform to [Scout]")
+            setRuleset(game.ruleset)
+        }
+        game.ruleset.units[transformable.name] = transformable
+        val warrior = rome.units.addUnit(transformable, rome.getCapital())!!
+        val originalId = warrior.id
+
+        val projected = engine.playerProjection(game, "Rome").ownUnits.single { it.id == originalId }
+        Assert.assertEquals(listOf("Scout", "Scout"), projected.availableTransformActions.map { it.targetUnitName })
+        Assert.assertEquals(2, projected.availableTransformActions.map { it.actionId }.distinct().size)
+        val actionId = projected.availableTransformActions.last().actionId
+        Assert.assertTrue(actionId.matches(Regex("[0-9a-f]{64}")))
+
+        engine.transformUnit(game, "Rome", originalId, actionId)
+
+        val transformed = rome.units.getUnitById(originalId)!!
+        Assert.assertEquals("Scout", transformed.name)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.transformUnit(game, "Rome", originalId, actionId)
+        }
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

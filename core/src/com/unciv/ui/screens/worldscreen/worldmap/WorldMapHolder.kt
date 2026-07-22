@@ -730,6 +730,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when a mod-defined transformation was submitted to the authoritative server. */
+    fun transformUnit(unit: MapUnit, actionId: String): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("unit transformation", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.transformUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     /** Returns true when founding was submitted to the authoritative server. */
     fun foundCity(unit: MapUnit): Boolean {
         if (!isAuthoritativeGame()) return false

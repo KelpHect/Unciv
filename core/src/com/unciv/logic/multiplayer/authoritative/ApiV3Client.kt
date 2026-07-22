@@ -471,6 +471,11 @@ class ApiV3Client(
             authenticate(); contentType(ContentType.Application.Json); setBody(request)
         })
 
+    override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/transform-unit") {
+            authenticate(); contentType(ContentType.Application.Json); setBody(request)
+        })
+
     override suspend fun chooseReligiousBeliefs(
         gameId: String,
         request: ApiV3ChooseReligiousBeliefsRequest,

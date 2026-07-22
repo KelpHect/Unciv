@@ -3473,3 +3473,47 @@ Verification on 2026-07-22:
 
 The unit-gift mutation is authoritative. The unit special-action audit now
 advances to transform, airlift, and generic trigger-unique paths.
+
+## Authoritative mod-defined unit transformations
+
+Projection version 34 exposes each currently executable transform as an opaque
+action ID plus its presentation target name. `TransformUnit` carries only the
+stable unit ID and one selected projected action ID; clients cannot claim the
+target, source definition, resources, placement, movement, side effects, or
+result. Distinct legal uniques remain independently selectable even when they
+share a target name.
+
+The private Kotlin worker re-resolves current-turn ownership and the exact
+canonical `CanTransform` action. It invokes the existing shared
+`UnitActionsFromUniques` callback, which owns availability conditionals,
+resource deltas, embarkation, placement or resurrection, stable unit identity,
+movement clamping, and all mod-defined side effects. Rust validates the closed
+intent and exclusively commits the resulting revision without implementing
+game rules.
+
+For opened v3 games, `UnitActionsTable` submits the transformation before its
+legacy callback can execute locally. Local games, hotseat, saves, legacy
+multiplayer, and server AI continue through the same Kotlin implementation.
+
+Verification on 2026-07-22:
+
+- A focused synthetic-mod Kotlin test proves two distinct opaque actions with
+  the same Warrior-to-Scout target remain selectable, alongside canonical
+  execution, stable unit ID, and replay rejection.
+  Rust rejects actor, source, resource, movement, side-effect, placement, and
+  outcome claims, and a wire test verifies Kotlin-compatible field names.
+- `./gradlew :tests:test :server:test --no-daemon` completed 923 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test --lib` passed 69 active library tests and all 7 HTTP/OpenAPI tests
+  passed. Generated OpenAPI parity and the projection-v34 fixture passed.
+- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings`, and `git diff --check` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55466; the live server reported `19beta2`. The disposable
+  `unciv-v3-unit-transform-id-pg19b2` container was removed and cleanup verified.
+- Module-size review found a 762-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line facade.
+
+Mod-defined unit transformation is authoritative. The unit special-action
+audit now advances to airlift and generic trigger-unique paths.

@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 33
+        const val CURRENT_PROJECTION_VERSION = 34
     }
 }
 
@@ -280,7 +280,11 @@ data class ProjectedUnit(
     val availableReligiousActions: List<ReligiousUnitAction> = emptyList(),
     val availableGreatPersonActions: List<GreatPersonUnitAction> = emptyList(),
     val canGift: Boolean = false,
+    val availableTransformActions: List<ProjectedUnitTransformAction> = emptyList(),
 )
+
+@Serializable
+data class ProjectedUnitTransformAction(val actionId: String, val targetUnitName: String)
 
 @Serializable
 data class ProjectedImprovementOrderEntry(
@@ -474,6 +478,8 @@ object PlayerProjectionBuilder {
         availableGreatPersonActions = if (includePrivateOrders)
             GreatPersonUnitActionExecutor.availableActions(unit) else emptyList(),
         canGift = includePrivateOrders && UnitGiftCommandExecutor.canGift(unit),
+        availableTransformActions = if (includePrivateOrders)
+            UnitTransformCommandExecutor.projectedActions(unit) else emptyList(),
     )
     }
 

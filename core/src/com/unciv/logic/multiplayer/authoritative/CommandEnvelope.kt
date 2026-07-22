@@ -48,6 +48,7 @@ enum class UnitPosture {
     @SerialName("fortify") Fortify,
     @SerialName("fortify_until_healed") FortifyUntilHealed,
     @SerialName("guard") Guard,
+    @SerialName("setup") Setup,
 }
 
 /**

@@ -706,6 +706,10 @@ class WorldMapHolder(
                 UnitPosture.Fortify -> unit.fortify()
                 UnitPosture.FortifyUntilHealed -> unit.fortifyUntilHealed()
                 UnitPosture.Guard -> unit.action = UnitActionType.Guard.value
+                UnitPosture.Setup -> {
+                    unit.action = UnitActionType.SetUp.value
+                    unit.useMovementPoints(1f)
+                }
             }
             worldScreen.shouldUpdate = true
             return

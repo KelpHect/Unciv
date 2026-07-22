@@ -313,6 +313,17 @@ fn set_unit_posture_contract_uses_a_closed_enum() {
             posture: UnitPosture::FortifyUntilHealed,
         }
     );
+    let setup: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_unit_posture", "unit_id": 42, "posture": "setup"
+    }))
+    .unwrap();
+    assert_eq!(
+        setup,
+        GameCommand::SetUnitPosture {
+            unit_id: 42,
+            posture: UnitPosture::Setup,
+        }
+    );
     assert!(
         serde_json::from_value::<GameCommand>(serde_json::json!({
             "type": "set_unit_posture", "unit_id": 42, "posture": "arbitrary_action"

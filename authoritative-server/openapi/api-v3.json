@@ -13368,7 +13368,8 @@
           "sleep_until_healed",
           "fortify",
           "fortify_until_healed",
-          "guard"
+          "guard",
+          "setup"
         ]
       },
       "UpgradeUnitsRequest": {

@@ -38,6 +38,7 @@ pub enum UnitPosture {
     Fortify,
     FortifyUntilHealed,
     Guard,
+    Setup,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]

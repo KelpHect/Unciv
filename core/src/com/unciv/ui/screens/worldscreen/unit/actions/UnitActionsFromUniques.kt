@@ -138,8 +138,7 @@ object UnitActionsFromUniques {
             isCurrentAction = isSetUp,
             useFrequency = 85f,
             action = {
-                unit.action = UnitActionType.SetUp.value
-                unit.useMovementPoints(1f)
+                GUI.getMap().setUnitPosture(unit, UnitPosture.Setup)
             }.takeIf { unit.hasMovement() && !isSetUp })
         )
     }

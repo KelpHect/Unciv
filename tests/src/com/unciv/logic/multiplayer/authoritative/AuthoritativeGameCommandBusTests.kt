@@ -196,13 +196,13 @@ class AuthoritativeGameCommandBusTests {
         val bus = AuthoritativeGameCommandBus(gameId, transport) { "posture-command" }
         bus.refresh()
 
-        assertTrue(bus.setUnitPosture(42, UnitPosture.Fortify) is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(bus.setUnitPosture(42, UnitPosture.Setup) is AuthoritativeCommandOutcome.Accepted)
         val request = transport.unitPostureRequests.single()
         assertEquals("posture-command", request.commandId)
         assertEquals(42, request.unitId)
-        assertEquals(UnitPosture.Fortify, request.posture)
+        assertEquals(UnitPosture.Setup, request.posture)
         val encoded = Json.encodeToString(ApiV3SetUnitPostureRequest.serializer(), request)
-        assertTrue(encoded.contains("\"posture\":\"fortify\""))
+        assertTrue(encoded.contains("\"posture\":\"setup\""))
         assertTrue(!encoded.contains("action"))
         assertTrue(!encoded.contains("actor"))
     }

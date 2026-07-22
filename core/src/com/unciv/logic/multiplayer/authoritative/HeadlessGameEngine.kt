@@ -954,6 +954,13 @@ class HeadlessGameEngine(
                 require(!unit.isGuarding()) { "Unit is already guarding" }
                 unit.action = UnitActionType.Guard.value
             }
+            UnitPosture.Setup -> {
+                require(unit.hasUnique(UniqueType.MustSetUp)) { "Unit does not require setup" }
+                require(!unit.isEmbarked()) { "Embarked unit cannot set up" }
+                require(!unit.isSetUpForSiege()) { "Unit is already set up" }
+                unit.action = UnitActionType.SetUp.value
+                unit.useMovementPoints(1f)
+            }
         }
         return result(game)
     }

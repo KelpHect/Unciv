@@ -4288,3 +4288,46 @@ Verification on 2026-07-22:
   corrected immediately; the complete focused and broad gates were rerun, and
   no compile, test, formatting, Clippy, OpenAPI, or database error remains
   deferred.
+
+## Authoritative siege setup and projection v42
+
+The persistent-unit-order audit found that the Set Up action still wrote a
+siege unit's canonical action and consumed movement directly in the opened-v3
+client. The existing closed `SetUnitPosture` operation now includes a `setup`
+variant. Rust accepts no raw action string; the private Kotlin worker derives
+the actor and unit, requires the current turn, movement, the canonical
+`MustSetUp` unique, non-embarked state, and a unit not already set up, then uses
+the shared setup action and movement cost before PostgreSQL commits the result.
+
+The normal unit-action UI now routes setup through the authoritative session.
+Local, hotseat, saved, legacy/API-v2, and server AI paths retain the same shared
+Kotlin behavior. Projection v42 exposes setup through the existing closed
+owner-only posture field; foreign units still receive no private posture.
+
+The same audit classified paradrop and air-sweep toggles as disposable target-
+selection presentation state, while identifying escort formation as the next
+real gap. Its legacy flag is cache-only and cannot survive worker snapshot
+reloads. API v3 therefore needs an atomic typed paired-movement intent rather
+than persisting or trusting that cache flag; this remains explicit in
+`missing_multiplayer.md`.
+
+Verification on 2026-07-22:
+
+- A deterministic engine test proves identical setup hashes from identical
+  snapshots, exact movement consumption, owner projection, and rejection for a
+  unit without the setup unique. Rust and Kotlin wire tests prove the closed
+  `setup` spelling and exclude arbitrary action strings.
+- The projection-v42 fixture, generated OpenAPI parity, all 88 active Rust
+  library tests, all 7 HTTP/OpenAPI tests, `cargo fmt --check`, and warnings-as-
+  errors Clippy pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes 946 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55458; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-setup-pg19b2` container, network, and volume were removed and
+  cleanup was verified.
+- The first setup fixture incorrectly assumed the generated game already had a
+  capital, causing a null test fixture rather than a product failure. The test
+  now places the siege unit near an existing owned unit; the exact test and all
+  broad gates pass, so no error is deferred.

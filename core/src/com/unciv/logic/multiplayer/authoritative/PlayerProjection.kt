@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 41
+        const val CURRENT_PROJECTION_VERSION = 42
     }
 }
 
@@ -570,6 +570,7 @@ object PlayerProjectionBuilder {
         unit.isFortifyingUntilHealed() -> UnitPosture.FortifyUntilHealed
         unit.isFortified() -> UnitPosture.Fortify
         unit.isGuarding() -> UnitPosture.Guard
+        unit.isSetUpForSiege() -> UnitPosture.Setup
         else -> null
     }
 

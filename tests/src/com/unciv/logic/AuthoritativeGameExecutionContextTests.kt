@@ -611,6 +611,42 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun siegeSetupIsCanonicalDeterministicAndRejectsIneligibleUnits() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val created = engine.createGame(testSetup()).game
+        val rome = created.getCivilization("Rome")
+        val siege = rome.units.placeUnitNearTile(
+            rome.units.getCivUnits().first().currentTile.position,
+            "Catapult",
+        )!!
+        val initialMovement = siege.currentMovement
+        val snapshot = engine.serializeSnapshot(created)
+
+        val first = engine.setUnitPosture(
+            engine.loadSnapshot(snapshot), "Rome", siege.id, UnitPosture.Setup,
+        )
+        val second = engine.setUnitPosture(
+            engine.loadSnapshot(snapshot), "Rome", siege.id, UnitPosture.Setup,
+        )
+        val canonicalSiege = first.game.getCivilization("Rome").units.getUnitById(siege.id)!!
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertTrue(canonicalSiege.isSetUpForSiege())
+        Assert.assertEquals(initialMovement - 1f, canonicalSiege.currentMovement)
+        Assert.assertEquals(
+            UnitPosture.Setup,
+            engine.playerProjection(first.game, "Rome").ownUnits
+                .single { it.id == siege.id }.posture,
+        )
+
+        val ordinaryUnit = first.game.getCivilization("Rome").units.getCivUnits()
+            .first { it.id != siege.id && !it.hasUnique(UniqueType.MustSetUp) }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setUnitPosture(first.game, "Rome", ordinaryUnit.id, UnitPosture.Setup)
+        }
+    }
+
+    @Test
     fun unitDisbandIsCanonicalDeterministicAndDerivesGoldOnTheServer() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

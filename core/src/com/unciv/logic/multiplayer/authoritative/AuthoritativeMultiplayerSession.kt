@@ -1102,6 +1102,30 @@ class AuthoritativeMultiplayerSession(
             { it is PendingAuthoritativeCommand.CounterTrade && it.requestId == requestId && it.trade == trade },
             { it.counterTrade(requestId, trade) })
 
+    suspend fun declareWarIfOpen(gameId: String, otherId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.DeclareWar && it.otherCivilizationId == otherId }, { it.declareWar(otherId) })
+    suspend fun denounceCivilizationIfOpen(gameId: String, otherId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.DenounceCivilization && it.otherCivilizationId == otherId }, { it.denounceCivilization(otherId) })
+    suspend fun offerFriendshipIfOpen(gameId: String, otherId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.OfferFriendship && it.otherCivilizationId == otherId }, { it.offerFriendship(otherId) })
+    suspend fun makeDiplomaticDemandIfOpen(gameId: String, otherId: String, demand: DiplomaticDemand) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.MakeDiplomaticDemand && it.otherCivilizationId == otherId && it.demand == demand }, { it.makeDiplomaticDemand(otherId, demand) })
+    suspend fun respondToDiplomaticPromptIfOpen(gameId: String, promptId: String, accept: Boolean) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.RespondToDiplomaticPrompt && it.promptId == promptId && it.accept == accept }, { it.respondToDiplomaticPrompt(promptId, accept) })
+
+    private suspend fun withDiplomacyBus(
+        gameId: String,
+        matches: (PendingAuthoritativeCommand) -> Boolean,
+        submit: suspend (AuthoritativeGameCommandBus) -> AuthoritativeCommandOutcome,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> { check(matches(current.pending)) { "Resolve the pending authoritative command before changing diplomacy" }; bus.retryPending() }
+            is AuthoritativeSyncState.Synchronized -> submit(bus)
+            else -> { bus.refresh(); submit(bus) }
+        }
+    }
+
     private suspend fun withTradeBus(
         gameId: String,
         matches: (PendingAuthoritativeCommand) -> Boolean,

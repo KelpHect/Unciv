@@ -473,6 +473,32 @@ data class ApiV3CounterTradeRequest(
 )
 
 @Serializable
+data class ApiV3DiplomacyPartnerRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("other_civilization_id") val otherCivilizationId: String,
+)
+
+@Serializable
+data class ApiV3DiplomaticDemandRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("other_civilization_id") val otherCivilizationId: String,
+    val demand: DiplomaticDemand,
+)
+
+@Serializable
+data class ApiV3DiplomaticPromptResponseRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("prompt_id") val promptId: String,
+    val accept: Boolean,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

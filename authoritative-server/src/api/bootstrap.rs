@@ -234,6 +234,26 @@ pub(crate) async fn run() {
             post(counter_trade),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/declare-war",
+            post(declare_war),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/denounce-civilization",
+            post(denounce_civilization),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/offer-friendship",
+            post(offer_friendship),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/make-diplomatic-demand",
+            post(make_diplomatic_demand),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/respond-to-diplomatic-prompt",
+            post(respond_to_diplomatic_prompt),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

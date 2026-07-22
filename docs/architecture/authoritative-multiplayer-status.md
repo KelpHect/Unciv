@@ -3085,3 +3085,52 @@ Verification on 2026-07-22:
 
 The broader command-coverage audit continues with diplomacy, city-state,
 espionage, and remaining special-action families.
+
+## Authoritative major-civilization diplomacy
+
+API v3 now covers direct war declarations, denunciations, friendship offers,
+the four diplomatic demands, and accept/refuse responses to friendship and
+demand prompts. Peace continues through the already-authoritative bilateral
+trade path. Projection version 25 exposes only known eligible major partners,
+server-derived action allowlists, and the authenticated civilization's
+actionable prompts under stable opaque SHA-256 identifiers.
+
+The focused Kotlin `DiplomacyCommandExecutor` re-derives the authenticated
+actor, current turn, counterpart eligibility, treaty cooldowns, relationship
+rules, pending alert identity and type, and demand availability before calling
+the existing diplomacy engine. Clients cannot provide a war reason, duration,
+modifier, acceptance result, actor identity, or canonical state. All AI
+diplomacy remains inside server-owned turn automation.
+
+For explicitly opened v3 games, the major-civilization diplomacy screen and
+actionable friendship, demand, and denouncement alert choices submit typed
+commands and return before their legacy mutations. Single-player, hotseat,
+saves, legacy multiplayer, and local AI paths retain their existing Kotlin
+behavior. City-state protection and allied-war prompts remain tracked under
+the separate city-state milestone.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin engine tests prove canonical war, denunciation, friendship,
+  demand, and prompt response behavior, including forged prompt, foreign actor,
+  and out-of-turn rejection. Projection, command-bus, and session tests cover
+  the v25 closed view, projection-bound requests, explicit-open routing, and
+  common same-idempotency-key retry behavior.
+- `./gradlew :tests:test :server:test --no-daemon` completed 914 JVM tests with
+  13 intentional skips and zero failures, including all worker protocol and
+  existing local-game tests.
+- `cargo test` passed 59 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in that lane. Generated
+  OpenAPI parity and the shared projection-v25 fixture passed.
+- `cargo fmt` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55436. The disposable `unciv-v3-diplomacy-pg19b2` container was
+  removed and verified absent afterward.
+- `git diff --check` and module-size review passed. `main.rs` is 6 lines,
+  `lib.rs` is 28 lines, and the largest Rust source is 757 lines after moving
+  shared intent types out of the worker protocol module.
+
+The coverage audit continues with authoritative city-state interactions,
+espionage, and remaining special-action families.

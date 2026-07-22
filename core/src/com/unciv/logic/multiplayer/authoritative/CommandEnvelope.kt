@@ -282,6 +282,18 @@ sealed interface GameCommand {
 
     data class CounterTrade(val requestId: String, val trade: ProjectedTrade) : GameCommand
 
+    data class DeclareWar(val otherCivilizationId: String) : GameCommand
+    data class DenounceCivilization(val otherCivilizationId: String) : GameCommand
+    data class OfferFriendship(val otherCivilizationId: String) : GameCommand
+    data class MakeDiplomaticDemand(
+        val otherCivilizationId: String,
+        val demand: DiplomaticDemand,
+    ) : GameCommand
+    data class RespondToDiplomaticPrompt(
+        val promptId: String,
+        val accept: Boolean,
+    ) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,

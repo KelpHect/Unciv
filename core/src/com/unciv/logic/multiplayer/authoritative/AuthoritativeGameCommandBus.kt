@@ -20,6 +20,12 @@ sealed interface AuthoritativeSyncState {
     ) : AuthoritativeSyncState
 }
 
+private enum class PartnerDiplomacyAction {
+    DeclareWar,
+    Denounce,
+    OfferFriendship,
+}
+
 sealed interface PendingAuthoritativeCommand {
     val commandId: String
     val expectedRevision: Long
@@ -362,6 +368,12 @@ sealed interface PendingAuthoritativeCommand {
         override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
         val requestId: String, val trade: ProjectedTrade,
     ) : PendingAuthoritativeCommand
+
+    data class DeclareWar(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String) : PendingAuthoritativeCommand
+    data class DenounceCivilization(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String) : PendingAuthoritativeCommand
+    data class OfferFriendship(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String) : PendingAuthoritativeCommand
+    data class MakeDiplomaticDemand(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val otherCivilizationId: String, val demand: DiplomaticDemand) : PendingAuthoritativeCommand
+    data class RespondToDiplomaticPrompt(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val promptId: String, val accept: Boolean) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1085,6 +1097,41 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun declareWar(otherId: String) = partnerDiplomacy(otherId, PartnerDiplomacyAction.DeclareWar)
+    suspend fun denounceCivilization(otherId: String) = partnerDiplomacy(otherId, PartnerDiplomacyAction.Denounce)
+    suspend fun offerFriendship(otherId: String) = partnerDiplomacy(otherId, PartnerDiplomacyAction.OfferFriendship)
+
+    private suspend fun partnerDiplomacy(otherId: String, action: PartnerDiplomacyAction) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.diplomacyPartners.singleOrNull { it.civilizationId == otherId }
+            ?: error("Diplomatic counterpart is absent from the current player projection")
+        val allowed = when (action) {
+            PartnerDiplomacyAction.DeclareWar -> partner.canDeclareWar
+            PartnerDiplomacyAction.Denounce -> partner.canDenounce
+            PartnerDiplomacyAction.OfferFriendship -> partner.canOfferFriendship
+        }
+        require(allowed) { "Diplomatic action is absent from the current player projection" }
+        val commandId = commandIdFactory()
+        val pending = when (action) {
+            PartnerDiplomacyAction.DeclareWar -> PendingAuthoritativeCommand.DeclareWar(commandId, current.committedRevision, current.canonicalStateHash, otherId)
+            PartnerDiplomacyAction.Denounce -> PendingAuthoritativeCommand.DenounceCivilization(commandId, current.committedRevision, current.canonicalStateHash, otherId)
+            PartnerDiplomacyAction.OfferFriendship -> PendingAuthoritativeCommand.OfferFriendship(commandId, current.committedRevision, current.canonicalStateHash, otherId)
+        }
+        submitLocked(pending, current)
+    }
+
+    suspend fun makeDiplomaticDemand(otherId: String, demand: DiplomaticDemand) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.diplomacyPartners.any { it.civilizationId == otherId && demand in it.availableDemands }) { "Diplomatic demand is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.MakeDiplomaticDemand(commandIdFactory(), current.committedRevision, current.canonicalStateHash, otherId, demand), current)
+    }
+
+    suspend fun respondToDiplomaticPrompt(promptId: String, accept: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.diplomacyPrompts.any { it.promptId == promptId }) { "Diplomatic prompt is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.RespondToDiplomaticPrompt(commandIdFactory(), current.committedRevision, current.canonicalStateHash, promptId, accept), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1573,6 +1620,11 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.CounterTrade -> transport.counterTrade(gameId, ApiV3CounterTradeRequest(
                     pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.requestId, pending.trade,
                 ))
+                is PendingAuthoritativeCommand.DeclareWar -> transport.declareWar(gameId, ApiV3DiplomacyPartnerRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId))
+                is PendingAuthoritativeCommand.DenounceCivilization -> transport.denounceCivilization(gameId, ApiV3DiplomacyPartnerRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId))
+                is PendingAuthoritativeCommand.OfferFriendship -> transport.offerFriendship(gameId, ApiV3DiplomacyPartnerRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId))
+                is PendingAuthoritativeCommand.MakeDiplomaticDemand -> transport.makeDiplomaticDemand(gameId, ApiV3DiplomaticDemandRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId, pending.demand))
+                is PendingAuthoritativeCommand.RespondToDiplomaticPrompt -> transport.respondToDiplomaticPrompt(gameId, ApiV3DiplomaticPromptResponseRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.promptId, pending.accept))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

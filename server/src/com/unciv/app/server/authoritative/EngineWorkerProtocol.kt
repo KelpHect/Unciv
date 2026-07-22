@@ -12,6 +12,7 @@ import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
+import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
@@ -405,6 +406,17 @@ sealed interface WorkerOperation {
 
     @Serializable @SerialName("counter_trade")
     data class CounterTrade(val snapshot: String, val actorCivilizationId: String, val requestId: String, val trade: ProjectedTrade) : WorkerOperation
+
+    @Serializable @SerialName("declare_war")
+    data class DeclareWar(val snapshot: String, val actorCivilizationId: String, val otherCivilizationId: String) : WorkerOperation
+    @Serializable @SerialName("denounce_civilization")
+    data class DenounceCivilization(val snapshot: String, val actorCivilizationId: String, val otherCivilizationId: String) : WorkerOperation
+    @Serializable @SerialName("offer_friendship")
+    data class OfferFriendship(val snapshot: String, val actorCivilizationId: String, val otherCivilizationId: String) : WorkerOperation
+    @Serializable @SerialName("make_diplomatic_demand")
+    data class MakeDiplomaticDemand(val snapshot: String, val actorCivilizationId: String, val otherCivilizationId: String, val demand: DiplomaticDemand) : WorkerOperation
+    @Serializable @SerialName("respond_to_diplomatic_prompt")
+    data class RespondToDiplomaticPrompt(val snapshot: String, val actorCivilizationId: String, val promptId: String, val accept: Boolean) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -942,6 +954,26 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.CounterTrade -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.counterTrade(game, operation.actorCivilizationId, operation.requestId, operation.trade).game)
+            }
+            is WorkerOperation.DeclareWar -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.declareWar(game, operation.actorCivilizationId, operation.otherCivilizationId).game)
+            }
+            is WorkerOperation.DenounceCivilization -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.denounceCivilization(game, operation.actorCivilizationId, operation.otherCivilizationId).game)
+            }
+            is WorkerOperation.OfferFriendship -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.offerFriendship(game, operation.actorCivilizationId, operation.otherCivilizationId).game)
+            }
+            is WorkerOperation.MakeDiplomaticDemand -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.makeDiplomaticDemand(game, operation.actorCivilizationId, operation.otherCivilizationId, operation.demand).game)
+            }
+            is WorkerOperation.RespondToDiplomaticPrompt -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.respondToDiplomaticPrompt(game, operation.actorCivilizationId, operation.promptId, operation.accept).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

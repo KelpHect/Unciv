@@ -32,6 +32,43 @@ pub struct PlayerProjection {
     pub religion_choice: Option<ProjectedReligionChoice>,
     pub trade_partners: Vec<ProjectedTradePartner>,
     pub pending_trade_requests: Vec<ProjectedTradeRequest>,
+    pub diplomacy_partners: Vec<ProjectedDiplomacyPartner>,
+    pub diplomacy_prompts: Vec<ProjectedDiplomacyPrompt>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedDiplomacyPartner {
+    pub civilization_id: String,
+    pub can_declare_war: bool,
+    pub can_denounce: bool,
+    pub can_offer_friendship: bool,
+    pub available_demands: Vec<DiplomaticDemand>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedDiplomacyPrompt {
+    pub prompt_id: String,
+    pub requesting_civilization_id: String,
+    pub r#type: DiplomacyPromptType,
+    pub demand: Option<DiplomaticDemand>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DiplomacyPromptType {
+    Friendship,
+    Demand,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DiplomaticDemand {
+    DontSpyOnUs,
+    DoNotSpreadReligion,
+    DoNotSettleNearUs,
+    DoNotAttackUs,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -248,7 +285,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v24.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v25.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -261,6 +298,15 @@ mod tests {
             ]
         );
         assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
+        assert_eq!(projection.diplomacy_partners[0].civilization_id, "Greece");
+        assert_eq!(
+            projection.diplomacy_partners[0].available_demands,
+            [DiplomaticDemand::DoNotSettleNearUs]
+        );
+        assert_eq!(
+            projection.diplomacy_prompts[0].r#type,
+            DiplomacyPromptType::Friendship
+        );
         assert_eq!(
             projection.selectable_great_people,
             ["Great Engineer", "Great Scientist"]

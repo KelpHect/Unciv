@@ -7,6 +7,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.civilization.CivFlags
+import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
@@ -19,6 +20,8 @@ import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
+import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
+import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
@@ -1598,6 +1601,58 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertTrue(greece.tradeRequests.isEmpty())
         Assert.assertEquals(1, rome.tradeRequests.size)
         Assert.assertEquals(greece.civName, rome.tradeRequests.single().requestingCiv)
+    }
+
+    @Test
+    fun majorDiplomacyActionsAndFriendshipPromptAreCanonical() {
+        val romeEngine = HeadlessGameEngine(serverContext { serverTime })
+        val greeceEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        val game = romeEngine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+
+        val partner = romeEngine.playerProjection(game, rome.civName).diplomacyPartners.single()
+        Assert.assertTrue(partner.canDeclareWar)
+        Assert.assertTrue(partner.canDenounce)
+        Assert.assertTrue(partner.canOfferFriendship)
+
+        romeEngine.offerFriendship(game, rome.civName, greece.civName)
+        game.currentPlayer = greece.civName
+        val prompt = greeceEngine.playerProjection(game, greece.civName).diplomacyPrompts.single()
+        Assert.assertEquals(DiplomacyPromptType.Friendship, prompt.type)
+        greeceEngine.respondToDiplomaticPrompt(game, greece.civName, prompt.promptId, true)
+        Assert.assertTrue(rome.getDiplomacyManager(greece)!!.hasFlag(DiplomacyFlags.DeclarationOfFriendship))
+        Assert.assertThrows(IllegalStateException::class.java) {
+            greeceEngine.respondToDiplomaticPrompt(game, greece.civName, prompt.promptId, true)
+        }
+    }
+
+    @Test
+    fun diplomaticDemandResponseAndWarDeclarationRejectForgeryAndWrongActor() {
+        val romeEngine = HeadlessGameEngine(serverContext { serverTime })
+        val greeceEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        val game = romeEngine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+
+        romeEngine.makeDiplomaticDemand(game, rome.civName, greece.civName, DiplomaticDemand.DoNotSettleNearUs)
+        game.currentPlayer = greece.civName
+        val prompt = greeceEngine.playerProjection(game, greece.civName).diplomacyPrompts.single()
+        Assert.assertEquals(DiplomaticDemand.DoNotSettleNearUs, prompt.demand)
+        greeceEngine.respondToDiplomaticPrompt(game, greece.civName, prompt.promptId, true)
+        Assert.assertTrue(greece.getDiplomacyManager(rome)!!.otherCivDiplomacy().hasFlag(DiplomacyFlags.AgreedToNotSettleNearUs))
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            greeceEngine.declareWar(game, rome.civName, greece.civName)
+        }
+        game.currentPlayer = rome.civName
+        romeEngine.declareWar(game, rome.civName, greece.civName)
+        Assert.assertTrue(rome.isAtWarWith(greece))
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            romeEngine.denounceCivilization(game, rome.civName, greece.civName)
+        }
     }
 
     @Test

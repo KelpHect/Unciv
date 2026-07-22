@@ -18,26 +18,33 @@ mod city_governance;
 mod city_population;
 mod diplomacy;
 mod great_people;
+mod intents;
+mod major_diplomacy;
 mod protocol;
 mod religion;
 mod trade;
 mod unit_actions;
 mod unit_movement;
 mod unit_orders;
+pub use intents::{
+    AdoptPolicyIntent, CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent,
+    ChooseGreatPersonIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetManualSpecialistsIntent, SetResearchPathIntent,
+    SetSpecialistCountIntent,
+};
+pub use major_diplomacy::{DiplomacyPartnerIntent, DiplomaticDemandIntent, DiplomaticPromptIntent};
 pub use protocol::{
-    AdoptPolicyIntent, AirSweepIntent, AssignedPlayer, AttackWithUnitIntent, BombardWithCityIntent,
-    BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
-    ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, CreatedGame, DisbandUnitIntent,
-    FoundCityIntent, LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent,
-    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
+    AirSweepIntent, AssignedPlayer, AttackWithUnitIntent, BombardWithCityIntent, BuyCityTileIntent,
+    CancelUnitMovementOrderIntent, CreatedGame, DisbandUnitIntent, FoundCityIntent,
+    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
+    ParadropUnitIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    ResolveCityDispositionIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, SellBuildingIntent,
+    SetCityUnitPromotionPreferenceIntent, SetPerpetualConstructionIntent,
+    SetRoadConnectionOrderIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
+    WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};

@@ -130,6 +130,12 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val denounceButton = "Denounce ([30] turns)".toTextButton()
         denounceButton.onClick {
             ConfirmPopup(diplomacyScreen, "Denounce [${otherCiv.civName}]?", "Denounce ([30] turns)") {
+                if (diplomacyScreen.usesAuthoritativeCommands()) {
+                    diplomacyScreen.submitAuthoritativeDiplomacy("denounce civilization") {
+                        it.denounceCivilizationIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
+                    }
+                    return@ConfirmPopup
+                }
                 diplomacyManager.denounce()
                 diplomacyScreen.updateLeftSideTable(otherCiv)
                 diplomacyScreen.setRightSideFlavorText(
@@ -150,6 +156,12 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val declareFriendshipButton =
             "Offer Declaration of Friendship ([30] turns)".toTextButton()
         declareFriendshipButton.onClick {
+            if (diplomacyScreen.usesAuthoritativeCommands()) {
+                diplomacyScreen.submitAuthoritativeDiplomacy("offer friendship") {
+                    it.offerFriendshipIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
+                }
+                return@onClick
+            }
             otherCiv.popupAlerts.add(
                 PopupAlert(
                     AlertType.DeclarationOfFriendship,
@@ -234,6 +246,13 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                 button.disable()
             } else {
                 button.onClick {
+                    if (diplomacyScreen.usesAuthoritativeCommands()) {
+                        val authoritativeDemand = com.unciv.logic.multiplayer.authoritative.DiplomaticDemand.valueOf(demand.name)
+                        diplomacyScreen.submitAuthoritativeDiplomacy("make diplomatic demand") {
+                            it.makeDiplomaticDemandIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, authoritativeDemand)
+                        }
+                        return@onClick
+                    }
                     otherCiv.popupAlerts.add(PopupAlert(demand.demandAlert, viewingCiv.civID))
                     button.disable()
                 }

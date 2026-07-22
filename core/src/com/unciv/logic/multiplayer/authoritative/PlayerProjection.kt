@@ -34,10 +34,40 @@ data class PlayerProjection(
     val religionChoice: ProjectedReligionChoice? = null,
     val tradePartners: List<ProjectedTradePartner> = emptyList(),
     val pendingTradeRequests: List<ProjectedTradeRequest> = emptyList(),
+    val diplomacyPartners: List<ProjectedDiplomacyPartner> = emptyList(),
+    val diplomacyPrompts: List<ProjectedDiplomacyPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 24
+        const val CURRENT_PROJECTION_VERSION = 25
     }
+}
+
+@Serializable
+data class ProjectedDiplomacyPartner(
+    val civilizationId: String,
+    val canDeclareWar: Boolean,
+    val canDenounce: Boolean,
+    val canOfferFriendship: Boolean,
+    val availableDemands: List<DiplomaticDemand>,
+)
+
+@Serializable
+data class ProjectedDiplomacyPrompt(
+    val promptId: String,
+    val requestingCivilizationId: String,
+    val type: DiplomacyPromptType,
+    val demand: DiplomaticDemand?,
+)
+
+@Serializable
+enum class DiplomacyPromptType { @SerialName("friendship") Friendship, @SerialName("demand") Demand }
+
+@Serializable
+enum class DiplomaticDemand {
+    @SerialName("dont_spy_on_us") DontSpyOnUs,
+    @SerialName("do_not_spread_religion") DoNotSpreadReligion,
+    @SerialName("do_not_settle_near_us") DoNotSettleNearUs,
+    @SerialName("do_not_attack_us") DoNotAttackUs,
 }
 
 @Serializable
@@ -217,6 +247,8 @@ object PlayerProjectionBuilder {
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
             tradePartners = TradeCommandExecutor.availablePartners(actor),
             pendingTradeRequests = TradeCommandExecutor.pendingRequests(actor),
+            diplomacyPartners = DiplomacyCommandExecutor.partners(actor),
+            diplomacyPrompts = DiplomacyCommandExecutor.prompts(actor),
             ownCities = actor.cities.map {
                 ProjectedCity(
                     id = it.id,

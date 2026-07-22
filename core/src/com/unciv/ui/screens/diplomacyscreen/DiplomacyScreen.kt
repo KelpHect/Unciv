@@ -15,6 +15,8 @@ import com.unciv.logic.civilization.diplomacy.DiplomacyManager
 import com.unciv.logic.civilization.diplomacy.DiplomaticStatus
 import com.unciv.logic.civilization.diplomacy.RelationshipLevel
 import com.unciv.logic.trade.Trade
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.models.translations.tr
 import com.unciv.ui.audio.MusicMood
 import com.unciv.ui.audio.MusicTrackChooserFlags
@@ -32,6 +34,8 @@ import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.tilegroups.citybutton.InfluenceTable
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ConfirmPopup
+import com.unciv.ui.popups.ToastPopup
+import com.unciv.utils.Concurrency
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
 import kotlin.math.floor
@@ -60,6 +64,30 @@ class DiplomacyScreen(
     }
 
     private val highlightColor: Color = clearColor.cpy().lerp(skin.getColor("color"), 0.333f)
+
+    internal fun usesAuthoritativeCommands() = viewingCiv.gameInfo.gameParameters.isOnlineMultiplayer &&
+        game.onlineMultiplayer.authoritativeSession?.isGameOpen(viewingCiv.gameInfo.gameId) == true
+
+    internal fun submitAuthoritativeDiplomacy(
+        label: String,
+        submit: suspend (AuthoritativeMultiplayerSession) -> AuthoritativeCommandOutcome?,
+    ) {
+        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
+            val outcome = try {
+                val session = game.onlineMultiplayer.authoritativeSession ?: return@runOnNonDaemonThreadPool
+                submit(session)
+            } catch (ex: Exception) {
+                Concurrency.runOnGLThread { ToastPopup("Could not submit $label: [${ex.message ?: "Unknown"}]", this@DiplomacyScreen) }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                viewingCiv.gameInfo.isUpToDate = false
+                val message = if (outcome is AuthoritativeCommandOutcome.Accepted) "$label committed by the authoritative server"
+                    else "$label synchronized with the authoritative server"
+                ToastPopup(message, this@DiplomacyScreen)
+            }
+        }
+    }
 
     private val leftSideTable = Table().apply {
         background = skinStrings.getUiBackground("DiplomacyScreen/LeftSide", tintColor = clearColor)
@@ -316,6 +344,12 @@ class DiplomacyScreen(
         }
         declareWarButton.onClick {
             ConfirmPopup(this, getDeclareWarButtonText(otherCiv), "Declare war") {
+                if (usesAuthoritativeCommands()) {
+                    submitAuthoritativeDiplomacy("declare war") {
+                        it.declareWarIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
+                    }
+                    return@ConfirmPopup
+                }
                 diplomacyManager.declareWar()
                 setRightSideFlavorText(otherCiv, otherCiv.nation.attacked, "Very well.")
                 updateLeftSideTable(otherCiv)

@@ -1,4 +1,4 @@
-use crate::projection::ProjectedTrade;
+use crate::projection::{DiplomaticDemand, ProjectedTrade};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -243,6 +243,23 @@ pub enum GameCommand {
     CounterTrade {
         request_id: String,
         trade: ProjectedTrade,
+    },
+    DeclareWar {
+        other_civilization_id: String,
+    },
+    DenounceCivilization {
+        other_civilization_id: String,
+    },
+    OfferFriendship {
+        other_civilization_id: String,
+    },
+    MakeDiplomaticDemand {
+        other_civilization_id: String,
+        demand: DiplomaticDemand,
+    },
+    RespondToDiplomaticPrompt {
+        prompt_id: String,
+        accept: bool,
     },
     SetCityTileAssignment {
         city_id: String,

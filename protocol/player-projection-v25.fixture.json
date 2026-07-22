@@ -59,5 +59,18 @@
       "ourOffers": [{ "name": "Gold", "type": "Gold", "amount": 100, "duration": 0 }],
       "theirOffers": []
     }
+  }],
+  "diplomacyPartners": [{
+    "civilizationId": "Greece",
+    "canDeclareWar": true,
+    "canDenounce": true,
+    "canOfferFriendship": true,
+    "availableDemands": ["do_not_settle_near_us"]
+  }],
+  "diplomacyPrompts": [{
+    "promptId": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "requestingCivilizationId": "Greece",
+    "type": "friendship",
+    "demand": null
   }]
 }

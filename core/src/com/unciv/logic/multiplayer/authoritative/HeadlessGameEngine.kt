@@ -75,6 +75,31 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun declareWar(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String): EngineResult {
+        DiplomacyCommandExecutor.declareWar(game, authenticatedCivilization(game, actorCivilizationId), otherCivilizationId)
+        return result(game)
+    }
+
+    fun denounceCivilization(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String): EngineResult {
+        DiplomacyCommandExecutor.denounce(game, authenticatedCivilization(game, actorCivilizationId), otherCivilizationId)
+        return result(game)
+    }
+
+    fun offerFriendship(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String): EngineResult {
+        DiplomacyCommandExecutor.offerFriendship(game, authenticatedCivilization(game, actorCivilizationId), otherCivilizationId)
+        return result(game)
+    }
+
+    fun makeDiplomaticDemand(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String, demand: DiplomaticDemand): EngineResult {
+        DiplomacyCommandExecutor.makeDemand(game, authenticatedCivilization(game, actorCivilizationId), otherCivilizationId, demand)
+        return result(game)
+    }
+
+    fun respondToDiplomaticPrompt(game: GameInfo, actorCivilizationId: String, promptId: String, accept: Boolean): EngineResult {
+        DiplomacyCommandExecutor.respond(game, authenticatedCivilization(game, actorCivilizationId), promptId, accept)
+        return result(game)
+    }
+
     private fun authenticatedCivilization(game: GameInfo, civilizationId: String): Civilization =
         game.civilizations.singleOrNull { it.civID == civilizationId && it.playerId == executionContext.actorId }
             ?: error("Authenticated actor is not assigned to this civilization")

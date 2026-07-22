@@ -14,18 +14,18 @@ use crate::worker::{
     AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent,
     BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
     ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, ChooseReligiousBeliefsIntent,
-    CounterTradeIntent, DisbandUnitIntent, EngineWorkerClient, FoundCityIntent,
-    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
-    OfferTradeIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    ResolveCityDispositionIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    TradePartnerIntent, TradeRequestIntent, UpgradeUnitsIntent, UseReligiousUnitIntent,
-    WorkerManifest,
+    CounterTradeIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent, DiplomaticPromptIntent,
+    DisbandUnitIntent, EngineWorkerClient, FoundCityIntent, LaunchNuclearStrikeIntent,
+    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, OfferTradeIntent,
+    ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
+    SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, TradePartnerIntent,
+    TradeRequestIntent, UpgradeUnitsIntent, UseReligiousUnitIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -102,6 +102,7 @@ mod commands;
 mod diplomacy;
 mod games;
 mod great_people;
+mod major_diplomacy;
 mod outbox;
 mod religion;
 mod security;

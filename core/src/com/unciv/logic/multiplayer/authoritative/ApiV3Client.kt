@@ -481,6 +481,16 @@ class ApiV3Client(
     override suspend fun counterTrade(gameId: String, request: ApiV3CounterTradeRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/counter-trade") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
 
+    override suspend fun declareWar(gameId: String, request: ApiV3DiplomacyPartnerRequest) = diplomacyPartner(gameId, "declare-war", request)
+    override suspend fun denounceCivilization(gameId: String, request: ApiV3DiplomacyPartnerRequest) = diplomacyPartner(gameId, "denounce-civilization", request)
+    override suspend fun offerFriendship(gameId: String, request: ApiV3DiplomacyPartnerRequest) = diplomacyPartner(gameId, "offer-friendship", request)
+    private suspend fun diplomacyPartner(gameId: String, path: String, request: ApiV3DiplomacyPartnerRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/$path") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun makeDiplomaticDemand(gameId: String, request: ApiV3DiplomaticDemandRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/make-diplomatic-demand") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun respondToDiplomaticPrompt(gameId: String, request: ApiV3DiplomaticPromptResponseRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/respond-to-diplomatic-prompt") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

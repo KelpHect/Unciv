@@ -57,6 +57,11 @@ interface ApiV3Transport {
     suspend fun acceptTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted
     suspend fun declineTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted
     suspend fun counterTrade(gameId: String, request: ApiV3CounterTradeRequest): ApiV3CommandAccepted
+    suspend fun declareWar(gameId: String, request: ApiV3DiplomacyPartnerRequest): ApiV3CommandAccepted
+    suspend fun denounceCivilization(gameId: String, request: ApiV3DiplomacyPartnerRequest): ApiV3CommandAccepted
+    suspend fun offerFriendship(gameId: String, request: ApiV3DiplomacyPartnerRequest): ApiV3CommandAccepted
+    suspend fun makeDiplomaticDemand(gameId: String, request: ApiV3DiplomaticDemandRequest): ApiV3CommandAccepted
+    suspend fun respondToDiplomaticPrompt(gameId: String, request: ApiV3DiplomaticPromptResponseRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

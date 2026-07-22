@@ -19,6 +19,8 @@ import com.unciv.logic.civilization.diplomacy.*
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionExecutor
+import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
+import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
@@ -339,9 +341,17 @@ class AlertPopup(
                 if (otherciv.nation.declaringFriendship.isNotEmpty()) otherciv.nation.declaringFriendship else "My friend, shall we declare our friendship to the world?"
         ).row()
         addCloseButton("Declare Friendship ([30] turns)", KeyboardBinding.Confirm) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Friendship, null, true)
+                return@addCloseButton
+            }
             playerDiploManager.signDeclarationOfFriendship()
         }.row()
         addCloseButton("We are not interested.", KeyboardBinding.Cancel) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Friendship, null, false)
+                return@addCloseButton
+            }
             playerDiploManager.otherCivDiplomacy().setFlag(DiplomacyFlags.DeclinedDeclarationOfFriendship, 20)
         }.row()
         val music = UncivGame.Current.musicController
@@ -367,6 +377,10 @@ class AlertPopup(
         val diplomacy = viewingCiv.getDiplomacyManager(denouncer)!!
         if (diplomacy.canDeclareWar()) {
             addCloseButton("THIS MEANS WAR! (Declare war)") {
+                if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                    submitAuthoritativeWar(denouncer)
+                    return@addCloseButton
+                }
                 diplomacy.declareWar()
             }.row()
         }
@@ -391,14 +405,65 @@ class AlertPopup(
         addLeaderName(otherciv)
         addGoodSizedLabel(demand.demandText).row()
         addCloseButton(demand.acceptDemandText, KeyboardBinding.Confirm) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Demand, DiplomaticDemand.valueOf(demand.name), true)
+                return@addCloseButton
+            }
             playerDiploManager.agreeToDemand(demand)
         }.row()
         addCloseButton(demand.refuseDemandText, KeyboardBinding.Cancel) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Demand, DiplomaticDemand.valueOf(demand.name), false)
+                return@addCloseButton
+            }
             playerDiploManager.refuseDemand(demand)
             if (demand == Demand.DoNotAttackUs)
                 viewingCiv.getDiplomacyManager(otherciv)!!.declareWar()
         }
         return true
+    }
+
+    private fun submitAuthoritativeWar(other: Civilization) {
+        submitAuthoritativeDiplomacy("declare war") {
+            it.declareWarIfOpen(gameInfo.gameId, other.civID)
+        }
+    }
+
+    private fun submitAuthoritativeDiplomaticPrompt(
+        other: Civilization,
+        type: DiplomacyPromptType,
+        demand: DiplomaticDemand?,
+        accept: Boolean,
+    ) {
+        submitAuthoritativeDiplomacy("respond to diplomatic prompt") { session ->
+            val prompt = session.projectionIfOpen(gameInfo.gameId)?.diplomacyPrompts?.singleOrNull {
+                it.requestingCivilizationId == other.civID && it.type == type && it.demand == demand
+            } ?: error("Projected diplomatic prompt no longer matches this popup")
+            session.respondToDiplomaticPromptIfOpen(gameInfo.gameId, prompt.promptId, accept)
+        }
+    }
+
+    private fun submitAuthoritativeDiplomacy(
+        label: String,
+        submit: suspend (com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession) -> AuthoritativeCommandOutcome?,
+    ) {
+        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
+            val outcome = try {
+                val session = worldScreen.game.onlineMultiplayer.authoritativeSession ?: return@runOnNonDaemonThreadPool
+                submit(session)
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread { ToastPopup("Could not $label: [${ex.message ?: "Unknown"}]", worldScreen) }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                gameInfo.isUpToDate = false
+                close()
+                val message = if (outcome is AuthoritativeCommandOutcome.Accepted) "$label committed by the authoritative server"
+                    else "$label synchronized with the authoritative server"
+                ToastPopup(message, worldScreen)
+            }
+        }
     }
 
     private fun addAcceptingDemand(): Boolean {

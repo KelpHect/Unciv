@@ -1920,6 +1920,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/declare-war": {
+      "post": {
+        "tags": [],
+        "operationId": "declare_war",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiplomacyPartnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/decline-trade": {
       "post": {
         "tags": [],
@@ -1940,6 +2024,90 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TradeRequestDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/denounce-civilization": {
+      "post": {
+        "tags": [],
+        "operationId": "denounce_civilization",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiplomacyPartnerRequest"
               }
             }
           },
@@ -2421,6 +2589,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/make-diplomatic-demand": {
+      "post": {
+        "tags": [],
+        "operationId": "make_diplomatic_demand",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiplomaticDemandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/move-construction": {
       "post": {
         "tags": [],
@@ -2726,6 +2978,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/offer-friendship": {
+      "post": {
+        "tags": [],
+        "operationId": "offer_friendship",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiplomacyPartnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -4024,6 +4360,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/respond-to-diplomatic-prompt": {
+      "post": {
+        "tags": [],
+        "operationId": "respond_to_diplomatic_prompt",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiplomaticPromptResponseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -6909,6 +7329,117 @@
         },
         "additionalProperties": false
       },
+      "DiplomacyPartnerRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "other_civilization_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "other_civilization_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiplomacyPromptType": {
+        "type": "string",
+        "enum": [
+          "friendship",
+          "demand"
+        ]
+      },
+      "DiplomaticDemand": {
+        "type": "string",
+        "enum": [
+          "dont_spy_on_us",
+          "do_not_spread_religion",
+          "do_not_settle_near_us",
+          "do_not_attack_us"
+        ]
+      },
+      "DiplomaticDemandRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "other_civilization_id",
+          "demand"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "demand": {
+            "$ref": "#/components/schemas/DiplomaticDemand"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "other_civilization_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiplomaticPromptResponseRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "prompt_id",
+          "accept"
+        ],
+        "properties": {
+          "accept": {
+            "type": "boolean"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "prompt_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "DisbandUnitRequest": {
         "type": "object",
         "required": [
@@ -7500,7 +8031,9 @@
           "diplomaticVoteCandidates",
           "selectableGreatPeople",
           "tradePartners",
-          "pendingTradeRequests"
+          "pendingTradeRequests",
+          "diplomacyPartners",
+          "diplomacyPrompts"
         ],
         "properties": {
           "civilizationId": {
@@ -7508,6 +8041,18 @@
           },
           "currentPlayerCivilizationId": {
             "type": "string"
+          },
+          "diplomacyPartners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedDiplomacyPartner"
+            }
+          },
+          "diplomacyPrompts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedDiplomacyPrompt"
+            }
           },
           "diplomaticVoteCandidates": {
             "type": "array",
@@ -7760,6 +8305,67 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedDiplomacyPartner": {
+        "type": "object",
+        "required": [
+          "civilizationId",
+          "canDeclareWar",
+          "canDenounce",
+          "canOfferFriendship",
+          "availableDemands"
+        ],
+        "properties": {
+          "availableDemands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiplomaticDemand"
+            }
+          },
+          "canDeclareWar": {
+            "type": "boolean"
+          },
+          "canDenounce": {
+            "type": "boolean"
+          },
+          "canOfferFriendship": {
+            "type": "boolean"
+          },
+          "civilizationId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedDiplomacyPrompt": {
+        "type": "object",
+        "required": [
+          "promptId",
+          "requestingCivilizationId",
+          "type"
+        ],
+        "properties": {
+          "demand": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DiplomaticDemand"
+              }
+            ]
+          },
+          "promptId": {
+            "type": "string"
+          },
+          "requestingCivilizationId": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DiplomacyPromptType"
           }
         },
         "additionalProperties": false

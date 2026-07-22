@@ -40,7 +40,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 46
+        const val CURRENT_PROJECTION_VERSION = 47
     }
 }
 

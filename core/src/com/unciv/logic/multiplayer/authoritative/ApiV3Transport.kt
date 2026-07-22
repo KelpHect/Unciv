@@ -50,6 +50,7 @@ interface ApiV3Transport {
     suspend fun setPerpetualConstruction(gameId: String, request: ApiV3SetPerpetualConstructionRequest): ApiV3CommandAccepted
     suspend fun removeConstruction(gameId: String, request: ApiV3RemoveConstructionRequest): ApiV3CommandAccepted
     suspend fun moveConstruction(gameId: String, request: ApiV3MoveConstructionRequest): ApiV3CommandAccepted
+    suspend fun manageConstructionQueues(gameId: String, request: ApiV3ManageConstructionQueuesRequest): ApiV3CommandAccepted
     suspend fun purchaseConstruction(gameId: String, request: ApiV3PurchaseConstructionRequest): ApiV3CommandAccepted
     suspend fun purchaseConstructionAtTile(gameId: String, request: ApiV3PurchaseConstructionAtTileRequest): ApiV3CommandAccepted
     suspend fun buyCityTile(gameId: String, request: ApiV3BuyCityTileRequest): ApiV3CommandAccepted

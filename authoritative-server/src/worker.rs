@@ -44,17 +44,17 @@ pub use intents::{
     BombardWithCityIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent, ChooseGreatPersonIntent,
     DisbandUnitIntent, FoundCityIntent, GiftUnitIntent, LaunchNuclearStrikeIntent,
-    MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent, MoveUnitTowardIntent,
-    ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
-    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
-    ResolveEventChoiceIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetSpyCoupIntent,
-    SetTileImprovementOrderIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
-    SetUnitPostureIntent, SwapUnitsIntent, TransformUnitIntent, TriggerUnitUniqueIntent,
-    UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    ManageConstructionQueuesIntent, MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent,
+    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
+    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
+    ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
@@ -683,6 +683,26 @@ mod tests {
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         );
         assert!(value.get("action_id").is_none());
+    }
+
+    #[test]
+    fn construction_queue_batch_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::ManageConstructionQueues {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            city_id: "city-1",
+            construction_name: "Monument",
+            queue_index: Some(1),
+            action: crate::ConstructionQueueAction::AddOrMoveToTopAllCities,
+        })
+        .unwrap();
+        assert_eq!(value["type"], "manage_construction_queues");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["cityId"], "city-1");
+        assert_eq!(value["constructionName"], "Monument");
+        assert_eq!(value["queueIndex"], 1);
+        assert_eq!(value["action"], "add_or_move_to_top_all_cities");
+        assert!(value.get("city_ids").is_none());
     }
 
     #[test]

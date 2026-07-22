@@ -863,6 +863,46 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeQueueContextRetryRetainsItsClosedActionAndCommandId() = runBlocking {
+        val projectedCity = ProjectedCity(
+            id = "city-1", name = "Rome", x = 0, y = 0, population = 1, health = 200,
+            constructionQueue = emptyList(), availableConstructions = listOf("Monument"),
+            constructionOptions = listOf(ProjectedConstructionOption(
+                "Monument", true, 0, 40, 4, emptyList(), emptyList(),
+                listOf(ConstructionQueueAction.AddToTop),
+            )),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            manageQueueFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(ownCities = listOf(projectedCity)),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        assertTrue(session.manageConstructionQueuesIfOpen(
+            GAME_ID, "city-1", "Monument", null, ConstructionQueueAction.AddToTop,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.manageConstructionQueuesIfOpen(
+            GAME_ID, "city-1", "Monument", null, ConstructionQueueAction.AddToTop,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.managedConstructionQueues.size)
+        assertEquals(
+            transport.managedConstructionQueues[0].commandId,
+            transport.managedConstructionQueues[1].commandId,
+        )
+        assertEquals(
+            ConstructionQueueAction.AddToTop,
+            transport.managedConstructionQueues.first().action,
+        )
+        session.close()
+    }
+
+    @Test
     fun authoritativeCityGovernanceRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
         val projectedCity = ProjectedCity(
             id = "city-1", name = "Rome", x = 0, y = 0, population = 1, health = 200,
@@ -1288,6 +1328,7 @@ class AuthoritativeMultiplayerSessionTests {
         val queueCommandIds = mutableListOf<String>()
         val removedConstructions = mutableListOf<ApiV3RemoveConstructionRequest>()
         val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
+        val managedConstructionQueues = mutableListOf<ApiV3ManageConstructionQueuesRequest>()
         val purchaseCommandIds = mutableListOf<String>()
         val tilePurchaseCommandIds = mutableListOf<String>()
         val governanceCommandIds = mutableListOf<String>()
@@ -1305,6 +1346,7 @@ class AuthoritativeMultiplayerSessionTests {
         var religiousUnitFailuresRemaining = 0
         var religiousBeliefFailuresRemaining = 0
         var queueFailuresRemaining = 0
+        var manageQueueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
@@ -1852,6 +1894,24 @@ class AuthoritativeMultiplayerSessionTests {
             )
             return ApiV3CommandAccepted(gameId, request.commandId, request.expectedRevision,
                 current.committedRevision, current.canonicalStateHash)
+        }
+        override suspend fun manageConstructionQueues(
+            gameId: String,
+            request: ApiV3ManageConstructionQueuesRequest,
+        ): ApiV3CommandAccepted {
+            managedConstructionQueues += request
+            if (manageQueueFailuresRemaining > 0) {
+                manageQueueFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
         }
         override suspend fun purchaseConstruction(
             gameId: String,

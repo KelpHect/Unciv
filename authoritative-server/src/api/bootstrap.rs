@@ -199,6 +199,10 @@ pub(crate) async fn run() {
             post(move_construction),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/manage-construction-queues",
+            post(manage_construction_queues),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/purchase-construction",
             post(purchase_construction),
         )

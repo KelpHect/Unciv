@@ -1,3 +1,4 @@
+use crate::ConstructionQueueAction;
 use crate::projection::{
     PlayerProjection, ProjectedCombatPreview, ProjectedConstructionPurchase,
     ProjectedMovementDestination, ProjectedTargetCoordinate,
@@ -93,7 +94,8 @@ impl PlayerProjection {
                     .construction_queue
                     .iter()
                     .zip(&city.construction_queue_entries)
-                    .all(|(name, entry)| {
+                    .enumerate()
+                    .all(|(index, (name, entry))| {
                         name == &entry.name
                             && entry.stored_production >= 0
                             && entry.production_cost.is_none_or(|cost| cost >= 0)
@@ -105,6 +107,20 @@ impl PlayerProjection {
                                     .legal_targets
                                     .iter()
                                     .all(coordinate_is_in_city_view)
+                            })
+                            && entry
+                                .available_actions
+                                .windows(2)
+                                .all(|pair| pair[0] < pair[1])
+                            && entry.available_actions.iter().all(|action| match action {
+                                ConstructionQueueAction::MoveToTop => index > 0,
+                                ConstructionQueueAction::MoveToEnd => {
+                                    index + 1 < city.construction_queue_entries.len()
+                                }
+                                ConstructionQueueAction::RemoveFromAllCities => true,
+                                ConstructionQueueAction::AddToAllCities
+                                | ConstructionQueueAction::AddOrMoveToTopAllCities => true,
+                                _ => false,
                             })
                     });
             let options_sorted = city.construction_options.len() <= MAX_PROJECTED_CHOICES
@@ -130,6 +146,18 @@ impl PlayerProjection {
                             .legal_targets
                             .iter()
                             .all(coordinate_is_in_city_view)
+                    })
+                    && option
+                        .available_actions
+                        .windows(2)
+                        .all(|pair| pair[0] < pair[1])
+                    && option.available_actions.iter().all(|action| {
+                        matches!(
+                            action,
+                            ConstructionQueueAction::AddToTop
+                                | ConstructionQueueAction::AddToAllCities
+                                | ConstructionQueueAction::AddOrMoveToTopAllCities
+                        )
                     })
             });
             let queueable_names = city

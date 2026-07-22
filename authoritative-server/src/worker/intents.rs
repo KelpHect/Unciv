@@ -265,6 +265,13 @@ pub struct MoveConstructionIntent<'a> {
     pub to_index: u32,
     pub expected_construction_name: &'a str,
 }
+pub struct ManageConstructionQueuesIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub queue_index: Option<u32>,
+    pub action: crate::ConstructionQueueAction,
+}
 pub struct PurchaseConstructionIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,

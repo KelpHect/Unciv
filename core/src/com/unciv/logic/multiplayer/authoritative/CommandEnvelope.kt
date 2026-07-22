@@ -216,6 +216,13 @@ sealed interface GameCommand {
         val expectedConstructionName: String,
     ) : GameCommand
 
+    data class ManageConstructionQueues(
+        val cityId: String,
+        val constructionName: String,
+        val queueIndex: Int? = null,
+        val action: ConstructionQueueAction,
+    ) : GameCommand
+
     data class PurchaseConstruction(
         val cityId: String,
         val constructionName: String,

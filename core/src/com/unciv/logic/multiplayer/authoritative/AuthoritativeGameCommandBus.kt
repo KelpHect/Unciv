@@ -279,6 +279,16 @@ sealed interface PendingAuthoritativeCommand {
         val expectedConstructionName: String,
     ) : PendingAuthoritativeCommand
 
+    data class ManageConstructionQueues(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val constructionName: String,
+        val queueIndex: Int?,
+        val action: ConstructionQueueAction,
+    ) : PendingAuthoritativeCommand
+
     data class PurchaseConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -1000,6 +1010,37 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.MoveConstruction(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             cityId, fromIndex, toIndex, expectedConstructionName,
+        ), current)
+    }
+
+    suspend fun manageConstructionQueues(
+        cityId: String,
+        constructionName: String,
+        queueIndex: Int?,
+        action: ConstructionQueueAction,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        val projectedActions = if (queueIndex == null) {
+            city.constructionOptions.singleOrNull { it.name == constructionName }?.availableActions
+        } else {
+            city.constructionQueueEntries.getOrNull(queueIndex)
+                ?.takeIf { it.name == constructionName }?.availableActions
+        }
+        require(action in (projectedActions ?: emptyList())) {
+            "Construction queue action is absent from the current player projection"
+        }
+        require(!(action == ConstructionQueueAction.MoveToTop ||
+            action == ConstructionQueueAction.MoveToEnd) || queueIndex != null) {
+            "Construction queue action has an invalid queue position"
+        }
+        require(action != ConstructionQueueAction.AddToTop || queueIndex == null) {
+            "Add-to-top must reference a projected construction option"
+        }
+        submitLocked(PendingAuthoritativeCommand.ManageConstructionQueues(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, constructionName, queueIndex, action,
         ), current)
     }
 
@@ -1824,6 +1865,15 @@ class AuthoritativeGameCommandBus(
                         pending.expectedConstructionName,
                     ),
                 )
+                is PendingAuthoritativeCommand.ManageConstructionQueues ->
+                    transport.manageConstructionQueues(
+                        gameId,
+                        ApiV3ManageConstructionQueuesRequest(
+                            pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                            pending.cityId, pending.constructionName, pending.queueIndex,
+                            pending.action,
+                        ),
+                    )
                 is PendingAuthoritativeCommand.PurchaseConstruction -> transport.purchaseConstruction(
                     gameId,
                     ApiV3PurchaseConstructionRequest(

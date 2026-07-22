@@ -10,6 +10,7 @@ import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
+import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
@@ -313,6 +314,16 @@ sealed interface WorkerOperation {
         val fromIndex: Int,
         val toIndex: Int,
         val expectedConstructionName: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("manage_construction_queues")
+    data class ManageConstructionQueues(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val constructionName: String,
+        val queueIndex: Int? = null,
+        val action: ConstructionQueueAction,
     ) : WorkerOperation
 
     @Serializable @SerialName("purchase_construction")
@@ -913,6 +924,18 @@ class AuthoritativeEngineWorker {
                     operation.fromIndex,
                     operation.toIndex,
                     operation.expectedConstructionName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.ManageConstructionQueues -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.manageConstructionQueues(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.constructionName,
+                    operation.queueIndex,
+                    operation.action,
                 )
                 responseForGame(engine, result.game)
             }

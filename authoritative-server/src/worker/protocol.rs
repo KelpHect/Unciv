@@ -320,6 +320,18 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "expectedConstructionName")]
         expected_construction_name: &'a str,
     },
+    ManageConstructionQueues {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "constructionName")]
+        construction_name: &'a str,
+        #[serde(rename = "queueIndex")]
+        queue_index: Option<u32>,
+        action: crate::ConstructionQueueAction,
+    },
     PurchaseConstruction {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

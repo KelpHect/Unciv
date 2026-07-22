@@ -1133,6 +1133,108 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Applies one closed queue-context operation. All-city actions derive the
+     * bounded target set from canonical civilization state and commit atomically. */
+    fun manageConstructionQueues(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        constructionName: String,
+        queueIndex: Int?,
+        action: ConstructionQueueAction,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(constructionName.isNotBlank() && constructionName.length <= 128) {
+            "Construction name is invalid"
+        }
+        val civilization = city.civ
+        require(civilization.cities.size <= 10_000) { "Too many cities for a queue operation" }
+        val construction = city.cityConstructions.getConstruction(constructionName)
+        val createsImprovement = construction is Building &&
+            construction.hasUnique(UniqueType.CreatesOneImprovement)
+        val candidateCities = civilization.cities.filterNot {
+            it.isPuppet || it.isInResistance() || it.isBeingRazed
+        }
+        val before = civilization.cities.associate { it.id to it.cityConstructions.constructionQueue.toList() }
+
+        when (action) {
+            ConstructionQueueAction.MoveToTop,
+            ConstructionQueueAction.MoveToEnd -> {
+                require(!city.isPuppet && construction !is PerpetualConstruction) {
+                    "Construction cannot be moved in this city"
+                }
+                val index = requireNotNull(queueIndex) { "Queue position is required" }
+                val queue = city.cityConstructions.constructionQueue
+                require(index in queue.indices && queue[index] == constructionName) {
+                    "Construction queue entry no longer matches the client projection"
+                }
+                if (action == ConstructionQueueAction.MoveToTop) {
+                    require(index > 0) { "Construction is already first" }
+                    city.cityConstructions.moveEntryToTop(index)
+                } else {
+                    val lastOrdinaryIndex = queue.count {
+                        it !in PerpetualConstruction.perpetualConstructionsMap
+                    } - 1
+                    require(index < lastOrdinaryIndex) { "Construction is already last" }
+                    city.cityConstructions.moveEntryToEnd(index)
+                }
+            }
+            ConstructionQueueAction.AddToTop -> {
+                require(queueIndex == null && !city.isPuppet &&
+                    construction !is PerpetualConstruction && !createsImprovement &&
+                    city.cityConstructions.canAddToQueue(construction)) {
+                    "Construction cannot be added to the top"
+                }
+                city.cityConstructions.addToQueue(construction, addToTop = true)
+            }
+            ConstructionQueueAction.AddToAllCities,
+            ConstructionQueueAction.AddOrMoveToTopAllCities,
+            ConstructionQueueAction.RemoveFromAllCities -> {
+                require(civilization.cities.size > 1 &&
+                    (construction as? Building)?.isAnyWonder() != true) {
+                    "All-city queue operation is unavailable"
+                }
+                if (queueIndex != null) {
+                    require(city.cityConstructions.constructionQueue.getOrNull(queueIndex) ==
+                        constructionName) {
+                        "Construction queue entry no longer matches the client projection"
+                    }
+                }
+                require(!createsImprovement || action == ConstructionQueueAction.RemoveFromAllCities) {
+                    "Tile-targeted construction cannot be applied to all cities"
+                }
+                for (candidate in candidateCities) {
+                    val constructions = candidate.cityConstructions
+                    when (action) {
+                        ConstructionQueueAction.AddToAllCities ->
+                            if (constructions.canAddToQueue(construction) &&
+                                !(construction is PerpetualConstruction &&
+                                    constructions.isBeingConstructedOrEnqueued(constructionName)))
+                                constructions.addToQueue(construction)
+                        ConstructionQueueAction.AddOrMoveToTopAllCities -> {
+                            require(construction !is PerpetualConstruction) {
+                                "Perpetual construction cannot be moved to every queue top"
+                            }
+                            val index = constructions.constructionQueue.indexOf(constructionName)
+                            if (index > 0) constructions.moveEntryToTop(index)
+                            else if (index < 0 && constructions.canAddToQueue(construction))
+                                constructions.addToQueue(construction, addToTop = true)
+                        }
+                        ConstructionQueueAction.RemoveFromAllCities ->
+                            constructions.removeAllByName(constructionName)
+                        ConstructionQueueAction.MoveToTop,
+                        ConstructionQueueAction.MoveToEnd,
+                        ConstructionQueueAction.AddToTop -> error("Unreachable construction queue action")
+                    }
+                }
+            }
+        }
+        require(civilization.cities.any {
+            before[it.id] != it.cityConstructions.constructionQueue
+        }) { "Construction queue operation made no canonical change" }
+        return result(game)
+    }
+
     fun purchaseConstruction(
         game: GameInfo,
         actorCivilizationId: String,

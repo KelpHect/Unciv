@@ -2,9 +2,9 @@ use crate::projection::PlayerProjection;
 
 fn fixture() -> PlayerProjection {
     serde_json::from_str(include_str!(
-        "../../protocol/player-projection-v46.fixture.json"
+        "../../protocol/player-projection-v47.fixture.json"
     ))
-    .expect("projection-v46 fixture should deserialize")
+    .expect("projection-v47 fixture should deserialize")
 }
 
 #[test]
@@ -28,6 +28,12 @@ fn rejects_unadvertised_queueability_and_duplicate_targets() {
     let mut projection = fixture();
     let target = projection.own_cities[0].tile_purchases[0].clone();
     projection.own_cities[0].tile_purchases.push(target);
+    assert!(!projection.city_economy_is_consistent());
+
+    let mut projection = fixture();
+    projection.own_cities[0].construction_options[0]
+        .available_actions
+        .push(crate::ConstructionQueueAction::AddToTop);
     assert!(!projection.city_economy_is_consistent());
 }
 

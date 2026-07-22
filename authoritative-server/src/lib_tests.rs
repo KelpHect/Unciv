@@ -207,6 +207,34 @@ fn construction_queue_mutations_are_typed_and_closed() {
         }))
         .is_err()
     );
+    let batch: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "manage_construction_queues",
+        "city_id": "city-1",
+        "construction_name": "Warrior",
+        "queue_index": 2,
+        "action": "add_or_move_to_top_all_cities"
+    }))
+    .unwrap();
+    assert_eq!(
+        batch,
+        GameCommand::ManageConstructionQueues {
+            city_id: "city-1".to_owned(),
+            construction_name: "Warrior".to_owned(),
+            queue_index: Some(2),
+            action: ConstructionQueueAction::AddOrMoveToTopAllCities,
+        }
+    );
+    for forbidden in ["city_ids", "affected_cities", "partial_results", "actor_id"] {
+        let mut value = serde_json::json!({
+            "type": "manage_construction_queues",
+            "city_id": "city-1",
+            "construction_name": "Warrior",
+            "queue_index": null,
+            "action": "add_to_all_cities"
+        });
+        value[forbidden] = serde_json::json!([]);
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
 }
 
 #[test]

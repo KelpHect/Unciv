@@ -66,6 +66,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/set-perpetual-construction",
         "/api/v3/games/{game_id}/commands/remove-construction",
         "/api/v3/games/{game_id}/commands/move-construction",
+        "/api/v3/games/{game_id}/commands/manage-construction-queues",
         "/api/v3/games/{game_id}/commands/purchase-construction",
         "/api/v3/games/{game_id}/commands/purchase-construction-at-tile",
         "/api/v3/games/{game_id}/commands/buy-city-tile",
@@ -172,6 +173,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "SetPerpetualConstructionRequest",
         "RemoveConstructionRequest",
         "MoveConstructionRequest",
+        "ManageConstructionQueuesRequest",
         "PurchaseConstructionRequest",
         "PurchaseConstructionAtTileRequest",
         "BuyCityTileRequest",
@@ -215,6 +217,18 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
             "{schema} must remain a closed request object"
         );
     }
+    assert_eq!(
+        document["components"]["schemas"]["ConstructionQueueAction"]["enum"],
+        serde_json::json!([
+            "move_to_top",
+            "move_to_end",
+            "add_to_top",
+            "add_to_all_cities",
+            "add_or_move_to_top_all_cities",
+            "remove_from_all_cities"
+        ]),
+        "ConstructionQueueAction must remain a closed enum"
+    );
     assert!(
         document["components"]["schemas"]
             .as_object()
@@ -255,6 +269,7 @@ async fn capabilities_forbid_whole_state_uploads() {
     assert!(response.0.commands.contains(&"set_perpetual_construction"));
     assert!(response.0.commands.contains(&"remove_construction"));
     assert!(response.0.commands.contains(&"move_construction"));
+    assert!(response.0.commands.contains(&"manage_construction_queues"));
     assert!(response.0.commands.contains(&"purchase_construction"));
     assert!(
         response

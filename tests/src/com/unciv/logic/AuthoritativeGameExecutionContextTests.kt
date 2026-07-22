@@ -15,6 +15,7 @@ import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
+import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
@@ -1666,6 +1667,81 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(listOf(construction), projectedCity.constructionQueue)
         Assert.assertEquals(construction, projectedCity.constructionQueueEntries.single().name)
         Assert.assertTrue(projectedCity.constructionQueueEntries.single().productionCost!! > 0)
+    }
+
+    @Test
+    fun constructionQueueContextActionsAreProjectedAndAppliedAtomically() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val civilization = game.getCivilization("Rome")
+        val firstCity = civilization.addCity(civilization.units.getCivUnits().first().getTile().position)
+        val secondCityTile = game.tileMap.values.first { tile ->
+            tile.isLand && tile.aerialDistanceTo(firstCity.getCenterTile()) > 3
+        }
+        val secondCity = civilization.addCity(secondCityTile.position)
+        civilization.tech.addTechnology("Pottery")
+        val initialProjection = engine.playerProjection(game, civilization.civName)
+        val constructions = initialProjection.ownCities
+            .single { it.id == firstCity.id }
+            .constructionOptions
+            .filter { ConstructionQueueAction.AddToAllCities in it.availableActions }
+            .take(2)
+            .map { it.name }
+            .toList()
+        Assert.assertEquals("fixture requires two queueable constructions", 2, constructions.size)
+        val (first, second) = constructions
+
+        val initialOption = initialProjection
+            .ownCities.single { it.id == firstCity.id }
+            .constructionOptions.single { it.name == first }
+        Assert.assertTrue(ConstructionQueueAction.AddToTop in initialOption.availableActions)
+        Assert.assertTrue(ConstructionQueueAction.AddToAllCities in initialOption.availableActions)
+
+        engine.manageConstructionQueues(
+            game, civilization.civName, firstCity.id, first, null,
+            ConstructionQueueAction.AddToAllCities,
+        )
+        Assert.assertTrue(civilization.cities.all {
+            it.cityConstructions.constructionQueue.single() == first
+        })
+
+        civilization.cities.forEach { it.cityConstructions.addToQueue(second) }
+        val queueEntry = engine.playerProjection(game, civilization.civName)
+            .ownCities.single { it.id == firstCity.id }.constructionQueueEntries[1]
+        Assert.assertTrue(ConstructionQueueAction.MoveToTop in queueEntry.availableActions)
+        Assert.assertTrue(ConstructionQueueAction.AddOrMoveToTopAllCities in queueEntry.availableActions)
+        Assert.assertTrue(ConstructionQueueAction.RemoveFromAllCities in queueEntry.availableActions)
+
+        val snapshot = engine.serializeSnapshot(game)
+        val firstResult = engine.manageConstructionQueues(
+            engine.loadSnapshot(snapshot), civilization.civName, firstCity.id, second, 1,
+            ConstructionQueueAction.AddOrMoveToTopAllCities,
+        )
+        val secondResult = engine.manageConstructionQueues(
+            engine.loadSnapshot(snapshot), civilization.civName, firstCity.id, second, 1,
+            ConstructionQueueAction.AddOrMoveToTopAllCities,
+        )
+        Assert.assertEquals(firstResult.canonicalStateHash, secondResult.canonicalStateHash)
+        Assert.assertTrue(firstResult.game.getCivilization(civilization.civName).cities.all {
+            it.cityConstructions.constructionQueue.first() == second
+        })
+
+        val committed = firstResult.game
+        val committedFirstCity = committed.getCivilization(civilization.civName).cities
+            .single { it.id == firstCity.id }
+        engine.manageConstructionQueues(
+            committed, civilization.civName, committedFirstCity.id, second, 0,
+            ConstructionQueueAction.RemoveFromAllCities,
+        )
+        Assert.assertTrue(committed.getCivilization(civilization.civName).cities.all {
+            second !in it.cityConstructions.constructionQueue
+        })
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.manageConstructionQueues(
+                committed, civilization.civName, secondCity.id, second, null,
+                ConstructionQueueAction.RemoveFromAllCities,
+            )
+        }
     }
 
     @Test

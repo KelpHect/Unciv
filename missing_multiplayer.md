@@ -54,17 +54,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   civilian, and economy autoplay controls are fail-closed for opened v3 games;
   if retained as a product feature, implement them as explicit server-owned AI
   operations rather than client automation.
-- [ ] City production: add safe add-to-top, all-cities, and bounded batch
-  operations where the production UI exposes them, plus the public wonder
-  completion/effect feed needed by projection-only UI. Projection v46 now
-  supplies queue progress, production costs/turn estimates, exact queueability,
-  tile-placement targets, and perpetual choices; opened-v3 single-city controls
-  consume those values without client rule evaluation.
-- [ ] Decide whether the intentionally disabled multi-tile buying and production
-  context-menu batches remain supported. If retained, implement bounded typed
-  commands, server-derived per-target results, partial-failure semantics, and
-  projection-only confirmation; never restore client loops that mutate several
-  canonical cities or tiles.
+- [ ] Add the public wonder completion/effect event feed needed by projection-only
+  UI. Projection v47 now supplies queue progress, costs/turn estimates, exact
+  queueability, tile-placement targets, perpetual choices, and the complete
+  closed construction context-action vocabulary. Move-to-top/end, add-to-top,
+  add-to-all-cities, add-or-move-to-top-in-all-cities, and remove-from-all-cities
+  execute atomically in the private worker from a server-derived bounded city set.
+- [ ] Decide whether intentionally disabled multi-tile buying remains supported.
+  If retained, implement a bounded typed command, server-derived target/result
+  semantics, and projection-only confirmation; never restore a client loop that
+  mutates several canonical tiles. Production context-menu batches no longer
+  belong to this gap: all inventoried variants are authoritative in projection
+  v47.
 - [ ] Research: implement bounded removal and reordering of queued technologies.
   Replace/append/free selection, researched history, queue progress/cost/
   overflow, turn estimates, and opaque public completion prompts plus their
@@ -252,14 +253,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (950 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-daemon` passes (953 JVM/server tests,
   13 intentional skips).
-- Rust passes 95 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 96 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
-- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
-  warnings`, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 35-line facade, and the largest Rust source
-  is 783 lines. New work must split by concern before crossing the 800-line
+- `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
+  parity, and `git diff --check` pass.
+- `main.rs` is 6 lines, `lib.rs` is a 38-line facade, and the largest Rust source
+  is 781 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

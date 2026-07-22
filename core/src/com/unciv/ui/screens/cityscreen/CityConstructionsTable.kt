@@ -14,6 +14,7 @@ import com.unciv.GUI
 import com.unciv.logic.city.City
 import com.unciv.logic.city.CityConstructions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
@@ -487,13 +488,25 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         table.touchable = Touchable.enabled
 
         table.onClick { selectQueueEntry(constructionQueueIndex) }
-        if (cityScreen.canCityBeChanged() && !cityScreen.isAuthoritativeGame()) {
+        if (cityScreen.canCityBeChanged()) {
             table.addContextMenu {
                 selectQueueEntry(constructionQueueIndex) {
-                    CityScreenConstructionMenu(cityScreen.stage, table, cityScreen.city, construction) {
-                        cityScreen.city.reassignPopulation()
-                        cityScreen.update()
-                    }
+                    if (cityScreen.isAuthoritativeGame())
+                        CityScreenConstructionMenu(
+                            cityScreen.stage, table, cityScreen.city, construction, {},
+                            projectedQueueEntry?.availableActions.orEmpty(),
+                        ) { action ->
+                            submitAuthoritativeQueueAction(
+                                construction, constructionQueueIndex, action,
+                            )
+                        }
+                    else CityScreenConstructionMenu(
+                        cityScreen.stage, table, cityScreen.city, construction,
+                        {
+                            cityScreen.city.reassignPopulation()
+                            cityScreen.update()
+                        },
+                    )
                 }
             }
         }
@@ -639,7 +652,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             cityScreen.update()
         }
 
-        if (!cityScreen.canCityBeChanged() || cityScreen.isAuthoritativeGame()) return pickConstructionButton
+        if (!cityScreen.canCityBeChanged()) return pickConstructionButton
 
         pickConstructionButton.addContextMenu {
             if (cityScreen.selectedConstruction != construction) {
@@ -648,10 +661,20 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 highlightConstructionButton(pickConstructionButton, true, true)
                 cityScreen.updateWithoutConstructionAndMap()
             }
-            CityScreenConstructionMenu(cityScreen.stage, pickConstructionButton, cityScreen.city, construction) {
-                cityScreen.city.reassignPopulation()
-                cityScreen.update()
-            }
+            val projectedActions = cityScreen.authoritativeProjectedCity()?.constructionOptions
+                ?.singleOrNull { it.name == construction.name }?.availableActions.orEmpty()
+            if (cityScreen.isAuthoritativeGame())
+                CityScreenConstructionMenu(
+                    cityScreen.stage, pickConstructionButton, cityScreen.city, construction, {},
+                    projectedActions,
+                ) { action -> submitAuthoritativeQueueAction(construction, null, action) }
+            else CityScreenConstructionMenu(
+                cityScreen.stage, pickConstructionButton, cityScreen.city, construction,
+                {
+                    cityScreen.city.reassignPopulation()
+                    cityScreen.update()
+                },
+            )
         }
         return pickConstructionButton
     }
@@ -804,6 +827,24 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                     }
                 }
             }
+        }
+    }
+
+    private fun submitAuthoritativeQueueAction(
+        construction: IConstruction,
+        queueIndex: Int?,
+        action: ConstructionQueueAction,
+    ) {
+        val city = cityScreen.city
+        submitAuthoritativeQueueMutation("manage construction queues") {
+            cityScreen.game.onlineMultiplayer.authoritativeSession
+                ?.manageConstructionQueuesIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    construction.name,
+                    queueIndex,
+                    action,
+                )
         }
     }
 

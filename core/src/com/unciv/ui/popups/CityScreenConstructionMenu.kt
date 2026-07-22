@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.GUI
 import com.unciv.logic.city.City
 import com.unciv.logic.city.CityConstructions
+import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
@@ -28,16 +29,18 @@ class CityScreenConstructionMenu(
     positionNextTo: Actor,
     private val city: City,
     private val construction: IConstruction,
-    private val onButtonClicked: () -> Unit
+    private val onButtonClicked: () -> Unit,
+    private val authoritativeActions: List<ConstructionQueueAction>? = null,
+    private val onAuthoritativeAction: ((ConstructionQueueAction) -> Unit)? = null,
 ) : AnimatedMenuPopup(stage, positionNextTo) {
 
     // These are only readability shorteners
     private val cityConstructions = city.cityConstructions
     private val constructionName = construction.name
-    private val queueSizeWithoutPerpetual get() = // simply remove get() should this be needed more than once
+    private val queueSizeWithoutPerpetual get() =
         cityConstructions.constructionQueue
         .count { it !in PerpetualConstruction.perpetualConstructionsMap }
-    private val myIndex = cityConstructions.constructionQueue.indexOf(constructionName)
+    private val myIndex by lazy { cityConstructions.constructionQueue.indexOf(constructionName) }
     /** Cities (including this one) where changing the construction queue makes sense
      *  (excludes isBeingRazed even though technically that would be allowed) */
     // Can't use CityScreen.canChangeState for other cities
@@ -62,6 +65,16 @@ class CityScreenConstructionMenu(
 
     override fun createContentTable(): Table? {
         val table = super.createContentTable()!!
+        if (authoritativeActions != null) addAuthoritativeActions(table)
+        else addLocalQueueActions(table)
+        if (canDisable())
+            table.add(getButton("Disable", KeyboardBinding.BuildDisabled, ::disableEntry)).row()
+        if (canEnable())
+            table.add(getButton("Enable", KeyboardBinding.BuildDisabled, ::enableEntry)).row()
+        return table.takeUnless { it.cells.isEmpty }
+    }
+
+    private fun addLocalQueueActions(table: Table) {
         if (canMoveQueueTop())
             table.add(getButton("Move to the top of the queue", KeyboardBinding.RaisePriority, ::moveQueueTop)).row()
         if (canMoveQueueEnd())
@@ -74,11 +87,27 @@ class CityScreenConstructionMenu(
             table.add(getButton("Add or move to the top in all cities", KeyboardBinding.AddConstructionAllTop, ::addAllQueuesTop)).row()
         if (canRemoveAllQueues())
             table.add(getButton("Remove from the queue in all cities", KeyboardBinding.RemoveConstructionAll, ::removeAllQueues)).row()
-        if (canDisable())
-            table.add(getButton("Disable", KeyboardBinding.BuildDisabled, ::disableEntry)).row()
-        if (canEnable())
-            table.add(getButton("Enable", KeyboardBinding.BuildDisabled, ::enableEntry)).row()
-        return table.takeUnless { it.cells.isEmpty }
+    }
+
+    private fun addAuthoritativeActions(table: Table) {
+        val submit = requireNotNull(onAuthoritativeAction)
+        for (action in authoritativeActions.orEmpty()) {
+            val (text, binding) = when (action) {
+                ConstructionQueueAction.MoveToTop ->
+                    "Move to the top of the queue" to KeyboardBinding.RaisePriority
+                ConstructionQueueAction.MoveToEnd ->
+                    "Move to the end of the queue" to KeyboardBinding.LowerPriority
+                ConstructionQueueAction.AddToTop ->
+                    "Add to the top of the queue" to KeyboardBinding.AddConstructionTop
+                ConstructionQueueAction.AddToAllCities ->
+                    "Add to the queue in all cities" to KeyboardBinding.AddConstructionAll
+                ConstructionQueueAction.AddOrMoveToTopAllCities ->
+                    "Add or move to the top in all cities" to KeyboardBinding.AddConstructionAllTop
+                ConstructionQueueAction.RemoveFromAllCities ->
+                    "Remove from the queue in all cities" to KeyboardBinding.RemoveConstructionAll
+            }
+            table.add(getButton(text, binding) { submit(action) }).row()
+        }
     }
 
     @Pure

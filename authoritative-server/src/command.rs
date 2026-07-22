@@ -30,6 +30,19 @@ pub enum CityDispositionAction {
     Destroy,
 }
 
+#[derive(
+    Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ConstructionQueueAction {
+    MoveToTop,
+    MoveToEnd,
+    AddToTop,
+    AddToAllCities,
+    AddOrMoveToTopAllCities,
+    RemoveFromAllCities,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UnitPosture {
@@ -198,6 +211,12 @@ pub enum GameCommand {
         from_index: u32,
         to_index: u32,
         expected_construction_name: String,
+    },
+    ManageConstructionQueues {
+        city_id: String,
+        construction_name: String,
+        queue_index: Option<u32>,
+        action: ConstructionQueueAction,
     },
     PurchaseConstruction {
         city_id: String,

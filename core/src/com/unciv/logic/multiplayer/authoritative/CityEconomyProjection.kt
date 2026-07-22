@@ -3,9 +3,21 @@ package com.unciv.logic.multiplayer.authoritative
 import com.unciv.logic.city.City
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.INonPerpetualConstruction
+import com.unciv.models.ruleset.IConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.stats.Stat
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+@Serializable
+enum class ConstructionQueueAction {
+    @SerialName("move_to_top") MoveToTop,
+    @SerialName("move_to_end") MoveToEnd,
+    @SerialName("add_to_top") AddToTop,
+    @SerialName("add_to_all_cities") AddToAllCities,
+    @SerialName("add_or_move_to_top_all_cities") AddOrMoveToTopAllCities,
+    @SerialName("remove_from_all_cities") RemoveFromAllCities,
+}
 
 @Serializable
 data class ProjectedConstructionQueueEntry(
@@ -14,6 +26,7 @@ data class ProjectedConstructionQueueEntry(
     val productionCost: Int?,
     val estimatedTurns: Int?,
     val purchases: List<ProjectedConstructionPurchase>,
+    val availableActions: List<ConstructionQueueAction> = emptyList(),
 )
 
 @Serializable
@@ -25,6 +38,7 @@ data class ProjectedConstructionOption(
     val estimatedTurns: Int?,
     val placementTargets: List<ProjectedTargetCoordinate>,
     val purchases: List<ProjectedConstructionPurchase>,
+    val availableActions: List<ConstructionQueueAction> = emptyList(),
 )
 
 @Serializable
@@ -74,6 +88,7 @@ internal object CityEconomyProjection {
                 estimatedTurns = (construction as? INonPerpetualConstruction)
                     ?.let { city.cityConstructions.turnsToConstruction(name, useStoredProduction) },
                 purchases = purchases(city, construction as? INonPerpetualConstruction, index),
+                availableActions = queueActions(city, construction, index),
             )
         }
 
@@ -96,6 +111,7 @@ internal object CityEconomyProjection {
                     ),
                     placementTargets = placementTargets(city, construction),
                     purchases = purchases(city, construction, queueIndex = null),
+                    availableActions = optionActions(city, construction),
                 )
             }
         val perpetual = PerpetualConstruction.perpetualConstructionsMap.values.asSequence()
@@ -110,6 +126,7 @@ internal object CityEconomyProjection {
                     estimatedTurns = null,
                     placementTargets = emptyList(),
                     purchases = emptyList(),
+                    availableActions = optionActions(city, construction),
                 )
             }
         return (ordinary + perpetual).sortedBy { it.name }.take(MAX_OPTIONS).toList()
@@ -204,5 +221,79 @@ internal object CityEconomyProjection {
         val tile = city.cityConstructions.getTileForImprovement(improvement.name)
             ?: return emptyList()
         return listOf(ProjectedTargetCoordinate(tile.position.x, tile.position.y))
+    }
+
+    private fun queueActions(
+        city: City,
+        construction: IConstruction,
+        queueIndex: Int,
+    ): List<ConstructionQueueAction> {
+        if (!mayChangeProduction(city)) return emptyList()
+        val queueWithoutPerpetual = city.cityConstructions.constructionQueue
+            .count { it !in PerpetualConstruction.perpetualConstructionsMap }
+        return buildList {
+            if (construction !is PerpetualConstruction && queueIndex > 0)
+                add(ConstructionQueueAction.MoveToTop)
+            if (construction !is PerpetualConstruction && queueIndex < queueWithoutPerpetual - 1)
+                add(ConstructionQueueAction.MoveToEnd)
+            if (allCitiesActionAvailable(city, construction, remove = false))
+                add(ConstructionQueueAction.AddToAllCities)
+            if (construction !is PerpetualConstruction &&
+                allCitiesTopActionAvailable(city, construction))
+                add(ConstructionQueueAction.AddOrMoveToTopAllCities)
+            if (allCitiesActionAvailable(city, construction, remove = true))
+                add(ConstructionQueueAction.RemoveFromAllCities)
+        }.sortedBy { it.ordinal }
+    }
+
+    private fun optionActions(
+        city: City,
+        construction: IConstruction,
+    ): List<ConstructionQueueAction> {
+        if (!mayChangeProduction(city)) return emptyList()
+        val createsImprovement = construction is Building && construction.hasCreateOneImprovementUnique()
+        return buildList {
+            if (construction !is PerpetualConstruction && !createsImprovement &&
+                city.cityConstructions.canAddToQueue(construction))
+                add(ConstructionQueueAction.AddToTop)
+            if (!createsImprovement && allCitiesActionAvailable(city, construction, remove = false))
+                add(ConstructionQueueAction.AddToAllCities)
+            if (construction !is PerpetualConstruction && !createsImprovement &&
+                allCitiesTopActionAvailable(city, construction))
+                add(ConstructionQueueAction.AddOrMoveToTopAllCities)
+        }.sortedBy { it.ordinal }
+    }
+
+    private fun mayChangeProduction(city: City) =
+        city.civ.gameInfo.currentPlayer == city.civ.civID && !city.isPuppet
+
+    private fun candidateCities(city: City) = city.civ.cities.asSequence()
+        .filterNot { it.isPuppet || it.isInResistance() || it.isBeingRazed }
+
+    private fun allCitiesActionAvailable(
+        city: City,
+        construction: IConstruction,
+        remove: Boolean,
+    ): Boolean {
+        if (city.civ.cities.size <= 1 || (construction as? Building)?.isAnyWonder() == true)
+            return false
+        return candidateCities(city).any { candidate ->
+            if (remove) candidate.cityConstructions.isBeingConstructedOrEnqueued(construction.name)
+            else candidate.cityConstructions.canAddToQueue(construction) &&
+                !(construction is PerpetualConstruction &&
+                    candidate.cityConstructions.isBeingConstructedOrEnqueued(construction.name))
+        }
+    }
+
+    private fun allCitiesTopActionAvailable(
+        city: City,
+        construction: IConstruction,
+    ): Boolean {
+        if (city.civ.cities.size <= 1 || (construction as? Building)?.isAnyWonder() == true)
+            return false
+        return candidateCities(city).any { candidate ->
+            candidate.cityConstructions.canAddToQueue(construction) ||
+                candidate.cityConstructions.isEnqueuedForLater(construction.name)
+        }
     }
 }

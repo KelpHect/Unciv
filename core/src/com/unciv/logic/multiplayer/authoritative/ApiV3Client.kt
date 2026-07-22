@@ -389,6 +389,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun manageConstructionQueues(
+        gameId: String,
+        request: ApiV3ManageConstructionQueuesRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/manage-construction-queues") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun purchaseConstruction(
         gameId: String,
         request: ApiV3PurchaseConstructionRequest,

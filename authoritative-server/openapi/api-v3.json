@@ -3515,6 +3515,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/manage-construction-queues": {
+      "post": {
+        "tags": [],
+        "operationId": "manage_construction_queues",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageConstructionQueuesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/marry-city-state": {
       "post": {
         "tags": [],
@@ -9764,6 +9878,17 @@
         },
         "additionalProperties": false
       },
+      "ConstructionQueueAction": {
+        "type": "string",
+        "enum": [
+          "move_to_top",
+          "move_to_end",
+          "add_to_top",
+          "add_to_all_cities",
+          "add_or_move_to_top_all_cities",
+          "remove_from_all_cities"
+        ]
+      },
       "CounterTradeRequest": {
         "type": "object",
         "required": [
@@ -10396,6 +10521,51 @@
             "type": "string"
           }
         }
+      },
+      "ManageConstructionQueuesRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_id",
+          "construction_name",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ConstructionQueueAction"
+          },
+          "city_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "construction_name": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "queue_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       },
       "MoveConstructionRequest": {
         "type": "object",
@@ -11473,9 +11643,16 @@
           "queueable",
           "storedProduction",
           "placementTargets",
-          "purchases"
+          "purchases",
+          "availableActions"
         ],
         "properties": {
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionQueueAction"
+            }
+          },
           "estimatedTurns": {
             "type": [
               "integer",
@@ -11557,9 +11734,16 @@
         "required": [
           "name",
           "storedProduction",
-          "purchases"
+          "purchases",
+          "availableActions"
         ],
         "properties": {
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionQueueAction"
+            }
+          },
           "estimatedTurns": {
             "type": [
               "integer",

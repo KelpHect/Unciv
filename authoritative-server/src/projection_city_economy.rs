@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::projection::ProjectedTargetCoordinate;
+use crate::{ConstructionQueueAction, projection::ProjectedTargetCoordinate};
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -11,6 +11,7 @@ pub struct ProjectedConstructionQueueEntry {
     pub production_cost: Option<i32>,
     pub estimated_turns: Option<i32>,
     pub purchases: Vec<ProjectedConstructionPurchase>,
+    pub available_actions: Vec<ConstructionQueueAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -23,6 +24,7 @@ pub struct ProjectedConstructionOption {
     pub estimated_turns: Option<i32>,
     pub placement_targets: Vec<ProjectedTargetCoordinate>,
     pub purchases: Vec<ProjectedConstructionPurchase>,
+    pub available_actions: Vec<ConstructionQueueAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

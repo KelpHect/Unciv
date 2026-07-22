@@ -4566,3 +4566,54 @@ Verification on 2026-07-22:
 - Rust façades remain thin (`main.rs` 6 lines and `lib.rs` under 40 lines).
   City-economy wire types were split before `projection.rs` could become a god
   file; the largest Rust source remains 783 lines.
+
+## Authoritative construction context actions and projection v47
+
+Opened-v3 city production now supports every inventoried construction context
+operation without a client-side mutation loop. Projection v47 attaches a
+sorted closed `ConstructionQueueAction` allowlist to the applicable queue entry
+or construction option. The six actions are move to top, move to end, add to
+top, add to all cities, add or move to top in all cities, and remove from all
+cities. The client renders only those advertised actions and submits the anchor
+city, construction identity, optional exact queue index, and closed action.
+
+The private Kotlin worker derives the eligible target-city set from canonical
+state, revalidates ownership, turn, puppet/resistance/razed state,
+constructability, wonders, tile-target restrictions, and the anchor queue
+identity, then applies the bounded multi-city proposal atomically. The public
+request cannot supply actor identity, city lists, legality, per-city results, or
+outcomes. The Rust repository path remains focused in
+`postgres/construction_queues.rs`; no rules were duplicated in Rust. Local,
+hotseat, saved, legacy/API-v2, and server-owned AI paths retain the shared Kotlin
+engine behavior. The remaining city-production projection gap is the public
+wonder completion/effect event feed, not queue control.
+
+Verification on 2026-07-22:
+
+- Deterministic Kotlin tests exercise projected action availability, atomic
+  all-city add/move/remove behavior, rejection when a repeated operation can no
+  longer change canonical state, and identical canonical hashes from two fresh loads of the
+  same valid ruleset-backed snapshot. Command-bus and session tests prove
+  projection-only preflight and stable retry identity without actor, city-list,
+  or outcome claims.
+- `./gradlew :tests:test :server:test --no-daemon` passes 953 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 96 active library tests and
+  all 7 HTTP/OpenAPI tests. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, regenerated
+  OpenAPI parity, and `git diff --check` pass.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55464; the live server reported `PostgreSQL 19beta2`. The disposable
+  container, network, and volume were removed and verified absent.
+- The broad gates caught and resolved a stale generated OpenAPI artifact, an
+  enum/object schema assertion mismatch, and an invalid synthetic-nation
+  snapshot in the first determinism fixture. The fixture now uses a valid
+  server-created ruleset-backed game, and every affected gate was rerun cleanly;
+  no compile, test, formatting, Clippy, OpenAPI, database, or cleanup error is
+  deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs` 38
+  lines). City-economy HTTP request DTOs were split into the descriptive
+  `api/city_economy_contracts.rs` module, and focused construction persistence
+  lives in `postgres/construction_queues.rs`; the largest Rust source is 781
+  lines, safely below the 800-line guardrail.

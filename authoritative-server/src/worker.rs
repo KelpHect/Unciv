@@ -19,6 +19,7 @@ mod city_population;
 mod city_state;
 mod diplomacy;
 mod espionage;
+mod event_choices;
 mod great_people;
 mod intents;
 mod major_diplomacy;
@@ -40,12 +41,13 @@ pub use intents::{
     MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
     QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    ResolveCityDispositionIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetSpyCoupIntent,
-    SetTileImprovementOrderIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
-    SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
+    ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    UpgradeUnitsIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
@@ -690,5 +692,21 @@ mod tests {
         assert_eq!(capabilities.engine_build, "4.21.1");
         assert_eq!(capabilities.installed_rulesets.len(), 1);
         server.await.unwrap();
+    }
+
+    #[test]
+    fn event_choice_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::ResolveEventChoice {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            prompt_id: "a",
+            choice_id: "b",
+        })
+        .unwrap();
+        assert_eq!(value["type"], "resolve_event_choice");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["promptId"], "a");
+        assert_eq!(value["choiceId"], "b");
+        assert!(value.get("actor_civilization_id").is_none());
     }
 }

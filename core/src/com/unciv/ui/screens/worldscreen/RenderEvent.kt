@@ -22,7 +22,8 @@ class RenderEvent(
     event: Event,
     val worldScreen: WorldScreen,
     val unit: MapUnit? = null,
-    val onChoice: (EventChoice) -> Unit
+    private val executeChoiceLocally: Boolean = true,
+    val onChoice: (EventChoice) -> Unit,
 ) : Table() {
     private val gameInfo get() = worldScreen.gameInfo
     private val stageWidth get() = worldScreen.stage.width
@@ -59,7 +60,7 @@ class RenderEvent(
         val button = choice.text.toTextButton()
         button.onActivation {
             onChoice(choice)
-            choice.triggerChoice(gameInfo.currentPlayerCiv, unit)
+            if (executeChoiceLocally) choice.triggerChoice(gameInfo.currentPlayerCiv, unit)
         }
         val key = KeyCharAndCode.parse(choice.keyShortcut)
         if (key != KeyCharAndCode.UNKNOWN) {

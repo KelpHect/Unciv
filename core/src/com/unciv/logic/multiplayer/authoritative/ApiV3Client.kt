@@ -508,6 +508,8 @@ class ApiV3Client(
         decode(client.post("api/v3/games/$gameId/commands/move-spy") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/set-spy-coup") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/resolve-event-choice") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
 
     override suspend fun setCityTileAssignment(
         gameId: String,

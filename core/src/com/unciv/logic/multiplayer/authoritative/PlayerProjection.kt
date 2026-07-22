@@ -38,11 +38,24 @@ data class PlayerProjection(
     val diplomacyPrompts: List<ProjectedDiplomacyPrompt> = emptyList(),
     val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
     val spies: List<ProjectedSpy> = emptyList(),
+    val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 30
+        const val CURRENT_PROJECTION_VERSION = 31
     }
 }
+
+@Serializable
+data class ProjectedEventPrompt(
+    val promptId: String,
+    val eventName: String,
+    val unitId: Int?,
+    val text: String,
+    val choices: List<ProjectedEventChoice>,
+)
+
+@Serializable
+data class ProjectedEventChoice(val choiceId: String, val text: String)
 
 @Serializable
 data class ProjectedSpy(
@@ -317,6 +330,7 @@ object PlayerProjectionBuilder {
             diplomacyPrompts = DiplomacyCommandExecutor.prompts(actor),
             cityStatePartners = CityStateCommandExecutor.partners(actor),
             spies = EspionageCommandExecutor.spies(actor),
+            eventPrompts = EventChoiceCommandExecutor.prompts(actor),
             ownCities = actor.cities.map {
                 ProjectedCity(
                     id = it.id,

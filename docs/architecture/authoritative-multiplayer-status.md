@@ -3342,3 +3342,49 @@ Verification on 2026-07-22:
 
 The inventoried player-authored espionage row is complete. The coverage audit
 now advances to remaining private-choice surfaces and lifecycle operations.
+
+## Authoritative mod-defined event choices
+
+Projection version 31 exposes each pending mod event only to its authenticated
+civilization. It contains an opaque prompt ID, presentation text, optional
+owned-unit context, and opaque currently available choices. Trigger uniques,
+condition implementation, random inputs, and outcomes are never accepted from
+or exposed as authority to the client.
+
+`ResolveEventChoice` carries only the projected prompt and choice IDs. The
+private Kotlin worker re-resolves the canonical popup alert, pinned ruleset
+event, owned unit context, current availability conditions, and exact choice,
+then calls the existing `EventChoice.triggerChoice` implementation and consumes
+the alert. Nested effects and RNG therefore execute in the same server-owned
+engine used by AI. Replay after consumption fails closed.
+
+For opened v3 games, `RenderEvent` remains presentation-only and skips its
+legacy local trigger callback. `AlertPopup` submits the opaque choice through
+the authoritative session and reconciles afterward. Tutorials, local games,
+hotseat, saves, legacy multiplayer, and server AI retain existing behavior.
+
+Verification on 2026-07-22:
+
+- The focused Kotlin test constructs a two-choice event, proves opaque
+  player-scoped projection, executes the selected golden-age effect only in the
+  canonical worker, consumes the alert, and rejects replay.
+- Rust closed-contract coverage rejects client-supplied actor, event, unit,
+  choice index, unique effects, RNG, and outcome fields. A dedicated wire test
+  verifies exact camel-case field names expected by Kotlin.
+- `./gradlew :tests:test :server:test --no-daemon` completed 920 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test --all-targets` passed 64 active library tests and all 7
+  HTTP/OpenAPI tests; 8 database-only tests were intentionally skipped in the
+  non-database lane. Generated OpenAPI parity, the dedicated Kotlin wire-name
+  regression, and projection-v31 fixture coverage passed.
+- `cargo fmt --check` and warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55470; the live server reported `19beta2`. The disposable
+  `unciv-v3-event-choice-pg19` container was removed afterward.
+- Module-size review found a 733-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line façade.
+
+The mod-event choice leak is closed. The audit now advances to remaining unit
+special actions and multiplayer lifecycle mutations.

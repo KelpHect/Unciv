@@ -22,9 +22,11 @@ import com.unciv.logic.multiplayer.authoritative.CityDispositionExecutor
 import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
+import com.unciv.logic.multiplayer.authoritative.EventChoiceCommandExecutor
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
+import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.translations.fillPlaceholders
 import com.unciv.models.translations.tr
 import com.unciv.ui.audio.MusicMood
@@ -73,6 +75,7 @@ class AlertPopup(
     private val popupAlert: PopupAlert
 ): Popup(worldScreen) {
     private var authoritativeDispositionSubmissionInProgress = false
+    private var authoritativeEventSubmissionInProgress = false
     
     companion object {
         private const val SEPARATOR_LINE_TO_TEXT_PADDING = 25f
@@ -840,10 +843,69 @@ class AlertPopup(
         
         
         val event = gameInfo.ruleset.events[eventName] ?: return false
-        val render = RenderEvent(event, worldScreen, unit) { close() }
+        val authoritative = worldScreen.mapHolder.usesAuthoritativeCommands()
+        val prompt = if (authoritative) EventChoiceCommandExecutor.prompts(viewingCiv)
+            .firstOrNull { it.eventName == eventName && it.unitId == unit?.id }
+            ?: return false
+        else null
+        val matchingChoices = event.getMatchingChoices(GameContext(viewingCiv, unit = unit))?.toList()
+            ?: return false
+        val render = RenderEvent(event, worldScreen, unit, executeChoiceLocally = !authoritative) { choice ->
+            if (!authoritative) close()
+            else {
+                val choiceIndex = matchingChoices.indexOf(choice)
+                val authoritativePrompt = prompt ?: return@RenderEvent
+                val projectedChoice = authoritativePrompt.choices.getOrNull(choiceIndex) ?: return@RenderEvent
+                submitAuthoritativeEventChoice(authoritativePrompt.promptId, projectedChoice.choiceId)
+            }
+        }
         if (!render.isValid) return false
         add(render).pad(0f).row()
         return true
+    }
+
+    private fun submitAuthoritativeEventChoice(promptId: String, choiceId: String) {
+        if (authoritativeEventSubmissionInProgress) return
+        authoritativeEventSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Resolve authoritative event choice") {
+            val outcome = try {
+                worldScreen.game.onlineMultiplayer.authoritativeSession
+                    ?.resolveEventChoiceIfOpen(gameInfo.gameId, promptId, choiceId)
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeEventSubmissionInProgress = false
+                    ToastPopup("Could not submit event choice: [${ex.message ?: "Unknown"}]", worldScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        gameInfo.isUpToDate = false
+                        close()
+                        ToastPopup("Event choice committed by the authoritative server", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        gameInfo.isUpToDate = false
+                        close()
+                        ToastPopup("Game changed on the server - event choice was not applied", worldScreen)
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeEventSubmissionInProgress = false
+                        ToastPopup("Server rejected event choice: [${outcome.code}]", worldScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeEventSubmissionInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same event choice", worldScreen)
+                    }
+                    null -> {
+                        authoritativeEventSubmissionInProgress = false
+                        ToastPopup("Authoritative game was closed before the event choice", worldScreen)
+                    }
+                }
+            }
+        }
     }
 
     //endregion

@@ -85,6 +85,11 @@ pub struct SetSpyCoupIntent<'a> {
     pub spy_name: &'a str,
     pub enabled: bool,
 }
+pub struct ResolveEventChoiceIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub prompt_id: &'a str,
+    pub choice_id: &'a str,
+}
 
 pub struct MoveUnitIntent<'a> {
     pub actor_civilization_id: &'a str,

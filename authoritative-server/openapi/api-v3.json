@@ -4881,6 +4881,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/resolve-event-choice": {
+      "post": {
+        "tags": [],
+        "operationId": "resolve_event_choice",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveEventChoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/respond-to-city-state-protection-prompt": {
       "post": {
         "tags": [],
@@ -9072,7 +9156,8 @@
           "diplomacyPartners",
           "diplomacyPrompts",
           "cityStatePartners",
-          "spies"
+          "spies",
+          "eventPrompts"
         ],
         "properties": {
           "cityStatePartners": {
@@ -9103,6 +9188,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "eventPrompts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedEventPrompt"
             }
           },
           "exploredTiles": {
@@ -9522,6 +9613,56 @@
           },
           "type": {
             "$ref": "#/components/schemas/DiplomacyPromptType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedEventChoice": {
+        "type": "object",
+        "required": [
+          "choiceId",
+          "text"
+        ],
+        "properties": {
+          "choiceId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedEventPrompt": {
+        "type": "object",
+        "required": [
+          "promptId",
+          "eventName",
+          "text",
+          "choices"
+        ],
+        "properties": {
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedEventChoice"
+            }
+          },
+          "eventName": {
+            "type": "string"
+          },
+          "promptId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -10454,6 +10595,39 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveEventChoiceRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "prompt_id",
+          "choice_id"
+        ],
+        "properties": {
+          "choice_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "prompt_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false

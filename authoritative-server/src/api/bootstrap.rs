@@ -287,6 +287,10 @@ pub(crate) async fn run() {
             post(set_spy_coup),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/resolve-event-choice",
+            post(resolve_event_choice),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

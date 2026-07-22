@@ -297,6 +297,10 @@ pub enum GameCommand {
         spy_name: String,
         enabled: bool,
     },
+    ResolveEventChoice {
+        prompt_id: String,
+        choice_id: String,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

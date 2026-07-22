@@ -383,6 +383,7 @@ sealed interface PendingAuthoritativeCommand {
     data class MarryCityState(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
     data class MoveSpy(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val spyName: String, val cityId: String?) : PendingAuthoritativeCommand
     data class SetSpyCoup(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val spyName: String, val enabled: Boolean) : PendingAuthoritativeCommand
+    data class ResolveEventChoice(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val promptId: String, val choiceId: String) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1218,6 +1219,14 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.SetSpyCoup(commandIdFactory(), current.committedRevision, current.canonicalStateHash, spyName, enabled), current)
     }
 
+    suspend fun resolveEventChoice(promptId: String, choiceId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.eventPrompts.any { prompt ->
+            prompt.promptId == promptId && prompt.choices.any { it.choiceId == choiceId }
+        }) { "Event choice is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.ResolveEventChoice(commandIdFactory(), current.committedRevision, current.canonicalStateHash, promptId, choiceId), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1720,6 +1729,7 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.MarryCityState -> transport.marryCityState(gameId, ApiV3CityStateMarriageRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
                 is PendingAuthoritativeCommand.MoveSpy -> transport.moveSpy(gameId, ApiV3MoveSpyRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.spyName, pending.cityId))
                 is PendingAuthoritativeCommand.SetSpyCoup -> transport.setSpyCoup(gameId, ApiV3SetSpyCoupRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.spyName, pending.enabled))
+                is PendingAuthoritativeCommand.ResolveEventChoice -> transport.resolveEventChoice(gameId, ApiV3ResolveEventChoiceRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.promptId, pending.choiceId))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

@@ -580,6 +580,15 @@ data class ApiV3SetSpyCoupRequest(
 )
 
 @Serializable
+data class ApiV3ResolveEventChoiceRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("prompt_id") val promptId: String,
+    @SerialName("choice_id") val choiceId: String,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

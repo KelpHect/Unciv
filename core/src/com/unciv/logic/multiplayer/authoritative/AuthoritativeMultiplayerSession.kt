@@ -1132,6 +1132,9 @@ class AuthoritativeMultiplayerSession(
         { it is PendingAuthoritativeCommand.MoveSpy && it.spyName == spyName && it.cityId == cityId }, { it.moveSpy(spyName, cityId) })
     suspend fun setSpyCoupIfOpen(gameId: String, spyName: String, enabled: Boolean) = withDiplomacyBus(gameId,
         { it is PendingAuthoritativeCommand.SetSpyCoup && it.spyName == spyName && it.enabled == enabled }, { it.setSpyCoup(spyName, enabled) })
+    suspend fun resolveEventChoiceIfOpen(gameId: String, promptId: String, choiceId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.ResolveEventChoice && it.promptId == promptId && it.choiceId == choiceId },
+        { it.resolveEventChoice(promptId, choiceId) })
 
     private suspend fun withDiplomacyBus(
         gameId: String,

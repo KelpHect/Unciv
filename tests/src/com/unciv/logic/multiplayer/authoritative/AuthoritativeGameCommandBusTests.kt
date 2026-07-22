@@ -1936,6 +1936,7 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun marryCityState(gameId: String, request: ApiV3CityStateMarriageRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun moveSpy(gameId: String, request: ApiV3MoveSpyRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
         private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {
             current = current.copy(committedRevision = revision + 1, canonicalStateHash = "trade-hash", projectionHash = "trade-projection-hash")

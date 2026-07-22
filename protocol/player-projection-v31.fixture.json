@@ -87,5 +87,6 @@
     "canDeclareWar": true,
     "diplomaticMarriageCost": 500
   }],
-  "spies": []
+  "spies": [],
+  "eventPrompts": []
 }

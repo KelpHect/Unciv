@@ -5,6 +5,8 @@ use uuid::Uuid;
 mod city_state_contracts;
 #[path = "lib_tests/espionage_contracts.rs"]
 mod espionage_contracts;
+#[path = "lib_tests/event_choice_contracts.rs"]
+mod event_choice_contracts;
 #[path = "lib_tests/major_diplomacy_contracts.rs"]
 mod major_diplomacy_contracts;
 #[path = "lib_tests/trade_contracts.rs"]

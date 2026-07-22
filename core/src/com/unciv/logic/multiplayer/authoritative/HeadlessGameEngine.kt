@@ -145,6 +145,11 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun resolveEventChoice(game: GameInfo, actorCivilizationId: String, promptId: String, choiceId: String): EngineResult {
+        EventChoiceCommandExecutor.resolve(game, authenticatedCivilization(game, actorCivilizationId), promptId, choiceId)
+        return result(game)
+    }
+
     private fun authenticatedCivilization(game: GameInfo, civilizationId: String): Civilization =
         game.civilizations.singleOrNull { it.civID == civilizationId && it.playerId == executionContext.actorId }
             ?: error("Authenticated actor is not assigned to this civilization")

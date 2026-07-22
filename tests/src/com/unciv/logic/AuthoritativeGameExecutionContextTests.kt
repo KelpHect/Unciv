@@ -34,6 +34,8 @@ import com.unciv.models.metadata.Player
 import com.unciv.models.SpyAction
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.ruleset.PerpetualConstruction
+import com.unciv.models.ruleset.Event
+import com.unciv.models.ruleset.EventChoice
 import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.stats.Stat
@@ -2273,6 +2275,45 @@ class AuthoritativeGameExecutionContextTests {
         game.currentPlayer = "Greece"
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.moveSpy(game, "Rome", spy.name, null)
+        }
+    }
+
+    @Test
+    fun eventChoiceIsPendingOpaqueAndExecutedOnlyByCanonicalWorker() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val event = Event().apply {
+            name = "ServerEvent"
+            text = "Choose a server-owned outcome"
+            choices.add(EventChoice().apply {
+                name = "golden-age"
+                text = "Begin a golden age"
+                uniques.add("Empire enters a [5]-turn Golden Age")
+            })
+            choices.add(EventChoice().apply {
+                name = "free-policy"
+                text = "Gain a policy"
+                uniques.add("Free Social Policy")
+            })
+        }
+        game.ruleset.events[event.name] = event
+        rome.popupAlerts.add(PopupAlert(AlertType.Event, event.name))
+
+        val prompt = engine.playerProjection(game, "Rome").eventPrompts.single()
+        Assert.assertEquals(event.name, prompt.eventName)
+        Assert.assertEquals(listOf("Begin a golden age", "Gain a policy"), prompt.choices.map { it.text })
+        Assert.assertTrue(prompt.promptId.matches(Regex("[0-9a-f]{64}")))
+        Assert.assertTrue(prompt.choices.all { it.choiceId.matches(Regex("[0-9a-f]{64}")) })
+        Assert.assertFalse(rome.goldenAges.isGoldenAge())
+
+        engine.resolveEventChoice(game, "Rome", prompt.promptId, prompt.choices.first().choiceId)
+
+        Assert.assertTrue(rome.goldenAges.isGoldenAge())
+        Assert.assertTrue(rome.popupAlerts.none { it.type == AlertType.Event })
+        Assert.assertTrue(engine.playerProjection(game, "Rome").eventPrompts.isEmpty())
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.resolveEventChoice(game, "Rome", prompt.promptId, prompt.choices.last().choiceId)
         }
     }
 

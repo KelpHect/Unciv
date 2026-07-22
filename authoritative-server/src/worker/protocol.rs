@@ -542,6 +542,15 @@ pub(super) enum WorkerOperation<'a> {
         spy_name: &'a str,
         enabled: bool,
     },
+    ResolveEventChoice {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "promptId")]
+        prompt_id: &'a str,
+        #[serde(rename = "choiceId")]
+        choice_id: &'a str,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

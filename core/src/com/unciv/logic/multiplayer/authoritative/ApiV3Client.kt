@@ -487,6 +487,33 @@ class ApiV3Client(
         decodeUnit(client.delete("api/v3/games/$gameId/spectators") { authenticate() })
     }
 
+    override suspend fun transferOwnership(
+        gameId: String,
+        request: ApiV3TransferOwnershipRequest,
+    ) = decodeUnit(client.put("api/v3/games/$gameId/owner") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun closeGameAdmin(
+        gameId: String,
+        request: ApiV3GameAdminOperationRequest,
+    ) = decodeUnit(client.post("api/v3/games/$gameId/close") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun archiveGame(
+        gameId: String,
+        request: ApiV3GameAdminOperationRequest,
+    ) = decodeUnit(client.post("api/v3/games/$gameId/archive") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/transform-unit") {
             authenticate(); contentType(ContentType.Application.Json); setBody(request)

@@ -65,14 +65,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - [ ] Add owner-authorized player invitations or an explicit join policy rather
   than treating knowledge of a game ID as sufficient product policy.
-- [ ] Add retry-safe typed owner/admin operations for transferring ownership,
-  closing a game, and archiving a game. Owner-only kicking is implemented.
-- [ ] Define and test safe consequences for ownership transfer and game-status
-  changes, including ownership constraints, retries, metadata/projection access,
-  command gating, notifications, and atomic persistence. Kicking already has
-  canonical AI handoff, current-turn progression, and atomic membership removal.
-- [ ] Add game status/history projections and client controls for closed and
-  archived games.
+- [ ] Wire production administration UI for owner kick, ownership transfer,
+  close, and archive, including confirmation, retry with the same operation ID,
+  status display, and clear handling when ownership changes remotely. The API,
+  persistence, client transport/session, command gating, and metadata are done.
+- [ ] Add a richer game administration/history projection if the product needs
+  more than the current lifecycle status and durable audit/outbox records.
 - [ ] Decide whether spectator invitations can be revoked by the owner and, if
   supported, implement it as a distinct audited operation.
 

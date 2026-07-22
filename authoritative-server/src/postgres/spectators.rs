@@ -12,7 +12,7 @@ impl PostgresGameRepository {
         let username = normalize_username(username).map_err(|_| CommitError::InvalidCommand)?;
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
         let head_revision: i64 = sqlx::query_scalar(
-            "SELECT g.head_revision FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 AND gm.role='owner' WHERE g.id=$1 FOR UPDATE",
+            "SELECT g.head_revision FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 AND gm.role='owner' WHERE g.id=$1 AND g.lifecycle_status='active' FOR UPDATE",
         )
         .bind(game_id)
         .bind(owner_account_id)
@@ -100,14 +100,17 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<SpectatorGameProjection, CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 AND gm.role='spectator' JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 AND gm.role='spectator' JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .bind(actor_account_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
-        .ok_or(CommitError::Unauthorized)?;
+            .ok_or(CommitError::Unauthorized)?;
+        if row.get::<String, _>("lifecycle_status") == "archived" {
+            return Err(CommitError::InvalidCommand);
+        }
         let snapshot = self.validated_snapshot(game_id, &row).await?;
         let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;

@@ -64,6 +64,7 @@ pub struct GameMetadata {
     pub canonical_state_hash: String,
     pub role: String,
     pub civilization_id: Option<String>,
+    pub lifecycle_status: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -74,6 +75,7 @@ pub struct GameSummary {
     pub role: String,
     pub civilization_id: Option<String>,
     pub available: bool,
+    pub lifecycle_status: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -108,10 +110,12 @@ pub struct ClaimedOutboxEvent {
     pub claim_token: Uuid,
     pub game_id: Uuid,
     pub revision: u64,
+    pub topic: String,
     pub payload: serde_json::Value,
 }
 
 mod accounts;
+mod administration;
 mod city_disposition;
 mod city_economy;
 mod city_governance;
@@ -362,7 +366,7 @@ impl PostgresGameRepository {
         }
 
         let head = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, g.ruleset_manifest_hash, m.engine_build FROM games g JOIN ruleset_manifests m ON m.hash = g.ruleset_manifest_hash WHERE g.id = $1 FOR UPDATE",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, g.ruleset_manifest_hash, m.engine_build FROM games g JOIN ruleset_manifests m ON m.hash = g.ruleset_manifest_hash WHERE g.id = $1 FOR UPDATE",
         )
         .bind(envelope.game_id)
         .fetch_optional(&mut *tx)
@@ -371,6 +375,9 @@ impl PostgresGameRepository {
         .ok_or(CommitError::NotFound)?;
         if head.get::<bool, _>("is_unavailable") {
             return Err(CommitError::GameUnavailable);
+        }
+        if head.get::<String, _>("lifecycle_status") != "active" {
+            return Err(CommitError::InvalidCommand);
         }
         let current_revision = u64::try_from(head.get::<i64, _>("head_revision"))
             .expect("head revision is non-negative");

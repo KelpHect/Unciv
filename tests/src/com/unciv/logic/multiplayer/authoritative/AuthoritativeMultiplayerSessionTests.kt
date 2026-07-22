@@ -125,6 +125,27 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun administrationUsesCallerStableOperationIdsAndArchiveClosesLocalState() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        session.transferOwnership(GAME_ID, "Successor", "transfer-operation")
+        session.closeAuthoritativeGame(GAME_ID, "close-operation")
+        session.archiveAuthoritativeGame(GAME_ID, "archive-operation")
+
+        assertEquals(
+            listOf(Triple(GAME_ID, "transfer-operation", "Successor")),
+            transport.ownershipTransfers,
+        )
+        assertEquals(listOf(GAME_ID to "close-operation"), transport.closedGames)
+        assertEquals(listOf(GAME_ID to "archive-operation"), transport.archivedGames)
+        assertFalse(session.isGameOpen(GAME_ID))
+        session.close()
+    }
+
+    @Test
     fun apiClientRejectsMalformedPagingBeforeNetworkAccess() = runBlocking {
         val client = ApiV3Client(
             "http://127.0.0.1:1",
@@ -1151,6 +1172,9 @@ class AuthoritativeMultiplayerSessionTests {
         val addedSpectators = mutableListOf<Pair<String, String>>()
         val spectatorProjectionCalls = mutableListOf<String>()
         val leftSpectatorGames = mutableListOf<String>()
+        val ownershipTransfers = mutableListOf<Triple<String, String, String>>()
+        val closedGames = mutableListOf<Pair<String, String>>()
+        val archivedGames = mutableListOf<Pair<String, String>>()
         var disableFailure: Throwable? = null
         @Volatile
         var current = projection(7, "hash-7")
@@ -1209,6 +1233,15 @@ class AuthoritativeMultiplayerSessionTests {
         }
         override suspend fun leaveSpectator(gameId: String) {
             leftSpectatorGames += gameId
+        }
+        override suspend fun transferOwnership(gameId: String, request: ApiV3TransferOwnershipRequest) {
+            ownershipTransfers += Triple(gameId, request.operationId, request.username)
+        }
+        override suspend fun closeGameAdmin(gameId: String, request: ApiV3GameAdminOperationRequest) {
+            closedGames += gameId to request.operationId
+        }
+        override suspend fun archiveGame(gameId: String, request: ApiV3GameAdminOperationRequest) {
+            archivedGames += gameId to request.operationId
         }
         override suspend fun moveUnit(
             gameId: String,

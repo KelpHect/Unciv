@@ -27,6 +27,9 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/account",
         "/api/v3/games",
         "/api/v3/games/{game_id}",
+        "/api/v3/games/{game_id}/owner",
+        "/api/v3/games/{game_id}/close",
+        "/api/v3/games/{game_id}/archive",
         "/api/v3/games/{game_id}/projection",
         "/api/v3/games/{game_id}/spectator-projection",
         "/api/v3/games/{game_id}/spectators",
@@ -131,6 +134,8 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         }
     }
     for schema in [
+        "TransferOwnershipRequest",
+        "GameAdminOperationRequest",
         "AddSpectatorRequest",
         "EndTurnRequest",
         "ResignRequest",

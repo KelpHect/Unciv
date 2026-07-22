@@ -65,6 +65,7 @@ pub(super) struct GameMetadataResponse {
     pub(super) canonical_state_hash: String,
     pub(super) role: String,
     pub(super) civilization_id: Option<String>,
+    pub(super) lifecycle_status: String,
 }
 
 #[derive(Deserialize, utoipa::IntoParams)]

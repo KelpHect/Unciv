@@ -57,25 +57,33 @@ pub async fn run_outbox_dispatcher(repository: PostgresGameRepository, hub: Noti
             continue;
         }
         for event in events {
-            let state_hash = event
+            let payload_state_hash = event
                 .payload
                 .get("state_hash")
                 .and_then(serde_json::Value::as_str)
                 .filter(|hash| hash.len() == 64)
                 .map(str::to_owned);
+            let state_hash = match payload_state_hash {
+                Some(hash) => Ok(hash),
+                None => {
+                    repository
+                        .outbox_state_hash(event.game_id, event.revision)
+                        .await
+                }
+            };
             let result = match state_hash {
-                Some(canonical_state_hash) => repository
+                Ok(canonical_state_hash) => repository
                     .outbox_recipients(event.game_id)
                     .await
                     .map(|recipients| (recipients, canonical_state_hash)),
-                None => Err(crate::CommitError::Storage),
+                Err(error) => Err(error),
             };
             match result {
                 Ok((recipients, canonical_state_hash)) => {
                     hub.publish(
                         &recipients,
                         RevisionNotification {
-                            event_type: "revision_committed",
+                            event_type: notification_type(&event.topic),
                             protocol_version: crate::PROTOCOL_VERSION,
                             game_id: event.game_id,
                             committed_revision: event.revision,
@@ -99,6 +107,14 @@ pub async fn run_outbox_dispatcher(repository: PostgresGameRepository, hub: Noti
                 }
             }
         }
+    }
+}
+
+fn notification_type(topic: &str) -> &'static str {
+    if topic == "game.revision.committed" {
+        "revision_committed"
+    } else {
+        "resync_required"
     }
 }
 
@@ -127,5 +143,21 @@ mod tests {
         assert_eq!(member_rx.recv().await.unwrap(), notification);
         assert_eq!(member_rx.recv().await.unwrap(), notification);
         assert!(outsider_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn control_plane_outbox_topics_force_http_resynchronization() {
+        assert_eq!(
+            notification_type("game.revision.committed"),
+            "revision_committed"
+        );
+        assert_eq!(
+            notification_type("game.membership.changed"),
+            "resync_required"
+        );
+        assert_eq!(
+            notification_type("game.lifecycle.changed"),
+            "resync_required"
+        );
     }
 }

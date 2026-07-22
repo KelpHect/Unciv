@@ -1,3 +1,5 @@
+mod administration;
+mod administration_contracts;
 mod auth;
 mod auth_helpers;
 mod bootstrap;
@@ -31,6 +33,8 @@ mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
 
+use administration::*;
+use administration_contracts::*;
 use auth::*;
 use auth_helpers::*;
 use city_disposition::*;

@@ -10,7 +10,7 @@ impl PostgresGameRepository {
     ) -> Result<Vec<ClaimedOutboxEvent>, CommitError> {
         let claim_token = Uuid::new_v4();
         let rows = sqlx::query(
-            "WITH candidates AS (SELECT id FROM game_outbox WHERE delivered_at IS NULL AND available_at <= now() AND (claimed_at IS NULL OR claimed_at < now() - interval '30 seconds') ORDER BY id FOR UPDATE SKIP LOCKED LIMIT $1) UPDATE game_outbox o SET claimed_at=now(), claim_token=$2, attempt_count=attempt_count+1, last_error=NULL FROM candidates c WHERE o.id=c.id RETURNING o.id, o.game_id, o.revision, o.payload",
+            "WITH candidates AS (SELECT id FROM game_outbox WHERE delivered_at IS NULL AND available_at <= now() AND (claimed_at IS NULL OR claimed_at < now() - interval '30 seconds') ORDER BY id FOR UPDATE SKIP LOCKED LIMIT $1) UPDATE game_outbox o SET claimed_at=now(), claim_token=$2, attempt_count=attempt_count+1, last_error=NULL FROM candidates c WHERE o.id=c.id RETURNING o.id, o.game_id, o.revision, o.topic, o.payload",
         )
         .bind(limit.clamp(1, 1_000))
         .bind(claim_token)
@@ -26,6 +26,7 @@ impl PostgresGameRepository {
                     claim_token,
                     game_id: row.get("game_id"),
                     revision,
+                    topic: row.get("topic"),
                     payload: row.get("payload"),
                 })
             })
@@ -38,6 +39,22 @@ impl PostgresGameRepository {
             .fetch_all(&self.pool)
             .await
             .map_err(CommitError::storage)
+    }
+
+    pub async fn outbox_state_hash(
+        &self,
+        game_id: Uuid,
+        revision: u64,
+    ) -> Result<String, CommitError> {
+        sqlx::query_scalar(
+            "SELECT canonical_state_hash FROM game_revisions WHERE game_id=$1 AND revision=$2",
+        )
+        .bind(game_id)
+        .bind(i64::try_from(revision).map_err(|_| CommitError::Storage)?)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::Storage)
     }
 
     pub async fn acknowledge_outbox(

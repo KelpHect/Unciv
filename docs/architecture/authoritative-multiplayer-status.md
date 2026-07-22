@@ -3730,3 +3730,54 @@ Verification on 2026-07-22:
 Owner kicking is authoritative, retry-safe, and synchronized with canonical
 server AI state. Ownership transfer and close/archive status remain the next
 game-administration slices.
+
+## Retry-safe ownership transfer and game lifecycle
+
+Migration `0008_game_administration.sql` adds the closed `active`, `closed`, and
+`archived` lifecycle plus a durable administration-operation ledger. A partial
+unique index permits exactly one owner per game. Ownership transfer resolves an
+enabled player membership from a normalized username, demotes the authenticated
+owner, promotes the selected player, and records one atomic outbox/audit boundary.
+Repeating the same operation ID and payload returns success; reuse with another
+actor, operation, or payload fails closed.
+
+Close and archive use the same retry contract. Close is valid only from active;
+archive is valid only from closed. Both lock the game row shared by canonical
+commit CAS. Worker loading rejects a non-active game early, and the final commit
+transaction independently rechecks active status, so a worker result racing a
+close cannot create a post-close revision. Closed games retain member-scoped
+read projections; archived games remain in discovery/metadata but deny player
+and spectator projections. Lifecycle status is carried in Rust OpenAPI and the
+Kotlin client contracts, and a successful local archive closes the command bus.
+
+The outbox audit also fixed a pre-existing delivery defect: spectator,
+membership, and lifecycle events do not contain a new canonical hash because
+they do not fabricate gameplay revisions. The dispatcher is now topic-aware,
+recovers the hash from the referenced immutable revision, and emits an
+authenticated `resync_required` hint instead of retrying those events forever.
+
+Verification on 2026-07-22:
+
+- PostgreSQL tests prove exact one-owner transfer, normalized/idempotent retry,
+  changed-payload rejection, old-owner denial, active-to-closed-to-archived
+  ordering, worker and commit race gating, stable revision zero, archived
+  discovery without projection, durable operation counts, topic-aware outbox
+  claiming, and canonical hash recovery.
+- A Kotlin client-session test proves caller-stable operation IDs reach transfer,
+  close, and archive unchanged and that archive removes the opened local game.
+- `./gradlew :tests:test :server:test --no-daemon` completed 934 JVM tests with
+  13 intentional skips and zero failures.
+- Rust passed 80 active library tests and all 7 HTTP/OpenAPI tests, including
+  generated contract parity and control-plane resync classification.
+- All 13 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55460; the live server reported `19beta2`. The disposable
+  `unciv-v3-admin-final-pg19b2` container was removed and cleanup verified.
+- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings`, broad JVM verification, and `git diff --check` passed. `main.rs`
+  remains 6 lines, `lib.rs` remains a 28-line facade, and every Rust source is
+  below 800 lines.
+
+The server-side game-administration lifecycle is authoritative, serialized,
+and retry-safe. Production UI wiring remains explicit; the coverage audit now
+returns to the remaining gameplay/projection and full-v3 lifecycle gaps.

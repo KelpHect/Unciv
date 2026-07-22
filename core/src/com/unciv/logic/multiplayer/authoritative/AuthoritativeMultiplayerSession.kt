@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 
 /**
  * Owns one authenticated API-v3 client lifecycle. UI code opens a game here
@@ -116,6 +117,33 @@ class AuthoritativeMultiplayerSession(
     suspend fun leaveSpectator(gameId: String) {
         requireAuthenticated()
         transport.leaveSpectator(gameId)
+    }
+
+    suspend fun transferOwnership(
+        gameId: String,
+        username: String,
+        operationId: String = UUID.randomUUID().toString(),
+    ) {
+        requireAuthenticated()
+        require(username.isNotBlank()) { "Username must not be blank" }
+        transport.transferOwnership(gameId, ApiV3TransferOwnershipRequest(operationId, username))
+    }
+
+    suspend fun closeAuthoritativeGame(
+        gameId: String,
+        operationId: String = UUID.randomUUID().toString(),
+    ) {
+        requireAuthenticated()
+        transport.closeGameAdmin(gameId, ApiV3GameAdminOperationRequest(operationId))
+    }
+
+    suspend fun archiveAuthoritativeGame(
+        gameId: String,
+        operationId: String = UUID.randomUUID().toString(),
+    ) {
+        requireAuthenticated()
+        transport.archiveGame(gameId, ApiV3GameAdminOperationRequest(operationId))
+        closeGame(gameId)
     }
 
     suspend fun openGame(gameId: String): AuthoritativeGameCommandBus {

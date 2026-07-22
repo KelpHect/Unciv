@@ -51,6 +51,7 @@ data class ApiV3GameMetadata(
     @SerialName("canonical_state_hash") val canonicalStateHash: String,
     val role: String,
     @SerialName("civilization_id") val civilizationId: String? = null,
+    @SerialName("lifecycle_status") val lifecycleStatus: String = "active",
 )
 
 @Serializable
@@ -61,6 +62,7 @@ data class ApiV3GameSummary(
     val role: String,
     @SerialName("civilization_id") val civilizationId: String? = null,
     val available: Boolean,
+    @SerialName("lifecycle_status") val lifecycleStatus: String = "active",
 )
 
 @Serializable
@@ -98,6 +100,17 @@ data class ApiV3SpectatorGameProjection(
 
 @Serializable
 data class ApiV3AddSpectatorRequest(val username: String)
+
+@Serializable
+data class ApiV3TransferOwnershipRequest(
+    @SerialName("operation_id") val operationId: String,
+    val username: String,
+)
+
+@Serializable
+data class ApiV3GameAdminOperationRequest(
+    @SerialName("operation_id") val operationId: String,
+)
 
 @Serializable
 data class ApiV3CommandAccepted(

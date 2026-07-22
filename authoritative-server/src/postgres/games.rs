@@ -78,7 +78,7 @@ impl PostgresGameRepository {
         let role: String = membership.get("role");
         let civilization_id: Option<String> = membership.get("civilization_id");
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, r.canonical_state_hash FROM games g JOIN game_revisions r ON r.game_id = g.id AND r.revision = g.head_revision WHERE g.id = $1",
         )
         .bind(game_id)
         .fetch_optional(&self.pool)
@@ -95,6 +95,7 @@ impl PostgresGameRepository {
             canonical_state_hash: row.get("canonical_state_hash"),
             role,
             civilization_id,
+            lifecycle_status: row.get("lifecycle_status"),
         })
     }
 
@@ -112,7 +113,7 @@ impl PostgresGameRepository {
         }
         let fetch_limit = i64::from(limit) + 1;
         let rows = sqlx::query(
-            "SELECT g.id AS game_id, g.head_revision, r.canonical_state_hash, gm.role, gm.civilization_id, g.unavailable_at IS NULL AS available FROM game_members gm JOIN games g ON g.id=gm.game_id JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision WHERE gm.account_id=$1 AND ($2::uuid IS NULL OR g.id>$2) ORDER BY g.id LIMIT $3",
+            "SELECT g.id AS game_id, g.head_revision, r.canonical_state_hash, gm.role, gm.civilization_id, g.lifecycle_status, (g.unavailable_at IS NULL AND g.lifecycle_status <> 'archived') AS available FROM game_members gm JOIN games g ON g.id=gm.game_id JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision WHERE gm.account_id=$1 AND ($2::uuid IS NULL OR g.id>$2) ORDER BY g.id LIMIT $3",
         )
         .bind(actor_account_id)
         .bind(after)
@@ -132,6 +133,7 @@ impl PostgresGameRepository {
                 role: row.get("role"),
                 civilization_id: row.get("civilization_id"),
                 available: row.get("available"),
+                lifecycle_status: row.get("lifecycle_status"),
             })
             .collect::<Vec<_>>();
         let next_cursor = has_more.then(|| games.last().expect("non-empty limited page").game_id);
@@ -148,14 +150,17 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<GameProjection, CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .bind(actor_account_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?
-        .ok_or(CommitError::Unauthorized)?;
+            .ok_or(CommitError::Unauthorized)?;
+        if row.get::<String, _>("lifecycle_status") == "archived" {
+            return Err(CommitError::InvalidCommand);
+        }
         let role: String = row.get("role");
         if !matches!(role.as_str(), "owner" | "player") {
             return Err(CommitError::Unauthorized);

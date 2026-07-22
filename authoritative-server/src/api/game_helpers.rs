@@ -7,5 +7,6 @@ pub(super) fn game_metadata_response(metadata: GameMetadata) -> GameMetadataResp
         canonical_state_hash: metadata.canonical_state_hash,
         role: metadata.role,
         civilization_id: metadata.civilization_id,
+        lifecycle_status: metadata.lifecycle_status,
     }
 }

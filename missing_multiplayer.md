@@ -54,12 +54,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   civilian, and economy autoplay controls are fail-closed for opened v3 games;
   if retained as a product feature, implement them as explicit server-owned AI
   operations rather than client automation.
+- [x] Complete all inventoried authoritative city-production context operations for
+  opened-v3 projection (move-to-top/end, add-to-top, add-to-all-cities,
+  add-or-move-to-top-in-all-cities, and remove-from-all-cities) through a
+  server-derived bounded city set and private worker execution, with no client
+  save mutation loop.
 - [ ] Add the public wonder completion/effect event feed needed by projection-only
-  UI. Projection v47 now supplies queue progress, costs/turn estimates, exact
-  queueability, tile-placement targets, perpetual choices, and the complete
-  closed construction context-action vocabulary. Move-to-top/end, add-to-top,
-  add-to-all-cities, add-or-move-to-top-in-all-cities, and remove-from-all-cities
-  execute atomically in the private worker from a server-derived bounded city set.
+  UI.
 - [ ] Decide whether intentionally disabled multi-tile buying remains supported.
   If retained, implement a bounded typed command, server-derived target/result
   semantics, and projection-only confirmation; never restore a client loop that

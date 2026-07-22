@@ -23,7 +23,10 @@
     "avoidGrowth": true,
     "citizenFocus": "gold_focus",
     "selectableCitizenFocuses": ["no_focus", "manual", "food_focus", "production_focus", "gold_focus", "science_focus", "culture_focus", "faith_focus", "gold_growth_focus", "production_growth_focus"],
-    "unitPromotionPreferences": [{ "baseUnitName": "Warrior", "enabled": true, "savedPromotions": ["Drill I"] }]
+    "unitPromotionPreferences": [{ "baseUnitName": "Warrior", "enabled": true, "savedPromotions": ["Drill I"] }],
+    "isPuppet": false,
+    "isBeingRazed": false,
+    "availableGovernanceActions": ["start_razing"]
   }],
   "ownUnits": [{ "id": 17, "civilizationId": "Rome", "name": "Worker", "x": 3, "y": -1, "health": 91, "currentMovement": 1.5, "movementDestinationX": 7, "movementDestinationY": 2, "automated": true, "exploring": false, "posture": "fortify", "promotions": ["Drill I"], "promotionXp": 12, "nextPromotionXp": 30, "availablePromotions": ["Drill II", "Shock I"], "instanceName": "First Legion", "improvementOrder": [{ "improvementName": "Remove Forest", "turnsRemaining": 2 }, { "improvementName": "Farm", "turnsRemaining": 5 }], "roadConnectionDestinationX": 8, "roadConnectionDestinationY": -3, "roadConnectionPath": [{ "x": 3, "y": -1 }, { "x": 4, "y": -1 }, { "x": 5, "y": -2 }, { "x": 8, "y": -3 }] }],
   "exploredTiles": [

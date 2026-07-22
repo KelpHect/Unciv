@@ -7,6 +7,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
+import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
@@ -1358,6 +1359,72 @@ class AuthoritativeGameExecutionContextTests {
         val otherEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
         Assert.assertThrows(IllegalArgumentException::class.java) {
             otherEngine.sellBuilding(testGame.gameInfo, other.civName, city.id, building.name)
+        }
+    }
+
+    @Test
+    fun cityGovernanceIsCanonicalAndProjectedAsClosedActions() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord(2, 0)))
+        city.isPuppet = true
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        var projected = engine.playerProjection(testGame.gameInfo, civilization.civName)
+            .ownCities.single { it.id == city.id }
+        Assert.assertTrue(projected.isPuppet)
+        Assert.assertEquals(listOf(CityGovernanceAction.Annex), projected.availableGovernanceActions)
+
+        engine.setCityGovernance(
+            testGame.gameInfo, civilization.civName, city.id, CityGovernanceAction.Annex,
+        )
+        Assert.assertFalse(city.isPuppet)
+        projected = engine.playerProjection(testGame.gameInfo, civilization.civName)
+            .ownCities.single { it.id == city.id }
+        Assert.assertEquals(listOf(CityGovernanceAction.StartRazing), projected.availableGovernanceActions)
+
+        engine.setCityGovernance(
+            testGame.gameInfo, civilization.civName, city.id, CityGovernanceAction.StartRazing,
+        )
+        Assert.assertTrue(city.isBeingRazed)
+        engine.setCityGovernance(
+            testGame.gameInfo, civilization.civName, city.id, CityGovernanceAction.StopRazing,
+        )
+        Assert.assertFalse(city.isBeingRazed)
+    }
+
+    @Test
+    fun cityGovernanceRejectsInvalidStateForeignOwnershipAndOutOfTurnActors() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        testGame.addCity(actor, testGame.getTile(HexCoord.Zero))
+        val city = testGame.addCity(actor, testGame.getTile(HexCoord(2, 0)))
+        val other = testGame.addCiv()
+        other.playerId = "account-2"
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setCityGovernance(
+                testGame.gameInfo, actor.civName, city.id, CityGovernanceAction.Annex,
+            )
+        }
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.setCityGovernance(
+                testGame.gameInfo, other.civName, city.id, CityGovernanceAction.StartRazing,
+            )
+        }
+        testGame.gameInfo.currentPlayer = other.civName
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setCityGovernance(
+                testGame.gameInfo, actor.civName, city.id, CityGovernanceAction.StartRazing,
+            )
         }
     }
 

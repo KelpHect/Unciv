@@ -291,6 +291,14 @@ sealed interface PendingAuthoritativeCommand {
         val buildingName: String,
     ) : PendingAuthoritativeCommand
 
+    data class SetCityGovernance(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val action: CityGovernanceAction,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -889,6 +897,17 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun setCityGovernance(cityId: String, action: CityGovernanceAction) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.SetCityGovernance(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, action,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1318,6 +1337,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3SellBuildingRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.buildingName,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SetCityGovernance -> transport.setCityGovernance(
+                    gameId,
+                    ApiV3SetCityGovernanceRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.action,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

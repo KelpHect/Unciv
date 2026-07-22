@@ -26,6 +26,13 @@ enum class CitizenFocus {
 }
 
 @Serializable
+enum class CityGovernanceAction {
+    @SerialName("annex") Annex,
+    @SerialName("start_razing") StartRazing,
+    @SerialName("stop_razing") StopRazing,
+}
+
+@Serializable
 enum class UnitPosture {
     @SerialName("sleep") Sleep,
     @SerialName("sleep_until_healed") SleepUntilHealed,
@@ -222,6 +229,11 @@ sealed interface GameCommand {
     data class SellBuilding(
         val cityId: String,
         val buildingName: String,
+    ) : GameCommand
+
+    data class SetCityGovernance(
+        val cityId: String,
+        val action: CityGovernanceAction,
     ) : GameCommand
 
     data class SetCityTileAssignment(

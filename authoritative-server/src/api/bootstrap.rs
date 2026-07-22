@@ -190,6 +190,10 @@ pub(crate) async fn run() {
             post(sell_building),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/set-city-governance",
+            post(set_city_governance),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

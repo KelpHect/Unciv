@@ -718,6 +718,39 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeCityGovernanceRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
+        val projectedCity = ProjectedCity(
+            id = "city-1", name = "Rome", x = 0, y = 0, population = 1, health = 200,
+            constructionQueue = emptyList(), availableConstructions = emptyList(),
+            availableGovernanceActions = listOf(CityGovernanceAction.StartRazing),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            governanceFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(ownCities = listOf(projectedCity)),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.setCityGovernanceIfOpen(
+            GAME_ID, "city-1", CityGovernanceAction.StartRazing,
+        ))
+        session.openGame(GAME_ID)
+        assertTrue(session.setCityGovernanceIfOpen(
+            GAME_ID, "city-1", CityGovernanceAction.StartRazing,
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.setCityGovernanceIfOpen(
+            GAME_ID, "city-1", CityGovernanceAction.StartRazing,
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.governanceCommandIds.size)
+        assertEquals(transport.governanceCommandIds[0], transport.governanceCommandIds[1])
+        session.close()
+    }
+
+    @Test
     fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
@@ -924,8 +957,10 @@ class AuthoritativeMultiplayerSessionTests {
         val movedConstructions = mutableListOf<ApiV3MoveConstructionRequest>()
         val purchaseCommandIds = mutableListOf<String>()
         val tilePurchaseCommandIds = mutableListOf<String>()
+        val governanceCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
         var tilePurchaseFailuresRemaining = 0
+        var governanceFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -1471,6 +1506,24 @@ class AuthoritativeMultiplayerSessionTests {
             gameId: String,
             request: ApiV3SellBuildingRequest,
         ): ApiV3CommandAccepted = unsupported()
+        override suspend fun setCityGovernance(
+            gameId: String,
+            request: ApiV3SetCityGovernanceRequest,
+        ): ApiV3CommandAccepted {
+            governanceCommandIds += request.commandId
+            if (governanceFailuresRemaining > 0) {
+                governanceFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
         override suspend fun setResearchPath(
             gameId: String,
             request: ApiV3SetResearchPathRequest,

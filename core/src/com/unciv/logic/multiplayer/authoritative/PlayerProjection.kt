@@ -30,7 +30,7 @@ data class PlayerProjection(
     val visibleForeignUnits: List<ProjectedUnit>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 17
+        const val CURRENT_PROJECTION_VERSION = 18
     }
 }
 
@@ -51,6 +51,9 @@ data class ProjectedCity(
     val citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
     val selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
     val unitPromotionPreferences: List<ProjectedUnitPromotionPreference> = emptyList(),
+    val isPuppet: Boolean = false,
+    val isBeingRazed: Boolean = false,
+    val availableGovernanceActions: List<CityGovernanceAction> = emptyList(),
 )
 
 @Serializable
@@ -217,6 +220,9 @@ object PlayerProjectionBuilder {
                         ) }
                         .sortedBy { preference -> preference.baseUnitName }
                         .toList(),
+                    isPuppet = it.isPuppet,
+                    isBeingRazed = it.isBeingRazed,
+                    availableGovernanceActions = CityGovernanceExecutor.availableActions(it),
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,

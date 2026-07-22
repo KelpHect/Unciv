@@ -931,6 +931,28 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun setCityGovernanceIfOpen(
+        gameId: String,
+        cityId: String,
+        action: CityGovernanceAction,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SetCityGovernance &&
+                    current.pending.cityId == cityId && current.pending.action == action) {
+                    "Resolve the pending authoritative command before changing city governance"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.setCityGovernance(cityId, action)
+            else -> {
+                bus.refresh()
+                bus.setCityGovernance(cityId, action)
+            }
+        }
+    }
+
     suspend fun setCityTileAssignmentIfOpen(
         gameId: String,
         cityId: String,

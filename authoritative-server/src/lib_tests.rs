@@ -383,6 +383,37 @@ fn sell_building_contract_excludes_refund_and_eligibility_claims() {
 }
 
 #[test]
+fn city_governance_contract_is_typed_and_excludes_rule_claims() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "set_city_governance", "city_id": "city-1", "action": "start_razing"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::SetCityGovernance {
+            city_id: "city-1".to_owned(),
+            action: crate::CityGovernanceAction::StartRazing,
+        }
+    );
+    for untrusted in ["actor_id", "can_destroy", "may_annex", "is_puppet"] {
+        let mut value = serde_json::json!({
+            "type": "set_city_governance", "city_id": "city-1", "action": "start_razing"
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_city_governance", "city_id": "city-1", "action": "destroy_now"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn citizen_policy_contracts_are_typed_and_closed() {
     let avoid: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_avoid_growth", "city_id": "city-1", "enabled": true

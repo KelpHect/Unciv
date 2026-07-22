@@ -6,6 +6,7 @@ import com.unciv.logic.ContentAddressedRuleset
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.RulesetManifest
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
+import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
@@ -329,6 +330,14 @@ sealed interface WorkerOperation {
         val actorCivilizationId: String,
         val cityId: String,
         val buildingName: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("set_city_governance")
+    data class SetCityGovernance(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val action: CityGovernanceAction,
     ) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
@@ -786,6 +795,16 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.cityId,
                     operation.buildingName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.SetCityGovernance -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.setCityGovernance(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
+                    operation.action,
                 )
                 responseForGame(engine, result.game)
             }

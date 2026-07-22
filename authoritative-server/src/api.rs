@@ -2,6 +2,7 @@ mod auth;
 mod auth_helpers;
 mod bootstrap;
 mod city_economy;
+mod city_governance;
 mod city_population;
 mod commands;
 mod contracts;
@@ -18,6 +19,7 @@ mod unit_orders;
 use auth::*;
 use auth_helpers::*;
 use city_economy::*;
+use city_governance::*;
 use city_population::*;
 use commands::*;
 use game_helpers::*;
@@ -43,8 +45,8 @@ pub(super) use axum::{
 pub(super) use futures_util::{SinkExt, StreamExt};
 pub(super) use serde::{Deserialize, Serialize};
 pub(super) use unciv_authoritative_server::{
-    CityTileAssignment, CommandEnvelope, CommitError, GameCommand, PROJECTION_VERSION,
-    PROTOCOL_VERSION,
+    CityGovernanceAction, CityTileAssignment, CommandEnvelope, CommitError, GameCommand,
+    PROJECTION_VERSION, PROTOCOL_VERSION,
     auth::{Account, AuthError},
     notifications::{NotificationHub, run_outbox_dispatcher},
     postgres::{GameMetadata, PostgresGameRepository},

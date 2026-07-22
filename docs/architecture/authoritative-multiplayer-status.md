@@ -2716,3 +2716,52 @@ diplomacy and trade, religion choices and religious unit actions, diplomatic
 votes and great-person choices, and city conquest governance such as annexing
 or razing. These require dedicated projections and typed intent designs rather
 than extending a generic mutation command.
+
+## Authoritative ordinary city governance
+
+API v3 now models owner-controlled city governance with the closed
+`SetCityGovernance(cityId, action)` command and the actions `annex`,
+`start_razing`, and `stop_razing`. This command does not cover the distinct
+post-capture puppet/liberate/destroy decision, which still requires a projected
+pending-decision contract because it can change ownership and diplomacy.
+
+The private Kotlin worker resolves authenticated ownership and current turn,
+then a focused `CityGovernanceExecutor` derives puppet state, the civilization's
+annex restriction, capital/holy-city destruction rules, and current razing
+state from the canonical snapshot. Only the worker calls the existing Kotlin
+annex logic or changes canonical razing state. The city screen submits intent
+before local mutation in authoritative games and preserves the legacy path for
+single-player, hotseat, saves, and API-v2 multiplayer.
+
+Player projection version 18 adds `isPuppet`, `isBeingRazed`, and the
+server-derived closed `availableGovernanceActions` list to each owned city.
+The shared Rust/Kotlin fixture moved to `player-projection-v18.fixture.json` and
+continues to reject unknown fields. Rust API, worker, and persistence logic is
+isolated in focused `city_governance` modules.
+
+Verification on 2026-07-22:
+
+- Focused engine tests cover the canonical annex, start-razing, and
+  stop-razing lifecycle and its projected actions, plus invalid-state,
+  foreign-ownership, and out-of-turn rejection.
+- Command-bus tests prove the payload excludes actor and rule claims. Session
+  tests prove commands route only for explicitly opened games and a lost
+  response retries with the same idempotency key.
+- `./gradlew :tests:test :server:test --no-daemon`: 887 shared JVM tests
+  completed with 13 intentional skips and zero failures, plus all 4 worker
+  protocol tests.
+- `cargo test`: 49 active Rust library tests and all 7 HTTP/OpenAPI tests
+  passed, including generated OpenAPI parity and the version-18 projection
+  fixture.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55443. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+Post-capture city disposition is the next city-governance gap. It needs an
+explicit player-scoped pending decision with server-derived available choices
+before the client can safely submit puppet, annex, raze, liberate, or destroy.

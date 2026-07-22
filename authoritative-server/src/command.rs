@@ -13,6 +13,14 @@ pub enum CityTileAssignment {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum CityGovernanceAction {
+    Annex,
+    StartRazing,
+    StopRazing,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum UnitPosture {
     Sleep,
     SleepUntilHealed,
@@ -165,6 +173,10 @@ pub enum GameCommand {
     SellBuilding {
         city_id: String,
         building_name: String,
+    },
+    SetCityGovernance {
+        city_id: String,
+        action: CityGovernanceAction,
     },
     SetCityTileAssignment {
         city_id: String,

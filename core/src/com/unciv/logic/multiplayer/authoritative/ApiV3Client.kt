@@ -412,6 +412,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun setCityGovernance(
+        gameId: String,
+        request: ApiV3SetCityGovernanceRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/set-city-governance") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

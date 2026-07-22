@@ -1113,6 +1113,17 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun setCityGovernance(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        action: CityGovernanceAction,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        CityGovernanceExecutor.execute(city, action)
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

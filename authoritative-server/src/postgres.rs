@@ -18,8 +18,8 @@ use crate::worker::{
     PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SellBuildingIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
-    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
     SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
@@ -93,6 +93,7 @@ pub struct ClaimedOutboxEvent {
 
 mod accounts;
 mod city_economy;
+mod city_governance;
 mod city_population;
 mod commands;
 mod games;

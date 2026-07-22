@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::UnitPosture;
+use crate::{CityGovernanceAction, UnitPosture};
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
@@ -43,6 +43,9 @@ pub struct ProjectedCity {
     pub citizen_focus: CitizenFocus,
     pub selectable_citizen_focuses: Vec<CitizenFocus>,
     pub unit_promotion_preferences: Vec<ProjectedUnitPromotionPreference>,
+    pub is_puppet: bool,
+    pub is_being_razed: bool,
+    pub available_governance_actions: Vec<CityGovernanceAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -177,7 +180,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v17.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v18.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -195,6 +198,10 @@ mod tests {
         assert_eq!(
             projection.own_cities[0].citizen_focus,
             CitizenFocus::GoldFocus
+        );
+        assert_eq!(
+            projection.own_cities[0].available_governance_actions,
+            [CityGovernanceAction::StartRazing]
         );
         assert_eq!(
             projection.research.current_technology.as_deref(),

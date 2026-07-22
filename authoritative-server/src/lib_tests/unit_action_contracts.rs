@@ -218,6 +218,25 @@ fn bombard_with_city_contract_excludes_damage_rng_range_and_actor() {
 }
 
 #[test]
+fn nuclear_strike_contract_excludes_blast_victims_rng_range_and_actor() {
+    let serialized = serde_json::to_value(GameCommand::LaunchNuclearStrike {
+        unit_id: 42,
+        target_x: 3,
+        target_y: -2,
+    })
+    .unwrap();
+    assert_eq!(
+        serialized,
+        serde_json::json!({
+            "type": "launch_nuclear_strike",
+            "unit_id": 42,
+            "target_x": 3,
+            "target_y": -2,
+        })
+    );
+}
+
+#[test]
 fn upgrade_units_contract_excludes_cost_resources_and_actor() {
     let command = GameCommand::UpgradeUnits {
         unit_ids: vec![42, 43],

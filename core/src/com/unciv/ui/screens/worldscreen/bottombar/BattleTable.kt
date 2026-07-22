@@ -393,31 +393,38 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         val attackButton = "NUKE".toTextButton().apply { color = Color.RED }
 
-        if (!worldScreen.isPlayersTurn || !attacker.canAttack() || !canNuke) {
+        val canSubmitAuthoritativeIntent = worldScreen.mapHolder.usesAuthoritativeCommands()
+        if (!worldScreen.isPlayersTurn ||
+            (!canSubmitAuthoritativeIntent && (!attacker.canAttack() || !canNuke))
+        ) {
             attackButton.disable()
             attackButton.label.color = Color.GRAY
         } else {
             attackButton.onClick(attacker.getAttackSound()) {
-                Nuke.NUKE(attacker, targetTile)
+                val submitted = worldScreen.mapHolder
+                    .submitAuthoritativeNuclearStrikeIfOpen(attacker.unit, targetTile)
+                if (!submitted) {
+                    Nuke.NUKE(attacker, targetTile)
 
-                val nukeCircle = ImageGetter.getCircle()
-                nukeCircle.setSize(10f)
-                nukeCircle.setOrigin(Align.center)
-                nukeCircle.addAction(Actions.sequence(
-                    Actions.fadeOut(0f),
-                    Actions.parallel(
-                        Actions.fadeIn(1f, Interpolation.pow2In),
-                        Actions.scaleTo(200f, 200f, 1f, Interpolation.linear),
-                    ),
-                    Actions.delay(1f),
-                    Actions.fadeOut(1f, Interpolation.pow2Out),
-                    Actions.removeActor()
+                    val nukeCircle = ImageGetter.getCircle()
+                    nukeCircle.setSize(10f)
+                    nukeCircle.setOrigin(Align.center)
+                    nukeCircle.addAction(Actions.sequence(
+                        Actions.fadeOut(0f),
+                        Actions.parallel(
+                            Actions.fadeIn(1f, Interpolation.pow2In),
+                            Actions.scaleTo(200f, 200f, 1f, Interpolation.linear),
+                        ),
+                        Actions.delay(1f),
+                        Actions.fadeOut(1f, Interpolation.pow2Out),
+                        Actions.removeActor()
+                        )
                     )
-                )
-                val targetTileGroup = worldScreen.mapHolder.tileGroups[targetTile]!!
-                nukeCircle.x = targetTileGroup.x
-                nukeCircle.y = targetTileGroup.y
-                worldScreen.mapHolder.addActorToTileGroupMap(nukeCircle)
+                    val targetTileGroup = worldScreen.mapHolder.tileGroups[targetTile]!!
+                    nukeCircle.x = targetTileGroup.x
+                    nukeCircle.y = targetTileGroup.y
+                    worldScreen.mapHolder.addActorToTileGroupMap(nukeCircle)
+                }
 
                 worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
                 worldScreen.shouldUpdate = true

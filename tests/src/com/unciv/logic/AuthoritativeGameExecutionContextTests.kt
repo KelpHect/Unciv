@@ -1028,6 +1028,75 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun nuclearStrikeOnEmptyTileIsCanonicalDeterministicAndProjected() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        val city = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
+        val nuke = rome.units.placeUnitNearTile(city.location, "Nuclear Missile")!!
+        val target = city.getCenterTile().getTilesAtDistance(3)
+            .first { !it.isCityCenter() && it.getUnits().none() }
+        target.setExplored(rome, true)
+        val victimTile = target.neighbors.first { it.isLand && it.militaryUnit == null }
+        val defender = greece.units.getCivUnits().first { !it.isCivilian() }
+        defender.removeFromTile()
+        defender.putInTile(victimTile)
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.launchNuclearStrike(
+            engine.loadSnapshot(snapshot), "Rome", nuke.id,
+            target.position.x, target.position.y,
+        )
+        val second = engine.launchNuclearStrike(
+            engine.loadSnapshot(snapshot), "Rome", nuke.id,
+            target.position.x, target.position.y,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertNull(first.game.getCivilization("Rome").units.getUnitById(nuke.id))
+        Assert.assertTrue(first.game.getCivilization("Greece").units.getUnitById(defender.id)!!.health < 100)
+        Assert.assertTrue(engine.playerProjection(first.game, "Rome").ownUnits.none { it.id == nuke.id })
+    }
+
+    @Test
+    fun nuclearStrikeRejectsForeignOutOfTurnNonNuclearAndUnexploredTargets() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
+        val nuke = rome.units.placeUnitNearTile(city.location, "Nuclear Missile")!!
+        val unexploredTarget = game.tileMap.tileList.first {
+            !it.isExplored(rome) && nuke.currentTile.aerialDistanceTo(it) <= nuke.getRange()
+        }
+        val ordinaryUnit = rome.units.getCivUnits().first { !it.isCivilian() && !it.isNuclearWeapon() }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.launchNuclearStrike(
+                game, "Rome", nuke.id, unexploredTarget.position.x, unexploredTarget.position.y,
+            )
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.launchNuclearStrike(
+                game, "Rome", nuke.id, unexploredTarget.position.x, unexploredTarget.position.y,
+            )
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.launchNuclearStrike(
+                game, "Rome", ordinaryUnit.id, city.location.x, city.location.y,
+            )
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.launchNuclearStrike(
+                game, "Rome", nuke.id, unexploredTarget.position.x, unexploredTarget.position.y,
+            )
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

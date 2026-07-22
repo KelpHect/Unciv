@@ -6,6 +6,7 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
 import com.unciv.logic.battle.Battle
 import com.unciv.logic.battle.CityCombatant
+import com.unciv.logic.battle.NuclearStrikeExecutor
 import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.battle.UnitAttackExecutor
 import com.unciv.logic.civilization.PlayerType
@@ -193,6 +194,31 @@ class HeadlessGameEngine(
         val defender = Battle.getMapCombatantOfTile(target)
             ?: error("Canonical bombard target has no defender")
         Battle.attack(CityCombatant(city), defender)
+        return result(game)
+    }
+
+    /** Launches an owned nuclear weapon at one canonical explored coordinate.
+     * The shared engine derives range, blast victims, interception, RNG, and all outcomes. */
+    fun launchNuclearStrike(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        targetX: Int,
+        targetY: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot launch a nuclear strike outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
+            ?: error("Nuclear target is outside the canonical map")
+        require(NuclearStrikeExecutor.launch(unit, target)) {
+            "Unit cannot launch a nuclear strike at the requested canonical target"
+        }
         return result(game)
     }
 

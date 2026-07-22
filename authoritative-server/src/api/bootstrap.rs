@@ -118,6 +118,10 @@ pub(crate) async fn run() {
             post(bombard_with_city),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/launch-nuclear-strike",
+            post(launch_nuclear_strike),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/upgrade-units",
             post(upgrade_units),
         )

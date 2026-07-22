@@ -22,7 +22,7 @@ object Nuke {
      *  - Not if we would need to declare war on someone we can't.
      *  - Disallow nuking the tile the nuke is in, as per Civ5 (but not nuking your own tiles/units otherwise)
      *
-     *  Both [BattleTable.simulateNuke] and [AirUnitAutomation.automateNukes] check range, so that check is omitted here.
+     *  [BattleTable] previews this rule, while authoritative and server-owned AI callers execute it here.
      */
     @Readonly
     fun mayUseNuke(nuke: MapUnitCombatant, targetTile: Tile): Boolean {

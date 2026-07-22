@@ -371,6 +371,40 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun nuclearStrikeRequestContainsOnlyOwnedUnitAndExploredTargetIntent() = runBlocking {
+        val nuke = ProjectedUnit(42, "Rome", "Nuclear Missile", 0, 0, 100, 2f)
+        val initial = projection(
+            7, "hash-7",
+            ownUnits = listOf(nuke),
+            exploredTiles = listOf(ProjectedTileVisibility(4, -1, false)),
+        )
+        val transport = FakeTransport(initial).apply {
+            onLaunchNuclearStrike = { request ->
+                current = current.copy(
+                    committedRevision = 8,
+                    canonicalStateHash = "hash-8",
+                    projection = current.projection.copy(ownUnits = emptyList()),
+                )
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "command-nuke" }
+        bus.refresh()
+
+        assertTrue(bus.launchNuclearStrike(42, 4, -1) is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.launchNuclearStrikeRequests.single()
+        assertEquals(42, request.unitId)
+        assertEquals(4, request.targetX)
+        assertEquals(-1, request.targetY)
+        val encoded = Json.encodeToString(ApiV3LaunchNuclearStrikeRequest.serializer(), request)
+        assertTrue(!encoded.contains("blast"))
+        assertTrue(!encoded.contains("victim"))
+        assertTrue(!encoded.contains("random"))
+        assertTrue(!encoded.contains("range"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun upgradeBatchContainsOnlyProjectedIdsAndTargetIntent() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 0, 0, 100, 2f),
@@ -1189,6 +1223,7 @@ class AuthoritativeGameCommandBusTests {
         val paradropUnitRequests = mutableListOf<ApiV3ParadropUnitRequest>()
         val attackWithUnitRequests = mutableListOf<ApiV3AttackWithUnitRequest>()
         val bombardWithCityRequests = mutableListOf<ApiV3BombardWithCityRequest>()
+        val launchNuclearStrikeRequests = mutableListOf<ApiV3LaunchNuclearStrikeRequest>()
         val upgradeUnitRequests = mutableListOf<ApiV3UpgradeUnitsRequest>()
         val promoteUnitRequests = mutableListOf<ApiV3PromoteUnitRequest>()
         val unitPromotionPreferenceRequests = mutableListOf<ApiV3SetCityUnitPromotionPreferenceRequest>()
@@ -1247,6 +1282,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onBombardWithCity: suspend (ApiV3BombardWithCityRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onLaunchNuclearStrike: suspend (ApiV3LaunchNuclearStrikeRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onUpgradeUnits: suspend (ApiV3UpgradeUnitsRequest) -> ApiV3CommandAccepted = {
@@ -1423,6 +1461,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             bombardWithCityRequests += request
             return onBombardWithCity(request)
+        }
+        override suspend fun launchNuclearStrike(
+            gameId: String,
+            request: ApiV3LaunchNuclearStrikeRequest,
+        ): ApiV3CommandAccepted {
+            launchNuclearStrikeRequests += request
+            return onLaunchNuclearStrike(request)
         }
         override suspend fun upgradeUnits(
             gameId: String,

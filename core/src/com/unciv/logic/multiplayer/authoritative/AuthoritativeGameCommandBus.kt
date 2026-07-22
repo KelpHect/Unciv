@@ -122,6 +122,15 @@ sealed interface PendingAuthoritativeCommand {
         val targetY: Int,
     ) : PendingAuthoritativeCommand
 
+    data class LaunchNuclearStrike(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val targetX: Int,
+        val targetY: Int,
+    ) : PendingAuthoritativeCommand
+
     data class UpgradeUnits(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -520,6 +529,20 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.BombardWithCity(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             cityId, targetX, targetY,
+        ), current)
+    }
+
+    suspend fun launchNuclearStrike(unitId: Int, targetX: Int, targetY: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId }) {
+            "Nuclear unit is absent from the current player projection"
+        }
+        require(current.projection.exploredTiles.any { it.x == targetX && it.y == targetY }) {
+            "Nuclear target is absent from the current explored projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.LaunchNuclearStrike(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, targetX, targetY,
         ), current)
     }
 
@@ -1096,6 +1119,15 @@ class AuthoritativeGameCommandBus(
                         ApiV3BombardWithCityRequest(
                             pending.commandId, pending.expectedRevision,
                             pending.observedStateHash, pending.cityId,
+                            pending.targetX, pending.targetY,
+                        ),
+                    )
+                is PendingAuthoritativeCommand.LaunchNuclearStrike ->
+                    transport.launchNuclearStrike(
+                        gameId,
+                        ApiV3LaunchNuclearStrikeRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId,
                             pending.targetX, pending.targetY,
                         ),
                     )

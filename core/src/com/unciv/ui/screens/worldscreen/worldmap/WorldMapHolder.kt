@@ -411,6 +411,19 @@ class WorldMapHolder(
         return true
     }
 
+    internal fun submitAuthoritativeNuclearStrikeIfOpen(unit: MapUnit, target: Tile): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("nuclear strike", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession?.launchNuclearStrikeIfOpen(
+                worldScreen.gameInfo.gameId,
+                unit.id,
+                target.position.x,
+                target.position.y,
+            )
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,
         requestedTarget: Tile,

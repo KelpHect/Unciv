@@ -205,6 +205,16 @@ data class ApiV3BombardWithCityRequest(
 )
 
 @Serializable
+data class ApiV3LaunchNuclearStrikeRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+    @SerialName("target_x") val targetX: Int,
+    @SerialName("target_y") val targetY: Int,
+)
+
+@Serializable
 data class ApiV3UpgradeUnitsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

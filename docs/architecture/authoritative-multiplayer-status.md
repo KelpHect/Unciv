@@ -2564,3 +2564,55 @@ Verification on 2026-07-22:
 
 Explicit empty-tile nuclear strike targeting and air-sweep handling are the
 next combat command gaps.
+
+## Authoritative nuclear strikes
+
+API-v3 nuclear attacks now use the closed
+`LaunchNuclearStrike(unitId, targetX, targetY)` command. This intentionally
+supports explored empty-tile targets: the coordinates identify player intent
+and never claim a defender, blast victim, diplomatic consequence, or outcome.
+Authenticated membership supplies the civilization, and the private Kotlin
+worker reloads canonical state before deriving unit ownership, current turn,
+nuclear capability, attack availability, exploration, range, and every
+potentially affected civilization.
+
+The focused `NuclearStrikeExecutor` delegates the mutation to the existing
+Kotlin `Nuke` engine. That shared engine remains the sole owner of interception,
+war declarations, blast radius, strategic-resource modifiers, deterministic
+damage and population RNG, unit and city destruction, fallout and pillaging,
+notifications, diplomatic penalties, attack consumption, and self-destruction.
+Rust contains no nuclear rules; it only authenticates, dispatches, and commits
+the resulting revision atomically.
+
+The nuclear battle-panel action submits this command for explicitly opened
+authoritative games before any local mutation or animation. Authoritative UI
+does not use hidden blast-state guesses to veto the intent; the server decides.
+Single-player, hotseat, legacy multiplayer, and server-owned AI continue to use
+the same Kotlin nuclear engine through their existing paths.
+
+Verification on 2026-07-22:
+
+- Repeated strikes against an explored empty tile produced the same canonical
+  hash, consumed the missile, and applied identical canonical blast damage.
+  Foreign accounts, out-of-turn actors, ordinary units, and unexplored targets
+  were rejected.
+- Command-bus and session tests prove only an owned projected unit and explored
+  coordinate are submitted, only explicitly opened games route the command,
+  and the payload excludes range, victims, blast state, random values, actor
+  identity, and outcomes.
+- `cargo test --all-targets`: 46 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed; 8 database tests were explicitly gated from that
+  invocation. Generated OpenAPI parity passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55444. The exact-name disposable container was removed and verified
+  absent afterward.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: 876 shared
+  JVM tests completed with 13 intentional skips and zero failures, plus all 4
+  worker protocol tests.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+Air-sweep targeting is the next combat command gap.

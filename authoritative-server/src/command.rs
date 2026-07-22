@@ -75,6 +75,11 @@ pub enum GameCommand {
         target_x: i32,
         target_y: i32,
     },
+    LaunchNuclearStrike {
+        unit_id: i32,
+        target_x: i32,
+        target_y: i32,
+    },
     UpgradeUnits {
         unit_ids: Vec<i32>,
         target_unit_name: String,

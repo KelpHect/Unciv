@@ -250,6 +250,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun launchNuclearStrike(
+        gameId: String,
+        request: ApiV3LaunchNuclearStrikeRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/launch-nuclear-strike") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

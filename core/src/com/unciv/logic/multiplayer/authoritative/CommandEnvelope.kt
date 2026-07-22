@@ -115,6 +115,12 @@ sealed interface GameCommand {
         val targetY: Int,
     ) : GameCommand
 
+    data class LaunchNuclearStrike(
+        val unitId: Int,
+        val targetX: Int,
+        val targetY: Int,
+    ) : GameCommand
+
     data class UpgradeUnits(
         val unitIds: List<Int>,
         val targetUnitName: String,

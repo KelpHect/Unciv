@@ -11,6 +11,7 @@ import com.unciv.logic.battle.NuclearStrikeExecutor
 import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.battle.UnitAttackExecutor
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.map.HexCoord
@@ -43,6 +44,40 @@ class HeadlessGameEngine(
         require(!executionContext.allowUiSideEffects) { "Authoritative execution must not trigger UI effects" }
         require(executionContext.rulesetManifest != null) { "Authoritative execution requires a pinned ruleset manifest" }
     }
+
+    fun offerTrade(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String, trade: ProjectedTrade): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        TradeCommandExecutor.offer(game, actor, otherCivilizationId, trade)
+        return result(game)
+    }
+
+    fun retractTradeOffer(game: GameInfo, actorCivilizationId: String, otherCivilizationId: String): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        TradeCommandExecutor.retract(game, actor, otherCivilizationId)
+        return result(game)
+    }
+
+    fun acceptTrade(game: GameInfo, actorCivilizationId: String, requestId: String): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        TradeCommandExecutor.accept(game, actor, requestId)
+        return result(game)
+    }
+
+    fun declineTrade(game: GameInfo, actorCivilizationId: String, requestId: String): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        TradeCommandExecutor.decline(game, actor, requestId)
+        return result(game)
+    }
+
+    fun counterTrade(game: GameInfo, actorCivilizationId: String, requestId: String, trade: ProjectedTrade): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        TradeCommandExecutor.counter(game, actor, requestId, trade)
+        return result(game)
+    }
+
+    private fun authenticatedCivilization(game: GameInfo, civilizationId: String): Civilization =
+        game.civilizations.singleOrNull { it.civID == civilizationId && it.playerId == executionContext.actorId }
+            ?: error("Authenticated actor is not assigned to this civilization")
 
     fun createGame(setup: GameSetupInfo): EngineResult {
         val game = GameStarter.startNewGame(setup, executionContext)

@@ -1917,6 +1917,16 @@ class AuthoritativeGameCommandBusTests {
                 request.expectedRevision + 1, "religious-beliefs-hash",
             )
         }
+        override suspend fun offerTrade(gameId: String, request: ApiV3OfferTradeRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun retractTradeOffer(gameId: String, request: ApiV3RetractTradeOfferRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun acceptTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun declineTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun counterTrade(gameId: String, request: ApiV3CounterTradeRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+
+        private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {
+            current = current.copy(committedRevision = revision + 1, canonicalStateHash = "trade-hash", projectionHash = "trade-projection-hash")
+            return ApiV3CommandAccepted(gameId, commandId, revision, revision + 1, "trade-hash")
+        }
         override suspend fun setCityTileAssignment(
             gameId: String,
             request: ApiV3SetCityTileAssignmentRequest,

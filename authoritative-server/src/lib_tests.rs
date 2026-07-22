@@ -1,6 +1,8 @@
 use super::*;
 use uuid::Uuid;
 
+#[path = "lib_tests/trade_contracts.rs"]
+mod trade_contracts;
 #[path = "lib_tests/unit_action_contracts.rs"]
 mod unit_action_contracts;
 

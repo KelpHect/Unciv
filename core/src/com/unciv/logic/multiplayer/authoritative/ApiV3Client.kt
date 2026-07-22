@@ -466,6 +466,21 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun offerTrade(gameId: String, request: ApiV3OfferTradeRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/offer-trade") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
+    override suspend fun retractTradeOffer(gameId: String, request: ApiV3RetractTradeOfferRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/retract-trade-offer") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
+    override suspend fun acceptTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/accept-trade") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
+    override suspend fun declineTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/decline-trade") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
+    override suspend fun counterTrade(gameId: String, request: ApiV3CounterTradeRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/counter-trade") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

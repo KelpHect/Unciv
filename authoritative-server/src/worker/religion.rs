@@ -1,5 +1,18 @@
 use super::*;
 
+pub struct UseReligiousUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub action: crate::ReligiousUnitAction,
+}
+
+pub struct ChooseReligiousBeliefsIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub belief_names: &'a [String],
+    pub religion_icon_name: Option<&'a str>,
+    pub religion_display_name: Option<&'a str>,
+}
+
 impl EngineWorkerClient {
     pub async fn choose_religious_beliefs(
         &self,

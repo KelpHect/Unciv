@@ -3038,3 +3038,50 @@ Verification on 2026-07-22:
 
 Trade negotiation remains the major uncovered player-command family for the
 continuing coverage audit.
+
+## Authoritative bilateral trade negotiation
+
+API v3 now covers offering, retracting, accepting, declining, and atomically
+countering bilateral major-civilization trades. Player projection version 24
+contains each known eligible partner's server-derived available offers and the
+authenticated player's incoming requests. Incoming requests use stable opaque
+SHA-256 identifiers derived by the Kotlin worker; clients never upload a
+`TradeRequest`, accepted transfer result, evaluation, actor, or `GameInfo`.
+
+The focused `TradeCommandExecutor` re-derives partner eligibility, current
+turn, request ownership, offer kind/name, canonical maximum amount, duration,
+and current treaty/resource/city/war availability. Acceptance invokes the
+existing Kotlin `TradeLogic`, so gold, resources, cities, treaties, diplomacy,
+notifications, and symmetric active-trade state use the same rules as
+single-player and server-owned AI. Counteroffers consume the referenced
+incoming request and create the reverse request in one canonical revision.
+
+For explicitly opened v3 games, `TradeTable` and `TradePopup` submit through
+the authoritative session and return before every legacy add/remove/accept or
+decline mutation. Lost responses remain retryable with the original command
+ID through the common command bus. Local games, hotseat, saves, and legacy
+multiplayer retain their existing paths. Rust remains rule-free and uses
+focused `api/trade.rs`, `postgres/trade.rs`, and `worker/trade.rs` modules.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin engine tests prove canonical projection and acceptance,
+  symmetric active trades, atomic counteroffers, forged-amount rejection,
+  foreign-account rejection, and consumed-request replay rejection.
+- Rust closed-contract tests reject extra actor, evaluation, accepted-result,
+  canonical-game, and client-supplied trade payloads on decision commands.
+- `cargo test` passed 57 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in this lane. Generated
+  OpenAPI parity and the shared projection-v24 fixture passed.
+- `cargo fmt` and warnings-as-errors `cargo clippy --all-targets` passed.
+- `./gradlew :tests:test :server:test --no-daemon` completed 912 JVM tests
+  with 13 intentional skips and zero failures.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55437. The exact-name disposable container was removed and verified
+  absent afterward.
+- `git diff --check` and module-size review passed. `main.rs` remains 6 lines,
+  `lib.rs` remains 28, and the largest Rust source is 790 lines.
+
+The broader command-coverage audit continues with diplomacy, city-state,
+espionage, and remaining special-action families.

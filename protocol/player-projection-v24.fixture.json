@@ -45,5 +45,19 @@
     ],
     "availableReligionIcons": ["Buddhism", "Christianity"],
     "requiresReligionIdentity": true
-  }
+  },
+  "tradePartners": [{
+    "civilizationId": "Greece",
+    "ourAvailableOffers": [{ "name": "Gold", "type": "Gold", "amount": 321, "duration": 0 }],
+    "theirAvailableOffers": [{ "name": "Gold", "type": "Gold", "amount": 200, "duration": 0 }],
+    "hasPendingOutgoingOffer": false
+  }],
+  "pendingTradeRequests": [{
+    "requestId": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "requestingCivilizationId": "Greece",
+    "trade": {
+      "ourOffers": [{ "name": "Gold", "type": "Gold", "amount": 100, "duration": 0 }],
+      "theirOffers": []
+    }
+  }]
 }

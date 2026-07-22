@@ -30,6 +30,41 @@ pub struct PlayerProjection {
     pub diplomatic_vote_candidates: Vec<String>,
     pub selectable_great_people: Vec<String>,
     pub religion_choice: Option<ProjectedReligionChoice>,
+    pub trade_partners: Vec<ProjectedTradePartner>,
+    pub pending_trade_requests: Vec<ProjectedTradeRequest>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedTradePartner {
+    pub civilization_id: String,
+    pub our_available_offers: Vec<ProjectedTradeOffer>,
+    pub their_available_offers: Vec<ProjectedTradeOffer>,
+    pub has_pending_outgoing_offer: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedTradeRequest {
+    pub request_id: String,
+    pub requesting_civilization_id: String,
+    pub trade: ProjectedTrade,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedTrade {
+    pub our_offers: Vec<ProjectedTradeOffer>,
+    pub their_offers: Vec<ProjectedTradeOffer>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedTradeOffer {
+    pub name: String,
+    pub r#type: String,
+    pub amount: i32,
+    pub duration: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -213,7 +248,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v23.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v24.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

@@ -269,6 +269,19 @@ sealed interface GameCommand {
         val religionDisplayName: String? = null,
     ) : GameCommand
 
+    data class OfferTrade(
+        val otherCivilizationId: String,
+        val trade: ProjectedTrade,
+    ) : GameCommand
+
+    data class RetractTradeOffer(val otherCivilizationId: String) : GameCommand
+
+    data class AcceptTrade(val requestId: String) : GameCommand
+
+    data class DeclineTrade(val requestId: String) : GameCommand
+
+    data class CounterTrade(val requestId: String, val trade: ProjectedTrade) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,

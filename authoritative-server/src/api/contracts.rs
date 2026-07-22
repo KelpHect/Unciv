@@ -471,6 +471,44 @@ pub(super) struct ChooseReligiousBeliefsRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct OfferTradeRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) other_civilization_id: String,
+    pub(super) trade: unciv_authoritative_server::projection::ProjectedTrade,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RetractTradeOfferRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) other_civilization_id: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct TradeRequestDecisionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) request_id: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CounterTradeRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) request_id: String,
+    pub(super) trade: unciv_authoritative_server::projection::ProjectedTrade,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SetCityTileAssignmentRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

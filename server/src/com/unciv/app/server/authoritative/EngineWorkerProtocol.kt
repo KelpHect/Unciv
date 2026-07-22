@@ -11,6 +11,7 @@ import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
@@ -380,6 +381,30 @@ sealed interface WorkerOperation {
         val religionIconName: String? = null,
         val religionDisplayName: String? = null,
     ) : WorkerOperation
+
+    @Serializable @SerialName("offer_trade")
+    data class OfferTrade(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val otherCivilizationId: String,
+        val trade: ProjectedTrade,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("retract_trade_offer")
+    data class RetractTradeOffer(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val otherCivilizationId: String,
+    ) : WorkerOperation
+
+    @Serializable @SerialName("accept_trade")
+    data class AcceptTrade(val snapshot: String, val actorCivilizationId: String, val requestId: String) : WorkerOperation
+
+    @Serializable @SerialName("decline_trade")
+    data class DeclineTrade(val snapshot: String, val actorCivilizationId: String, val requestId: String) : WorkerOperation
+
+    @Serializable @SerialName("counter_trade")
+    data class CounterTrade(val snapshot: String, val actorCivilizationId: String, val requestId: String, val trade: ProjectedTrade) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -897,6 +922,26 @@ class AuthoritativeEngineWorker {
                     operation.religionDisplayName,
                 )
                 responseForGame(engine, result.game)
+            }
+            is WorkerOperation.OfferTrade -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.offerTrade(game, operation.actorCivilizationId, operation.otherCivilizationId, operation.trade).game)
+            }
+            is WorkerOperation.RetractTradeOffer -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.retractTradeOffer(game, operation.actorCivilizationId, operation.otherCivilizationId).game)
+            }
+            is WorkerOperation.AcceptTrade -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.acceptTrade(game, operation.actorCivilizationId, operation.requestId).game)
+            }
+            is WorkerOperation.DeclineTrade -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.declineTrade(game, operation.actorCivilizationId, operation.requestId).game)
+            }
+            is WorkerOperation.CounterTrade -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.counterTrade(game, operation.actorCivilizationId, operation.requestId, operation.trade).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

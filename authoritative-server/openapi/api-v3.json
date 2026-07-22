@@ -652,6 +652,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/accept-trade": {
+      "post": {
+        "tags": [],
+        "operationId": "accept_trade",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequestDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/adopt-policy": {
       "post": {
         "tags": [],
@@ -1752,6 +1836,174 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/counter-trade": {
+      "post": {
+        "tags": [],
+        "operationId": "counter_trade",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CounterTradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/decline-trade": {
+      "post": {
+        "tags": [],
+        "operationId": "decline_trade",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequestDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/disband-unit": {
       "post": {
         "tags": [],
@@ -2474,6 +2726,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/offer-trade": {
+      "post": {
+        "tags": [],
+        "operationId": "offer_trade",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferTradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -3688,6 +4024,90 @@
             }
           },
           "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/commands/retract-trade-offer": {
+      "post": {
+        "tags": [],
+        "operationId": "retract_trade_offer",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetractTradeOfferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "",
             "content": {
               "application/json": {
@@ -6428,6 +6848,39 @@
         },
         "additionalProperties": false
       },
+      "CounterTradeRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "request_id",
+          "trade"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "trade": {
+            "$ref": "#/components/schemas/ProjectedTrade"
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateGameRequest": {
         "type": "object",
         "required": [
@@ -6907,6 +7360,39 @@
         },
         "additionalProperties": false
       },
+      "OfferTradeRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "other_civilization_id",
+          "trade"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "other_civilization_id": {
+            "type": "string"
+          },
+          "trade": {
+            "$ref": "#/components/schemas/ProjectedTrade"
+          }
+        },
+        "additionalProperties": false
+      },
       "ParadropUnitRequest": {
         "type": "object",
         "required": [
@@ -7012,7 +7498,9 @@
           "visibleForeignUnits",
           "pendingCityDispositions",
           "diplomaticVoteCandidates",
-          "selectableGreatPeople"
+          "selectableGreatPeople",
+          "tradePartners",
+          "pendingTradeRequests"
         ],
         "properties": {
           "civilizationId": {
@@ -7064,6 +7552,12 @@
               "$ref": "#/components/schemas/ProjectedCityDisposition"
             }
           },
+          "pendingTradeRequests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradeRequest"
+            }
+          },
           "pendingTurnActions": {
             "type": "array",
             "items": {
@@ -7095,6 +7589,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "tradePartners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradePartner"
             }
           },
           "turn": {
@@ -7484,6 +7984,104 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedTrade": {
+        "type": "object",
+        "required": [
+          "ourOffers",
+          "theirOffers"
+        ],
+        "properties": {
+          "ourOffers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradeOffer"
+            }
+          },
+          "theirOffers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradeOffer"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedTradeOffer": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "amount",
+          "duration"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedTradePartner": {
+        "type": "object",
+        "required": [
+          "civilizationId",
+          "ourAvailableOffers",
+          "theirAvailableOffers",
+          "hasPendingOutgoingOffer"
+        ],
+        "properties": {
+          "civilizationId": {
+            "type": "string"
+          },
+          "hasPendingOutgoingOffer": {
+            "type": "boolean"
+          },
+          "ourAvailableOffers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradeOffer"
+            }
+          },
+          "theirAvailableOffers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTradeOffer"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedTradeRequest": {
+        "type": "object",
+        "required": [
+          "requestId",
+          "requestingCivilizationId",
+          "trade"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "requestingCivilizationId": {
+            "type": "string"
+          },
+          "trade": {
+            "$ref": "#/components/schemas/ProjectedTrade"
           }
         },
         "additionalProperties": false
@@ -8022,6 +8620,35 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetractTradeOfferRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "other_civilization_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "other_civilization_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -8639,6 +9266,35 @@
           "unit_id": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TradeRequestDecisionRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "request_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false

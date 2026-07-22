@@ -1,3 +1,4 @@
+use crate::projection::ProjectedTrade;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -225,6 +226,23 @@ pub enum GameCommand {
         belief_names: Vec<String>,
         religion_icon_name: Option<String>,
         religion_display_name: Option<String>,
+    },
+    OfferTrade {
+        other_civilization_id: String,
+        trade: ProjectedTrade,
+    },
+    RetractTradeOffer {
+        other_civilization_id: String,
+    },
+    AcceptTrade {
+        request_id: String,
+    },
+    DeclineTrade {
+        request_id: String,
+    },
+    CounterTrade {
+        request_id: String,
+        trade: ProjectedTrade,
     },
     SetCityTileAssignment {
         city_id: String,

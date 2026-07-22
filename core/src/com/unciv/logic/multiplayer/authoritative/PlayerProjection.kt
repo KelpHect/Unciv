@@ -32,11 +32,30 @@ data class PlayerProjection(
     val diplomaticVoteCandidates: List<String> = emptyList(),
     val selectableGreatPeople: List<String> = emptyList(),
     val religionChoice: ProjectedReligionChoice? = null,
+    val tradePartners: List<ProjectedTradePartner> = emptyList(),
+    val pendingTradeRequests: List<ProjectedTradeRequest> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 23
+        const val CURRENT_PROJECTION_VERSION = 24
     }
 }
+
+@Serializable
+data class ProjectedTradePartner(
+    val civilizationId: String,
+    val ourAvailableOffers: List<ProjectedTradeOffer>,
+    val theirAvailableOffers: List<ProjectedTradeOffer>,
+    val hasPendingOutgoingOffer: Boolean,
+)
+
+@Serializable
+data class ProjectedTradeRequest(val requestId: String, val requestingCivilizationId: String, val trade: ProjectedTrade)
+
+@Serializable
+data class ProjectedTrade(val ourOffers: List<ProjectedTradeOffer>, val theirOffers: List<ProjectedTradeOffer>)
+
+@Serializable
+data class ProjectedTradeOffer(val name: String, val type: String, val amount: Int, val duration: Int)
 
 @Serializable
 data class ProjectedReligionChoice(
@@ -196,6 +215,8 @@ object PlayerProjectionBuilder {
             policies = policyProjection(actor),
             gold = actor.gold,
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
+            tradePartners = TradeCommandExecutor.availablePartners(actor),
+            pendingTradeRequests = TradeCommandExecutor.pendingRequests(actor),
             ownCities = actor.cities.map {
                 ProjectedCity(
                     id = it.id,

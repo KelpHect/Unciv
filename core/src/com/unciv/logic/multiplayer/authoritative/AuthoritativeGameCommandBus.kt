@@ -338,6 +338,31 @@ sealed interface PendingAuthoritativeCommand {
         val religionDisplayName: String?,
     ) : PendingAuthoritativeCommand
 
+    data class OfferTrade(
+        override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
+        val otherCivilizationId: String, val trade: ProjectedTrade,
+    ) : PendingAuthoritativeCommand
+
+    data class RetractTradeOffer(
+        override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
+        val otherCivilizationId: String,
+    ) : PendingAuthoritativeCommand
+
+    data class AcceptTrade(
+        override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
+        val requestId: String,
+    ) : PendingAuthoritativeCommand
+
+    data class DeclineTrade(
+        override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
+        val requestId: String,
+    ) : PendingAuthoritativeCommand
+
+    data class CounterTrade(
+        override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String,
+        val requestId: String, val trade: ProjectedTrade,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -1027,6 +1052,39 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun offerTrade(otherCivilizationId: String, trade: ProjectedTrade) = mutex.withLock {
+        val current = requireSynchronized()
+        val partner = current.projection.tradePartners.singleOrNull { it.civilizationId == otherCivilizationId }
+            ?: error("Trade partner is absent from the current player projection")
+        require(!partner.hasPendingOutgoingOffer && (trade.ourOffers.isNotEmpty() || trade.theirOffers.isNotEmpty())) { "Trade offer is not available" }
+        submitLocked(PendingAuthoritativeCommand.OfferTrade(commandIdFactory(), current.committedRevision, current.canonicalStateHash, otherCivilizationId, trade), current)
+    }
+
+    suspend fun retractTradeOffer(otherCivilizationId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.tradePartners.any { it.civilizationId == otherCivilizationId && it.hasPendingOutgoingOffer }) { "Pending trade offer is absent" }
+        submitLocked(PendingAuthoritativeCommand.RetractTradeOffer(commandIdFactory(), current.committedRevision, current.canonicalStateHash, otherCivilizationId), current)
+    }
+
+    suspend fun acceptTrade(requestId: String) = tradeDecision(requestId, true)
+    suspend fun declineTrade(requestId: String) = tradeDecision(requestId, false)
+
+    private suspend fun tradeDecision(requestId: String, accept: Boolean) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.pendingTradeRequests.any { it.requestId == requestId }) { "Trade request is absent from the current player projection" }
+        val pending = if (accept) PendingAuthoritativeCommand.AcceptTrade(commandIdFactory(), current.committedRevision, current.canonicalStateHash, requestId)
+            else PendingAuthoritativeCommand.DeclineTrade(commandIdFactory(), current.committedRevision, current.canonicalStateHash, requestId)
+        submitLocked(pending, current)
+    }
+
+    suspend fun counterTrade(requestId: String, trade: ProjectedTrade) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.pendingTradeRequests.any { it.requestId == requestId }) { "Trade request is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.CounterTrade(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, requestId, trade,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1500,6 +1558,21 @@ class AuthoritativeGameCommandBus(
                         pending.beliefNames, pending.religionIconName, pending.religionDisplayName,
                     ),
                 )
+                is PendingAuthoritativeCommand.OfferTrade -> transport.offerTrade(gameId, ApiV3OfferTradeRequest(
+                    pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId, pending.trade,
+                ))
+                is PendingAuthoritativeCommand.RetractTradeOffer -> transport.retractTradeOffer(gameId, ApiV3RetractTradeOfferRequest(
+                    pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.otherCivilizationId,
+                ))
+                is PendingAuthoritativeCommand.AcceptTrade -> transport.acceptTrade(gameId, ApiV3TradeRequestDecisionRequest(
+                    pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.requestId,
+                ))
+                is PendingAuthoritativeCommand.DeclineTrade -> transport.declineTrade(gameId, ApiV3TradeRequestDecisionRequest(
+                    pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.requestId,
+                ))
+                is PendingAuthoritativeCommand.CounterTrade -> transport.counterTrade(gameId, ApiV3CounterTradeRequest(
+                    pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.requestId, pending.trade,
+                ))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

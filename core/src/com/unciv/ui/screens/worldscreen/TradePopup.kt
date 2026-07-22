@@ -3,6 +3,9 @@ package com.unciv.ui.screens.worldscreen
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.UncivGame
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.utils.Concurrency
+import com.unciv.ui.popups.ToastPopup
 import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.NotificationIcon
 import com.unciv.logic.trade.TradeLogic
@@ -33,9 +36,10 @@ import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
  *
  * @param worldScreen The parent screen
  */
-class TradePopup(worldScreen: WorldScreen) : Popup(worldScreen) {
+class TradePopup(private val worldScreen: WorldScreen) : Popup(worldScreen) {
     val viewingCiv = worldScreen.viewingCiv
     val tradeRequest = viewingCiv.tradeRequests.first()
+    private val authoritative = worldScreen.mapHolder.usesAuthoritativeCommands()
 
     init {
         val requestingCiv = worldScreen.gameInfo.getCivilization(tradeRequest.requestingCiv)
@@ -85,6 +89,10 @@ class TradePopup(worldScreen: WorldScreen) : Popup(worldScreen) {
         addGoodSizedLabel(nation.tradeRequest).pad(15f).row()
 
         addButton("Sounds good!", 'y') {
+            if (authoritative) {
+                submitAuthoritativeDecision(true)
+                return@addButton
+            }
             val tradeLogic = TradeLogic(viewingCiv, requestingCiv)
             tradeLogic.currentTrade.set(trade)
             tradeLogic.acceptTrade()
@@ -94,6 +102,10 @@ class TradePopup(worldScreen: WorldScreen) : Popup(worldScreen) {
         }.row()
 
         addButton("Not this time.", 'n') {
+            if (authoritative) {
+                submitAuthoritativeDecision(false)
+                return@addButton
+            }
             tradeRequest.decline(viewingCiv)
             close()
             requestingCiv.addNotification("[${viewingCiv.civName}] has denied your trade request", NotificationCategory.Trade, viewingCiv.civName, NotificationIcon.Trade)
@@ -108,8 +120,37 @@ class TradePopup(worldScreen: WorldScreen) : Popup(worldScreen) {
     }
 
     override fun close() {
-        viewingCiv.tradeRequests.remove(tradeRequest)
+        if (!authoritative) viewingCiv.tradeRequests.remove(tradeRequest)
         super.close()
+    }
+
+    private fun submitAuthoritativeDecision(accept: Boolean) {
+        val label = if (accept) "accept trade" else "decline trade"
+        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
+            val outcome = try {
+                val session = worldScreen.game.onlineMultiplayer.authoritativeSession
+                    ?: return@runOnNonDaemonThreadPool
+                val projection = session.projectionIfOpen(viewingCiv.gameInfo.gameId)
+                    ?: error("Authoritative projection is unavailable")
+                val projectedRequest = projection.pendingTradeRequests.singleOrNull {
+                    it.requestingCivilizationId == tradeRequest.requestingCiv
+                } ?: error("Projected trade request no longer matches this popup")
+                if (accept) session.acceptTradeIfOpen(viewingCiv.gameInfo.gameId, projectedRequest.requestId)
+                else session.declineTradeIfOpen(viewingCiv.gameInfo.gameId, projectedRequest.requestId)
+            } catch (ex: Exception) {
+                Concurrency.runOnGLThread { ToastPopup("Could not $label: [${ex.message ?: "Unknown"}]", worldScreen) }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                viewingCiv.gameInfo.isUpToDate = false
+                close()
+                val message = if (outcome is AuthoritativeCommandOutcome.Accepted)
+                    "Trade decision committed by the authoritative server"
+                else "Trade decision synchronized with the authoritative server"
+                ToastPopup(message, worldScreen)
+                worldScreen.shouldUpdate = true
+            }
+        }
     }
 
     class TradeThanksPopup(leaderIntroTable: LeaderIntroTable, worldScreen: WorldScreen) : Popup(worldScreen) {

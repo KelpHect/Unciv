@@ -32,6 +32,17 @@ class AuthoritativeMultiplayerSession(
     @Volatile
     private var authenticated = false
 
+    suspend fun projectionIfOpen(gameId: String): PlayerProjection? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Synchronized -> current.current.projection
+            else -> {
+                bus.refresh()
+                (bus.state as? AuthoritativeSyncState.Synchronized)?.current?.projection
+            }
+        }
+    }
+
     suspend fun restore(): Boolean {
         negotiate()
         authenticated = transport.restoreSession()
@@ -1063,6 +1074,47 @@ class AuthoritativeMultiplayerSession(
                 bus.refresh()
                 bus.chooseReligiousBeliefs(beliefNames, religionIconName, religionDisplayName)
             }
+        }
+    }
+
+    suspend fun offerTradeIfOpen(gameId: String, otherCivilizationId: String, trade: ProjectedTrade): AuthoritativeCommandOutcome? =
+        withTradeBus(gameId,
+            { it is PendingAuthoritativeCommand.OfferTrade && it.otherCivilizationId == otherCivilizationId && it.trade == trade },
+            { it.offerTrade(otherCivilizationId, trade) })
+
+    suspend fun retractTradeOfferIfOpen(gameId: String, otherCivilizationId: String): AuthoritativeCommandOutcome? =
+        withTradeBus(gameId,
+            { it is PendingAuthoritativeCommand.RetractTradeOffer && it.otherCivilizationId == otherCivilizationId },
+            { it.retractTradeOffer(otherCivilizationId) })
+
+    suspend fun acceptTradeIfOpen(gameId: String, requestId: String): AuthoritativeCommandOutcome? =
+        withTradeBus(gameId,
+            { it is PendingAuthoritativeCommand.AcceptTrade && it.requestId == requestId },
+            { it.acceptTrade(requestId) })
+
+    suspend fun declineTradeIfOpen(gameId: String, requestId: String): AuthoritativeCommandOutcome? =
+        withTradeBus(gameId,
+            { it is PendingAuthoritativeCommand.DeclineTrade && it.requestId == requestId },
+            { it.declineTrade(requestId) })
+
+    suspend fun counterTradeIfOpen(gameId: String, requestId: String, trade: ProjectedTrade): AuthoritativeCommandOutcome? =
+        withTradeBus(gameId,
+            { it is PendingAuthoritativeCommand.CounterTrade && it.requestId == requestId && it.trade == trade },
+            { it.counterTrade(requestId, trade) })
+
+    private suspend fun withTradeBus(
+        gameId: String,
+        matches: (PendingAuthoritativeCommand) -> Boolean,
+        submit: suspend (AuthoritativeGameCommandBus) -> AuthoritativeCommandOutcome,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(matches(current.pending)) { "Resolve the pending authoritative command before changing another trade" }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> submit(bus)
+            else -> { bus.refresh(); submit(bus) }
         }
     }
 

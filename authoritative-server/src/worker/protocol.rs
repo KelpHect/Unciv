@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{CommitProposal, UnitPosture, projection::PlayerProjection};
+use crate::{
+    CommitProposal, UnitPosture,
+    projection::{PlayerProjection, ProjectedTrade},
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -391,6 +394,43 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "religionDisplayName")]
         religion_display_name: Option<&'a str>,
     },
+    OfferTrade {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "otherCivilizationId")]
+        other_civilization_id: &'a str,
+        trade: &'a ProjectedTrade,
+    },
+    RetractTradeOffer {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "otherCivilizationId")]
+        other_civilization_id: &'a str,
+    },
+    AcceptTrade {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "requestId")]
+        request_id: &'a str,
+    },
+    DeclineTrade {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "requestId")]
+        request_id: &'a str,
+    },
+    CounterTrade {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "requestId")]
+        request_id: &'a str,
+        trade: &'a ProjectedTrade,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -687,19 +727,6 @@ pub struct CastDiplomaticVoteIntent<'a> {
 pub struct ChooseGreatPersonIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_name: &'a str,
-}
-
-pub struct UseReligiousUnitIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub unit_id: i32,
-    pub action: crate::ReligiousUnitAction,
-}
-
-pub struct ChooseReligiousBeliefsIntent<'a> {
-    pub actor_civilization_id: &'a str,
-    pub belief_names: &'a [String],
-    pub religion_icon_name: Option<&'a str>,
-    pub religion_display_name: Option<&'a str>,
 }
 
 pub struct SetCityTileAssignmentIntent<'a> {

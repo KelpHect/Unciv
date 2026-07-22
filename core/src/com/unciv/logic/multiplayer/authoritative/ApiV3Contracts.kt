@@ -439,6 +439,40 @@ data class ApiV3ChooseReligiousBeliefsRequest(
 )
 
 @Serializable
+data class ApiV3OfferTradeRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("other_civilization_id") val otherCivilizationId: String,
+    val trade: ProjectedTrade,
+)
+
+@Serializable
+data class ApiV3RetractTradeOfferRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("other_civilization_id") val otherCivilizationId: String,
+)
+
+@Serializable
+data class ApiV3TradeRequestDecisionRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("request_id") val requestId: String,
+)
+
+@Serializable
+data class ApiV3CounterTradeRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("request_id") val requestId: String,
+    val trade: ProjectedTrade,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

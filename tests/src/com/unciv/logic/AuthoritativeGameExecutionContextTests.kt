@@ -17,6 +17,8 @@ import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
+import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
+import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
@@ -1508,6 +1510,94 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.castDiplomaticVote(game, rome.civName, null)
         }
+    }
+
+    @Test
+    fun bilateralTradeIsProjectedAndCommittedByTheCanonicalWorker() {
+        val romeEngine = HeadlessGameEngine(serverContext { serverTime })
+        val game = romeEngine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        val initialRomeGold = rome.gold
+        val initialGreeceGold = greece.gold
+        rome.addGold(100)
+        val offer = ProjectedTrade(
+            ourOffers = listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 50, 0)),
+            theirOffers = emptyList(),
+        )
+
+        romeEngine.offerTrade(game, rome.civName, greece.civName, offer)
+
+        Assert.assertEquals(1, greece.tradeRequests.size)
+        val greeceEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        val request = greeceEngine.playerProjection(game, greece.civName).pendingTradeRequests.single()
+        Assert.assertEquals(64, request.requestId.length)
+        Assert.assertEquals(rome.civName, request.requestingCivilizationId)
+
+        game.currentPlayer = greece.civName
+        greeceEngine.acceptTrade(game, greece.civName, request.requestId)
+
+        Assert.assertEquals(initialRomeGold + 50, rome.gold)
+        Assert.assertEquals(initialGreeceGold + 50, greece.gold)
+        Assert.assertTrue(greece.tradeRequests.isEmpty())
+        Assert.assertEquals(1, rome.getDiplomacyManager(greece)!!.trades.size)
+        Assert.assertEquals(1, greece.getDiplomacyManager(rome)!!.trades.size)
+    }
+
+    @Test
+    fun tradeRejectsForgedAvailabilityForeignActorsAndReplayedRequestIds() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        val availableGold = rome.gold
+        val forged = ProjectedTrade(
+            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", availableGold + 1, 0)), emptyList(),
+        )
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.offerTrade(game, rome.civName, greece.civName, forged)
+        }
+        val foreign = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreign.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(emptyList(), emptyList()))
+        }
+
+        rome.addGold(10)
+        engine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
+            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 5, 0)), emptyList(),
+        ))
+        game.currentPlayer = greece.civName
+        val requestId = foreign.playerProjection(game, greece.civName).pendingTradeRequests.single().requestId
+        foreign.declineTrade(game, greece.civName, requestId)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreign.declineTrade(game, greece.civName, requestId)
+        }
+    }
+
+    @Test
+    fun counterTradeAtomicallyReplacesTheIncomingRequest() {
+        val romeEngine = HeadlessGameEngine(serverContext { serverTime })
+        val greeceEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        val game = romeEngine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        rome.addGold(100)
+        romeEngine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
+            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 50, 0)), emptyList(),
+        ))
+        game.currentPlayer = greece.civName
+        val incoming = greeceEngine.playerProjection(game, greece.civName).pendingTradeRequests.single()
+
+        greeceEngine.counterTrade(game, greece.civName, incoming.requestId, ProjectedTrade(
+            emptyList(), listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 25, 0)),
+        ))
+
+        Assert.assertTrue(greece.tradeRequests.isEmpty())
+        Assert.assertEquals(1, rome.tradeRequests.size)
+        Assert.assertEquals(greece.civName, rome.tradeRequests.single().requestingCiv)
     }
 
     @Test

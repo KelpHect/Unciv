@@ -52,6 +52,11 @@ interface ApiV3Transport {
     suspend fun chooseGreatPerson(gameId: String, request: ApiV3ChooseGreatPersonRequest): ApiV3CommandAccepted
     suspend fun useReligiousUnit(gameId: String, request: ApiV3UseReligiousUnitRequest): ApiV3CommandAccepted
     suspend fun chooseReligiousBeliefs(gameId: String, request: ApiV3ChooseReligiousBeliefsRequest): ApiV3CommandAccepted
+    suspend fun offerTrade(gameId: String, request: ApiV3OfferTradeRequest): ApiV3CommandAccepted
+    suspend fun retractTradeOffer(gameId: String, request: ApiV3RetractTradeOfferRequest): ApiV3CommandAccepted
+    suspend fun acceptTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted
+    suspend fun declineTrade(gameId: String, request: ApiV3TradeRequestDecisionRequest): ApiV3CommandAccepted
+    suspend fun counterTrade(gameId: String, request: ApiV3CounterTradeRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

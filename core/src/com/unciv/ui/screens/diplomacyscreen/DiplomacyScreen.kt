@@ -48,7 +48,7 @@ import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 class DiplomacyScreen(
     internal val viewingCiv: Civilization,
     private val selectCiv: Civilization? = null,
-    private val selectTrade: Trade? = null,
+    internal val selectTrade: Trade? = null,
     private val showTrade: Boolean = selectTrade != null
 ): BaseScreen(), RecreateOnResize {
     companion object {

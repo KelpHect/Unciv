@@ -214,6 +214,26 @@ pub(crate) async fn run() {
             post(choose_religious_beliefs),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/offer-trade",
+            post(offer_trade),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/retract-trade-offer",
+            post(retract_trade_offer),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/accept-trade",
+            post(accept_trade),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/decline-trade",
+            post(decline_trade),
+        )
+        .route(
+            "/api/v3/games/{game_id}/commands/counter-trade",
+            post(counter_trade),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

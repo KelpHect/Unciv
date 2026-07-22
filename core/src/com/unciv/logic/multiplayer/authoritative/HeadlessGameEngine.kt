@@ -4,6 +4,7 @@ import com.unciv.Constants
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
+import com.unciv.logic.battle.AirSweepExecutor
 import com.unciv.logic.battle.Battle
 import com.unciv.logic.battle.CityCombatant
 import com.unciv.logic.battle.NuclearStrikeExecutor
@@ -218,6 +219,31 @@ class HeadlessGameEngine(
             ?: error("Nuclear target is outside the canonical map")
         require(NuclearStrikeExecutor.launch(unit, target)) {
             "Unit cannot launch a nuclear strike at the requested canonical target"
+        }
+        return result(game)
+    }
+
+    /** Executes an air sweep while the server derives eligibility, range,
+     * interceptor selection, deterministic combat, consumption, and notifications. */
+    fun airSweep(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+        targetX: Int,
+        targetY: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot air sweep outside their turn"
+        }
+        val unit = actorCivilization.units.getUnitById(unitId)
+            ?: error("Unit is not controlled by the authenticated actor")
+        val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
+            ?: error("Air-sweep target is outside the canonical map")
+        require(AirSweepExecutor.sweep(unit, target)) {
+            "Unit cannot air sweep the requested canonical target"
         }
         return result(game)
     }

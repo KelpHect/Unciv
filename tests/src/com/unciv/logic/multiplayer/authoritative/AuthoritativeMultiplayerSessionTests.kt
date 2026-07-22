@@ -435,6 +435,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun airSweepRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val fighter = ProjectedUnit(42, "Rome", "Fighter", 0, 0, 100, 1f)
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(ownUnits = listOf(fighter)))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.airSweepIfOpen(GAME_ID, 42, 4, -1))
+        session.openGame(GAME_ID)
+        val outcome = session.airSweepIfOpen(GAME_ID, 42, 4, -1)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple(42, 4, -1)), transport.airSweeps)
+        session.close()
+    }
+
+    @Test
     fun unitUpgradeBatchRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 1, 0, 100, 2f),
@@ -887,6 +906,7 @@ class AuthoritativeMultiplayerSessionTests {
         val unitAttacks = mutableListOf<Triple<Int, Int, Int>>()
         val cityBombardments = mutableListOf<Triple<String, Int, Int>>()
         val nuclearStrikes = mutableListOf<Triple<Int, Int, Int>>()
+        val airSweeps = mutableListOf<Triple<Int, Int, Int>>()
         val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
         val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
@@ -1157,6 +1177,20 @@ class AuthoritativeMultiplayerSessionTests {
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-nuke",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun airSweep(
+            gameId: String,
+            request: ApiV3AirSweepRequest,
+        ): ApiV3CommandAccepted {
+            airSweeps += Triple(request.unitId, request.targetX, request.targetY)
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-air-sweep",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

@@ -424,6 +424,19 @@ class WorldMapHolder(
         return true
     }
 
+    internal fun submitAuthoritativeAirSweepIfOpen(unit: MapUnit, target: Tile): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("air sweep", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession?.airSweepIfOpen(
+                worldScreen.gameInfo.gameId,
+                unit.id,
+                target.position.x,
+                target.position.y,
+            )
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,
         requestedTarget: Tile,

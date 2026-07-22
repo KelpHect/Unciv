@@ -2616,3 +2616,56 @@ Verification on 2026-07-22:
   `postgres/commands.rs`, 729 lines).
 
 Air-sweep targeting is the next combat command gap.
+
+## Authoritative air sweeps
+
+API-v3 air sweeps now use the closed `AirSweep(unitId, targetX, targetY)`
+command. The coordinates identify intent only. Authenticated membership
+supplies the civilization, and the private Kotlin worker reloads canonical
+state before deriving ownership, current turn, the `CanAirsweep` capability,
+attack availability, canonical range, potential enemy interceptors, and the
+resulting combat.
+
+The focused `AirSweepExecutor` establishes the transient sweep posture only
+inside canonical execution and delegates to the existing Kotlin
+`AirInterception` engine. Interceptor filtering and priority, attack and
+movement consumption, air-versus-air damage, XP, destruction, notifications,
+and posture cleanup are server-owned. Equal-priority interceptor shuffling now
+uses the canonical state-based random stream instead of process-global
+`Random.Default`, making retries and snapshot replays deterministic while
+preserving randomized civilization selection.
+
+The battle-panel control submits this command for explicitly opened
+authoritative games before any local mutation. Authoritative UI does not veto
+the intent using client-derived eligibility or range; the server decides.
+Single-player, hotseat, legacy multiplayer, and server-owned AI retain their
+existing paths through the same Kotlin engine.
+
+Verification on 2026-07-22:
+
+- Repeated air sweeps from the same canonical snapshot selected and resolved
+  the same interceptor, produced the same canonical hash and projected health,
+  consumed one attack, and cleared the transient sweep posture. Foreign
+  accounts, out-of-turn actors, ordinary units, same-tile targets, and
+  out-of-range targets were rejected.
+- Command-bus and session tests prove only an owned projected unit and target
+  coordinate are submitted, only explicitly opened games route the command,
+  and the payload excludes interceptor identity, range claims, random values,
+  damage, actor identity, and outcomes.
+- `cargo test --all-targets`: 47 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed; 8 database tests were explicitly gated from that
+  invocation. Generated OpenAPI parity passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55445. The exact-name disposable container was removed and verified
+  absent afterward.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: 880 shared
+  JVM tests completed with 13 intentional skips and zero failures, plus all 4
+  worker protocol tests.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+The next milestone is a fresh command-coverage audit rather than assuming the
+combat surface is complete.

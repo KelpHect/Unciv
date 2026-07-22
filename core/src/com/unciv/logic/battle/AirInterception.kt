@@ -8,7 +8,6 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.ruleset.unique.UniqueType
-import kotlin.random.Random
 
 object AirInterception {
 
@@ -47,9 +46,17 @@ object AirInterception {
         if (potentialInterceptors.any { it.baseUnit.isAirUnit() })
             potentialInterceptors = potentialInterceptors.filter { it.baseUnit.isAirUnit() }
 
-        // Pick highest chance interceptor
+        val interceptorRng = GameContext(
+            attacker,
+            attackedTile = attackedTile,
+            combatAction = CombatAction.Intercept,
+        ).stateBasedRandom("AirInterception.airSweep.interceptor")
+
+        // Pick highest chance interceptor. The pre-sort shuffle preserves the
+        // random-civilization rule while remaining replay-stable on the server.
         for (interceptor in potentialInterceptors
-            .shuffled()  // randomize Civ
+            .toList()
+            .shuffled(interceptorRng)
             .sortedByDescending { it.interceptChance() }) {
             // No chance of Interceptor to miss (unlike regular Interception). Always want to deal damage
             // pairs of LocationAction for Notification

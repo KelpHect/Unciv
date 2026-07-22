@@ -259,6 +259,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun airSweep(
+        gameId: String,
+        request: ApiV3AirSweepRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/air-sweep") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

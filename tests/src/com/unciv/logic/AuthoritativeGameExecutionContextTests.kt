@@ -1097,6 +1097,78 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun airSweepIsCanonicalDeterministicAndProjected() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        rome.getDiplomacyManager(greece)!!.declareWar()
+        val romanCity = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
+        val target = romanCity.getCenterTile().getTilesAtDistance(4)
+            .first { it.isLand && !it.isCityCenter() && it.getUnits().none() }
+        val greekCity = greece.addCity(target.position)
+        val attacker = rome.units.placeUnitNearTile(romanCity.location, "Fighter")!!
+        val interceptors = listOf(
+            greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
+            greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
+        )
+        val snapshot = engine.serializeSnapshot(game)
+
+        val first = engine.airSweep(
+            engine.loadSnapshot(snapshot), "Rome", attacker.id,
+            target.position.x, target.position.y,
+        )
+        val second = engine.airSweep(
+            engine.loadSnapshot(snapshot), "Rome", attacker.id,
+            target.position.x, target.position.y,
+        )
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        val resultAttacker = first.game.getCivilization("Rome").units.getUnitById(attacker.id)!!
+        val resultInterceptors = interceptors.map {
+            first.game.getCivilization("Greece").units.getUnitById(it.id)!!
+        }
+        Assert.assertEquals(1, resultAttacker.attacksThisTurn)
+        Assert.assertEquals(1, resultInterceptors.sumOf { it.attacksThisTurn })
+        Assert.assertNull(resultAttacker.action)
+        Assert.assertTrue(resultAttacker.health < 100 || resultInterceptors.any { it.health < 100 })
+        Assert.assertEquals(
+            resultAttacker.health,
+            engine.playerProjection(first.game, "Rome").ownUnits.single { it.id == attacker.id }.health,
+        )
+    }
+
+    @Test
+    fun airSweepRejectsForeignOutOfTurnOrdinaryUnitAndInvalidTargets() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
+        val fighter = rome.units.placeUnitNearTile(city.location, "Fighter")!!
+        val ordinaryUnit = rome.units.getCivUnits().first { !it.isCivilian() && it.id != fighter.id }
+        val outOfRange = game.tileMap.tileList.maxBy { fighter.currentTile.aerialDistanceTo(it) }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.airSweep(game, "Rome", fighter.id, city.location.x, city.location.y)
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.airSweep(game, "Rome", fighter.id, fighter.currentTile.position.x, fighter.currentTile.position.y)
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.airSweep(game, "Rome", fighter.id, outOfRange.position.x, outOfRange.position.y)
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.airSweep(game, "Rome", ordinaryUnit.id, city.location.x, city.location.y)
+        }
+        game.currentPlayer = "Greece"
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.airSweep(game, "Rome", fighter.id, city.location.x, city.location.y)
+        }
+    }
+
+    @Test
     fun cityDefaultPromotionsAreSavedFromCanonicalUnitAndToggleDeterministically() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

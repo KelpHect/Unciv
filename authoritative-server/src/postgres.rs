@@ -11,18 +11,18 @@ use crate::auth::{
 };
 use crate::projection::PlayerProjection;
 use crate::worker::{
-    AdoptPolicyIntent, AttackWithUnitIntent, BombardWithCityIntent, BuyCityTileIntent,
-    CancelUnitMovementOrderIntent, ChooseFreeTechnologyIntent, DisbandUnitIntent,
-    EngineWorkerClient, FoundCityIntent, LaunchNuclearStrikeIntent, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
-    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
-    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
-    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
-    WorkerManifest,
+    AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent,
+    BuyCityTileIntent, CancelUnitMovementOrderIntent, ChooseFreeTechnologyIntent,
+    DisbandUnitIntent, EngineWorkerClient, FoundCityIntent, LaunchNuclearStrikeIntent,
+    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent,
+    PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
+    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    UpgradeUnitsIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

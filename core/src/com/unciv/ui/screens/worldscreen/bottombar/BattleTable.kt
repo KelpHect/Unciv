@@ -470,13 +470,18 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         val canReach = attacker.unit.currentTile.getTilesInDistance(attacker.unit.getRange()).contains(targetTile)
 
-        if (!worldScreen.isPlayersTurn || !attacker.canAttack() || !canReach || !canAttack) {
+        val canSubmitAuthoritativeIntent = worldScreen.mapHolder.usesAuthoritativeCommands()
+        if (!worldScreen.isPlayersTurn ||
+            (!canSubmitAuthoritativeIntent && (!attacker.canAttack() || !canReach || !canAttack))
+        ) {
             attackButton.disable()
             attackButton.label.color = Color.GRAY
         }
         else {
             attackButton.onClick(attacker.getAttackSound()) {
-                AirInterception.airSweep(attacker, targetTile)
+                val submitted = worldScreen.mapHolder
+                    .submitAuthoritativeAirSweepIfOpen(attacker.unit, targetTile)
+                if (!submitted) AirInterception.airSweep(attacker, targetTile)
                 worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
                 worldScreen.shouldUpdate = true
             }

@@ -1,6 +1,30 @@
 use super::*;
 
 impl EngineWorkerClient {
+    pub async fn air_sweep(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: AirSweepIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::AirSweep {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    unit_id: intent.unit_id,
+                    target_x: intent.target_x,
+                    target_y: intent.target_y,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn launch_nuclear_strike(
         &self,
         actor_id: &str,

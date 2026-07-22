@@ -122,6 +122,10 @@ pub(crate) async fn run() {
             post(launch_nuclear_strike),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/air-sweep",
+            post(air_sweep),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/upgrade-units",
             post(upgrade_units),
         )

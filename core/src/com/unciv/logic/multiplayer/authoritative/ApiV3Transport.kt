@@ -29,6 +29,7 @@ interface ApiV3Transport {
     suspend fun attackWithUnit(gameId: String, request: ApiV3AttackWithUnitRequest): ApiV3CommandAccepted
     suspend fun bombardWithCity(gameId: String, request: ApiV3BombardWithCityRequest): ApiV3CommandAccepted
     suspend fun launchNuclearStrike(gameId: String, request: ApiV3LaunchNuclearStrikeRequest): ApiV3CommandAccepted
+    suspend fun airSweep(gameId: String, request: ApiV3AirSweepRequest): ApiV3CommandAccepted
     suspend fun upgradeUnits(gameId: String, request: ApiV3UpgradeUnitsRequest): ApiV3CommandAccepted
     suspend fun promoteUnit(gameId: String, request: ApiV3PromoteUnitRequest): ApiV3CommandAccepted
     suspend fun setCityUnitPromotionPreference(gameId: String, request: ApiV3SetCityUnitPromotionPreferenceRequest): ApiV3CommandAccepted

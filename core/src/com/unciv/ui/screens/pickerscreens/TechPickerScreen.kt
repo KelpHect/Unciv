@@ -12,6 +12,7 @@ import com.unciv.GUI
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.TechManager
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.ProjectedResearch
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.tech.Technology
 import com.unciv.models.ruleset.unique.UniqueType
@@ -47,6 +48,7 @@ class TechPickerScreen(
     private var civTech: TechManager = civInfo.tech
     private var tempTechsToResearch: ArrayList<String>
     private var authoritativeAppendSelection = false
+    private var authoritativeResearch: ProjectedResearch? = null
     private var lines = NonTransformGroup()
     private var orderIndicators = NonTransformGroup()
     private var eraLabels = ArrayList<Label>()
@@ -99,6 +101,8 @@ class TechPickerScreen(
         rightSideButton.setText(if (freeTechPick) "Pick a free tech".tr() else "Pick a tech".tr())
         rightSideButton.onClick(UncivSound.Paper) { tryExit() }
 
+        loadAuthoritativeResearchProjection()
+
         // per default show current/recent technology,
         // and possibly select it to show description,
         // which is very helpful when just discovered and clicking the notification
@@ -114,6 +118,36 @@ class TechPickerScreen(
             val firstAvailableTech = ruleset.technologies[firstAvailable]
             if (firstAvailableTech != null)
                 centerOnTechnology(firstAvailableTech)
+        }
+    }
+
+    private fun loadAuthoritativeResearchProjection() {
+        if (!isAuthoritativeGame()) return
+        rightSideButton.setText("Loading authoritative research".tr())
+        rightSideButton.disable()
+        Concurrency.runOnNonDaemonThreadPool("Load authoritative research projection") {
+            val projectedResearch = try {
+                game.onlineMultiplayer.authoritativeSession
+                    ?.projectionIfOpen(civInfo.gameInfo.gameId)
+                    ?.research
+            } catch (_: Exception) {
+                null
+            }
+            Concurrency.runOnGLThread {
+                if (projectedResearch == null) {
+                    rightSideButton.setText("Authoritative research unavailable".tr())
+                    rightSideButton.disable()
+                    return@runOnGLThread
+                }
+                authoritativeResearch = projectedResearch
+                tempTechsToResearch = ArrayList(projectedResearch.queue)
+                researchableTechs = if (freeTechPick)
+                    projectedResearch.freeTechnologyChoices.toHashSet()
+                else
+                    (projectedResearch.selectableTargets + projectedResearch.appendableTargets).toHashSet()
+                setButtonsInfo()
+                selectedTech?.let { selectTechnology(it, authoritativeAppendSelection, center = false) }
+            }
         }
     }
 
@@ -302,7 +336,9 @@ class TechPickerScreen(
                 techButton.text.color = colorFromRGB(154, 98, 16)
             }
 
-            if (!isResearched || techName == Constants.futureTech) {
+            if (isAuthoritativeGame()) {
+                techButton.turns.setText("")
+            } else if (!isResearched || techName == Constants.futureTech) {
                 techButton.turns.setText(turnsToTech[techName] + "${Fonts.turn}".tr())
             }
 
@@ -469,8 +505,27 @@ class TechPickerScreen(
         if (center) centerOnTechnology(tech)
 
         if (freeTechPick) {
+            if (isAuthoritativeGame()) {
+                val freeChoices = authoritativeResearch?.freeTechnologyChoices
+                if (freeChoices == null) {
+                    rightSideButton.setText("Loading authoritative research".tr())
+                    rightSideButton.disable()
+                } else if (tech.name !in freeChoices) {
+                    rightSideButton.setText("Unavailable".tr())
+                    rightSideButton.disable()
+                } else {
+                    pick("Pick [${tech.name}] as free technology".tr())
+                    setButtonsInfo()
+                }
+                return
+            }
             selectTechnologyForFreeTech(tech)
             setButtonsInfo()
+            return
+        }
+
+        if (isAuthoritativeGame()) {
+            selectAuthoritativeTechnology(tech, queue)
             return
         }
 
@@ -526,8 +581,38 @@ class TechPickerScreen(
         setButtonsInfo()
     }
 
+    private fun selectAuthoritativeTechnology(tech: Technology, append: Boolean) {
+        authoritativeAppendSelection = append
+        val research = authoritativeResearch
+        if (research == null) {
+            rightSideButton.setText("Loading authoritative research".tr())
+            rightSideButton.disable()
+            return
+        }
+        val legalTargets = if (append) research.appendableTargets else research.selectableTargets
+        if (tech.name !in legalTargets) {
+            rightSideButton.setText("Unavailable".tr())
+            rightSideButton.disable()
+            return
+        }
+        val action = if (append) "Add [${tech.name}] to research queue" else "Research [${tech.name}]"
+        val queuedEntry = research.queueEntries.singleOrNull { it.technologyName == tech.name }
+        val projectedProgress = if (queuedEntry == null) "" else {
+            val overflow = if (research.currentTechnology == tech.name) research.overflowScience else 0
+            "\n(${queuedEntry.storedScience + overflow}/${queuedEntry.cost})"
+        }
+        pick(action.tr() + projectedProgress)
+        setButtonsInfo()
+    }
+
     @Readonly
     private fun getTechProgressLabel(techs: List<String>): String {
+        authoritativeResearch?.let { research ->
+            val entries = research.queueEntries.filter { it.technologyName in techs }
+            val progress = entries.sumOf { it.storedScience } + research.overflowScience
+            val cost = entries.sumOf { it.cost }
+            return "($progress/$cost)"
+        }
         val progress = techs.sumOf { tech -> civTech.researchOfTech(tech) } + civTech.getOverflowScience()
         val techCost = techs.sumOf { tech -> civInfo.tech.costOfTech(tech) }
         return "(${progress}/${techCost})"

@@ -4002,5 +4002,49 @@ Verification on 2026-07-22:
   `unciv-v3-research-pg19b2` container, network, and volume were removed and
   cleanup was verified.
 
-Research queue removal/reordering plus progress, costs, history, and public
-research events remain explicitly tracked in `missing_multiplayer.md`.
+Research queue removal/reordering plus researched history, future turn
+estimates, and public research events remain explicitly tracked in
+`missing_multiplayer.md`.
+
+## Projection-owned research progress and picker legality
+
+Player projection version 37 adds one closed queue entry for each canonical
+research item. Every entry contains only its technology name, accumulated
+science, and the cost calculated by the server's shared `TechManager`; overflow
+science is projected separately. The projection contract requires queue names
+and entries explicitly, so Rust and Kotlin reject unknown or incomplete shapes.
+Rust additionally rejects a worker projection when current technology, queue
+order, entry names, or nonnegative science/overflow/costs are
+internally inconsistent.
+
+For opened API-v3 games, `TechPickerScreen` now starts fail-closed, loads the
+synchronized player projection, and enables replace, append, or free-technology
+choices only from its matching allowlist. It replaces its displayed queue with
+the projected queue, removes locally calculated turn estimates, and shows
+queued progress/cost using only projected server values. Selection still sends
+only a technology destination and append intent; all prerequisite and mutation
+logic remains in the Kotlin worker. Local, hotseat, saves, legacy multiplayer,
+and server-owned AI keep their existing shared-engine path.
+
+The source audit found no removal button, order-indicator action, or drag reorder
+in the current research picker. Consequently this milestone does not invent an
+arbitrary queue upload or index mutation. A future removal/reprioritization
+operation remains tracked and must define server-owned prerequisite-preserving
+semantics before adding a UI.
+
+Verification on 2026-07-22:
+
+- Deterministic tests cover canonical queue-entry order, stored science, server
+  cost, overflow, strict projection-v37 Rust/Kotlin round trips, authoritative
+  session/bus regressions, and the server worker suite.
+- Rust's 84 active library tests and 7 HTTP/OpenAPI tests pass, including
+  generated OpenAPI parity. `cargo fmt --check` and warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings` pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes the broad 935-test JVM
+  and server suite with 13 intentional skips.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55455; the live binary reported `PostgreSQL 19beta2`. The first start
+  attempt on Windows-reserved port 55454 was removed cleanly before retry. The
+  successful disposable `unciv-v3-research-projection-pg19b2` container,
+  network, and volume were also removed and cleanup was verified.

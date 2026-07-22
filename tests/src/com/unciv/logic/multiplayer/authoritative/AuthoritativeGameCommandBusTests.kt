@@ -1460,6 +1460,8 @@ class AuthoritativeGameCommandBusTests {
             research = ProjectedResearch(
                 currentTechnology = null,
                 queue = emptyList(),
+                queueEntries = emptyList(),
+                overflowScience = 0,
                 selectableTargets = listOf("Writing"),
                 appendableTargets = listOf("Writing"),
                 freeTechnologyChoices = freeTechnologyChoices,

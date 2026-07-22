@@ -349,10 +349,12 @@ impl EngineWorkerClient {
         let projection = response
             .player_projection
             .ok_or(WorkerClientError::Incomplete)?;
-        Ok(ProjectedState {
-            projection: serde_json::from_value(projection)
-                .map_err(|_| WorkerClientError::Protocol)?,
-        })
+        let projection: crate::projection::PlayerProjection =
+            serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
+        if !projection.research.is_consistent() {
+            return Err(WorkerClientError::Protocol);
+        }
+        Ok(ProjectedState { projection })
     }
 
     pub async fn assign_player(

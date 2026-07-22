@@ -11207,6 +11207,8 @@
         "type": "object",
         "required": [
           "queue",
+          "queueEntries",
+          "overflowScience",
           "selectableTargets",
           "appendableTargets",
           "freeTechnologyChoices"
@@ -11230,10 +11232,20 @@
               "type": "string"
             }
           },
+          "overflowScience": {
+            "type": "integer",
+            "format": "int32"
+          },
           "queue": {
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "queueEntries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedResearchQueueEntry"
             }
           },
           "selectableTargets": {
@@ -11241,6 +11253,28 @@
             "items": {
               "type": "string"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedResearchQueueEntry": {
+        "type": "object",
+        "required": [
+          "technologyName",
+          "storedScience",
+          "cost"
+        ],
+        "properties": {
+          "cost": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "storedScience": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "technologyName": {
+            "type": "string"
           }
         },
         "additionalProperties": false

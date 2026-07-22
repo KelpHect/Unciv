@@ -235,10 +235,15 @@ class AuthoritativeGameExecutionContextTests {
         val expectedQueue = rome.tech.getRequiredTechsToDestination(target).map { it.name }
 
         val result = engine.setResearchPath(game, "Rome", targetName)
+        rome.tech.techsInProgress[expectedQueue.first()] = 7
         val after = engine.playerProjection(result.game, "Rome")
 
         Assert.assertEquals(expectedQueue, after.research.queue)
         Assert.assertEquals(expectedQueue.firstOrNull(), after.research.currentTechnology)
+        Assert.assertEquals(expectedQueue, after.research.queueEntries.map { it.technologyName })
+        Assert.assertEquals(7, after.research.queueEntries.first().storedScience)
+        Assert.assertEquals(rome.tech.costOfTech(expectedQueue.first()), after.research.queueEntries.first().cost)
+        Assert.assertEquals(0, after.research.overflowScience)
         Assert.assertFalse(PendingEndTurnAction.PickTechnology in after.pendingTurnActions)
         Assert.assertFalse(PendingEndTurnAction.PickConstruction in after.pendingTurnActions)
     }

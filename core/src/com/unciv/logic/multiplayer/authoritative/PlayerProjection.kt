@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 36
+        const val CURRENT_PROJECTION_VERSION = 37
     }
 }
 
@@ -241,9 +241,18 @@ data class ProjectedSpecialist(
 data class ProjectedResearch(
     val currentTechnology: String?,
     val queue: List<String>,
+    val queueEntries: List<ProjectedResearchQueueEntry>,
+    val overflowScience: Int,
     val selectableTargets: List<String>,
     val appendableTargets: List<String>,
     val freeTechnologyChoices: List<String>,
+)
+
+@Serializable
+data class ProjectedResearchQueueEntry(
+    val technologyName: String,
+    val storedScience: Int,
+    val cost: Int,
 )
 
 @Serializable
@@ -508,6 +517,14 @@ object PlayerProjectionBuilder {
         return ProjectedResearch(
             currentTechnology = civilization.tech.currentTechnologyName(),
             queue = civilization.tech.techsToResearch.toList(),
+            queueEntries = civilization.tech.techsToResearch.map { technologyName ->
+                ProjectedResearchQueueEntry(
+                    technologyName = technologyName,
+                    storedScience = civilization.tech.researchOfTech(technologyName),
+                    cost = civilization.tech.costOfTech(technologyName),
+                )
+            },
+            overflowScience = civilization.tech.getOverflowScience(),
             selectableTargets = targetPaths.asSequence()
                 .map { (technology) -> technology.name }
                 .sorted()

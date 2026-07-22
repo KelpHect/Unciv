@@ -205,6 +205,7 @@ class AuthoritativeMultiplayerSession(
         unitId: Int,
         destinationX: Int,
         destinationY: Int,
+        escortUnitId: Int? = null,
     ): AuthoritativeCommandOutcome? {
         val bus = mutex.withLock { games[gameId] } ?: return null
         return when (val current = bus.state) {
@@ -212,16 +213,17 @@ class AuthoritativeMultiplayerSession(
                 check(current.pending is PendingAuthoritativeCommand.MoveUnit &&
                     current.pending.unitId == unitId &&
                     current.pending.destinationX == destinationX &&
-                    current.pending.destinationY == destinationY) {
+                    current.pending.destinationY == destinationY &&
+                    current.pending.escortUnitId == escortUnitId) {
                     "Resolve the pending authoritative command before moving another unit"
                 }
                 bus.retryPending()
             }
             is AuthoritativeSyncState.Synchronized ->
-                bus.moveUnit(unitId, destinationX, destinationY)
+                bus.moveUnit(unitId, destinationX, destinationY, escortUnitId)
             else -> {
                 bus.refresh()
-                bus.moveUnit(unitId, destinationX, destinationY)
+                bus.moveUnit(unitId, destinationX, destinationY, escortUnitId)
             }
         }
     }

@@ -725,6 +725,38 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun escortedMoveRequiresTwoColocatedProjectedUnitsWithTheSameExactDestination() = runBlocking {
+        val destination = ProjectedMovementDestination(2, 3)
+        val initial = projection(
+            7,
+            "hash-7",
+            exploredTiles = listOf(ProjectedTileVisibility(2, 3, visible = true)),
+            ownUnits = listOf(
+                ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f,
+                    moveDestinations = listOf(destination)),
+                ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f,
+                    moveDestinations = listOf(destination)),
+            ),
+        )
+        val transport = FakeTransport(initial).apply {
+            onMove = { request ->
+                current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
+                accepted(request.commandId, 7, 8, "hash-8")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "escort-command" }
+        bus.refresh()
+
+        assertTrue(bus.moveUnit(42, 2, 3, escortUnitId = 43)
+            is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(43, transport.moveRequests.single().escortUnitId)
+
+        bus.refresh()
+        val missingEscort = runCatching { bus.moveUnit(42, 2, 3, 99) }.exceptionOrNull()
+        assertTrue(missingEscort is IllegalArgumentException)
+    }
+
+    @Test
     fun cityTileAssignmentRequestUsesClosedSnakeCaseState() {
         val encoded = Json.encodeToString(
             ApiV3SetCityTileAssignmentRequest.serializer(),

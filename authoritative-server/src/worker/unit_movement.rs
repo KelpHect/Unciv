@@ -89,6 +89,7 @@ impl EngineWorkerClient {
                     unit_id: intent.unit_id,
                     destination_x: intent.destination_x,
                     destination_y: intent.destination_y,
+                    escort_unit_id: intent.escort_unit_id,
                 },
             )
             .await?;

@@ -283,6 +283,34 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun escortedExactMovementPreservesThePairAcrossSessionSubmission() = runBlocking {
+        val destination = ProjectedMovementDestination(1, 0)
+        val units = listOf(
+            ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f,
+                moveDestinations = listOf(destination)),
+            ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f,
+                moveDestinations = listOf(destination)),
+        )
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownUnits = units,
+                exploredTiles = listOf(ProjectedTileVisibility(1, 0, visible = true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        val outcome = session.moveUnitIfOpen(GAME_ID, 42, 1, 0, escortUnitId = 43)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(43, transport.moveRequests.single().escortUnitId)
+        assertTrue(transport.current.projection.ownUnits.all { it.x == 1 && it.y == 0 })
+        session.close()
+    }
+
+    @Test
     fun multiTurnMovementOrderRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
         val transport = FakeTransport().apply {
@@ -1202,6 +1230,7 @@ class AuthoritativeMultiplayerSessionTests {
         var endTurnFailuresRemaining = 0
         val endTurnCommandIds = mutableListOf<String>()
         val unitMoves = mutableListOf<Triple<Int, Int, Int>>()
+        val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val movementOrders = mutableListOf<Triple<Int, Int, Int>>()
         val cancelledMovementOrders = mutableListOf<Int>()
         val explorationOrders = mutableListOf<Pair<Int, Boolean>>()
@@ -1348,16 +1377,18 @@ class AuthoritativeMultiplayerSessionTests {
             gameId: String,
             request: ApiV3MoveUnitRequest,
         ): ApiV3CommandAccepted {
+            moveRequests += request
             unitMoves += Triple(request.unitId, request.destinationX, request.destinationY)
-            val movedUnit = current.projection.ownUnits.single { it.id == request.unitId }.copy(
-                x = request.destinationX,
-                y = request.destinationY,
-            )
+            val movedUnits = current.projection.ownUnits.map { unit ->
+                if (unit.id == request.unitId || unit.id == request.escortUnitId)
+                    unit.copy(x = request.destinationX, y = request.destinationY)
+                else unit
+            }
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-8",
                 projectionHash = "projection-hash-8",
-                projection = current.projection.copy(ownUnits = listOf(movedUnit)),
+                projection = current.projection.copy(ownUnits = movedUnits),
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

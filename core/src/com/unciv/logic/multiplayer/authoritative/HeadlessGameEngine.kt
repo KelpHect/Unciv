@@ -773,6 +773,7 @@ class HeadlessGameEngine(
         actorCivilizationId: String,
         unitId: Int,
         destination: HexCoord,
+        escortUnitId: Int? = null,
     ): EngineResult {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
@@ -782,9 +783,29 @@ class HeadlessGameEngine(
         }
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
+        val escortUnit = escortUnitId?.let { id ->
+            require(id != unitId) { "Escort unit must differ from the moving unit" }
+            actorCivilization.units.getUnitById(id)
+                ?: error("Escort unit is not controlled by the authenticated actor")
+        }
         require(destination in game.tileMap) { "Destination is outside the canonical map" }
         val destinationTile = game.tileMap[destination]
         require(destinationTile != unit.getTile()) { "Unit is already at the destination" }
+        if (escortUnit != null) {
+            require(escortUnit.getTile() == unit.getTile()) { "Escort units are not co-located" }
+            require(!unit.baseUnit.movesLikeAirUnits && !escortUnit.baseUnit.movesLikeAirUnits) {
+                "Air units cannot form an escort pair"
+            }
+            require(unit.isCivilian() != escortUnit.isCivilian()) {
+                "Escort pair must contain one civilian and one military unit"
+            }
+            require(escortUnit.movement.canReachInCurrentTurn(destinationTile)) {
+                "Destination is not reachable by the escort unit this turn"
+            }
+            require(escortUnit.movement.canMoveTo(destinationTile)) {
+                "Escort unit cannot enter the destination"
+            }
+        }
         require(unit.movement.canReachInCurrentTurn(destinationTile)) {
             "Destination is not reachable this turn"
         }
@@ -792,8 +813,16 @@ class HeadlessGameEngine(
             "Unit cannot enter the destination"
         }
         unit.action = null
+        escortUnit?.action = null
+        if (escortUnit != null) unit.startEscorting()
         unit.movement.moveToTile(destinationTile)
         check(unit.getTile() == destinationTile) { "Movement did not reach the requested destination" }
+        if (escortUnit != null) {
+            check(escortUnit.getTile() == destinationTile) {
+                "Escort movement did not reach the requested destination"
+            }
+            unit.stopEscorting()
+        }
         return result(game)
     }
 

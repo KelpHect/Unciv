@@ -99,6 +99,7 @@ sealed interface WorkerOperation {
         val unitId: Int,
         val destinationX: Int,
         val destinationY: Int,
+        val escortUnitId: Int? = null,
     ) : WorkerOperation
 
     @Serializable @SerialName("move_unit_toward")
@@ -645,6 +646,7 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.unitId,
                     HexCoord(operation.destinationX, operation.destinationY),
+                    operation.escortUnitId,
                 )
                 responseForGame(engine, result.game)
             }

@@ -82,6 +82,8 @@ pub enum GameCommand {
         unit_id: i32,
         destination_x: i32,
         destination_y: i32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        escort_unit_id: Option<i32>,
     },
     MoveUnitToward {
         unit_id: i32,

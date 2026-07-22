@@ -480,6 +480,47 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun escortedExactMoveIsAtomicDeterministicAndServerValidated() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val created = engine.createGame(testSetup()).game
+        val rome = created.getCivilization("Rome")
+        val military = rome.units.getCivUnits().first { it.isMilitary() }
+        val civilian = rome.units.getCivUnits().first { it.isCivilian() }
+        civilian.removeFromTile()
+        civilian.putInTile(military.getTile())
+        val destination = military.movement.getDistanceToTiles().keys.first {
+            it != military.getTile() &&
+                military.movement.canMoveTo(it) &&
+                civilian.movement.canReachInCurrentTurn(it) &&
+                civilian.movement.canMoveTo(it)
+        }.position
+        val snapshot = engine.serializeSnapshot(created)
+
+        val first = engine.moveUnit(
+            engine.loadSnapshot(snapshot), "Rome", military.id, destination, civilian.id,
+        )
+        val second = engine.moveUnit(
+            engine.loadSnapshot(snapshot), "Rome", military.id, destination, civilian.id,
+        )
+        val movedRome = first.game.getCivilization("Rome")
+
+        Assert.assertEquals(first.canonicalStateHash, second.canonicalStateHash)
+        Assert.assertEquals(destination, movedRome.units.getUnitById(military.id)!!.getTile().position)
+        Assert.assertEquals(destination, movedRome.units.getUnitById(civilian.id)!!.getTile().position)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.moveUnit(
+                engine.loadSnapshot(snapshot), "Rome", military.id, destination, military.id,
+            )
+        }
+        val foreignUnitId = created.getCivilization("Greece").units.getCivUnits().first().id
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.moveUnit(
+                engine.loadSnapshot(snapshot), "Rome", military.id, destination, foreignUnitId,
+            )
+        }
+    }
+
+    @Test
     fun moveTowardPersistsACanonicalServerOwnedMultiTurnOrder() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

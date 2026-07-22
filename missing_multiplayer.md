@@ -49,10 +49,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
   cancellation commands. Siege setup now uses the closed `setup` posture in
-  projection v42 and is worker-owned. Escort formation remains: its legacy
-  `escorting` flag is intentionally cache-only, so v3 needs an atomic typed
-  paired-movement intent instead of pretending that flag can survive worker
-  snapshot reloads. Pending serialized unit orders now execute inside the
+  projection v42 and is worker-owned. Exact current-turn escort movement now
+  uses one atomic `MoveUnit` intent with an optional projected companion ID;
+  the worker validates both units and moves them together without persisting
+  the legacy cache-only `escorting` flag. Multi-turn escort orders remain: they
+  need explicit durable server semantics rather than pretending that cache flag
+  can survive worker snapshot reloads. Pending serialized unit orders execute inside the
   worker immediately before authoritative end turn. Whole-turn, military,
   civilian, and economy autoplay controls are fail-closed for opened v3 games;
   if retained as a product feature, implement them as explicit server-owned AI

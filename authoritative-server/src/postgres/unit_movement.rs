@@ -153,12 +153,13 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        let (unit_id, destination_x, destination_y) = match &envelope.command {
+        let (unit_id, destination_x, destination_y, escort_unit_id) = match &envelope.command {
             crate::GameCommand::MoveUnit {
                 unit_id,
                 destination_x,
                 destination_y,
-            } => (*unit_id, *destination_x, *destination_y),
+                escort_unit_id,
+            } => (*unit_id, *destination_x, *destination_y, *escort_unit_id),
             _ => return Err(CommitError::InvalidCommand),
         };
         if let Some(accepted) = self
@@ -182,6 +183,7 @@ impl PostgresGameRepository {
                     unit_id,
                     destination_x,
                     destination_y,
+                    escort_unit_id,
                 },
             )
             .await

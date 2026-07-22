@@ -646,6 +646,26 @@ mod tests {
     }
 
     #[test]
+    fn escorted_move_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::MoveUnit {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            unit_id: 17,
+            destination_x: 2,
+            destination_y: -1,
+            escort_unit_id: Some(18),
+        })
+        .unwrap();
+        assert_eq!(value["type"], "move_unit");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["unitId"], 17);
+        assert_eq!(value["destinationX"], 2);
+        assert_eq!(value["destinationY"], -1);
+        assert_eq!(value["escortUnitId"], 18);
+        assert!(value.get("escort_unit_id").is_none());
+    }
+
+    #[test]
     fn transform_unit_worker_operation_matches_kotlin_wire_names() {
         let value = serde_json::to_value(WorkerOperation::TransformUnit {
             snapshot: "snapshot",

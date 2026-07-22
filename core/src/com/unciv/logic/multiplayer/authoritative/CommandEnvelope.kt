@@ -92,6 +92,7 @@ sealed interface GameCommand {
         val unitId: Int,
         val destinationX: Int,
         val destinationY: Int,
+        val escortUnitId: Int? = null,
     ) : GameCommand
 
     data class MoveUnitToward(

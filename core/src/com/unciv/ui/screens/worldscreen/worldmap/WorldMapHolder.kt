@@ -487,9 +487,18 @@ class WorldMapHolder(
     ) {
         val selectedUnit = selectedUnits.first()
         val isParadrop = selectedUnit.isPreparingParadrop()
+        val escortUnit = selectedUnit.getOtherEscortUnit().takeIf { selectedUnit.isEscorting() }
         val movementIntent = AuthoritativeMovementUi.movementIntent(
             worldScreen, selectedUnit, requestedTarget,
         )
+        if (escortUnit != null && movementIntent != AuthoritativeMovementIntent.ExactMove) {
+            removeUnitActionOverlay()
+            ToastPopup(
+                "Escort pairs currently require a server-projected exact destination",
+                worldScreen,
+            )
+            return
+        }
         val isMultiTurnOrder = !isParadrop && movementIntent == AuthoritativeMovementIntent.MoveToward
         val description = when {
             isParadrop -> "unit paradrop"
@@ -517,10 +526,12 @@ class WorldMapHolder(
                     selectedUnit.id,
                     requestedTarget.position.x,
                     requestedTarget.position.y,
+                    escortUnit?.id,
                 )
         }) {
-            if (selectedUnits.size > 1)
-                moveUnitToTargetTile(selectedUnits.drop(1), requestedTarget)
+            val remainingUnits = selectedUnits.drop(1).filter { it.id != escortUnit?.id }
+            if (remainingUnits.isNotEmpty())
+                moveUnitToTargetTile(remainingUnits, requestedTarget)
             else removeUnitActionOverlay()
         }
     }

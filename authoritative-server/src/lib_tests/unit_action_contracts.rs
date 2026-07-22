@@ -199,7 +199,22 @@ fn move_unit_contract_is_typed_and_closed() {
         GameCommand::MoveUnit {
             unit_id: 42,
             destination_x: -3,
-            destination_y: 7
+            destination_y: 7,
+            escort_unit_id: None,
+        }
+    );
+    let escorted: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "move_unit", "unit_id": 42, "destination_x": -3,
+        "destination_y": 7, "escort_unit_id": 43
+    }))
+    .unwrap();
+    assert_eq!(
+        escorted,
+        GameCommand::MoveUnit {
+            unit_id: 42,
+            destination_x: -3,
+            destination_y: 7,
+            escort_unit_id: Some(43),
         }
     );
     assert!(

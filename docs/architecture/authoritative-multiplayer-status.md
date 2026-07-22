@@ -4331,3 +4331,45 @@ Verification on 2026-07-22:
   capital, causing a null test fixture rather than a product failure. The test
   now places the siege unit near an existing owned unit; the exact test and all
   broad gates pass, so no error is deferred.
+
+## Atomic authoritative escort movement
+
+Exact `MoveUnit` now accepts an optional stable escort-unit ID. This is not a
+client claim that a formation is legal: projection preflight requires both
+owned units to be co-located and to publish the clicked exact destination, then
+the private worker independently requires distinct IDs, authenticated ownership,
+co-location, one civilian and one military unit, non-air types, current-turn
+movement, reachability, and entry legality for both units. It invokes shared
+escort movement only inside that worker proposal and clears the cache-only
+formation flag before building the returned projection.
+
+The operation is atomic at the existing revision-CAS boundary: both units reach
+the destination in one immutable snapshot or no revision commits. Older single-
+unit requests omit the optional field and retain their wire behavior. Opened-v3
+formation remains disposable client presentation state; clicking an exact
+projected destination submits the pair, while a multi-turn escort request fails
+closed because durable paired-order semantics are still explicitly missing.
+Single-player, hotseat, saves, legacy/API-v2, and server AI retain shared engine
+behavior.
+
+Verification on 2026-07-22:
+
+- Deterministic engine tests prove both units move together, identical snapshots
+  produce identical hashes, and a self-escort is rejected. Command-bus tests
+  require two co-located projected units with the same exact destination;
+  session tests preserve the companion ID and reconcile both projected units.
+- Rust public-command and worker-wire tests cover absent and present optional
+  escort IDs and the exact Kotlin camel-case field. Generated OpenAPI parity,
+  all 89 active Rust library tests, all 7 HTTP/OpenAPI tests,
+  `cargo fmt --check`, and warnings-as-errors Clippy pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes 949 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55459; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-escort-pg19b2` container, network, and volume were removed and
+  cleanup was verified.
+- The first broad Rust run correctly failed generated OpenAPI parity after the
+  request shape changed. The artifact was regenerated and the entire Rust suite
+  rerun cleanly; no compile, test, formatting, Clippy, OpenAPI, or database
+  error remains deferred.

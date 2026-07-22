@@ -38,6 +38,7 @@ sealed interface PendingAuthoritativeCommand {
         val unitId: Int,
         val destinationX: Int,
         val destinationY: Int,
+        val escortUnitId: Int? = null,
     ) : PendingAuthoritativeCommand
 
     data class MoveUnitToward(
@@ -549,7 +550,12 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
-    suspend fun moveUnit(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
+    suspend fun moveUnit(
+        unitId: Int,
+        destinationX: Int,
+        destinationY: Int,
+        escortUnitId: Int? = null,
+    ) = mutex.withLock {
         val current = requireSynchronized()
         val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
         require(unit != null) {
@@ -560,6 +566,17 @@ class AuthoritativeGameCommandBus(
         }) {
             "Destination is absent from the unit's projected exact moves"
         }
+        if (escortUnitId != null) {
+            require(escortUnitId != unitId) { "Escort unit must differ from the moving unit" }
+            val escort = current.projection.ownUnits.singleOrNull { it.id == escortUnitId }
+            require(escort != null) { "Escort unit is absent from the current player projection" }
+            require(escort.x == unit.x && escort.y == unit.y) {
+                "Escort unit is not projected on the moving unit's tile"
+            }
+            require(escort.moveDestinations.any { it.x == destinationX && it.y == destinationY }) {
+                "Destination is absent from the escort unit's projected exact moves"
+            }
+        }
         submitLocked(PendingAuthoritativeCommand.MoveUnit(
             commandId = commandIdFactory(),
             expectedRevision = current.committedRevision,
@@ -567,6 +584,7 @@ class AuthoritativeGameCommandBus(
             unitId = unitId,
             destinationX = destinationX,
             destinationY = destinationY,
+            escortUnitId = escortUnitId,
         ), current)
     }
 
@@ -1547,6 +1565,7 @@ class AuthoritativeGameCommandBus(
                         pending.unitId,
                         pending.destinationX,
                         pending.destinationY,
+                        pending.escortUnitId,
                     ),
                 )
                 is PendingAuthoritativeCommand.MoveUnitToward -> transport.moveUnitToward(

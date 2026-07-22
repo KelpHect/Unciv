@@ -125,6 +125,7 @@ pub struct MoveUnitIntent<'a> {
     pub unit_id: i32,
     pub destination_x: i32,
     pub destination_y: i32,
+    pub escort_unit_id: Option<i32>,
 }
 pub struct MoveUnitTowardIntent<'a> {
     pub actor_civilization_id: &'a str,

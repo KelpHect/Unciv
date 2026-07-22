@@ -167,6 +167,7 @@ pub(super) async fn move_unit(
                     unit_id: request.unit_id,
                     destination_x: request.destination_x,
                     destination_y: request.destination_y,
+                    escort_unit_id: request.escort_unit_id,
                 },
             },
         )

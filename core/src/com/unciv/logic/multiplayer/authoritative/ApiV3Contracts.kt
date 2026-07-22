@@ -144,6 +144,7 @@ data class ApiV3MoveUnitRequest(
     @SerialName("unit_id") val unitId: Int,
     @SerialName("destination_x") val destinationX: Int,
     @SerialName("destination_y") val destinationY: Int,
+    @SerialName("escort_unit_id") val escortUnitId: Int? = null,
 )
 
 @Serializable

@@ -24,6 +24,7 @@ pub struct PlayerProjection {
     pub explored_tiles: Vec<ProjectedTileVisibility>,
     pub visible_foreign_units: Vec<ProjectedUnit>,
     pub pending_city_dispositions: Vec<ProjectedCityDisposition>,
+    pub diplomatic_vote_candidates: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -189,14 +190,18 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v19.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v20.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
         assert_eq!(
             projection.pending_turn_actions,
-            [PendingEndTurnAction::PickPolicy]
+            [
+                PendingEndTurnAction::PickPolicy,
+                PendingEndTurnAction::CastDiplomaticVote,
+            ]
         );
+        assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
         assert_eq!(projection.own_cities[0].construction_queue, ["Monument"]);
         assert!(projection.own_cities[0].assignable_tiles[0].worked);
         assert_eq!(projection.own_cities[0].specialists[0].name, "Scientist");

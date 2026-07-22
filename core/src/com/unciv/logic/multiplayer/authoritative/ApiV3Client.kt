@@ -430,6 +430,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun castDiplomaticVote(
+        gameId: String,
+        request: ApiV3CastDiplomaticVoteRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/cast-diplomatic-vote") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

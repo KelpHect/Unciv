@@ -29,9 +29,10 @@ data class PlayerProjection(
     val exploredTiles: List<ProjectedTileVisibility>,
     val visibleForeignUnits: List<ProjectedUnit>,
     val pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
+    val diplomaticVoteCandidates: List<String> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 19
+        const val CURRENT_PROJECTION_VERSION = 20
     }
 }
 
@@ -261,8 +262,15 @@ object PlayerProjectionBuilder {
                 ) }
                 .sortedBy { it.cityId }
                 .toList(),
+            diplomaticVoteCandidates = diplomaticVoteCandidates(actor),
         )
     }
+
+    internal fun diplomaticVoteCandidates(actor: Civilization): List<String> =
+        if (!actor.mayVoteForDiplomaticVictory()) emptyList()
+        else actor.diplomacyFunctions.getKnownCivsSorted(includeCityStates = false)
+            .map { it.civID }
+            .toList()
 
     private fun unitProjection(unit: MapUnit, includePrivateOrders: Boolean): ProjectedUnit {
         val destination = if (includePrivateOrders && unit.isMoving())

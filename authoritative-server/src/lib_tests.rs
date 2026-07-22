@@ -439,6 +439,38 @@ fn city_disposition_contract_is_typed_and_excludes_ownership_claims() {
 }
 
 #[test]
+fn diplomatic_vote_contract_contains_only_the_optional_candidate() {
+    let vote: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "cast_diplomatic_vote", "candidate_civilization_id": "Greece"
+    }))
+    .unwrap();
+    assert_eq!(
+        vote,
+        GameCommand::CastDiplomaticVote {
+            candidate_civilization_id: Some("Greece".to_owned()),
+        }
+    );
+    let abstain: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "cast_diplomatic_vote", "candidate_civilization_id": null
+    }))
+    .unwrap();
+    assert_eq!(
+        abstain,
+        GameCommand::CastDiplomaticVote {
+            candidate_civilization_id: None,
+        }
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "cast_diplomatic_vote",
+            "candidate_civilization_id": "Greece",
+            "candidate_is_alive": true
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn citizen_policy_contracts_are_typed_and_closed() {
     let avoid: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "set_avoid_growth", "city_id": "city-1", "enabled": true

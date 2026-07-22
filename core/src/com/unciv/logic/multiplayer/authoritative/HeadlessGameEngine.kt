@@ -1140,6 +1140,29 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun castDiplomaticVote(
+        game: GameInfo,
+        actorCivilizationId: String,
+        candidateCivilizationId: String?,
+    ): EngineResult {
+        val actor = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actor.civID) {
+            "Authenticated actor cannot vote outside their turn"
+        }
+        require(actor.mayVoteForDiplomaticVictory()) {
+            "Civilization does not have a pending diplomatic vote"
+        }
+        if (candidateCivilizationId != null) {
+            require(candidateCivilizationId in PlayerProjectionBuilder.diplomaticVoteCandidates(actor)) {
+                "Diplomatic vote candidate is unavailable in the canonical state"
+            }
+        }
+        actor.diplomaticVoteForCiv(candidateCivilizationId)
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

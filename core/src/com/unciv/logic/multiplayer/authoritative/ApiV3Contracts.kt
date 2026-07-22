@@ -404,6 +404,14 @@ data class ApiV3ResolveCityDispositionRequest(
 )
 
 @Serializable
+data class ApiV3CastDiplomaticVoteRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("candidate_civilization_id") val candidateCivilizationId: String?,
+)
+
+@Serializable
 data class ApiV3SetCityTileAssignmentRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

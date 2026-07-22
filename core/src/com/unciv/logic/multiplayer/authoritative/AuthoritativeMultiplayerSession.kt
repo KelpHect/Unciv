@@ -975,6 +975,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun castDiplomaticVoteIfOpen(
+        gameId: String,
+        candidateCivilizationId: String?,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.CastDiplomaticVote &&
+                    current.pending.candidateCivilizationId == candidateCivilizationId) {
+                    "Resolve the pending authoritative command before casting another vote"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.castDiplomaticVote(candidateCivilizationId)
+            else -> {
+                bus.refresh()
+                bus.castDiplomaticVote(candidateCivilizationId)
+            }
+        }
+    }
+
     suspend fun setCityTileAssignmentIfOpen(
         gameId: String,
         cityId: String,

@@ -192,6 +192,9 @@ pub enum GameCommand {
         city_id: String,
         action: CityDispositionAction,
     },
+    CastDiplomaticVote {
+        candidate_civilization_id: Option<String>,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

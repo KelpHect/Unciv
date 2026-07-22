@@ -16,24 +16,25 @@ mod city_disposition;
 mod city_economy;
 mod city_governance;
 mod city_population;
+mod diplomacy;
 mod protocol;
 mod unit_actions;
 mod unit_movement;
 mod unit_orders;
 pub use protocol::{
     AdoptPolicyIntent, AirSweepIntent, AssignedPlayer, AttackWithUnitIntent, BombardWithCityIntent,
-    BuyCityTileIntent, CancelUnitMovementOrderIntent, ChooseFreeTechnologyIntent, CreatedGame,
-    DisbandUnitIntent, FoundCityIntent, LaunchNuclearStrikeIntent, MoveConstructionIntent,
-    MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, ProjectedState,
-    PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
-    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent, SellBuildingIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
-    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
-    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
-    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
-    WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
+    ChooseFreeTechnologyIntent, CreatedGame, DisbandUnitIntent, FoundCityIntent,
+    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
+    ParadropUnitIntent, PillageTileIntent, ProjectedState, PromoteUnitIntent,
+    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
+    ResolveCityDispositionIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
+    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

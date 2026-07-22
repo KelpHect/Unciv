@@ -358,6 +358,13 @@ pub(super) enum WorkerOperation<'a> {
         city_id: &'a str,
         action: crate::CityDispositionAction,
     },
+    CastDiplomaticVote {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "candidateCivilizationId")]
+        candidate_civilization_id: Option<&'a str>,
+    },
     SetCityTileAssignment {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -644,6 +651,11 @@ pub struct ResolveCityDispositionIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,
     pub action: crate::CityDispositionAction,
+}
+
+pub struct CastDiplomaticVoteIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub candidate_civilization_id: Option<&'a str>,
 }
 
 pub struct SetCityTileAssignmentIntent<'a> {

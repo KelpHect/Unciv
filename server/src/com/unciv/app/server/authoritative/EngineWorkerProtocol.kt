@@ -349,6 +349,13 @@ sealed interface WorkerOperation {
         val action: CityDispositionAction,
     ) : WorkerOperation
 
+    @Serializable @SerialName("cast_diplomatic_vote")
+    data class CastDiplomaticVote(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val candidateCivilizationId: String?,
+    ) : WorkerOperation
+
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
         val snapshot: String,
@@ -824,6 +831,15 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.cityId,
                     operation.action,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.CastDiplomaticVote -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.castDiplomaticVote(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.candidateCivilizationId,
                 )
                 responseForGame(engine, result.game)
             }

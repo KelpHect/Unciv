@@ -2820,3 +2820,58 @@ Verification on 2026-07-22:
 The next coverage audit should continue across diplomacy and trade, religion,
 diplomatic votes, and great-person choices without widening this command into
 a generic client-authored mutation surface.
+
+## Authoritative diplomatic victory voting
+
+The coverage audit found that `DiplomaticVotePickerScreen` still called
+`Civilization.diplomaticVoteForCiv()` directly, allowing a client to write the
+canonical vote map. API v3 now uses the closed
+`CastDiplomaticVote(candidateCivilizationId?)` command. A null candidate means
+abstention; the request contains no voter identity, known-civilization claims,
+alive/major-civilization claims, vote counts, or result calculation.
+
+Player projection version 20 adds the player-scoped
+`diplomaticVoteCandidates` allowlist. It is empty unless the actor has a
+canonical pending vote and otherwise contains only known, alive major
+civilizations other than the voter. The existing `cast_diplomatic_vote`
+pending-turn action distinguishes a real abstention opportunity from absence
+of a vote.
+
+The private Kotlin worker reloads canonical state and validates authenticated
+civilization assignment, current turn, vote timing, spectator state, duplicate
+voting, and the projected candidate allowlist before calling the existing
+Kotlin vote mutation. AI players continue to vote inside server-owned turn
+automation using deterministic state-based randomness. Rust remains the public
+control plane and sole revisioned committer; its API, worker, and persistence
+routing is isolated in focused `diplomacy` modules.
+
+The picker submits the typed command before any local mutation for explicitly
+opened authoritative games. Ambiguous failures remain on the same command ID
+for safe retry. Single-player, hotseat, saved-game, legacy multiplayer, and AI
+paths retain their existing Kotlin-engine behavior.
+
+Verification on 2026-07-22:
+
+- Focused engine tests cover the projected candidate allowlist, successful
+  canonical voting, duplicate rejection, unknown-candidate rejection, foreign
+  account rejection, and out-of-turn rejection. Command-bus tests prove the
+  payload contains only the optional candidate, while session tests prove an
+  explicitly opened game is required and a lost response retries the same
+  idempotency key.
+- `./gradlew :tests:test :server:test --no-daemon`: 894 shared JVM tests
+  completed with 13 intentional skips and zero failures, plus all 4 worker
+  protocol tests.
+- `cargo test --all-features`: 51 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed, including generated OpenAPI parity and the shared
+  projection-v20 fixture.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55441. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines.
+
+Trade negotiation, religion choices and religious unit actions, and
+great-person selection remain distinct command families for the continuing
+coverage audit.

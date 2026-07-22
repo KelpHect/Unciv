@@ -250,6 +250,10 @@ sealed interface GameCommand {
         val action: CityDispositionAction,
     ) : GameCommand
 
+    data class CastDiplomaticVote(
+        val candidateCivilizationId: String?,
+    ) : GameCommand
+
     data class SetCityTileAssignment(
         val cityId: String,
         val x: Int,

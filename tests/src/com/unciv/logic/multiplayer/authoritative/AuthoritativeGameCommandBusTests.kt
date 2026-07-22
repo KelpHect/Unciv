@@ -1101,6 +1101,37 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("can_raze"))
     }
 
+    @Test
+    fun diplomaticVoteIsBoundToTheProjectedCandidate() = runBlocking {
+        val initial = projection(
+            3,
+            "hash-3",
+            pendingTurnActions = listOf(PendingEndTurnAction.CastDiplomaticVote),
+            diplomaticVoteCandidates = listOf("Greece"),
+        )
+        val committed = projection(4, "hash-4")
+        val transport = FakeTransport(initial).apply {
+            onCastDiplomaticVote = { request ->
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "vote-command" }
+        bus.refresh()
+
+        assertTrue(bus.castDiplomaticVote("Greece") is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.diplomaticVoteRequests.single()
+        assertEquals(ApiV3CastDiplomaticVoteRequest(
+            "vote-command", 3, "hash-3", "Greece",
+        ), request)
+        val encoded = Json.encodeToString(ApiV3CastDiplomaticVoteRequest.serializer(), request)
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("known"))
+        assertTrue(!encoded.contains("alive"))
+        assertTrue(!encoded.contains("votes"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1272,6 +1303,8 @@ class AuthoritativeGameCommandBusTests {
         selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
         ownUnits: List<ProjectedUnit> = emptyList(),
         pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
+        pendingTurnActions: List<PendingEndTurnAction> = emptyList(),
+        diplomaticVoteCandidates: List<String> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -1283,7 +1316,7 @@ class AuthoritativeGameCommandBusTests {
             turn = 0,
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
-            pendingTurnActions = emptyList(),
+            pendingTurnActions = pendingTurnActions,
             research = ProjectedResearch(null, emptyList(), listOf("Writing"), freeTechnologyChoices),
             policies = ProjectedPolicies(25, 25, 0, emptyList(), listOf("Tradition")),
             gold = 0,
@@ -1307,6 +1340,7 @@ class AuthoritativeGameCommandBusTests {
             exploredTiles = exploredTiles,
             visibleForeignUnits = emptyList(),
             pendingCityDispositions = pendingCityDispositions,
+            diplomaticVoteCandidates = diplomaticVoteCandidates,
         ),
     )
 
@@ -1361,6 +1395,7 @@ class AuthoritativeGameCommandBusTests {
         val sellBuildingRequests = mutableListOf<ApiV3SellBuildingRequest>()
         val cityGovernanceRequests = mutableListOf<ApiV3SetCityGovernanceRequest>()
         val cityDispositionRequests = mutableListOf<ApiV3ResolveCityDispositionRequest>()
+        val diplomaticVoteRequests = mutableListOf<ApiV3CastDiplomaticVoteRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1464,6 +1499,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onResolveCityDisposition: suspend (ApiV3ResolveCityDispositionRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onCastDiplomaticVote: suspend (ApiV3CastDiplomaticVoteRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
@@ -1735,6 +1773,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             cityDispositionRequests += request
             return onResolveCityDisposition(request)
+        }
+        override suspend fun castDiplomaticVote(
+            gameId: String,
+            request: ApiV3CastDiplomaticVoteRequest,
+        ): ApiV3CommandAccepted {
+            diplomaticVoteRequests += request
+            return onCastDiplomaticVote(request)
         }
         override suspend fun setCityTileAssignment(
             gameId: String,

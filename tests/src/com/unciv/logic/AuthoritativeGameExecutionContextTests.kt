@@ -6,6 +6,7 @@ import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.PopupAlert
+import com.unciv.logic.civilization.CivFlags
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
@@ -1462,6 +1463,49 @@ class AuthoritativeGameExecutionContextTests {
             engine.resolveCityDisposition(
                 testGame.gameInfo, actor.civName, captured.id, CityDispositionAction.Annex,
             )
+        }
+    }
+
+    @Test
+    fun diplomaticVoteCandidatesAndMutationAreCanonical() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        rome.addFlag(CivFlags.TurnsTillNextDiplomaticVote.name, 0)
+
+        val projection = engine.playerProjection(game, rome.civName)
+        Assert.assertTrue(PendingEndTurnAction.CastDiplomaticVote in projection.pendingTurnActions)
+        Assert.assertEquals(listOf(greece.civName), projection.diplomaticVoteCandidates)
+
+        engine.castDiplomaticVote(game, rome.civName, greece.civName)
+
+        Assert.assertEquals(greece.civName, game.diplomaticVictoryVotesCast[rome.civName])
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.castDiplomaticVote(game, rome.civName, greece.civName)
+        }
+    }
+
+    @Test
+    fun diplomaticVoteRejectsForeignUnknownAndOutOfTurnChoices() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+        rome.addFlag(CivFlags.TurnsTillNextDiplomaticVote.name, 0)
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.castDiplomaticVote(game, rome.civName, "Unknown")
+        }
+        val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalStateException::class.java) {
+            foreignEngine.castDiplomaticVote(game, rome.civName, greece.civName)
+        }
+        game.currentPlayer = greece.civName
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.castDiplomaticVote(game, rome.civName, null)
         }
     }
 

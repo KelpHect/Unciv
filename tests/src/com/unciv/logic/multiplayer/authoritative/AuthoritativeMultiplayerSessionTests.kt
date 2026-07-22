@@ -782,6 +782,35 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeDiplomaticVoteRoutesOnlyWhenOpenedAndRetriesTheSameCommand() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            voteFailuresRemaining = 1
+            current = current.copy(
+                projection = current.projection.copy(
+                    pendingTurnActions = listOf(PendingEndTurnAction.CastDiplomaticVote),
+                    diplomaticVoteCandidates = listOf("Greece"),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.castDiplomaticVoteIfOpen(GAME_ID, "Greece"))
+        session.openGame(GAME_ID)
+        assertTrue(session.castDiplomaticVoteIfOpen(
+            GAME_ID, "Greece",
+        ) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(session.castDiplomaticVoteIfOpen(
+            GAME_ID, "Greece",
+        ) is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.voteCommandIds.size)
+        assertEquals(transport.voteCommandIds[0], transport.voteCommandIds[1])
+        session.close()
+    }
+
+    @Test
     fun authoritativeConstructionRemovalAndMovementRouteFromAnOpenedGame() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
@@ -990,10 +1019,12 @@ class AuthoritativeMultiplayerSessionTests {
         val tilePurchaseCommandIds = mutableListOf<String>()
         val governanceCommandIds = mutableListOf<String>()
         val dispositionCommandIds = mutableListOf<String>()
+        val voteCommandIds = mutableListOf<String>()
         var purchaseFailuresRemaining = 0
         var tilePurchaseFailuresRemaining = 0
         var governanceFailuresRemaining = 0
         var dispositionFailuresRemaining = 0
+        var voteFailuresRemaining = 0
         var queueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
@@ -1570,6 +1601,28 @@ class AuthoritativeMultiplayerSessionTests {
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-${current.committedRevision + 1}",
                 projection = current.projection.copy(pendingCityDispositions = emptyList()),
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun castDiplomaticVote(
+            gameId: String,
+            request: ApiV3CastDiplomaticVoteRequest,
+        ): ApiV3CommandAccepted {
+            voteCommandIds += request.commandId
+            if (voteFailuresRemaining > 0) {
+                voteFailuresRemaining--
+                throw IOException("lost response")
+            }
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-${current.committedRevision + 1}",
+                projection = current.projection.copy(
+                    pendingTurnActions = emptyList(),
+                    diplomaticVoteCandidates = emptyList(),
+                ),
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

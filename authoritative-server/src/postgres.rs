@@ -12,10 +12,10 @@ use crate::auth::{
 use crate::projection::PlayerProjection;
 use crate::worker::{
     AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent,
-    BuyCityTileIntent, CancelUnitMovementOrderIntent, ChooseFreeTechnologyIntent,
-    DisbandUnitIntent, EngineWorkerClient, FoundCityIntent, LaunchNuclearStrikeIntent,
-    MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent,
-    PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
+    BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
+    ChooseFreeTechnologyIntent, DisbandUnitIntent, EngineWorkerClient, FoundCityIntent,
+    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
+    ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
     RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
     SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
@@ -97,6 +97,7 @@ mod city_economy;
 mod city_governance;
 mod city_population;
 mod commands;
+mod diplomacy;
 mod games;
 mod outbox;
 mod security;

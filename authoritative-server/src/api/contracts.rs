@@ -432,6 +432,15 @@ pub(super) struct ResolveCityDispositionRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct CastDiplomaticVoteRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) candidate_civilization_id: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SetCityTileAssignmentRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

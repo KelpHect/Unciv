@@ -1296,6 +1296,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/cast-diplomatic-vote": {
+      "post": {
+        "tags": [],
+        "operationId": "cast_diplomatic_vote",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastDiplomaticVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/choose-free-technology": {
       "post": {
         "tags": [],
@@ -5736,6 +5850,37 @@
           }
         }
       },
+      "CastDiplomaticVoteRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision"
+        ],
+        "properties": {
+          "candidate_civilization_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "ChangePasswordRequest": {
         "type": "object",
         "required": [
@@ -6449,7 +6594,8 @@
           "ownUnits",
           "exploredTiles",
           "visibleForeignUnits",
-          "pendingCityDispositions"
+          "pendingCityDispositions",
+          "diplomaticVoteCandidates"
         ],
         "properties": {
           "civilizationId": {
@@ -6457,6 +6603,12 @@
           },
           "currentPlayerCivilizationId": {
             "type": "string"
+          },
+          "diplomaticVoteCandidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "exploredTiles": {
             "type": "array",

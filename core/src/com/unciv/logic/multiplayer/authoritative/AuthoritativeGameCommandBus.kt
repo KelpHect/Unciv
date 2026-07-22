@@ -307,6 +307,13 @@ sealed interface PendingAuthoritativeCommand {
         val action: CityDispositionAction,
     ) : PendingAuthoritativeCommand
 
+    data class CastDiplomaticVote(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val candidateCivilizationId: String?,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -929,6 +936,22 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun castDiplomaticVote(candidateCivilizationId: String?) = mutex.withLock {
+        val current = requireSynchronized()
+        require(PendingEndTurnAction.CastDiplomaticVote in current.projection.pendingTurnActions) {
+            "Diplomatic vote is absent from the current player projection"
+        }
+        if (candidateCivilizationId != null) {
+            require(candidateCivilizationId in current.projection.diplomaticVoteCandidates) {
+                "Diplomatic vote candidate is absent from the current player projection"
+            }
+        }
+        submitLocked(PendingAuthoritativeCommand.CastDiplomaticVote(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            candidateCivilizationId,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1372,6 +1395,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3ResolveCityDispositionRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.action,
+                    ),
+                )
+                is PendingAuthoritativeCommand.CastDiplomaticVote -> transport.castDiplomaticVote(
+                    gameId,
+                    ApiV3CastDiplomaticVoteRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.candidateCivilizationId,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

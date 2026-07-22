@@ -19,7 +19,11 @@ class PlayerProjectionContractTests {
         val projection = json.decodeFromString(PlayerProjection.serializer(), fixture)
 
         assertEquals(3, projection.protocolVersion)
-        assertEquals(listOf(PendingEndTurnAction.PickPolicy), projection.pendingTurnActions)
+        assertEquals(
+            listOf(PendingEndTurnAction.PickPolicy, PendingEndTurnAction.CastDiplomaticVote),
+            projection.pendingTurnActions,
+        )
+        assertEquals(listOf("Greece"), projection.diplomaticVoteCandidates)
         assertEquals("Pottery", projection.research.currentTechnology)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
@@ -89,6 +93,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v19.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v20.fixture.json") }
         .first { it.isFile }
 }

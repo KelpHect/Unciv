@@ -4,7 +4,7 @@
   "turn": 12,
   "currentPlayerCivilizationId": "Rome",
   "isCurrentTurn": true,
-  "pendingTurnActions": ["pick_policy"],
+  "pendingTurnActions": ["pick_policy", "cast_diplomatic_vote"],
   "research": { "currentTechnology": "Pottery", "queue": ["Pottery", "Writing"], "selectableTargets": ["Archery", "Writing"], "freeTechnologyChoices": [] },
   "policies": { "storedCulture": 35, "cultureNeededForNextPolicy": 25, "freePolicies": 0, "adoptedPolicies": [], "selectablePolicies": ["Tradition"] },
   "gold": 321,
@@ -34,5 +34,6 @@
     { "x": 3, "y": -1, "visible": false, "improvementName": null, "improvementPillaged": null, "roadStatus": null, "roadPillaged": null }
   ],
   "visibleForeignUnits": [{ "id": 29, "civilizationId": "Greece", "name": "Scout", "x": 4, "y": -1, "health": 100, "currentMovement": 0.0, "movementDestinationX": null, "movementDestinationY": null, "automated": false, "exploring": false, "posture": null, "promotions": [], "promotionXp": null, "nextPromotionXp": null, "availablePromotions": [], "instanceName": null, "improvementOrder": [], "roadConnectionDestinationX": null, "roadConnectionDestinationY": null, "roadConnectionPath": [] }],
-  "pendingCityDispositions": [{ "cityId": "captured-city", "cityName": "Athens", "availableActions": ["liberate", "annex", "puppet", "raze"] }]
+  "pendingCityDispositions": [{ "cityId": "captured-city", "cityName": "Athens", "availableActions": ["liberate", "annex", "puppet", "raze"] }],
+  "diplomaticVoteCandidates": ["Greece"]
 }

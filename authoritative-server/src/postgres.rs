@@ -300,7 +300,7 @@ impl PostgresGameRepository {
         .await
     }
 
-    async fn commit_forced_resignation(
+    async fn commit_civilization_removal(
         &self,
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
@@ -497,7 +497,10 @@ impl PostgresGameRepository {
                         .map_err(CommitError::storage)?
                 }
                 MembershipRemoval::Civilization(civilization_id)
-                    if matches!(&envelope.command, crate::GameCommand::ForceResign {}) =>
+                    if matches!(
+                        &envelope.command,
+                        crate::GameCommand::ForceResign {} | crate::GameCommand::KickMember {}
+                    ) =>
                 {
                     sqlx::query(
                         "DELETE FROM game_members WHERE game_id = $1 AND civilization_id = $2",

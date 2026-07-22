@@ -65,6 +65,19 @@ fn force_resign_contract_contains_no_client_claimed_target_time_or_actor() {
 }
 
 #[test]
+fn kick_member_contract_contains_no_client_claimed_account_or_civilization() {
+    assert_eq!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({"type": "kick_member"})).unwrap(),
+        GameCommand::KickMember {},
+    );
+    for field in ["account_id", "civilization_id", "actor_id"] {
+        let mut value = serde_json::json!({"type": "kick_member"});
+        value[field] = serde_json::json!("untrusted");
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn queue_construction_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "queue_construction",

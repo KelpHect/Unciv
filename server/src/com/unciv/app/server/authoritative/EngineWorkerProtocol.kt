@@ -85,6 +85,13 @@ sealed interface WorkerOperation {
     @Serializable @SerialName("force_resign")
     data class ForceResign(val snapshot: String, val actorCivilizationId: String) : WorkerOperation
 
+    @Serializable @SerialName("kick_player")
+    data class KickPlayer(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val targetCivilizationId: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("move_unit")
     data class MoveUnit(
         val snapshot: String,
@@ -613,6 +620,15 @@ class AuthoritativeEngineWorker {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val forced = engine.forceResign(game, operation.actorCivilizationId)
                 responseForGame(engine, forced.result.game, forced.civilizationId)
+            }
+            is WorkerOperation.KickPlayer -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.kickPlayer(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.targetCivilizationId,
+                )
+                responseForGame(engine, result.game)
             }
             is WorkerOperation.MoveUnit -> {
                 val game = engine.loadSnapshot(operation.snapshot)

@@ -225,6 +225,13 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
     ) : PendingAuthoritativeCommand
 
+    data class KickMember(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val username: String,
+    ) : PendingAuthoritativeCommand
+
     data class QueueConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -522,6 +529,14 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         submitLocked(PendingAuthoritativeCommand.ForceResign(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+        ), current)
+    }
+
+    suspend fun kickMember(username: String) = mutex.withLock {
+        require(username.isNotBlank()) { "Username must not be blank" }
+        val current = requireSynchronized()
+        submitLocked(PendingAuthoritativeCommand.KickMember(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, username,
         ), current)
     }
 
@@ -1684,6 +1699,15 @@ class AuthoritativeGameCommandBus(
                         pending.commandId,
                         pending.expectedRevision,
                         pending.observedStateHash,
+                    ),
+                )
+                is PendingAuthoritativeCommand.KickMember -> transport.kickMember(
+                    gameId,
+                    ApiV3KickMemberRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                        pending.username,
                     ),
                 )
                 is PendingAuthoritativeCommand.QueueConstruction -> transport.queueConstruction(

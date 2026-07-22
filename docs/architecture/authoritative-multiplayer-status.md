@@ -3689,3 +3689,44 @@ Verification on 2026-07-22:
 The owner-invited public-summary spectator lifecycle is authoritative and
 leak-tested. The coverage audit now advances to game administration and the
 remaining partial command/projection families.
+
+## Authoritative owner kick
+
+API v3 now exposes a closed `KickMember` command for the authenticated game
+owner. The public request names only the account plus the standard command ID,
+expected revision, and observed hash; it cannot claim an actor, target account
+ID, civilization, AI result, turn effect, or membership mutation. PostgreSQL
+normalizes the username, verifies the owner role, and resolves the target's
+player membership and civilization before invoking the private worker.
+
+The Kotlin engine revalidates the membership-derived owner and target against
+canonical `GameInfo`, rejects self or non-human targets, transfers the selected
+civilization to server AI, clears its player identity, emits the shared public
+force-resignation notification, and advances canonical AI/turn rotation when
+the kicked civilization is current. Rust then atomically commits the immutable
+snapshot, revision, command journal, head, and outbox while deleting exactly
+that civilization's membership. A lost-response retry uses the same command ID
+and returns the prior result even though the membership is already gone.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin tests prove canonical target selection, AI handoff, identity
+  clearing, current-turn advancement, and replay rejection. The command-bus
+  test proves ambiguous retry reuses one command ID and the client sends no
+  actor or civilization claim.
+- `./gradlew :tests:test :server:test --no-daemon` completed 933 JVM tests with
+  13 intentional skips and zero failures.
+- Rust passed 79 active library tests and all 7 HTTP/OpenAPI tests, including
+  closed-command and Kotlin-compatible private worker wire contracts.
+- All 12 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55461; the live server reported `19beta2`. The disposable
+  `unciv-v3-kick-pg19b2` container was removed and cleanup verified.
+- Warnings-as-errors `cargo clippy --all-targets -- -D warnings` and the broad
+  JVM suite passed. Lifecycle request DTOs were proactively split into
+  `api/lifecycle_contracts.rs`; `main.rs` remains 6 lines, `lib.rs` remains a
+  28-line facade, and every Rust source remains below 800 lines.
+
+Owner kicking is authoritative, retry-safe, and synchronized with canonical
+server AI state. Ownership transfer and close/archive status remain the next
+game-administration slices.

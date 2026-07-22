@@ -91,6 +91,7 @@ interface ApiV3Transport {
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
     suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted
     suspend fun forceResign(gameId: String, request: ApiV3ForceResignRequest): ApiV3CommandAccepted
+    suspend fun kickMember(gameId: String, request: ApiV3KickMemberRequest): ApiV3CommandAccepted
     fun notifications(): Flow<ApiV3RevisionNotification>
 }
 

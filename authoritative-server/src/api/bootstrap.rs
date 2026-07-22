@@ -83,6 +83,10 @@ pub(crate) async fn run() {
             post(force_resign),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/kick-member",
+            post(kick_member),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/move-unit",
             post(move_unit),
         )

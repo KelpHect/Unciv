@@ -140,6 +140,23 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun ownerKickTransfersTheSelectedPlayerToServerAIAndAdvancesTheirTurn() {
+        val engine = HeadlessGameEngine(serverContext { serverTime + 5_000L })
+        val game = engine.createGame(testSetup()).game
+        val greece = game.getCivilization("Greece")
+        game.currentPlayer = greece.civID
+
+        engine.kickPlayer(game, "Rome", "Greece")
+
+        Assert.assertEquals(PlayerType.AI, greece.playerType)
+        Assert.assertEquals("", greece.playerId)
+        Assert.assertEquals("Rome", game.currentPlayer)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.kickPlayer(game, "Rome", "Greece")
+        }
+    }
+
+    @Test
     fun spectatorProjectionContainsOnlyTheExplicitPublicSummary() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

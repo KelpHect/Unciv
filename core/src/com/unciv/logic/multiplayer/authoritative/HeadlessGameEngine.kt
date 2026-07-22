@@ -731,6 +731,23 @@ class HeadlessGameEngine(
         return ForcedResignationResult(result(game), target.civID)
     }
 
+    /** Removes an owner-selected player from canonical online play. Both
+     * civilization IDs are resolved by the control plane from memberships. */
+    fun kickPlayer(
+        game: GameInfo,
+        actorCivilizationId: String,
+        targetCivilizationId: String,
+    ): EngineResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        require(targetCivilizationId != actor.civID) { "The owner cannot kick themselves" }
+        val target = game.getCivilization(targetCivilizationId)
+        require(target.playerType == PlayerType.Human && target.playerId.isNotEmpty()) {
+            "The target civilization is not controlled by a player"
+        }
+        transferPlayerToAi(game, target, actor.civName)
+        return result(game)
+    }
+
     private fun transferPlayerToAi(
         game: GameInfo,
         target: Civilization,

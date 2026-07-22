@@ -3,6 +3,9 @@ use std::{env, time::Duration};
 use super::*;
 use crate::{GameCommand, state_hash};
 
+#[path = "administration_integration_tests.rs"]
+mod administration;
+
 fn database_url() -> String {
     env::var("UNCIV_V3_DATABASE_URL")
         .expect("UNCIV_V3_DATABASE_URL is required for PostgreSQL integration tests")
@@ -196,7 +199,7 @@ async fn force_resignation_removes_only_the_worker_identified_membership() {
     };
 
     let accepted = repository
-        .commit_forced_resignation(
+        .commit_civilization_removal(
             owner,
             envelope.clone(),
             proposal(0, b"force-resigned-revision"),
@@ -205,7 +208,7 @@ async fn force_resignation_removes_only_the_worker_identified_membership() {
         .await
         .unwrap();
     let duplicate = repository
-        .commit_forced_resignation(
+        .commit_civilization_removal(
             owner,
             envelope,
             proposal(0, b"must-not-replace"),

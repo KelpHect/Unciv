@@ -659,6 +659,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun kickMember(
+        gameId: String,
+        request: ApiV3KickMemberRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/kick-member") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
         var retryDelayMillis = 250L
         while (currentCoroutineContext().isActive) {

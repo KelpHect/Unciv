@@ -43,6 +43,25 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun ownerKickCarriesOnlyTheAccountNameAndRetriesWithTheSameCommandId() = runBlocking {
+        val transport = FakeTransport(projection(7, "hash-7")).apply {
+            kickFailuresRemaining = 1
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "kick-command" }
+        bus.refresh()
+
+        assertSame(AuthoritativeCommandOutcome.RetryRequired, bus.kickMember("PlayerTwo"))
+        assertTrue(bus.retryPending() is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.kickRequests.size)
+        assertEquals(listOf("kick-command", "kick-command"), transport.kickRequests.map { it.commandId })
+        val encoded = Json.encodeToString(ApiV3KickMemberRequest.serializer(), transport.kickRequests.last())
+        assertTrue(encoded.contains("\"username\":\"PlayerTwo\""))
+        assertTrue(!encoded.contains("civilization"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun moveRequestWireShapeContainsNoActorOrStatePayload() {
         val encoded = Json.encodeToString(
             ApiV3MoveUnitRequest.serializer(),
@@ -1487,6 +1506,8 @@ class AuthoritativeGameCommandBusTests {
         var projectionCalls = 0
         val resignRequests = mutableListOf<ApiV3ResignRequest>()
         val forceResignRequests = mutableListOf<ApiV3ForceResignRequest>()
+        val kickRequests = mutableListOf<ApiV3KickMemberRequest>()
+        var kickFailuresRemaining = 0
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val cancelMovementOrderRequests = mutableListOf<ApiV3CancelUnitMovementOrderRequest>()
@@ -2068,6 +2089,23 @@ class AuthoritativeGameCommandBusTests {
                 request.expectedRevision,
                 request.expectedRevision + 1,
                 "force-resigned",
+            )
+        }
+        override suspend fun kickMember(
+            gameId: String,
+            request: ApiV3KickMemberRequest,
+        ): ApiV3CommandAccepted {
+            kickRequests += request
+            if (kickFailuresRemaining-- > 0) throw IOException("lost response")
+            current = current.copy(
+                committedRevision = request.expectedRevision + 1,
+                canonicalStateHash = "kicked",
+            )
+            return accepted(
+                request.commandId,
+                request.expectedRevision,
+                request.expectedRevision + 1,
+                "kicked",
             )
         }
         override fun notifications(): Flow<ApiV3RevisionNotification> = emptyFlow()

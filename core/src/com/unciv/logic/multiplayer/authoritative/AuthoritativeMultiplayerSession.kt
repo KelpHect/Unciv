@@ -699,6 +699,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun kickMemberIfOpen(
+        gameId: String,
+        username: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.KickMember &&
+                    current.pending.username == username) {
+                    "Resolve the pending authoritative command before kicking another member"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.kickMember(username)
+            else -> {
+                bus.refresh()
+                bus.kickMember(username)
+            }
+        }
+    }
+
     /** Selects research only for a game explicitly opened through API v3.
      * Legacy and local callers receive null and retain their existing path. */
     suspend fun setResearchPathIfOpen(

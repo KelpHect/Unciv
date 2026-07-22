@@ -738,6 +738,14 @@ data class ApiV3ForceResignRequest(
 )
 
 @Serializable
+data class ApiV3KickMemberRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    val username: String,
+)
+
+@Serializable
 data class ApiV3ErrorResponse(
     val code: String,
     @SerialName("current_revision") val currentRevision: Long? = null,

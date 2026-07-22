@@ -13,6 +13,8 @@ interface ApiV3Transport {
     suspend fun disableAccount(password: String)
     suspend fun deleteAccount(password: String)
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
+    suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
+    suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)
     suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection

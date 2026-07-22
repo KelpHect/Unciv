@@ -104,6 +104,36 @@ class AuthoritativeMultiplayerSession(
         return transport.listGames(after, limit)
     }
 
+    suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {
+        requireAuthenticated()
+        return transport.listPlayerInvitations()
+    }
+
+    suspend fun invitePlayer(
+        gameId: String,
+        username: String,
+        invitationId: String = UUID.randomUUID().toString(),
+    ) {
+        requireAuthenticated()
+        require(username.isNotBlank()) { "Username must not be blank" }
+        transport.invitePlayer(gameId, ApiV3InvitePlayerRequest(invitationId, username))
+    }
+
+    suspend fun acceptPlayerInvitation(
+        invitation: ApiV3PlayerInvitation,
+        commandId: String = UUID.randomUUID().toString(),
+    ): ApiV3CommandAccepted {
+        requireAuthenticated()
+        return transport.joinGame(
+            invitation.gameId,
+            ApiV3JoinGameRequest(
+                commandId,
+                invitation.committedRevision,
+                invitation.canonicalStateHash,
+            ),
+        )
+    }
+
     suspend fun addSpectator(gameId: String, username: String) {
         requireAuthenticated()
         transport.addSpectator(gameId, username)

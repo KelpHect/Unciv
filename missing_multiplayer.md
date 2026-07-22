@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-22 at commit `769ca5adc`. It records only work that is still incomplete;
+2026-07-22 on the authoritative-v3 feature branch. It records only incomplete work;
 completed command families and historical milestones remain in
 `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -63,8 +63,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: membership and game administration
 
-- [ ] Add owner-authorized player invitations or an explicit join policy rather
-  than treating knowledge of a game ID as sufficient product policy.
+- [ ] Wire the production player-setup UI to owner-authorized invitations,
+  target-scoped invitation discovery, stale-invitation refresh, and acceptance.
+  Durable backend policy, retry IDs, atomic consumption, and multi-revision
+  joins are implemented; knowledge of a game ID alone no longer authorizes join.
 - [ ] Wire production administration UI for owner kick, ownership transfer,
   close, and archive, including confirmation, retry with the same operation ID,
   status display, and clear handling when ownership changes remotely. The API,
@@ -225,10 +227,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 ## Current verification health
 
 - No known compile, test, formatting, clippy, or database integration error is
-  being deferred from the spectator milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (931 JVM tests, 13
+  being deferred from the player-invitation milestone.
+- `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
   intentional skips).
-- Rust passes 77 active library tests and 7 HTTP/OpenAPI tests; 11 serialized
+- Rust passes 80 active library tests and 7 HTTP/OpenAPI tests; 14 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

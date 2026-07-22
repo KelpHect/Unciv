@@ -5,6 +5,8 @@ use crate::{GameCommand, state_hash};
 
 #[path = "administration_integration_tests.rs"]
 mod administration;
+#[path = "invitation_integration_tests.rs"]
+mod invitations;
 
 fn database_url() -> String {
     env::var("UNCIV_V3_DATABASE_URL")

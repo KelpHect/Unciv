@@ -72,6 +72,21 @@ data class ApiV3GamePage(
 )
 
 @Serializable
+data class ApiV3PlayerInvitation(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("invitation_id") val invitationId: String,
+    @SerialName("invited_by") val invitedBy: String,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+)
+
+@Serializable
+data class ApiV3InvitePlayerRequest(
+    @SerialName("invitation_id") val invitationId: String,
+    val username: String,
+)
+
+@Serializable
 data class ApiV3JoinGameRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

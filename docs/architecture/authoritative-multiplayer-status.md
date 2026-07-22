@@ -3781,3 +3781,56 @@ Verification on 2026-07-22:
 The server-side game-administration lifecycle is authoritative, serialized,
 and retry-safe. Production UI wiring remains explicit; the coverage audit now
 returns to the remaining gameplay/projection and full-v3 lifecycle gaps.
+
+## Owner-authorized player invitations and multi-revision join
+
+Migration `0009_player_invitations.sql` replaces game-ID knowledge as join
+authority with durable owner-created invitations. An active game's owner names
+an enabled account and supplies a retry-stable invitation ID. Exact retries are
+successful even after consumption, changed reuse fails closed, targets already
+holding membership cannot be invited, and a partial unique index permits only
+one pending invitation per game/account while allowing a future reinvitation
+after a player has left.
+
+Authenticated targets can list only their own pending invitations. Each entry
+contains the game ID, invitation ID, inviter, current revision, and canonical
+hash required to construct a revision-bound join command; it contains no
+snapshot or player projection. Join checks the invitation before invoking the
+private Kotlin worker, then locks and rechecks the same invitation in the final
+PostgreSQL transaction. Invitation consumption, assigned membership, canonical
+snapshot, journal, immutable revision, head CAS, and outbox commit together.
+
+The audit also removed a revision-zero-only join restriction that prevented a
+second player from joining. Every invited player now joins the actual current
+revision, while Kotlin remains the sole component that selects an unclaimed
+canonical civilization and mutates `GameInfo`. The Kotlin transport/session
+preserves caller-stable invitation and command IDs and uses only the revision
+and hash projected by invitation discovery.
+
+Verification on 2026-07-22:
+
+- PostgreSQL tests prove normalized exact retry, changed-payload and non-owner
+  denial, target-only discovery, pre-worker denial, final-transaction denial,
+  atomic consumption at the committed revision, replay after consumption,
+  existing-member rejection, and two sequential players joining revisions zero
+  and one.
+- A focused Kotlin session test proves invitation discovery and acceptance pass
+  the server-projected revision/hash and caller-stable IDs without a client
+  civilization choice.
+- `./gradlew :tests:test :server:test --no-daemon` completed 935 JVM tests with
+  13 intentional skips and zero failures.
+- Rust passed 80 active library tests and all 7 HTTP/OpenAPI tests. The checked-in
+  OpenAPI document includes both authenticated invitation endpoints and closed
+  request contracts.
+- All 14 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55459; the live server reported `19beta2`. The disposable
+  `unciv-v3-invitations-pg19b2` container was removed and cleanup verified.
+- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings`, and `git diff --check` passed. `main.rs` remains 6 lines, `lib.rs`
+  remains a 28-line facade, and every Rust source remains below 800 lines.
+
+Player join is now explicitly owner-authorized, target-discoverable, retry-safe,
+and atomic at any current revision. Production player-setup UI wiring remains
+tracked; the coverage audit proceeds to the remaining full-v3 lifecycle and
+projection-only UI gaps.

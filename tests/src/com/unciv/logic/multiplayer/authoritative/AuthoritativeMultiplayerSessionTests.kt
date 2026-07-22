@@ -107,6 +107,34 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun playerInvitationsPreserveServerRevisionAndCallerStableIds() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        session.restore()
+        val invitation = ApiV3PlayerInvitation(
+            GAME_ID,
+            "invitation-id",
+            "owner",
+            7,
+            "hash-7",
+        )
+        transport.playerInvitations += invitation
+
+        session.invitePlayer(GAME_ID, "Invited_Player", "invitation-operation")
+        val discovered = session.listPlayerInvitations().single()
+        val accepted = session.acceptPlayerInvitation(discovered, "join-command")
+
+        assertEquals(
+            listOf(Triple(GAME_ID, "invitation-operation", "Invited_Player")),
+            transport.playerInvitationRequests,
+        )
+        assertEquals(listOf(Triple(GAME_ID, "join-command", 7L)), transport.joinRequests)
+        assertEquals("hash-7", transport.joinObservedHashes.single())
+        assertEquals(8, accepted.committedRevision)
+        session.close()
+    }
+
+    @Test
     fun spectatorLifecycleUsesOnlyThePublicProjectionEndpoint() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -1173,6 +1201,10 @@ class AuthoritativeMultiplayerSessionTests {
         val spectatorProjectionCalls = mutableListOf<String>()
         val leftSpectatorGames = mutableListOf<String>()
         val ownershipTransfers = mutableListOf<Triple<String, String, String>>()
+        val playerInvitations = mutableListOf<ApiV3PlayerInvitation>()
+        val playerInvitationRequests = mutableListOf<Triple<String, String, String>>()
+        val joinRequests = mutableListOf<Triple<String, String, Long>>()
+        val joinObservedHashes = mutableListOf<String>()
         val closedGames = mutableListOf<Pair<String, String>>()
         val archivedGames = mutableListOf<Pair<String, String>>()
         var disableFailure: Throwable? = null
@@ -1206,9 +1238,23 @@ class AuthoritativeMultiplayerSessionTests {
                 NEXT_GAME_ID,
             )
         }
+        override suspend fun listPlayerInvitations() = playerInvitations.toList()
+        override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {
+            playerInvitationRequests += Triple(gameId, request.invitationId, request.username)
+        }
         override suspend fun createGame(rulesetManifestHash: String) =
             ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
-        override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest) = unsupported()
+        override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted {
+            joinRequests += Triple(gameId, request.commandId, request.expectedRevision)
+            joinObservedHashes += request.clientObservedStateHash
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                request.expectedRevision + 1,
+                "joined-hash",
+            )
+        }
         override suspend fun projection(gameId: String): ApiV3GameProjection {
             projectionCalls++
             return current

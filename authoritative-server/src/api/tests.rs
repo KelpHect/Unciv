@@ -28,6 +28,8 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games",
         "/api/v3/games/{game_id}",
         "/api/v3/games/{game_id}/owner",
+        "/api/v3/games/{game_id}/player-invitations",
+        "/api/v3/player-invitations",
         "/api/v3/games/{game_id}/close",
         "/api/v3/games/{game_id}/archive",
         "/api/v3/games/{game_id}/projection",
@@ -135,6 +137,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
     }
     for schema in [
         "TransferOwnershipRequest",
+        "InvitePlayerRequest",
         "GameAdminOperationRequest",
         "AddSpectatorRequest",
         "EndTurnRequest",
@@ -211,6 +214,12 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
             "{schema} must remain a closed request object"
         );
     }
+    assert!(
+        document["components"]["schemas"]
+            .as_object()
+            .unwrap()
+            .contains_key("PlayerInvitation")
+    );
     assert!(
         document["components"]["schemas"]["GameProjection"]["properties"]["projection"]["$ref"]
             .as_str()

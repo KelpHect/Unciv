@@ -124,6 +124,18 @@ class ApiV3Client(
         })
     }
 
+    override suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> =
+        decode(client.get("api/v3/player-invitations") { authenticate() })
+
+    override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {
+        val response = client.put("api/v3/games/$gameId/player-invitations") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
     override suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata =
         decode(client.post("api/v3/games") {
             authenticate()

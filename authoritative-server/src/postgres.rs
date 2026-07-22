@@ -84,6 +84,15 @@ pub struct GamePage {
     pub next_cursor: Option<Uuid>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct PlayerInvitation {
+    pub game_id: Uuid,
+    pub invitation_id: Uuid,
+    pub invited_by: String,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+}
+
 #[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GameProjection {
     pub game_id: Uuid,
@@ -127,6 +136,7 @@ mod espionage;
 mod event_choices;
 mod games;
 mod great_people;
+mod invitations;
 mod lifecycle;
 mod major_diplomacy;
 mod outbox;
@@ -391,9 +401,21 @@ impl PostgresGameRepository {
             return Err(CommitError::WorkerRevisionMismatch);
         }
 
+        let mut consumed_invitation_id: Option<Uuid> = None;
         if let Some(assignment) = new_member {
-            if !matches!(&envelope.command, crate::GameCommand::JoinGame) || current_revision != 0 {
+            if !matches!(&envelope.command, crate::GameCommand::JoinGame) {
                 return Err(CommitError::InvalidCommand);
+            }
+            consumed_invitation_id = sqlx::query_scalar(
+                "SELECT invitation_id FROM game_player_invitations WHERE game_id=$1 AND invited_account_id=$2 AND consumed_at IS NULL FOR UPDATE",
+            )
+            .bind(envelope.game_id)
+            .bind(actor_account_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            if consumed_invitation_id.is_none() {
+                return Err(CommitError::Unauthorized);
             }
             let membership_exists: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id = $1 AND account_id = $2)",
@@ -433,6 +455,20 @@ impl PostgresGameRepository {
             .checked_add(1)
             .expect("revision overflow is impossible in practice");
         let next_revision_i64 = i64::try_from(next_revision).expect("revision fits BIGINT");
+        if let Some(invitation_id) = consumed_invitation_id {
+            let consumed = sqlx::query(
+                "UPDATE game_player_invitations SET consumed_at=now(), consumed_revision=$3 WHERE game_id=$1 AND invitation_id=$2 AND consumed_at IS NULL",
+            )
+            .bind(envelope.game_id)
+            .bind(invitation_id)
+            .bind(next_revision_i64)
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+            if consumed.rows_affected() != 1 {
+                return Err(CommitError::Unauthorized);
+            }
+        }
         let snapshot_size =
             i64::try_from(proposal.snapshot.len()).expect("snapshot length fits BIGINT");
         let manifest_hash: String = head.get("ruleset_manifest_hash");

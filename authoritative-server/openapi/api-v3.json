@@ -8380,6 +8380,93 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/player-invitations": {
+      "put": {
+        "tags": [],
+        "operationId": "invite_player",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitePlayerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/projection": {
       "get": {
         "tags": [],
@@ -8707,6 +8794,52 @@
             }
           }
         }
+      }
+    },
+    "/api/v3/player-invitations": {
+      "get": {
+        "tags": [],
+        "operationId": "list_player_invitations",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlayerInvitation"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
       }
     },
     "/healthz": {
@@ -9995,6 +10128,23 @@
           }
         }
       },
+      "InvitePlayerRequest": {
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "username"
+        ],
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "JoinGameRequest": {
         "type": "object",
         "required": [
@@ -10381,6 +10531,37 @@
           }
         },
         "additionalProperties": false
+      },
+      "PlayerInvitation": {
+        "type": "object",
+        "required": [
+          "game_id",
+          "invitation_id",
+          "invited_by",
+          "committed_revision",
+          "canonical_state_hash"
+        ],
+        "properties": {
+          "canonical_state_hash": {
+            "type": "string"
+          },
+          "committed_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "game_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invited_by": {
+            "type": "string"
+          }
+        }
       },
       "PlayerProjection": {
         "type": "object",

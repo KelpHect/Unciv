@@ -656,9 +656,7 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        if !matches!(&envelope.command, crate::GameCommand::JoinGame)
-            || envelope.expected_revision != 0
-        {
+        if !matches!(&envelope.command, crate::GameCommand::JoinGame) {
             return Err(CommitError::InvalidCommand);
         }
         if let Some(accepted) = self
@@ -667,6 +665,8 @@ impl PostgresGameRepository {
         {
             return Ok(accepted);
         }
+        self.require_pending_player_invitation(envelope.game_id, actor_account_id)
+            .await?;
         let worker_state = self.worker_command_state(envelope.game_id).await?;
         let assigned = worker
             .assign_player(

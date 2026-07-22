@@ -6,6 +6,8 @@ use crate::{
     ReligiousUnitAction, UnitPosture,
 };
 
+pub use crate::projection_combat::*;
+
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SpectatorProjection {
@@ -416,8 +418,8 @@ pub struct ProjectedUnit {
     pub move_destinations: Vec<ProjectedMovementDestination>,
     pub swap_destinations: Vec<ProjectedMovementDestination>,
     pub attack_targets: Vec<ProjectedAttackTarget>,
-    pub nuclear_target_candidates: Vec<ProjectedTargetCoordinate>,
-    pub air_sweep_targets: Vec<ProjectedTargetCoordinate>,
+    pub nuclear_target_candidates: Vec<ProjectedNuclearTarget>,
+    pub air_sweep_targets: Vec<ProjectedAirSweepTarget>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
@@ -432,59 +434,6 @@ pub struct ProjectedMovementDestination {
 pub struct ProjectedTargetCoordinate {
     pub x: i32,
     pub y: i32,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProjectedAttackTarget {
-    pub x: i32,
-    pub y: i32,
-    pub attack_from_x: i32,
-    pub attack_from_y: i32,
-    pub preview: ProjectedCombatPreview,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProjectedBombardTarget {
-    pub x: i32,
-    pub y: i32,
-    pub preview: ProjectedCombatPreview,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProjectedCombatPreview {
-    pub attacker_base_strength: i32,
-    pub defender_base_strength: i32,
-    pub attacker_effective_strength: i32,
-    pub defender_effective_strength: i32,
-    pub attacker_modifiers: Vec<ProjectedCombatModifier>,
-    pub defender_modifiers: Vec<ProjectedCombatModifier>,
-    pub attacker_health: i32,
-    pub attacker_max_health: i32,
-    pub defender_health: i32,
-    pub defender_max_health: i32,
-    pub attacker_min_remaining_health: Option<i32>,
-    pub attacker_max_remaining_health: Option<i32>,
-    pub defender_min_remaining_health: Option<i32>,
-    pub defender_max_remaining_health: Option<i32>,
-    pub outcome: Option<ProjectedCombatOutcome>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProjectedCombatModifier {
-    pub label: String,
-    pub percent: i32,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ProjectedCombatOutcome {
-    Captured,
-    Occupied,
-    NoEstimate,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -533,7 +482,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -725,7 +674,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -739,7 +688,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

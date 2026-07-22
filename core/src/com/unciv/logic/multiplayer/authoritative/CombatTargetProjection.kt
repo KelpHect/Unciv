@@ -4,6 +4,7 @@ import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.battle.Battle
 import com.unciv.logic.battle.CityCombatant
 import com.unciv.logic.battle.MapUnitCombatant
+import com.unciv.logic.battle.BattleDamage
 import com.unciv.logic.city.City
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
@@ -61,25 +62,40 @@ internal object CombatTargetProjection {
 
     /** These are candidates, not a hidden-state-derived legality oracle. The
      * worker rechecks every blast victim and diplomacy constraint on submit. */
-    fun nuclearTargetCandidates(unit: MapUnit, enabled: Boolean): List<ProjectedTargetCoordinate> {
+    fun nuclearTargetCandidates(unit: MapUnit, enabled: Boolean): List<ProjectedNuclearTarget> {
         if (!enabled || !unit.isNuclearWeapon() || !unit.canAttack()) return emptyList()
-        val targets = ArrayList<ProjectedTargetCoordinate>()
+        val targets = ArrayList<ProjectedNuclearTarget>()
+        val blastRadius = unit.getNukeBlastRadius()
         unit.getTile().forEachTileInDistance(unit.getRange()) {
             if (it != unit.getTile() && it.isExplored(unit.civ))
-                targets += ProjectedTargetCoordinate(it.position.x, it.position.y)
+                targets += ProjectedNuclearTarget(
+                    it.position.x,
+                    it.position.y,
+                    blastRadius,
+                    ProjectedNuclearEffectDisclosure.HiddenUntilCommit,
+                )
         }
-        return targets.sortedWith(compareBy<ProjectedTargetCoordinate> { it.x }.thenBy { it.y })
+        return targets.sortedWith(compareBy<ProjectedNuclearTarget> { it.x }.thenBy { it.y })
             .take(MAX_TARGETS_PER_ENTITY)
     }
 
-    fun airSweepTargets(unit: MapUnit, enabled: Boolean): List<ProjectedTargetCoordinate> {
+    fun airSweepTargets(unit: MapUnit, enabled: Boolean): List<ProjectedAirSweepTarget> {
         if (!enabled || !unit.hasUnique(UniqueType.CanAirsweep) || !unit.canAttack()) return emptyList()
-        val targets = ArrayList<ProjectedTargetCoordinate>()
+        val attacker = MapUnitCombatant(unit)
+        val targets = ArrayList<ProjectedAirSweepTarget>()
         unit.getTile().forEachTileInDistance(unit.getRange()) {
             if (it != unit.getTile())
-                targets += ProjectedTargetCoordinate(it.position.x, it.position.y)
+                targets += ProjectedAirSweepTarget(
+                    it.position.x,
+                    it.position.y,
+                    attacker.getAttackingStrength(),
+                    CombatPreviewProjection.modifiers(BattleDamage.getAirSweepAttackModifiers(attacker)),
+                    attacker.getHealth(),
+                    attacker.getMaxHealth(),
+                    ProjectedAirSweepInterceptorDisclosure.HiddenUntilCommit,
+                )
         }
-        return targets.sortedWith(compareBy<ProjectedTargetCoordinate> { it.x }.thenBy { it.y })
+        return targets.sortedWith(compareBy<ProjectedAirSweepTarget> { it.x }.thenBy { it.y })
             .take(MAX_TARGETS_PER_ENTITY)
     }
 }

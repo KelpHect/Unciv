@@ -38,16 +38,6 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: partial gameplay and projection families
 
-- [ ] Combat special-action previews: projection v44 now embeds deterministic,
-  bounded base/effective strengths, sorted modifier summaries, health ranges,
-  and capture/occupation outcomes into already-authorized visible unit-attack
-  and city-bombard targets. The opened-v3 confirmation panel renders only that
-  server projection. Nuclear entries deliberately remain candidates because
-  filtering or previewing exact blast occupants would create a confidentiality
-  oracle, and air-sweep entries do not reveal hidden interceptors. Decide which
-  coarse, non-oracular blast-radius and air-sweep explanation the product still
-  needs; the worker must continue revalidating every hidden victim/interceptor
-  and diplomacy constraint on commit.
 - [ ] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
   cancellation commands. Siege setup now uses the closed `setup` posture in
@@ -265,8 +255,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 34-line facade, and the largest Rust source
-  is 792 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 6 lines, `lib.rs` is a 35-line facade, and the largest Rust source
+  is 783 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

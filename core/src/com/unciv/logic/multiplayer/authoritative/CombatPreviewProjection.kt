@@ -77,7 +77,7 @@ internal object CombatPreviewProjection {
         )
     }
 
-    private fun modifiers(values: Map<String, Int>) = values.entries.asSequence()
+    fun modifiers(values: Map<String, Int>) = values.entries.asSequence()
         .groupBy { it.key.take(MAX_MODIFIER_LABEL_LENGTH) }
         .map { (label, matching) ->
             val combined = matching.sumOf { it.value.toLong() }

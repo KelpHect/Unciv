@@ -20,6 +20,8 @@ import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.ProjectedCombatOutcome
 import com.unciv.logic.multiplayer.authoritative.ProjectedCombatPreview
+import com.unciv.logic.multiplayer.authoritative.ProjectedAirSweepTarget
+import com.unciv.logic.multiplayer.authoritative.ProjectedNuclearTarget
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.translations.tr
@@ -149,6 +151,15 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
             else -> null
         }
         if (preview != null) addAuthoritativePreview(preview)
+        if (attacker is MapUnitCombatant) when (action.second) {
+            AuthoritativeCombatAction.NuclearStrike -> AuthoritativeCombatUi
+                .nuclearTarget(worldScreen, attacker.unit, target)
+                ?.let(::addAuthoritativeNuclearPreview)
+            AuthoritativeCombatAction.AirSweep -> AuthoritativeCombatUi
+                .airSweepTarget(worldScreen, attacker.unit, target)
+                ?.let(::addAuthoritativeAirSweepPreview)
+            else -> Unit
+        }
         val actionButton = action.first.toTextButton().apply { color = Color.RED }
         if (!worldScreen.isPlayersTurn) {
             actionButton.disable()
@@ -228,6 +239,35 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
                 ).toLabel()).row()
             }
         }
+    }
+
+    private fun addAuthoritativeNuclearPreview(target: ProjectedNuclearTarget) {
+        add("Blast radius: ${target.blastRadius} tiles".toLabel()).colspan(2).row()
+        add("Affected units, cities, diplomacy, and outcomes remain hidden until the server commits the strike."
+            .toLabel(fontSize = 14).apply { wrap = true })
+            .width(quarterScreen * 2)
+            .colspan(2)
+            .row()
+    }
+
+    private fun addAuthoritativeAirSweepPreview(target: ProjectedAirSweepTarget) {
+        add("${target.attackerBaseStrength}${Fonts.rangedStrength}".toLabel()).colspan(2).row()
+        if (target.attackerModifiers.isNotEmpty()) {
+            add(createModifiersScroll(target.attackerModifiers.map {
+                getModifierTable(it.label, it.percent)
+            })).pad(0f).colspan(2).fillY().row()
+        }
+        add(getHealthBar(
+            target.attackerMaxHealth,
+            target.attackerHealth,
+            target.attackerHealth,
+            target.attackerHealth,
+        )).colspan(2).row()
+        add("An eligible interceptor may engage; its identity and outcome remain hidden until the server commits the sweep."
+            .toLabel(fontSize = 14).apply { wrap = true })
+            .width(quarterScreen * 2)
+            .colspan(2)
+            .row()
     }
 
     private fun healthEstimate(health: Int, minimum: Int, maximum: Int): String = when {

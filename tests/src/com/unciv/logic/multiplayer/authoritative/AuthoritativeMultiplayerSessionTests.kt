@@ -526,7 +526,7 @@ class AuthoritativeMultiplayerSessionTests {
     fun nuclearStrikeRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val nuke = ProjectedUnit(
             42, "Rome", "Nuclear Missile", 0, 0, 100, 2f,
-            nuclearTargetCandidates = listOf(ProjectedTargetCoordinate(4, -1)),
+            nuclearTargetCandidates = listOf(testNuclearTarget(4, -1)),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -551,7 +551,7 @@ class AuthoritativeMultiplayerSessionTests {
     fun airSweepRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val fighter = ProjectedUnit(
             42, "Rome", "Fighter", 0, 0, 100, 1f,
-            airSweepTargets = listOf(ProjectedTargetCoordinate(4, -1)),
+            airSweepTargets = listOf(testAirSweepTarget(4, -1)),
         )
         val transport = FakeTransport().apply {
             restored = true

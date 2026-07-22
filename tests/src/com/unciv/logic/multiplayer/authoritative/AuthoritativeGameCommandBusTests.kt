@@ -428,7 +428,7 @@ class AuthoritativeGameCommandBusTests {
     fun nuclearStrikeRequestContainsOnlyOwnedUnitAndExploredTargetIntent() = runBlocking {
         val nuke = ProjectedUnit(
             42, "Rome", "Nuclear Missile", 0, 0, 100, 2f,
-            nuclearTargetCandidates = listOf(ProjectedTargetCoordinate(4, -1)),
+            nuclearTargetCandidates = listOf(testNuclearTarget(4, -1)),
         )
         val initial = projection(
             7, "hash-7",
@@ -465,7 +465,7 @@ class AuthoritativeGameCommandBusTests {
     fun airSweepRequestContainsOnlyOwnedUnitAndTargetIntent() = runBlocking {
         val fighter = ProjectedUnit(
             42, "Rome", "Fighter", 0, 0, 100, 1f,
-            airSweepTargets = listOf(ProjectedTargetCoordinate(4, -1)),
+            airSweepTargets = listOf(testAirSweepTarget(4, -1)),
         )
         val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(fighter))).apply {
             onAirSweep = { request ->

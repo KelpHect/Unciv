@@ -62,10 +62,20 @@ class PlayerProjectionContractTests {
         assertEquals(11, attackTarget.preview.attackerEffectiveStrength)
         assertEquals(listOf(ProjectedCombatModifier("Flanking", 10)),
             attackTarget.preview.attackerModifiers)
-        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
-            projection.ownUnits.single().nuclearTargetCandidates)
-        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
-            projection.ownUnits.single().airSweepTargets)
+        val nuclearTarget = projection.ownUnits.single().nuclearTargetCandidates.single()
+        assertEquals(ProjectedTargetCoordinate(2, -1),
+            ProjectedTargetCoordinate(nuclearTarget.x, nuclearTarget.y))
+        assertEquals(2, nuclearTarget.blastRadius)
+        assertEquals(ProjectedNuclearEffectDisclosure.HiddenUntilCommit,
+            nuclearTarget.effectDisclosure)
+        val airSweepTarget = projection.ownUnits.single().airSweepTargets.single()
+        assertEquals(ProjectedTargetCoordinate(2, -1),
+            ProjectedTargetCoordinate(airSweepTarget.x, airSweepTarget.y))
+        assertEquals(10, airSweepTarget.attackerBaseStrength)
+        assertEquals(listOf(ProjectedCombatModifier("Sweep bonus", 25)),
+            airSweepTarget.attackerModifiers)
+        assertEquals(ProjectedAirSweepInterceptorDisclosure.HiddenUntilCommit,
+            airSweepTarget.interceptorDisclosure)
         assertEquals(ProjectedTargetCoordinate(2, -1), projection.ownCities.single()
             .bombardTargets.single().let { ProjectedTargetCoordinate(it.x, it.y) })
         assertEquals(70, projection.ownCities.single().bombardTargets.single()
@@ -106,9 +116,9 @@ class PlayerProjectionContractTests {
             projection.visibleForeignUnits.single().swapDestinations)
         assertEquals(emptyList<ProjectedAttackTarget>(),
             projection.visibleForeignUnits.single().attackTargets)
-        assertEquals(emptyList<ProjectedTargetCoordinate>(),
+        assertEquals(emptyList<ProjectedNuclearTarget>(),
             projection.visibleForeignUnits.single().nuclearTargetCandidates)
-        assertEquals(emptyList<ProjectedTargetCoordinate>(),
+        assertEquals(emptyList<ProjectedAirSweepTarget>(),
             projection.visibleForeignUnits.single().airSweepTargets)
         assertEquals(
             json.parseToJsonElement(fixture),
@@ -146,6 +156,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v44.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v45.fixture.json") }
         .first { it.isFile }
 }

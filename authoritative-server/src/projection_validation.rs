@@ -3,17 +3,18 @@ use crate::projection::{
     ProjectedTargetCoordinate,
 };
 
+fn combat_modifiers_are_valid(modifiers: &[crate::projection::ProjectedCombatModifier]) -> bool {
+    modifiers.len() <= 64
+        && modifiers
+            .iter()
+            .all(|modifier| !modifier.label.is_empty() && modifier.label.chars().count() <= 200)
+        && modifiers.windows(2).all(|pair| pair[0] < pair[1])
+}
+
 impl ProjectedCombatPreview {
     fn is_consistent(&self) -> bool {
         let health_is_valid =
             |health: i32, maximum: i32| maximum > 0 && (0..=maximum).contains(&health);
-        let modifiers_are_valid = |modifiers: &[crate::projection::ProjectedCombatModifier]| {
-            modifiers.len() <= 64
-                && modifiers.iter().all(|modifier| {
-                    !modifier.label.is_empty() && modifier.label.chars().count() <= 200
-                })
-                && modifiers.windows(2).all(|pair| pair[0] < pair[1])
-        };
         let remaining = [
             self.attacker_min_remaining_health,
             self.attacker_max_remaining_health,
@@ -40,8 +41,8 @@ impl ProjectedCombatPreview {
             && self.defender_effective_strength >= 1
             && health_is_valid(self.attacker_health, self.attacker_max_health)
             && health_is_valid(self.defender_health, self.defender_max_health)
-            && modifiers_are_valid(&self.attacker_modifiers)
-            && modifiers_are_valid(&self.defender_modifiers)
+            && combat_modifiers_are_valid(&self.attacker_modifiers)
+            && combat_modifiers_are_valid(&self.defender_modifiers)
             && remaining_is_valid
     }
 }
@@ -105,9 +106,6 @@ impl PlayerProjection {
                 .iter()
                 .any(|tile| tile.x == coordinate.x && tile.y == coordinate.y && tile.visible)
         };
-        let coordinates_are_sorted = |coordinates: &[ProjectedTargetCoordinate]| {
-            coordinates.len() <= 10_000 && coordinates.windows(2).all(|pair| pair[0] < pair[1])
-        };
         let coordinate_pairs_are_sorted = |coordinates: &[(i32, i32)]| {
             coordinates.len() <= 10_000 && coordinates.windows(2).all(|pair| pair[0] < pair[1])
         };
@@ -161,19 +159,35 @@ impl PlayerProjection {
                         y: target.attack_from_y,
                     }) && target.preview.is_consistent()
                 })
-                && coordinates_are_sorted(&unit.nuclear_target_candidates)
+                && coordinate_pairs_are_sorted(
+                    &unit
+                        .nuclear_target_candidates
+                        .iter()
+                        .map(|target| (target.x, target.y))
+                        .collect::<Vec<_>>(),
+                )
                 && unit.nuclear_target_candidates.iter().all(|target| {
                     (target.x != unit.x || target.y != unit.y)
+                        && (0..=1_000).contains(&target.blast_radius)
                         && self
                             .explored_tiles
                             .iter()
                             .any(|tile| tile.x == target.x && tile.y == target.y)
                 })
-                && coordinates_are_sorted(&unit.air_sweep_targets)
-                && unit
-                    .air_sweep_targets
-                    .iter()
-                    .all(|target| target.x != unit.x || target.y != unit.y)
+                && coordinate_pairs_are_sorted(
+                    &unit
+                        .air_sweep_targets
+                        .iter()
+                        .map(|target| (target.x, target.y))
+                        .collect::<Vec<_>>(),
+                )
+                && unit.air_sweep_targets.iter().all(|target| {
+                    (target.x != unit.x || target.y != unit.y)
+                        && target.attacker_base_strength >= 0
+                        && target.attacker_max_health > 0
+                        && (0..=target.attacker_max_health).contains(&target.attacker_health)
+                        && combat_modifiers_are_valid(&target.attacker_modifiers)
+                })
         })
     }
 }

@@ -24,6 +24,8 @@ import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
 import com.unciv.logic.multiplayer.authoritative.ProjectedMovementDestination
+import com.unciv.logic.multiplayer.authoritative.ProjectedAirSweepInterceptorDisclosure
+import com.unciv.logic.multiplayer.authoritative.ProjectedNuclearEffectDisclosure
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
@@ -1416,8 +1418,13 @@ class AuthoritativeGameExecutionContextTests {
         val candidatesAfterHiddenVictim = engine.playerProjection(game, "Rome").ownUnits
             .single { it.id == nuke.id }.nuclearTargetCandidates
         Assert.assertEquals(candidatesBeforeHiddenVictim, candidatesAfterHiddenVictim)
-        Assert.assertTrue(candidatesAfterHiddenVictim
-            .any { it.x == target.position.x && it.y == target.position.y })
+        val projectedTarget = candidatesAfterHiddenVictim
+            .single { it.x == target.position.x && it.y == target.position.y }
+        Assert.assertEquals(nuke.getNukeBlastRadius(), projectedTarget.blastRadius)
+        Assert.assertEquals(
+            ProjectedNuclearEffectDisclosure.HiddenUntilCommit,
+            projectedTarget.effectDisclosure,
+        )
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.launchNuclearStrike(
@@ -1484,13 +1491,23 @@ class AuthoritativeGameExecutionContextTests {
             .first { it.isLand && !it.isCityCenter() && it.getUnits().none() }
         val greekCity = greece.addCity(target.position)
         val attacker = rome.units.placeUnitNearTile(romanCity.location, "Fighter")!!
+        val targetsBeforeInterceptors = engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == attacker.id }.airSweepTargets
         val interceptors = listOf(
             greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
             greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
         )
-        Assert.assertTrue(engine.playerProjection(game, "Rome").ownUnits
+        val targetsAfterInterceptors = engine.playerProjection(game, "Rome").ownUnits
             .single { it.id == attacker.id }.airSweepTargets
-            .any { it.x == target.position.x && it.y == target.position.y })
+        Assert.assertEquals(targetsBeforeInterceptors, targetsAfterInterceptors)
+        val projectedTarget = targetsAfterInterceptors
+            .single { it.x == target.position.x && it.y == target.position.y }
+        Assert.assertTrue(projectedTarget.attackerBaseStrength > 0)
+        Assert.assertEquals(attacker.health, projectedTarget.attackerHealth)
+        Assert.assertEquals(
+            ProjectedAirSweepInterceptorDisclosure.HiddenUntilCommit,
+            projectedTarget.interceptorDisclosure,
+        )
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.airSweep(

@@ -4457,3 +4457,55 @@ Verification on 2026-07-22:
   to non-null UI helpers after adding the closed `no_estimate` outcome. The UI
   now fails closed with `requireNotNull` only in the ordinary damage branch;
   the full gate was rerun cleanly, so no error is deferred.
+
+## Non-oracular nuclear and air-sweep confirmations (projection v45)
+
+Special-combat confirmation is now projection-only without turning target
+selection into a hidden-state oracle. Each nuclear candidate carries the
+canonical weapon blast radius and a closed `hidden_until_commit` effect
+disclosure. Each air-sweep candidate carries only the acting player's base
+strength, bounded sorted sweep modifiers, current/max health, and a closed
+`hidden_until_commit` interceptor disclosure. No victim, interceptor,
+diplomatic consequence, random value, damage estimate, or outcome is included.
+
+The opened-v3 battle panel renders those fields and explicitly explains that
+the private Kotlin worker resolves affected entities, diplomacy, interception,
+and outcomes on commit. It does not call `Nuke`, `AirInterception`,
+`BattleDamage`, or local target rules. Candidate coordinates remain deliberately
+coarse: nuclear targets depend only on own capability/range and exploration;
+air-sweep targets depend only on own capability/range. The Rust public boundary
+accepts only the closed projection-v45 shapes, bounds radii, health, modifier
+counts/labels, ordering, ownership, and turn availability, and rejects unknown
+fields or enum values.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin engine tests prove the nuclear candidate list and metadata are
+  identical before and after adding a hidden blast victim, and the air-sweep
+  list and metadata are identical before and after adding hidden interceptors.
+  Session and command-bus tests preserve projection-only preflight and submit
+  only unit ID plus target coordinates.
+- The shared projection-v45 fixture round-trips exactly in Kotlin and Rust.
+  Rust semantic tests reject duplicate, foreign, out-of-turn, oversized, and
+  invalid-health metadata. Generated OpenAPI was regenerated and its checked-in
+  parity test passes.
+- The focused Gradle suite covering the engine, projection contract, command
+  bus, and session passes. `cargo test --all-targets` passes 90 active library
+  tests and 7 HTTP/OpenAPI tests, with 17 database tests intentionally ignored
+  until the explicit PostgreSQL lane.
+- `./gradlew :tests:test :server:test --no-daemon` passes 950 JVM/server
+  tests with 13 intentional skips and zero failures or errors. Rust passes 90
+  active library tests and all 7 HTTP/OpenAPI tests; `cargo fmt --check` and
+  warnings-as-errors Clippy pass.
+- All 17 serialized integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55462; the live server reported `PostgreSQL 19beta2`. The first
+  disposable run used the obsolete pre-18 data-directory mount and correctly
+  failed startup. It was recreated with `/var/lib/postgresql`, matching the
+  checked-in compose file, then the full database lane passed. Disposable
+  container, network, and volume cleanup was verified.
+- Adding the projection-v45 types briefly pushed `projection.rs` to 825 lines.
+  Combat wire types now live in focused `projection_combat.rs`; `projection.rs`
+  is below the 800-line guardrail, while `main.rs` and `lib.rs` remain thin.
+  No compile, test, formatting, Clippy, OpenAPI, database, or disposable-resource
+  error is deferred.

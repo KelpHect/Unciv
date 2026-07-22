@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 44
+        const val CURRENT_PROJECTION_VERSION = 45
     }
 }
 
@@ -306,8 +306,8 @@ data class ProjectedUnit(
     val moveDestinations: List<ProjectedMovementDestination> = emptyList(),
     val swapDestinations: List<ProjectedMovementDestination> = emptyList(),
     val attackTargets: List<ProjectedAttackTarget> = emptyList(),
-    val nuclearTargetCandidates: List<ProjectedTargetCoordinate> = emptyList(),
-    val airSweepTargets: List<ProjectedTargetCoordinate> = emptyList(),
+    val nuclearTargetCandidates: List<ProjectedNuclearTarget> = emptyList(),
+    val airSweepTargets: List<ProjectedAirSweepTarget> = emptyList(),
 )
 
 @Serializable
@@ -315,6 +315,35 @@ data class ProjectedMovementDestination(val x: Int, val y: Int)
 
 @Serializable
 data class ProjectedTargetCoordinate(val x: Int, val y: Int)
+
+@Serializable
+data class ProjectedNuclearTarget(
+    val x: Int,
+    val y: Int,
+    val blastRadius: Int,
+    val effectDisclosure: ProjectedNuclearEffectDisclosure,
+)
+
+@Serializable
+enum class ProjectedNuclearEffectDisclosure {
+    @SerialName("hidden_until_commit") HiddenUntilCommit,
+}
+
+@Serializable
+data class ProjectedAirSweepTarget(
+    val x: Int,
+    val y: Int,
+    val attackerBaseStrength: Int,
+    val attackerModifiers: List<ProjectedCombatModifier>,
+    val attackerHealth: Int,
+    val attackerMaxHealth: Int,
+    val interceptorDisclosure: ProjectedAirSweepInterceptorDisclosure,
+)
+
+@Serializable
+enum class ProjectedAirSweepInterceptorDisclosure {
+    @SerialName("hidden_until_commit") HiddenUntilCommit,
+}
 
 @Serializable
 data class ProjectedAttackTarget(

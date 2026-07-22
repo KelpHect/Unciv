@@ -10887,6 +10887,56 @@
         },
         "additionalProperties": false
       },
+      "ProjectedAirSweepInterceptorDisclosure": {
+        "type": "string",
+        "enum": [
+          "hidden_until_commit"
+        ]
+      },
+      "ProjectedAirSweepTarget": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "attackerBaseStrength",
+          "attackerModifiers",
+          "attackerHealth",
+          "attackerMaxHealth",
+          "interceptorDisclosure"
+        ],
+        "properties": {
+          "attackerBaseStrength": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerMaxHealth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackerModifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCombatModifier"
+            }
+          },
+          "interceptorDisclosure": {
+            "$ref": "#/components/schemas/ProjectedAirSweepInterceptorDisclosure"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedAttackTarget": {
         "type": "object",
         "required": [
@@ -11478,6 +11528,39 @@
         },
         "additionalProperties": false
       },
+      "ProjectedNuclearEffectDisclosure": {
+        "type": "string",
+        "enum": [
+          "hidden_until_commit"
+        ]
+      },
+      "ProjectedNuclearTarget": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "blastRadius",
+          "effectDisclosure"
+        ],
+        "properties": {
+          "blastRadius": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "effectDisclosure": {
+            "$ref": "#/components/schemas/ProjectedNuclearEffectDisclosure"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedPolicies": {
         "type": "object",
         "required": [
@@ -11789,24 +11872,6 @@
           "dead"
         ]
       },
-      "ProjectedTargetCoordinate": {
-        "type": "object",
-        "required": [
-          "x",
-          "y"
-        ],
-        "properties": {
-          "x": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "y": {
-            "type": "integer",
-            "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
       "ProjectedTileVisibility": {
         "type": "object",
         "required": [
@@ -11982,7 +12047,7 @@
           "airSweepTargets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+              "$ref": "#/components/schemas/ProjectedAirSweepTarget"
             }
           },
           "attackTargets": {
@@ -12097,7 +12162,7 @@
           "nuclearTargetCandidates": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+              "$ref": "#/components/schemas/ProjectedNuclearTarget"
             }
           },
           "posture": {

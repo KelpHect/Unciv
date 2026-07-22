@@ -1,8 +1,11 @@
-use crate::projection::{PlayerProjection, ProjectedCombatOutcome, ProjectedTargetCoordinate};
+use crate::projection::{
+    PlayerProjection, ProjectedCombatOutcome, ProjectedNuclearEffectDisclosure,
+    ProjectedNuclearTarget,
+};
 
 #[test]
 fn combat_metadata_rejects_hidden_malformed_foreign_and_out_of_turn_values() {
-    let fixture = include_str!("../../protocol/player-projection-v44.fixture.json");
+    let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
     let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
     let mut hidden_attack = projection.clone();
@@ -35,14 +38,23 @@ fn combat_metadata_rejects_hidden_malformed_foreign_and_out_of_turn_values() {
     let mut duplicate = projection.clone();
     duplicate.own_units[0]
         .nuclear_target_candidates
-        .push(ProjectedTargetCoordinate { x: 2, y: -1 });
+        .push(ProjectedNuclearTarget {
+            x: 2,
+            y: -1,
+            blast_radius: 2,
+            effect_disclosure: ProjectedNuclearEffectDisclosure::HiddenUntilCommit,
+        });
     assert!(!duplicate.combat_is_consistent());
 
     let mut foreign = projection.clone();
     foreign.visible_foreign_units[0]
         .air_sweep_targets
-        .push(ProjectedTargetCoordinate { x: 2, y: -1 });
+        .push(projection.own_units[0].air_sweep_targets[0].clone());
     assert!(!foreign.combat_is_consistent());
+
+    let mut leaked_air_sweep = projection.clone();
+    leaked_air_sweep.own_units[0].air_sweep_targets[0].attacker_health = 101;
+    assert!(!leaked_air_sweep.combat_is_consistent());
 
     let mut out_of_turn = projection;
     out_of_turn.is_current_turn = false;

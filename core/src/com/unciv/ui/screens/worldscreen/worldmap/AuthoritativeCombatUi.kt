@@ -7,6 +7,8 @@ import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedAttackTarget
 import com.unciv.logic.multiplayer.authoritative.ProjectedBombardTarget
 import com.unciv.logic.multiplayer.authoritative.ProjectedCombatPreview
+import com.unciv.logic.multiplayer.authoritative.ProjectedAirSweepTarget
+import com.unciv.logic.multiplayer.authoritative.ProjectedNuclearTarget
 import com.unciv.ui.screens.worldscreen.WorldScreen
 
 internal enum class AuthoritativeCombatAction { Attack, NuclearStrike, AirSweep }
@@ -40,16 +42,22 @@ internal object AuthoritativeCombatUi {
         bombardTarget(worldScreen, city, tile)?.preview
 
     fun canNuclearStrike(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): Boolean =
+        nuclearTarget(worldScreen, unit, tile) != null
+
+    fun nuclearTarget(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): ProjectedNuclearTarget? =
         projection(worldScreen)?.ownUnits
             ?.singleOrNull { it.id == unit.id }
             ?.nuclearTargetCandidates
-            ?.any { it.x == tile.position.x && it.y == tile.position.y } == true
+            ?.singleOrNull { it.x == tile.position.x && it.y == tile.position.y }
 
     fun canAirSweep(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): Boolean =
+        airSweepTarget(worldScreen, unit, tile) != null
+
+    fun airSweepTarget(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): ProjectedAirSweepTarget? =
         projection(worldScreen)?.ownUnits
             ?.singleOrNull { it.id == unit.id }
             ?.airSweepTargets
-            ?.any { it.x == tile.position.x && it.y == tile.position.y } == true
+            ?.singleOrNull { it.x == tile.position.x && it.y == tile.position.y }
 
     fun unitAction(worldScreen: WorldScreen, unit: MapUnit, tile: Tile): AuthoritativeCombatAction? {
         val projected = projection(worldScreen)?.ownUnits?.singleOrNull { it.id == unit.id }

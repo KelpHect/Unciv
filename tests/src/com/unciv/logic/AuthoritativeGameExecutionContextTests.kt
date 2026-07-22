@@ -88,6 +88,45 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun serverOwnsTheAutomatedOrderPhaseBeforeEndingTheTurn() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        game.getCivilization("Rome").hasMovedAutomatedUnits = false
+        val snapshot = engine.serializeSnapshot(game)
+        val first = engine.loadSnapshot(snapshot)
+        val second = engine.loadSnapshot(snapshot)
+
+        val firstResult = engine.endTurn(first, "Rome")
+        val secondResult = engine.endTurn(second, "Rome")
+
+        Assert.assertTrue(first.getCivilization("Rome").hasMovedAutomatedUnits)
+        Assert.assertEquals(firstResult.canonicalStateHash, secondResult.canonicalStateHash)
+    }
+
+    @Test
+    fun transientMoveSpyReminderDoesNotBlockCanonicalEndTurn() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val setup = testSetup().apply { gameParameters.espionageEnabled = true }
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val city = rome.addCity(rome.units.getCivUnits().first().getTile().position)
+        val construction = city.getRuleset().buildings.values
+            .first { city.cityConstructions.canAddToQueue(it) }.name
+        engine.queueConstruction(game, "Rome", city.id, construction)
+        val technology = engine.playerProjection(game, "Rome").research.selectableTargets.first()
+        engine.setResearchPath(game, "Rome", technology)
+        rome.espionageManager.addSpy()
+        rome.espionageManager.dismissedShouldMoveSpies = false
+
+        val projection = engine.playerProjection(game, "Rome")
+        Assert.assertTrue(rome.espionageManager.shouldShowMoveSpies())
+        Assert.assertFalse(PendingEndTurnAction.MoveSpies in projection.pendingTurnActions)
+
+        engine.endTurn(game, "Rome")
+        Assert.assertEquals("Greece", game.currentPlayer)
+    }
+
+    @Test
     fun resignationTransfersTheAuthenticatedCivilizationToServerAI() {
         val engine = HeadlessGameEngine(serverContext { serverTime + 5_000L })
         val game = engine.createGame(testSetup()).game

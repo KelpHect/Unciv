@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
+import yairm210.purity.annotations.Readonly
 
 /**
  * Owns one authenticated API-v3 client lifecycle. UI code opens a game here
@@ -25,7 +26,7 @@ class AuthoritativeMultiplayerSession(
     private val scope = CoroutineScope(parentScope.coroutineContext + sessionJob)
     private val mutex = Mutex()
     private val lifecycleMutex = Mutex()
-    private val games = mutableMapOf<String, AuthoritativeGameCommandBus>()
+    private val games = ConcurrentHashMap<String, AuthoritativeGameCommandBus>()
     private val openedGameIds = ConcurrentHashMap.newKeySet<String>()
     private var notificationJob: Job? = null
     @Volatile
@@ -42,6 +43,15 @@ class AuthoritativeMultiplayerSession(
                 (bus.state as? AuthoritativeSyncState.Synchronized)?.current?.projection
             }
         }
+    }
+
+    /** Returns only an already-synchronized immutable projection for UI
+     * rendering. It never performs network access or blocks the render thread. */
+    @Readonly
+    fun cachedProjectionIfOpen(gameId: String): PlayerProjection? {
+        if (gameId !in openedGameIds) return null
+        val current = games[gameId]?.state as? AuthoritativeSyncState.Synchronized ?: return null
+        return current.current.projection
     }
 
     suspend fun restore(): Boolean {
@@ -187,6 +197,7 @@ class AuthoritativeMultiplayerSession(
         return bus
     }
 
+    @Readonly
     fun isGameOpen(gameId: String): Boolean = gameId in openedGameIds
 
     suspend fun moveUnitIfOpen(

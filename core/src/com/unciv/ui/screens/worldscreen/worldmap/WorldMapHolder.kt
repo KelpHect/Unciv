@@ -381,10 +381,12 @@ class WorldMapHolder(
         }
     }
 
+    @Readonly
     private fun isAuthoritativeGame() = worldScreen.gameInfo.gameParameters.isOnlineMultiplayer &&
         worldScreen.game.onlineMultiplayer.authoritativeSession
             ?.isGameOpen(worldScreen.gameInfo.gameId) == true
 
+    @Readonly
     fun usesAuthoritativeCommands(): Boolean = isAuthoritativeGame()
 
     internal fun submitAuthoritativeUnitAttackIfOpen(unit: MapUnit, target: Tile): Boolean {

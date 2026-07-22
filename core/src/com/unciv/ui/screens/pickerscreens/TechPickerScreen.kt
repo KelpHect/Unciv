@@ -41,14 +41,22 @@ class TechPickerScreen(
     centerOnTech: Technology? = null,
 ) : PickerScreen() {
 
-    private val freeTechPick: Boolean = civInfo.tech.freeTechs != 0
+    private val initialAuthoritativeResearch = if (isAuthoritativeGame())
+        game.onlineMultiplayer.authoritativeSession
+            ?.cachedProjectionIfOpen(civInfo.gameInfo.gameId)
+            ?.research
+    else null
+    private val freeTechPick: Boolean = initialAuthoritativeResearch
+        ?.freeTechnologyChoices
+        ?.isNotEmpty()
+        ?: (civInfo.tech.freeTechs != 0)
     private val ruleset = civInfo.gameInfo.ruleset
     private var techNameToButton = HashMap<String, TechButton>()
     private var selectedTech: Technology? = null
     private var civTech: TechManager = civInfo.tech
     private var tempTechsToResearch: ArrayList<String>
     private var authoritativeAppendSelection = false
-    private var authoritativeResearch: ProjectedResearch? = null
+    private var authoritativeResearch: ProjectedResearch? = initialAuthoritativeResearch
     private var lines = NonTransformGroup()
     private var orderIndicators = NonTransformGroup()
     private var eraLabels = ArrayList<Label>()

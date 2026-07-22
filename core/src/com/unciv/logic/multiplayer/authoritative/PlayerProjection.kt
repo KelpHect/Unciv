@@ -582,9 +582,6 @@ internal object AuthoritativeTurnReadiness {
             }) add(PendingEndTurnAction.PickConstruction)
         if (civilization.shouldOpenTechPicker()) add(PendingEndTurnAction.PickTechnology)
         if (civilization.policies.shouldShowPolicyPicker()) add(PendingEndTurnAction.PickPolicy)
-        if (civilization.gameInfo.isEspionageEnabled()
-            && civilization.espionageManager.shouldShowMoveSpies()
-        ) add(PendingEndTurnAction.MoveSpies)
         when {
             civilization.religionManager.religionState == ReligionState.FoundingReligion ->
                 add(PendingEndTurnAction.FoundReligion)

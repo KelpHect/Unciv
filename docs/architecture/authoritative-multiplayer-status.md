@@ -4132,5 +4132,51 @@ Verification on 2026-07-22:
   `unciv-v3-research-events-pg19b2` container, network, and volume were removed,
   and cleanup was verified.
 
-Research queue removal/reordering and projection-only picker entry remain in
-`missing_multiplayer.md`; the public research-completion event gap is closed.
+Research queue removal/reordering and the broader projection-only world remain
+in `missing_multiplayer.md`; public completion events and projected picker mode
+selection are closed.
+
+## Projection-owned turn navigation and server automated-order phase
+
+The end-turn readiness audit found that `MoveSpies` was incorrectly classified
+as canonical. Its `dismissedShouldMoveSpies` flag is transient UI state and is
+not serialized into an immutable snapshot, so a worker reload could never
+preserve dismissal. API v3 no longer projects or rejects end turn for this
+reminder. Actual spy movement and coup decisions remain canonical typed
+commands; idle-spy navigation remains optional presentation.
+
+The audit also found local gameplay execution in both the next-turn automated
+unit phase and the autoplay context menu. For opened v3 games these client paths
+are now fail-closed. Immediately before `GameInfo.nextTurn`, the private Kotlin
+worker marks and executes the authenticated civilization's pending serialized
+unit orders using the existing shared `MapUnit.doAction` behavior. The result is
+part of the same worker proposal and PostgreSQL revision commit as end turn, so
+the client never executes or uploads those actions. Whole-turn, military,
+civilian, and economy autoplay remain available only to local/hotseat/legacy
+games; a future v3 version must make them explicit server-owned AI operations.
+
+Opened-v3 next-turn navigation now reads only an already-synchronized immutable
+projection from a thread-safe session cache. Synchronizing, waiting, production,
+technology, policy, religion, and diplomatic-vote states no longer consult the
+disposable local rules model. The free-technology picker mode and great-person
+auto-open/choice allowlist likewise come from projected server choices. The
+cache accessor performs no network operation on the render thread; command
+submission still refreshes and validates through the serialized command bus.
+
+Verification on 2026-07-22:
+
+- Deterministic worker-engine tests prove the automated-order phase is executed
+  by the server and produces the same canonical hash from identical snapshots.
+  An espionage-enabled fixture proves an idle-spy reminder is visible locally
+  but absent from canonical readiness and cannot block end turn.
+- Session tests prove the render-safe cache is absent before open and exposes
+  only a synchronized server projection afterward.
+- `./gradlew :tests:test :server:test --no-daemon` passes 942 JVM tests with 13
+  intentional skips and zero failures or errors. Rust's 86 active library tests
+  and 7 HTTP/OpenAPI tests, `cargo fmt --check`, and warnings-as-errors Clippy
+  also pass.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-turn-readiness-pg19b2` container, network, and volume were removed,
+  and cleanup was verified.

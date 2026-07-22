@@ -40,10 +40,12 @@ class AuthoritativeMultiplayerSessionTests {
         transport.restored = true
         assertTrue(session.restore())
 
+        assertEquals(null, session.cachedProjectionIfOpen(GAME_ID))
         val bus = session.openGame(GAME_ID)
 
         assertEquals(1, transport.projectionCalls)
         assertEquals(7, (bus.state as AuthoritativeSyncState.Synchronized).current.committedRevision)
+        assertEquals(7, session.cachedProjectionIfOpen(GAME_ID)?.turn)
         session.close()
     }
 

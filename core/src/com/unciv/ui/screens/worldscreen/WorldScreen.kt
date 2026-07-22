@@ -17,6 +17,7 @@ import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapVisualization
 import com.unciv.logic.multiplayer.MultiplayerGameUpdated
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
 import com.unciv.logic.trade.TradeEvaluation
@@ -431,13 +432,24 @@ class WorldScreen(
             autoPlay.stopAutoPlay()
         }
 
-        if (!hasOpenPopups() && !autoPlay.isAutoPlaying() && isPlayersTurn) {
+        val authoritativeGame = mapHolder.usesAuthoritativeCommands()
+        val authoritativeProjection = if (authoritativeGame)
+            game.onlineMultiplayer.authoritativeSession
+                ?.cachedProjectionIfOpen(gameInfo.gameId)
+        else null
+        val canPresentTurnPrompts = if (authoritativeGame)
+            authoritativeProjection?.isCurrentTurn == true
+        else isPlayersTurn
+        if (!hasOpenPopups() && !autoPlay.isAutoPlaying() && canPresentTurnPrompts) {
             when {
                 viewingCiv.shouldShowDiplomaticVotingResults() ->
                     UncivGame.Current.pushScreen(DiplomaticVoteResultScreen(gameInfo.diplomaticVictoryVotesCast, viewingCiv))
                 !gameInfo.oneMoreTurnMode && (viewingCiv.isDefeated() || gameInfo.checkForVictory()) ->
                     game.pushScreen(VictoryScreen(this))
-                viewingCiv.greatPeople.freeGreatPeople > 0 ->
+                authoritativeProjection != null &&
+                    PendingEndTurnAction.PickGreatPerson in authoritativeProjection.pendingTurnActions ->
+                    game.pushScreen(GreatPersonPickerScreen(this, viewingCiv))
+                !authoritativeGame && viewingCiv.greatPeople.freeGreatPeople > 0 ->
                     game.pushScreen(GreatPersonPickerScreen(this, viewingCiv))
                 viewingCiv.popupAlerts.any() -> AlertPopup(this, viewingCiv.popupAlerts.first())
                 viewingCiv.tradeRequests.isNotEmpty() -> {

@@ -704,6 +704,7 @@ class HeadlessGameEngine(
         require(pendingActions.isEmpty()) {
             "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
         }
+        AuthoritativeAutomatedOrderExecutor.executePending(actorCivilization)
         game.nextTurn(executionContext = executionContext)
         return result(game)
     }

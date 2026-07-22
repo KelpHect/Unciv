@@ -42,7 +42,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   of relying on client-side legality for highlighting/preflight.
 - [ ] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
-  cancellation commands.
+  cancellation commands. Pending serialized unit orders now execute inside the
+  worker immediately before authoritative end turn. Whole-turn, military,
+  civilian, and economy autoplay controls are fail-closed for opened v3 games;
+  if retained as a product feature, implement them as explicit server-owned AI
+  operations rather than client automation.
 - [ ] City production: add safe add-to-top, all-cities, and bounded batch
   operations where the production UI exposes them; project progress, costs,
   legal tile targets, and public wonder effects needed for projection-only UI.
@@ -58,15 +62,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   derives prerequisites and completion identity without accepting a
   client-authored queue or outcome. The current picker exposes no removal or
   drag-reordering control; any future operation needs server semantics that
-  preserve prerequisite validity. Projection-only screen entry must also
-  replace the temporary local-cache flag used to choose ordinary versus
-  free-tech picker mode.
+  preserve prerequisite validity. Ordinary versus free-tech picker mode is now
+  selected from the cached authoritative projection.
 - [ ] Policies and ideology: implement ideology selection, tenets, and any
   supported mod-defined multi-choice policy flow; project public ideology/event
   data required by the UI.
 - [ ] Re-audit the `EndTurn` readiness list after the above work and prove that
   every blocking action has a player-scoped projection and authoritative
-  resolution command.
+  resolution command. The transient move-spies reminder has been removed from
+  canonical readiness; projected construction, research, policy, religion,
+  diplomatic-vote, and great-person blockers remain enforced. Continue this
+  audit as the projection-only UI replaces local prompt/result flows.
 
 ## P0: membership and game administration
 
@@ -236,7 +242,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (940 JVM tests, 13
+- `./gradlew :tests:test :server:test --no-daemon` passes (942 JVM tests, 13
   intentional skips).
 - Rust passes 86 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

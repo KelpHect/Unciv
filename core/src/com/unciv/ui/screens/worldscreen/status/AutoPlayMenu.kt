@@ -7,6 +7,7 @@ import com.unciv.logic.automation.civilization.NextTurnAutomation
 import com.unciv.logic.automation.unit.UnitAutomation
 import com.unciv.logic.civilization.managers.TurnManager
 import com.unciv.ui.components.input.KeyboardBinding
+import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.popups.AnimatedMenuPopup
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.ui.screens.worldscreen.unit.AutoPlay
@@ -30,6 +31,10 @@ class AutoPlayMenu(
 
     override fun createContentTable(): Table {
         val table = super.createContentTable()!!
+        if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+            table.add("Automated orders are executed by the server when ending the turn".toLabel()).row()
+            return table
+        }
         // Using the same keyboard binding for bypassing this menu and the default option
         if (!worldScreen.gameInfo.gameParameters.isOnlineMultiplayer)
             table.add(getButton("Start AutoPlay", KeyboardBinding.AutoPlay, ::multiturnAutoPlay)).row()

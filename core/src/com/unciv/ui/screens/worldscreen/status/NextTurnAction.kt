@@ -2,8 +2,10 @@ package com.unciv.ui.screens.worldscreen.status
 
 import com.badlogic.gdx.graphics.Color
 import com.unciv.Constants
+import com.unciv.logic.city.City
 import com.unciv.logic.civilization.managers.ReligionManager
 import com.unciv.logic.civilization.managers.ReligionState
+import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.models.Counter
 import com.unciv.models.ruleset.BeliefType
 import com.unciv.ui.components.extensions.disable
@@ -29,7 +31,7 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
     },
     AutoPlay("AutoPlay", Color.WHITE) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.autoPlay.isAutoPlaying()
+            !worldScreen.mapHolder.usesAuthoritativeCommands() && worldScreen.autoPlay.isAutoPlaying()
         override fun action(worldScreen: WorldScreen) =
             worldScreen.autoPlay.stopAutoPlay()
     },
@@ -37,25 +39,36 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
         override fun isChoice(worldScreen: WorldScreen) =
             worldScreen.isNextTurnUpdateRunning()
     },
+    Synchronizing("Synchronizing with server...", Color.GRAY) {
+        override fun isChoice(worldScreen: WorldScreen) =
+            worldScreen.mapHolder.usesAuthoritativeCommands() &&
+                authoritativeProjection(worldScreen) == null
+    },
     Waiting("Waiting for other players...",Color.GRAY) {
         override fun getText(worldScreen: WorldScreen) =
             if (worldScreen.gameInfo.gameParameters.isOnlineMultiplayer)
                 "Waiting for [${worldScreen.gameInfo.currentPlayerCiv}]..."
             else text
         override fun isChoice(worldScreen: WorldScreen) =
-            !worldScreen.isPlayersTurn
+            if (worldScreen.mapHolder.usesAuthoritativeCommands())
+                authoritativeProjection(worldScreen)?.isCurrentTurn == false
+            else !worldScreen.isPlayersTurn
     },
     PickConstruction("Pick construction", Color.CORAL) {
         override fun isChoice(worldScreen: WorldScreen) =
-            getCityWithNoProductionSet(worldScreen) != null
+            isPending(worldScreen, PendingEndTurnAction.PickConstruction) {
+                getCityWithNoProductionSet(worldScreen) != null
+            }
         override fun action(worldScreen: WorldScreen) {
-            val city = getCityWithNoProductionSet(worldScreen) ?: return
+            val city = getCityNeedingProduction(worldScreen) ?: return
             worldScreen.game.pushScreen(CityScreen(city))
         }
     },
     PickTech("Pick a tech", Color.SKY) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.shouldOpenTechPicker()
+            isPending(worldScreen, PendingEndTurnAction.PickTechnology) {
+                worldScreen.viewingCiv.shouldOpenTechPicker()
+            }
         override fun action(worldScreen: WorldScreen) =
             worldScreen.game.pushScreen(
                 TechPickerScreen(worldScreen.viewingCiv, null)
@@ -63,57 +76,75 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
     },
     PickPolicy("Pick a policy", Color.VIOLET) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.policies.shouldShowPolicyPicker()
+            isPending(worldScreen, PendingEndTurnAction.PickPolicy) {
+                worldScreen.viewingCiv.policies.shouldShowPolicyPicker()
+            }
         override fun action(worldScreen: WorldScreen) {
             worldScreen.game.pushScreen(PolicyPickerScreen(worldScreen.selectedCiv, worldScreen.canChangeState))
-            worldScreen.viewingCiv.policies.shouldOpenPolicyPicker = false
+            if (!worldScreen.mapHolder.usesAuthoritativeCommands())
+                worldScreen.viewingCiv.policies.shouldOpenPolicyPicker = false
         }
     },
     MoveSpies("Move Spies", Color.WHITE) {
         override fun isChoice(worldScreen: WorldScreen) =
-                worldScreen.gameInfo.isEspionageEnabled() && worldScreen.viewingCiv.espionageManager.shouldShowMoveSpies()
+            !worldScreen.mapHolder.usesAuthoritativeCommands() &&
+                worldScreen.gameInfo.isEspionageEnabled() &&
+                worldScreen.viewingCiv.espionageManager.shouldShowMoveSpies()
         override fun action(worldScreen: WorldScreen) {
             worldScreen.game.pushScreen(EspionageOverviewScreen(worldScreen.selectedCiv, worldScreen))
-            worldScreen.viewingCiv.espionageManager.dismissedShouldMoveSpies = true
+            if (!worldScreen.mapHolder.usesAuthoritativeCommands())
+                worldScreen.viewingCiv.espionageManager.dismissedShouldMoveSpies = true
         }
     },
     FoundPantheon("Found Pantheon", Color.valueOf(BeliefType.Pantheon.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.religionManager.run {
-                religionState != ReligionState.Pantheon && canFoundOrExpandPantheon()
+            isPending(worldScreen, PendingEndTurnAction.FoundOrExpandPantheon) {
+                worldScreen.viewingCiv.religionManager.run {
+                    religionState != ReligionState.Pantheon && canFoundOrExpandPantheon()
+                }
             }
         override fun action(worldScreen: WorldScreen) =
             worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv, worldScreen))
     },
     ExpandPantheon("Expand Pantheon", Color.valueOf(BeliefType.Pantheon.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.religionManager.run {
-                religionState == ReligionState.Pantheon && canFoundOrExpandPantheon()
+            isPending(worldScreen, PendingEndTurnAction.FoundOrExpandPantheon) {
+                worldScreen.viewingCiv.religionManager.run {
+                    religionState == ReligionState.Pantheon && canFoundOrExpandPantheon()
+                }
             }
         override fun action(worldScreen: WorldScreen) =
             worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv, worldScreen))
     },
     FoundReligion("Found Religion", Color.valueOf(BeliefType.Founder.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.religionManager.religionState == ReligionState.FoundingReligion
+            isPending(worldScreen, PendingEndTurnAction.FoundReligion) {
+                worldScreen.viewingCiv.religionManager.religionState == ReligionState.FoundingReligion
+            }
         override fun action(worldScreen: WorldScreen) =
             openReligionPicker(worldScreen, true) { getBeliefsToChooseAtFounding() }
     },
     EnhanceReligion("Enhance a Religion", Color.valueOf(BeliefType.Enhancer.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.religionManager.religionState == ReligionState.EnhancingReligion
+            isPending(worldScreen, PendingEndTurnAction.EnhanceReligion) {
+                worldScreen.viewingCiv.religionManager.religionState == ReligionState.EnhancingReligion
+            }
         override fun action(worldScreen: WorldScreen) =
             openReligionPicker(worldScreen, false) { getBeliefsToChooseAtEnhancing() }
     },
     ReformReligion("Reform Religion", Color.valueOf(BeliefType.Enhancer.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.religionManager.hasFreeBeliefs()
+            isPending(worldScreen, PendingEndTurnAction.ReformReligion) {
+                worldScreen.viewingCiv.religionManager.hasFreeBeliefs()
+            }
         override fun action(worldScreen: WorldScreen) =
             openReligionPicker(worldScreen, false) { freeBeliefsAsEnums() }
     },
     WorldCongressVote("Vote for World Leader", Color.MAROON) {
         override fun isChoice(worldScreen: WorldScreen) =
-            worldScreen.viewingCiv.mayVoteForDiplomaticVictory()
+            isPending(worldScreen, PendingEndTurnAction.CastDiplomaticVote) {
+                worldScreen.viewingCiv.mayVoteForDiplomaticVictory()
+            }
         override fun action(worldScreen: WorldScreen) =
             worldScreen.game.pushScreen(DiplomaticVotePickerScreen(worldScreen.viewingCiv))
     },
@@ -156,6 +187,29 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
                 !it.isPuppet && it.cityConstructions. currentConstructionName().isEmpty()
             }
 
+        private fun getCityNeedingProduction(worldScreen: WorldScreen): City? {
+            if (!worldScreen.mapHolder.usesAuthoritativeCommands())
+                return getCityWithNoProductionSet(worldScreen)
+            val cityId = authoritativeProjection(worldScreen)?.ownCities
+                ?.firstOrNull { it.constructionQueue.isEmpty() }
+                ?.id
+                ?: return null
+            return worldScreen.viewingCiv.cities.firstOrNull { it.id == cityId }
+        }
+
+        private fun isPending(
+            worldScreen: WorldScreen,
+            action: PendingEndTurnAction,
+            legacy: () -> Boolean,
+        ): Boolean {
+            if (!worldScreen.mapHolder.usesAuthoritativeCommands()) return legacy()
+            return action in (authoritativeProjection(worldScreen)?.pendingTurnActions ?: emptyList())
+        }
+
+        private fun authoritativeProjection(worldScreen: WorldScreen) =
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.cachedProjectionIfOpen(worldScreen.gameInfo.gameId)
+
         private fun openReligionPicker(
                 worldScreen: WorldScreen,
                 pickIconAndName: Boolean,
@@ -172,6 +226,7 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
 
         @Readonly
         private fun WorldScreen.canMoveAutomatedUnits(): Boolean {
+            if (mapHolder.usesAuthoritativeCommands()) return false
             if (game.settings.automatedUnitsMoveOnTurnStart || viewingCiv.hasMovedAutomatedUnits)
                 return false
             return viewingCiv.units.getCivUnits()

@@ -43,6 +43,7 @@ class NextTurnButton(
         updateButton(nextTurnAction)
         val autoPlay = worldScreen.autoPlay
         if (autoPlay.shouldContinueAutoPlaying() && worldScreen.isPlayersTurn
+            && !worldScreen.mapHolder.usesAuthoritativeCommands()
             && !worldScreen.waitingForAutosave && !worldScreen.isNextTurnUpdateRunning()) {
             autoPlay.runAutoPlayJobInNewThread("MultiturnAutoPlay", worldScreen, false) {
                 TurnManager(worldScreen.viewingCiv).automateTurn()
@@ -51,8 +52,13 @@ class NextTurnButton(
             }
         }
 
+        val canAct = if (worldScreen.mapHolder.usesAuthoritativeCommands())
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.cachedProjectionIfOpen(worldScreen.gameInfo.gameId)
+                ?.isCurrentTurn == true
+        else worldScreen.isPlayersTurn
         isEnabled = nextTurnAction.getText(worldScreen) == "AutoPlay" ||
-            (!worldScreen.hasOpenPopups() && worldScreen.isPlayersTurn && !worldScreen.waitingForAutosave && !worldScreen.isNextTurnUpdateRunning())
+            (!worldScreen.hasOpenPopups() && canAct && !worldScreen.waitingForAutosave && !worldScreen.isNextTurnUpdateRunning())
         if (isEnabled) {
             addTooltip(KeyboardBinding.NextTurn)
         } else {

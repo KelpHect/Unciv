@@ -518,6 +518,7 @@ class AuthoritativeGameCommandBus(
 ) {
     private val mutex = Mutex()
     private var terminalAccepted = false
+    @Volatile
     var state: AuthoritativeSyncState = AuthoritativeSyncState.Uninitialized
         private set
 

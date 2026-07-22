@@ -26,8 +26,16 @@ class GreatPersonPickerScreen(val worldScreen: WorldScreen, val civInfo: Civiliz
         closeButton.isVisible = false
         rightSideButton.setText("Choose a free great person".tr())
 
+        val authoritativeChoices = if (worldScreen.mapHolder.usesAuthoritativeCommands())
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.cachedProjectionIfOpen(civInfo.gameInfo.gameId)
+                ?.selectableGreatPeople
+                ?.toSet()
+                ?: emptySet()
+        else null
         val greatPersonUnits = civInfo.greatPeople.getGreatPeople()
-        val useMayaLongCount = civInfo.greatPeople.mayaLimitedFreeGP > 0
+            .filter { authoritativeChoices == null || it.name in authoritativeChoices }
+        val useMayaLongCount = authoritativeChoices == null && civInfo.greatPeople.mayaLimitedFreeGP > 0
 
         for (unit in greatPersonUnits) {
             val button =

@@ -236,6 +236,9 @@ pub enum GameCommand {
         unit_id: i32,
         action: GreatPersonUnitAction,
     },
+    GiftUnit {
+        unit_id: i32,
+    },
     ChooseReligiousBeliefs {
         belief_names: Vec<String>,
         religion_icon_name: Option<String>,

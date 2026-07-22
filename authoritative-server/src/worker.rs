@@ -27,6 +27,7 @@ mod protocol;
 mod religion;
 mod trade;
 mod unit_actions;
+mod unit_gifts;
 mod unit_movement;
 mod unit_orders;
 pub use city_state::{
@@ -37,8 +38,8 @@ pub use intents::{
     AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent,
     BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
     ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, DisbandUnitIntent, FoundCityIntent,
-    LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent,
-    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
+    GiftUnitIntent, LaunchNuclearStrikeIntent, MoveConstructionIntent, MoveSpyIntent,
+    MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
     PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
     QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
     ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
@@ -708,5 +709,20 @@ mod tests {
         assert_eq!(value["promptId"], "a");
         assert_eq!(value["choiceId"], "b");
         assert!(value.get("actor_civilization_id").is_none());
+    }
+
+    #[test]
+    fn gift_unit_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::GiftUnit {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            unit_id: 17,
+        })
+        .unwrap();
+        assert_eq!(value["type"], "gift_unit");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["unitId"], 17);
+        assert!(value.get("actor_civilization_id").is_none());
+        assert!(value.get("unit_id").is_none());
     }
 }

@@ -210,6 +210,10 @@ pub(crate) async fn run() {
             post(use_great_person_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/gift-unit",
+            post(gift_unit),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/use-religious-unit",
             post(use_religious_unit),
         )

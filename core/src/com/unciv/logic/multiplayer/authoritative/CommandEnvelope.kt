@@ -308,6 +308,7 @@ sealed interface GameCommand {
     data class SetSpyCoup(val spyName: String, val enabled: Boolean) : GameCommand
     data class ResolveEventChoice(val promptId: String, val choiceId: String) : GameCommand
     data class UseGreatPersonUnit(val unitId: Int, val action: GreatPersonUnitAction) : GameCommand
+    data class GiftUnit(val unitId: Int) : GameCommand
 
     data class SetCityTileAssignment(
         val cityId: String,

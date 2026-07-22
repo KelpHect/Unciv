@@ -383,6 +383,13 @@ pub(super) enum WorkerOperation<'a> {
         unit_id: i32,
         action: crate::GreatPersonUnitAction,
     },
+    GiftUnit {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+    },
     UseReligiousUnit {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

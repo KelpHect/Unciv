@@ -338,6 +338,7 @@ pub struct ProjectedUnit {
     pub road_connection_path: Vec<ProjectedRoadPathTile>,
     pub available_religious_actions: Vec<ReligiousUnitAction>,
     pub available_great_person_actions: Vec<GreatPersonUnitAction>,
+    pub can_gift: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -372,7 +373,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v32.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v33.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

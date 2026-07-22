@@ -2344,6 +2344,44 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun unitGiftDerivesRecipientInfluenceAndOwnershipFromCanonicalState() {
+        val setup = testSetup().apply { gameParameters.numberOfCityStates = 1 }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val cityState = game.getAliveCityStates().single()
+        if (cityState.cities.isEmpty()) {
+            val settler = cityState.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            cityState.addCity(settler.currentTile.position, settler)
+        }
+        rome.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        if (rome.cities.isEmpty()) {
+            val settler = rome.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            rome.addCity(settler.currentTile.position, settler)
+        }
+        val recipientTile = game.tileMap.values.first {
+            it.getOwner() == cityState && it.militaryUnit == null
+        }
+        val warriorType = game.ruleset.units.values.first { it.isMilitary && !it.isWaterUnit }
+        val warrior = rome.units.addUnit(warriorType, rome.getCapital())!!
+        warrior.putInTile(recipientTile)
+
+        val projected = engine.playerProjection(game, "Rome").ownUnits.single { it.id == warrior.id }
+        Assert.assertTrue(projected.canGift)
+        Assert.assertEquals(0f, cityState.getDiplomacyManager(rome)!!.getInfluence(), 0.001f)
+
+        engine.giftUnit(game, "Rome", warrior.id)
+
+        Assert.assertEquals(cityState, warrior.civ)
+        Assert.assertEquals(5f, cityState.getDiplomacyManager(rome)!!.getInfluence(), 0.001f)
+        Assert.assertNull(rome.units.getUnitById(warrior.id))
+        Assert.assertEquals(warrior, cityState.units.getUnitById(warrior.id))
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.giftUnit(game, "Rome", warrior.id)
+        }
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

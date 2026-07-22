@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 32
+        const val CURRENT_PROJECTION_VERSION = 33
     }
 }
 
@@ -279,6 +279,7 @@ data class ProjectedUnit(
     val roadConnectionPath: List<ProjectedRoadPathTile> = emptyList(),
     val availableReligiousActions: List<ReligiousUnitAction> = emptyList(),
     val availableGreatPersonActions: List<GreatPersonUnitAction> = emptyList(),
+    val canGift: Boolean = false,
 )
 
 @Serializable
@@ -472,6 +473,7 @@ object PlayerProjectionBuilder {
             ReligiousUnitActionExecutor.availableActions(unit) else emptyList(),
         availableGreatPersonActions = if (includePrivateOrders)
             GreatPersonUnitActionExecutor.availableActions(unit) else emptyList(),
+        canGift = includePrivateOrders && UnitGiftCommandExecutor.canGift(unit),
     )
     }
 

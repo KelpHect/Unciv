@@ -215,6 +215,7 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         }
         if (authoritativeGreatPersonAction != null &&
             worldScreen.mapHolder.useGreatPersonUnit(unit, authoritativeGreatPersonAction)) return
+        if (unitAction.type == UnitActionType.GiftUnit && worldScreen.mapHolder.giftUnit(unit)) return
         unitAction.action!!.invoke()
         worldScreen.shouldUpdate = true
         // We keep the unit action/selection overlay from the previous unit open even when already selecting another unit

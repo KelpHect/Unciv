@@ -1,6 +1,30 @@
 use crate::*;
 
 #[test]
+fn gift_unit_contract_contains_only_the_unit_identifier() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "gift_unit", "unit_id": 17
+    }))
+    .unwrap();
+    assert_eq!(command, GameCommand::GiftUnit { unit_id: 17 });
+    for untrusted in [
+        "actor_id",
+        "recipient_civilization_id",
+        "influence",
+        "diplomatic_modifier",
+        "destroy_unit",
+        "outcome",
+    ] {
+        let mut value = serde_json::json!({"type": "gift_unit", "unit_id": 17});
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn great_person_unit_action_contract_excludes_yields_targets_and_outcomes() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "use_great_person_unit", "unit_id": 17, "action": "conduct_trade_mission"

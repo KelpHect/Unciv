@@ -1322,6 +1322,11 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun giftUnit(game: GameInfo, actorCivilizationId: String, unitId: Int): EngineResult {
+        UnitGiftCommandExecutor.gift(game, authenticatedCivilization(game, actorCivilizationId), unitId)
+        return result(game)
+    }
+
     fun chooseReligiousBeliefs(
         game: GameInfo,
         actorCivilizationId: String,

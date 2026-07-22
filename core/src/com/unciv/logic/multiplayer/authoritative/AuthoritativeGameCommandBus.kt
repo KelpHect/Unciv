@@ -342,6 +342,7 @@ sealed interface PendingAuthoritativeCommand {
         val unitId: Int,
         val action: GreatPersonUnitAction,
     ) : PendingAuthoritativeCommand
+    data class GiftUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
 
     data class ChooseReligiousBeliefs(
         override val commandId: String,
@@ -1069,6 +1070,16 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun giftUnit(unitId: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any { it.id == unitId && it.canGift }) {
+            "Unit gift is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.GiftUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
+        ), current)
+    }
+
     suspend fun chooseReligiousBeliefs(
         beliefNames: List<String>,
         religionIconName: String?,
@@ -1719,6 +1730,11 @@ class AuthoritativeGameCommandBus(
                     ApiV3UseGreatPersonUnitRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.unitId, pending.action,
+                    ),
+                )
+                is PendingAuthoritativeCommand.GiftUnit -> transport.giftUnit(
+                    gameId, ApiV3GiftUnitRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.unitId,
                     ),
                 )
                 is PendingAuthoritativeCommand.ChooseReligiousBeliefs -> transport.chooseReligiousBeliefs(

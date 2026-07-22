@@ -438,6 +438,14 @@ data class ApiV3UseGreatPersonUnitRequest(
 )
 
 @Serializable
+data class ApiV3GiftUnitRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+)
+
+@Serializable
 data class ApiV3ChooseReligiousBeliefsRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

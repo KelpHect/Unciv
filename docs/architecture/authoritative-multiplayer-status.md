@@ -3430,3 +3430,46 @@ Verification on 2026-07-22:
 The five inventoried direct great-person mutations are authoritative. The unit
 special-action audit now advances to gift, transform, airlift, and generic
 trigger-unique paths.
+
+## Authoritative unit gifting
+
+Projection version 33 exposes only whether each owned unit can currently be
+gifted. `GiftUnit` carries only its stable unit ID: the client cannot name the
+recipient or claim diplomacy, influence, destruction, or ownership outcomes.
+
+The private Kotlin worker derives the recipient from the canonical current
+tile and rechecks turn ownership, movement, transport state, war and friendly
+territory, city-state military restrictions, and applicable unit uniques. It
+then applies the existing five-point city-state influence or major-civilization
+`GaveUsUnits` modifier and either transfers ownership or consumes a great
+person gifted to a city-state. Rust remains the revisioned control plane and
+does not reproduce these game rules.
+
+For opened v3 games, `UnitActionsTable` submits the gift before the legacy
+local callback can run and reconciles the resulting projection. Local games,
+hotseat, saves, legacy multiplayer, and server AI retain the shared Kotlin
+behavior.
+
+Verification on 2026-07-22:
+
+- The focused Kotlin test proves server-derived city-state targeting,
+  projection availability, canonical influence, ownership transfer, and replay
+  rejection. The closed Rust contract rejects actor, recipient, influence,
+  diplomacy modifier, destruction, and outcome claims.
+- `./gradlew :tests:test --no-daemon` completed 918 core JVM tests with 13
+  intentional skips and zero failures. The focused `:server:test` lane passed
+  all 4 private-worker protocol tests, for 922 JVM tests total.
+- `cargo test --lib` passed 67 active library tests; all 7 HTTP/OpenAPI tests
+  passed separately. The generated OpenAPI contract and projection-v33 fixture
+  both match their checked-in contracts.
+- `cargo fmt --check` and warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55468; the live server reported `19beta2`. The disposable
+  `unciv-v3-unit-gift-pg19b2` container was removed and cleanup verified.
+- Module-size review found a 752-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line facade.
+
+The unit-gift mutation is authoritative. The unit special-action audit now
+advances to transform, airlift, and generic trigger-unique paths.

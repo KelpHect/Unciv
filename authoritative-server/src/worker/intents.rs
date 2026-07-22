@@ -26,6 +26,11 @@ pub struct UseGreatPersonUnitIntent<'a> {
     pub action: crate::GreatPersonUnitAction,
 }
 
+pub struct GiftUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+
 pub struct SetCityTileAssignmentIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,

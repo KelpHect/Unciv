@@ -720,6 +720,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when gifting was submitted to the authoritative server. */
+    fun giftUnit(unit: MapUnit): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("unit gift", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.giftUnitIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     /** Returns true when founding was submitted to the authoritative server. */
     fun foundCity(unit: MapUnit): Boolean {
         if (!isAuthoritativeGame()) return false

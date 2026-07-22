@@ -22,6 +22,7 @@ mod religion;
 mod state;
 mod trade;
 mod unit_actions;
+mod unit_gifts;
 mod unit_movement;
 mod unit_orders;
 
@@ -44,6 +45,7 @@ pub(super) use notifications::*;
 use religion::*;
 use trade::*;
 use unit_actions::*;
+use unit_gifts::*;
 use unit_movement::*;
 use unit_orders::*;
 

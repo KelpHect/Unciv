@@ -447,6 +447,8 @@ sealed interface WorkerOperation {
     data class SetSpyCoup(val snapshot: String, val actorCivilizationId: String, val spyName: String, val enabled: Boolean) : WorkerOperation
     @Serializable @SerialName("resolve_event_choice")
     data class ResolveEventChoice(val snapshot: String, val actorCivilizationId: String, val promptId: String, val choiceId: String) : WorkerOperation
+    @Serializable @SerialName("gift_unit")
+    data class GiftUnit(val snapshot: String, val actorCivilizationId: String, val unitId: Int) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -959,6 +961,11 @@ class AuthoritativeEngineWorker {
                 val result = engine.useGreatPersonUnit(
                     game, operation.actorCivilizationId, operation.unitId, operation.action,
                 )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.GiftUnit -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.giftUnit(game, operation.actorCivilizationId, operation.unitId)
                 responseForGame(engine, result.game)
             }
             is WorkerOperation.ChooseReligiousBeliefs -> {

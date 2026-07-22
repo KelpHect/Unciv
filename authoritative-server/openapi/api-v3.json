@@ -2737,6 +2737,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/gift-unit": {
+      "post": {
+        "tags": [],
+        "operationId": "gift_unit",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiftUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/launch-nuclear-strike": {
       "post": {
         "tags": [],
@@ -8839,6 +8923,36 @@
           }
         }
       },
+      "GiftUnitRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "GreatPersonUnitAction": {
         "type": "string",
         "enum": [
@@ -10172,7 +10286,8 @@
           "improvementOrder",
           "roadConnectionPath",
           "availableReligiousActions",
-          "availableGreatPersonActions"
+          "availableGreatPersonActions",
+          "canGift"
         ],
         "properties": {
           "automated": {
@@ -10195,6 +10310,9 @@
             "items": {
               "$ref": "#/components/schemas/ReligiousUnitAction"
             }
+          },
+          "canGift": {
+            "type": "boolean"
           },
           "civilizationId": {
             "type": "string"

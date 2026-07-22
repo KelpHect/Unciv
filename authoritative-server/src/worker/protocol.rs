@@ -658,6 +658,7 @@ pub(super) enum WorkerOperation<'a> {
         actor_civilization_id: &'a str,
         #[serde(rename = "technologyName")]
         technology_name: &'a str,
+        append: bool,
     },
     AdoptPolicy {
         snapshot: &'a str,

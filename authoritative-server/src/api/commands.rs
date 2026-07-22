@@ -541,6 +541,7 @@ pub(super) async fn set_research_path(
                 client_observed_state_hash: request.client_observed_state_hash,
                 command: GameCommand::SetResearchPath {
                     technology_name: request.technology_name,
+                    append: request.append,
                 },
             },
         )

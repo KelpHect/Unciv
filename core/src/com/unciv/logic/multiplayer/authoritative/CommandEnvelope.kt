@@ -342,7 +342,10 @@ sealed interface GameCommand {
         val focus: CitizenFocus,
     ) : GameCommand
 
-    data class SetResearchPath(val technologyName: String) : GameCommand
+    data class SetResearchPath(
+        val technologyName: String,
+        val append: Boolean = false,
+    ) : GameCommand
 
     data class AdoptPolicy(val policyName: String) : GameCommand
 

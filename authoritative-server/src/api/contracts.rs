@@ -743,6 +743,7 @@ pub(super) struct SetResearchPathRequest {
     pub(super) expected_revision: u64,
     pub(super) client_observed_state_hash: Option<String>,
     pub(super) technology_name: String,
+    pub(super) append: bool,
 }
 
 #[derive(Deserialize, ToSchema)]

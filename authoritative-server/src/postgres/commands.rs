@@ -517,8 +517,11 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        let technology_name = match &envelope.command {
-            crate::GameCommand::SetResearchPath { technology_name } => technology_name.clone(),
+        let (technology_name, append) = match &envelope.command {
+            crate::GameCommand::SetResearchPath {
+                technology_name,
+                append,
+            } => (technology_name.clone(), *append),
             _ => return Err(CommitError::InvalidCommand),
         };
         if let Some(accepted) = self
@@ -540,6 +543,7 @@ impl PostgresGameRepository {
                 SetResearchPathIntent {
                     actor_civilization_id: &actor_civilization_id,
                     technology_name: &technology_name,
+                    append,
                 },
             )
             .await

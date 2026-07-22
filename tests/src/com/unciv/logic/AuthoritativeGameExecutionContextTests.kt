@@ -244,6 +244,33 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun serverAppendsOnlyMissingResearchPrerequisites() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val firstTargetName = engine.playerProjection(game, "Rome").research.selectableTargets.first()
+        engine.setResearchPath(game, "Rome", firstTargetName)
+        val beforeAppend = engine.playerProjection(game, "Rome")
+        val appendTargetName = beforeAppend.research.appendableTargets.first()
+        val appendTarget = game.ruleset.technologies[appendTargetName]!!
+        val expectedQueue = beforeAppend.research.queue + rome.tech
+            .getRequiredTechsToDestination(appendTarget)
+            .map { it.name }
+            .filterNot { it in beforeAppend.research.queue }
+
+        val result = engine.setResearchPath(game, "Rome", appendTargetName, append = true)
+        val after = engine.playerProjection(result.game, "Rome")
+
+        Assert.assertEquals(expectedQueue, after.research.queue)
+        Assert.assertEquals(beforeAppend.research.currentTechnology, after.research.currentTechnology)
+        val hashAfter = engine.stateHash(result.game)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.setResearchPath(result.game, "Rome", appendTargetName, append = true)
+        }
+        Assert.assertEquals(hashAfter, engine.stateHash(result.game))
+    }
+
+    @Test
     fun serverConsumesOnlyACanonicalFreeTechnologyGrant() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

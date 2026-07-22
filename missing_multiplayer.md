@@ -53,7 +53,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   bounded typed commands if it remains a supported feature.
 - [ ] Research: implement removal and reordering of queued technologies and
   project the remaining progress, cost, history, and public event data needed by
-  the full research UI.
+  the full research UI. Replace and append destination selection are complete:
+  projection v36 exposes distinct legal target sets and the worker derives all
+  missing prerequisites without accepting a client-authored queue.
 - [ ] Policies and ideology: implement ideology selection, tenets, and any
   supported mod-defined multi-choice policy flow; project public ideology/event
   data required by the UI.
@@ -228,7 +230,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 ## Current verification health
 
 - No known compile, test, formatting, clippy, or database integration error is
-  being deferred from the replica/fault milestone.
+  being deferred from the current milestone.
 - `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
   intentional skips).
 - Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
@@ -236,7 +238,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.
 - `main.rs` is 6 lines, `lib.rs` is a 28-line facade, and the largest Rust source
-  is 795 lines. New work must split by concern before crossing the 800-line
+  is 775 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

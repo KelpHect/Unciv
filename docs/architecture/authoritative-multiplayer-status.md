@@ -3963,3 +3963,44 @@ Verification on 2026-07-22:
 Independent-replica revision CAS and a commit-boundary database-connection fault
 are now proven. Actual database/service failover plus Rust-process, Kotlin-worker,
 HTTP-response, and outbox-boundary termination tests remain explicitly tracked.
+
+## Server-derived research queue append
+
+Authoritative research selection now preserves the normal picker distinction
+between replacing a research path and appending a destination. The client sends
+only one technology name plus an append boolean. It never authors prerequisite
+names or an ordered queue. The Kotlin worker resolves the destination through
+the pinned ruleset, derives its canonical prerequisite path, removes entries
+already queued, rejects a no-op append, and returns the resulting canonical
+snapshot for Rust's revision commit.
+
+Player projection version 36 adds `appendableTargets` alongside the existing
+replace targets. This lets the command bus fail closed before submission while
+leaving legality authoritative on the worker. Normal picker selection replaces
+the path; the existing right-click interaction appends it. Single-player,
+hotseat, saves, legacy multiplayer, and server-owned AI keep using the shared
+Kotlin behavior directly.
+
+The Rust research worker logic was also split from `worker.rs` into the focused
+`worker/research.rs` module. Public façades remain logic-free and no duplicate
+Rust rules implementation was introduced.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin execution, command-bus, and Rust/Kotlin projection-contract
+  tests pass, including missing-prerequisite derivation, preservation of the
+  active queue, rejection of an already-queued append, and state-hash stability
+  after rejection.
+- Rust's 83 active library tests and 7 HTTP/OpenAPI tests pass; the generated
+  OpenAPI and projection-v36 fixture are synchronized. `cargo fmt --check` and
+  warnings-as-errors `cargo clippy --all-targets -- -D warnings` pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes the broad 935-test JVM
+  and server suite with 13 intentional skips.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-research-pg19b2` container, network, and volume were removed and
+  cleanup was verified.
+
+Research queue removal/reordering plus progress, costs, history, and public
+research events remain explicitly tracked in `missing_multiplayer.md`.

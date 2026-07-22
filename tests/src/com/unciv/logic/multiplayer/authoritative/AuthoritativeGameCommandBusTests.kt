@@ -1294,10 +1294,11 @@ class AuthoritativeGameCommandBusTests {
         val bus = AuthoritativeGameCommandBus(gameId, transport) { "research-command" }
         bus.refresh()
 
-        val outcome = bus.setResearchPath("Writing")
+        val outcome = bus.setResearchPath("Writing", append = true)
 
         assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
         assertEquals("Writing", transport.researchRequests.single().technologyName)
+        assertTrue(transport.researchRequests.single().append)
     }
 
     @Test
@@ -1456,7 +1457,13 @@ class AuthoritativeGameCommandBusTests {
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
             pendingTurnActions = pendingTurnActions,
-            research = ProjectedResearch(null, emptyList(), listOf("Writing"), freeTechnologyChoices),
+            research = ProjectedResearch(
+                currentTechnology = null,
+                queue = emptyList(),
+                selectableTargets = listOf("Writing"),
+                appendableTargets = listOf("Writing"),
+                freeTechnologyChoices = freeTechnologyChoices,
+            ),
             policies = ProjectedPolicies(25, 25, 0, emptyList(), listOf("Tradition")),
             gold = 0,
             knownCivilizations = emptyList(),

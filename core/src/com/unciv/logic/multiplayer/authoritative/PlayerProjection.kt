@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 35
+        const val CURRENT_PROJECTION_VERSION = 36
     }
 }
 
@@ -242,6 +242,7 @@ data class ProjectedResearch(
     val currentTechnology: String?,
     val queue: List<String>,
     val selectableTargets: List<String>,
+    val appendableTargets: List<String>,
     val freeTechnologyChoices: List<String>,
 )
 
@@ -500,12 +501,20 @@ object PlayerProjectionBuilder {
 
     private fun researchProjection(civilization: Civilization): ProjectedResearch {
         val technologies = civilization.gameInfo.ruleset.technologies.values
+        val targetPaths = technologies.map { technology ->
+            technology to civilization.tech.getRequiredTechsToDestination(technology)
+        }.filter { (_, path) -> path.isNotEmpty() }
+        val queuedTechnologies = civilization.tech.techsToResearch.toSet()
         return ProjectedResearch(
             currentTechnology = civilization.tech.currentTechnologyName(),
             queue = civilization.tech.techsToResearch.toList(),
-            selectableTargets = technologies.asSequence()
-                .filter { civilization.tech.getRequiredTechsToDestination(it).isNotEmpty() }
-                .map { it.name }
+            selectableTargets = targetPaths.asSequence()
+                .map { (technology) -> technology.name }
+                .sorted()
+                .toList(),
+            appendableTargets = targetPaths.asSequence()
+                .filter { (_, path) -> path.any { it.name !in queuedTechnologies } }
+                .map { (technology) -> technology.name }
                 .sorted()
                 .toList(),
             freeTechnologyChoices = if (civilization.tech.freeTechs == 0) emptyList() else

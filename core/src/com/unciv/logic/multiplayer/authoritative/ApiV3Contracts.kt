@@ -726,6 +726,7 @@ data class ApiV3SetResearchPathRequest(
     @SerialName("expected_revision") val expectedRevision: Long,
     @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
     @SerialName("technology_name") val technologyName: String,
+    val append: Boolean = false,
 )
 
 @Serializable

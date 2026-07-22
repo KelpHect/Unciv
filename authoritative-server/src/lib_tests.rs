@@ -603,6 +603,19 @@ fn set_research_path_contract_is_typed_and_closed() {
         command,
         GameCommand::SetResearchPath {
             technology_name: "Writing".to_owned(),
+            append: false,
+        }
+    );
+    assert_eq!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "set_research_path",
+            "technology_name": "Writing",
+            "append": true
+        }))
+        .unwrap(),
+        GameCommand::SetResearchPath {
+            technology_name: "Writing".to_owned(),
+            append: true,
         }
     );
     assert!(

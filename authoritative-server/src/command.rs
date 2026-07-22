@@ -357,6 +357,8 @@ pub enum GameCommand {
     },
     SetResearchPath {
         technology_name: String,
+        #[serde(default)]
+        append: bool,
     },
     AdoptPolicy {
         policy_name: String,

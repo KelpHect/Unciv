@@ -46,6 +46,7 @@ class TechPickerScreen(
     private var selectedTech: Technology? = null
     private var civTech: TechManager = civInfo.tech
     private var tempTechsToResearch: ArrayList<String>
+    private var authoritativeAppendSelection = false
     private var lines = NonTransformGroup()
     private var orderIndicators = NonTransformGroup()
     private var eraLabels = ArrayList<Label>()
@@ -133,6 +134,7 @@ class TechPickerScreen(
                     else game.onlineMultiplayer.authoritativeSession?.setResearchPathIfOpen(
                             civInfo.gameInfo.gameId,
                             technologyName,
+                            authoritativeAppendSelection,
                         )
                 } catch (ex: Exception) {
                     if (ex is CancellationException) throw ex
@@ -274,7 +276,7 @@ class TechPickerScreen(
                     techNameToButton[tech.name] = techButton
                     techButton.onClick { selectTechnology(tech, queue = false, center = false) }
                     techButton.onRightClick {
-                        selectTechnology(tech, queue = !isAuthoritativeGame(), center = false)
+                        selectTechnology(tech, queue = true, center = false)
                     }
                     techButton.onDoubleClick(UncivSound.Paper) { tryExit() }
                     techTable.add(table).fillX()
@@ -459,6 +461,9 @@ class TechPickerScreen(
 
         if (tech == null)
             return
+
+        if (isAuthoritativeGame() && !freeTechPick)
+            authoritativeAppendSelection = queue
 
         // center on technology
         if (center) centerOnTechnology(tech)

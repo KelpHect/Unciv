@@ -11208,9 +11208,16 @@
         "required": [
           "queue",
           "selectableTargets",
+          "appendableTargets",
           "freeTechnologyChoices"
         ],
         "properties": {
+          "appendableTargets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "currentTechnology": {
             "type": [
               "string",
@@ -12502,9 +12509,13 @@
         "required": [
           "command_id",
           "expected_revision",
-          "technology_name"
+          "technology_name",
+          "append"
         ],
         "properties": {
+          "append": {
+            "type": "boolean"
+          },
           "client_observed_state_hash": {
             "type": [
               "string",

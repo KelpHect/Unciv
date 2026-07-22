@@ -470,6 +470,7 @@ sealed interface PendingAuthoritativeCommand {
         override val expectedRevision: Long,
         override val observedStateHash: String,
         val technologyName: String,
+        val append: Boolean,
     ) : PendingAuthoritativeCommand
 
     data class AdoptPolicy(
@@ -1425,9 +1426,11 @@ class AuthoritativeGameCommandBus(
         return city
     }
 
-    suspend fun setResearchPath(technologyName: String) = mutex.withLock {
+    suspend fun setResearchPath(technologyName: String, append: Boolean = false) = mutex.withLock {
         val current = requireSynchronized()
-        require(technologyName in current.projection.research.selectableTargets) {
+        val legalTargets = if (append) current.projection.research.appendableTargets
+            else current.projection.research.selectableTargets
+        require(technologyName in legalTargets) {
             "Technology is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.SetResearchPath(
@@ -1435,6 +1438,7 @@ class AuthoritativeGameCommandBus(
             expectedRevision = current.committedRevision,
             observedStateHash = current.canonicalStateHash,
             technologyName = technologyName,
+            append = append,
         ), current)
     }
 
@@ -1927,6 +1931,7 @@ class AuthoritativeGameCommandBus(
                         pending.expectedRevision,
                         pending.observedStateHash,
                         pending.technologyName,
+                        pending.append,
                     ),
                 )
                 is PendingAuthoritativeCommand.AdoptPolicy -> transport.adoptPolicy(

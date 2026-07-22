@@ -84,6 +84,7 @@ pub struct SetCitizenFocusIntent<'a> {
 pub struct SetResearchPathIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
+    pub append: bool,
 }
 
 pub struct AdoptPolicyIntent<'a> {

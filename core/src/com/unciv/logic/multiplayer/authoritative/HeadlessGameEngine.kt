@@ -1607,6 +1607,7 @@ class HeadlessGameEngine(
         game: GameInfo,
         actorCivilizationId: String,
         technologyName: String,
+        append: Boolean = false,
     ): EngineResult {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
@@ -1624,7 +1625,14 @@ class HeadlessGameEngine(
             ?: error("Technology is unavailable in the pinned ruleset")
         val path = actorCivilization.tech.getRequiredTechsToDestination(technology)
         require(path.isNotEmpty()) { "Technology cannot be selected for research" }
-        actorCivilization.tech.techsToResearch = ArrayList(path.map { it.name })
+        val derivedPath = path.map { it.name }
+        if (append) {
+            val missingPath = derivedPath.filterNot { it in actorCivilization.tech.techsToResearch }
+            require(missingPath.isNotEmpty()) { "Technology path is already queued" }
+            actorCivilization.tech.techsToResearch.addAll(missingPath)
+        } else {
+            actorCivilization.tech.techsToResearch = ArrayList(derivedPath)
+        }
         actorCivilization.tech.updateResearchProgress()
         return result(game)
     }

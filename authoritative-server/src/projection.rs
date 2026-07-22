@@ -302,6 +302,7 @@ pub struct ProjectedResearch {
     pub current_technology: Option<String>,
     pub queue: Vec<String>,
     pub selectable_targets: Vec<String>,
+    pub appendable_targets: Vec<String>,
     pub free_technology_choices: Vec<String>,
 }
 
@@ -407,7 +408,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v35.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v36.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -420,6 +421,7 @@ mod tests {
             ]
         );
         assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
+        assert_eq!(projection.research.appendable_targets, ["Archery"]);
         assert_eq!(projection.diplomacy_partners[0].civilization_id, "Greece");
         assert_eq!(
             projection.diplomacy_partners[0].available_demands,

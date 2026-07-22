@@ -523,6 +523,7 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
         val technologyName: String,
+        val append: Boolean,
     ) : WorkerOperation
 
     @Serializable @SerialName("adopt_policy")
@@ -1181,6 +1182,7 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.technologyName,
+                    operation.append,
                 )
                 responseForGame(engine, result.game)
             }

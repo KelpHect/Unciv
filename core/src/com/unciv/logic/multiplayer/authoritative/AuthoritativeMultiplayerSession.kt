@@ -783,20 +783,22 @@ class AuthoritativeMultiplayerSession(
     suspend fun setResearchPathIfOpen(
         gameId: String,
         technologyName: String,
+        append: Boolean = false,
     ): AuthoritativeCommandOutcome? {
         val bus = mutex.withLock { games[gameId] } ?: return null
         return when (val current = bus.state) {
             is AuthoritativeSyncState.Retryable -> {
                 check(current.pending is PendingAuthoritativeCommand.SetResearchPath &&
-                    current.pending.technologyName == technologyName) {
+                    current.pending.technologyName == technologyName &&
+                    current.pending.append == append) {
                     "Resolve the pending authoritative command before changing research"
                 }
                 bus.retryPending()
             }
-            is AuthoritativeSyncState.Synchronized -> bus.setResearchPath(technologyName)
+            is AuthoritativeSyncState.Synchronized -> bus.setResearchPath(technologyName, append)
             else -> {
                 bus.refresh()
-                bus.setResearchPath(technologyName)
+                bus.setResearchPath(technologyName, append)
             }
         }
     }

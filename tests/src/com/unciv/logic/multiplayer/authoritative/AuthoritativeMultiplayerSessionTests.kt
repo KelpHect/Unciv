@@ -1121,7 +1121,7 @@ class AuthoritativeMultiplayerSessionTests {
             currentPlayerCivilizationId = "Rome",
             isCurrentTurn = true,
             pendingTurnActions = emptyList(),
-            research = ProjectedResearch(null, emptyList(), emptyList(), emptyList()),
+            research = ProjectedResearch(null, emptyList(), emptyList(), emptyList(), emptyList()),
             policies = ProjectedPolicies(0, 25, 0, emptyList(), emptyList()),
             gold = 0,
             knownCivilizations = emptyList(),

@@ -261,6 +261,10 @@ pub enum GameCommand {
         prompt_id: String,
         accept: bool,
     },
+    RespondToCityStateProtectionPrompt {
+        prompt_id: String,
+        response: crate::projection::CityStateProtectionResponse,
+    },
     GiftCityStateGold {
         city_state_civilization_id: String,
         amount: u32,

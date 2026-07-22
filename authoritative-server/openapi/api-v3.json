@@ -4797,6 +4797,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/respond-to-city-state-protection-prompt": {
+      "post": {
+        "tags": [],
+        "operationId": "respond_to_city_state_protection_prompt",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateProtectionPromptResponseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/respond-to-diplomatic-prompt": {
       "post": {
         "tags": [],
@@ -7855,6 +7939,39 @@
         },
         "additionalProperties": false
       },
+      "CityStateProtectionPromptResponseRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "prompt_id",
+          "response"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "prompt_id": {
+            "type": "string"
+          },
+          "response": {
+            "$ref": "#/components/schemas/CityStateProtectionResponse"
+          }
+        },
+        "additionalProperties": false
+      },
       "CityStateProtectionRequest": {
         "type": "object",
         "required": [
@@ -7887,6 +8004,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "CityStateProtectionResponse": {
+        "type": "string",
+        "enum": [
+          "declare_war",
+          "condemn",
+          "withdraw_protection"
+        ]
       },
       "CityStateTributeRequest": {
         "type": "object",
@@ -8068,7 +8193,10 @@
         "type": "string",
         "enum": [
           "friendship",
-          "demand"
+          "demand",
+          "bullied_protected_minor",
+          "attacked_protected_minor",
+          "attacked_ally_minor"
         ]
       },
       "DiplomaticDemand": {
@@ -9150,9 +9278,22 @@
         "required": [
           "promptId",
           "requestingCivilizationId",
-          "type"
+          "type",
+          "availableCityStateResponses"
         ],
         "properties": {
+          "availableCityStateResponses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CityStateProtectionResponse"
+            }
+          },
+          "cityStateCivilizationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "demand": {
             "oneOf": [
               {

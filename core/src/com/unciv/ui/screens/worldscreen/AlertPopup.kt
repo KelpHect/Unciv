@@ -19,6 +19,7 @@ import com.unciv.logic.civilization.diplomacy.*
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionExecutor
+import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.map.HexCoord
@@ -188,6 +189,10 @@ class AlertPopup(
         
         if (!player.isAtWarWith(bullyOrAttacker)) {
             addCloseButton("THIS MEANS WAR!", KeyboardBinding.Confirm) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.DeclareWar)
+                return@addCloseButton
+            }
             player.getDiplomacyManager(bullyOrAttacker)!!.sideWithCityState()
             val warReason = if (popupAlert.type == AlertType.AttackedAllyMinor) WarType.AlliedCityStateWar else WarType.ProtectedCityStateWar
             player.getDiplomacyManager(bullyOrAttacker)!!.declareWar(DeclareWarReason(warReason, cityState))
@@ -195,16 +200,43 @@ class AlertPopup(
         }.row()}
 
         addCloseButton("You'll pay for this!", KeyboardBinding.Confirm) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.Condemn)
+                return@addCloseButton
+            }
             player.getDiplomacyManager(bullyOrAttacker)!!.sideWithCityState()
         }.row()
 
         addCloseButton("Very well.", KeyboardBinding.Cancel) {
+            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
+                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.WithdrawProtection)
+                return@addCloseButton
+            }
             player.addNotification("You have broken your Pledge to Protect [${cityState.civName}]!",
                 cityState.cityStateFunctions.getNotificationActions(), NotificationCategory.Diplomacy, cityState.civName)
             cityState.cityStateFunctions.removeProtectorCiv(player, forced = true)
         }.row()
         
         return true
+    }
+
+    private fun submitAuthoritativeCityStateProtectionPrompt(
+        attacker: Civilization,
+        cityState: Civilization,
+        response: CityStateProtectionResponse,
+    ) {
+        val type = when (popupAlert.type) {
+            AlertType.BulliedProtectedMinor -> DiplomacyPromptType.BulliedProtectedMinor
+            AlertType.AttackedProtectedMinor -> DiplomacyPromptType.AttackedProtectedMinor
+            AlertType.AttackedAllyMinor -> DiplomacyPromptType.AttackedAllyMinor
+            else -> error("Not a city-state protection prompt")
+        }
+        submitAuthoritativeDiplomacy("respond to city-state protection prompt") { session ->
+            val prompt = session.projectionIfOpen(gameInfo.gameId)?.diplomacyPrompts?.singleOrNull {
+                it.requestingCivilizationId == attacker.civID && it.cityStateCivilizationId == cityState.civID && it.type == type
+            } ?: error("Projected city-state protection prompt no longer matches this popup")
+            session.respondToCityStateProtectionPromptIfOpen(gameInfo.gameId, prompt.promptId, response)
+        }
     }
 
     private fun addCityConquered() {

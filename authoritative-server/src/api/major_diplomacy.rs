@@ -142,3 +142,39 @@ pub(super) async fn respond_to_diplomatic_prompt(
             .map_err(game_error)?,
     ))
 }
+
+#[utoipa::path(post, path = "/api/v3/games/{game_id}/commands/respond-to-city-state-protection-prompt", params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])), request_body = CityStateProtectionPromptResponseRequest, responses((status = 200, body = unciv_authoritative_server::CommandAccepted), (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse), (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse)))]
+pub(super) async fn respond_to_city_state_protection_prompt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<CityStateProtectionPromptResponseRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    if request.prompt_id.len() != 64
+        || !request
+            .prompt_id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(ApiError::bad_request("invalid_command"));
+    }
+    let actor = authenticated_account(&state, &headers).await?;
+    let envelope = CommandEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        game_id,
+        command_id: request.command_id,
+        expected_revision: request.expected_revision,
+        client_observed_state_hash: request.client_observed_state_hash,
+        command: GameCommand::RespondToCityStateProtectionPrompt {
+            prompt_id: request.prompt_id,
+            response: request.response,
+        },
+    };
+    Ok(Json(
+        state
+            .repository
+            .execute_respond_to_city_state_protection_prompt(&state.worker, actor.id, envelope)
+            .await
+            .map_err(game_error)?,
+    ))
+}

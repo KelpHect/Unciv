@@ -71,7 +71,9 @@
     "promptId": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     "requestingCivilizationId": "Greece",
     "type": "friendship",
-    "demand": null
+    "demand": null,
+    "cityStateCivilizationId": null,
+    "availableCityStateResponses": []
   }],
   "cityStatePartners": [{
     "civilizationId": "Geneva",

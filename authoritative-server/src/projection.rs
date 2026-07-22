@@ -78,6 +78,8 @@ pub struct ProjectedDiplomacyPrompt {
     pub requesting_civilization_id: String,
     pub r#type: DiplomacyPromptType,
     pub demand: Option<DiplomaticDemand>,
+    pub city_state_civilization_id: Option<String>,
+    pub available_city_state_responses: Vec<CityStateProtectionResponse>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -85,6 +87,17 @@ pub struct ProjectedDiplomacyPrompt {
 pub enum DiplomacyPromptType {
     Friendship,
     Demand,
+    BulliedProtectedMinor,
+    AttackedProtectedMinor,
+    AttackedAllyMinor,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CityStateProtectionResponse {
+    DeclareWar,
+    Condemn,
+    WithdrawProtection,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -310,7 +323,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v28.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v29.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

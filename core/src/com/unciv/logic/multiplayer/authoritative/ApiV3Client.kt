@@ -490,6 +490,8 @@ class ApiV3Client(
         decode(client.post("api/v3/games/$gameId/commands/make-diplomatic-demand") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun respondToDiplomaticPrompt(gameId: String, request: ApiV3DiplomaticPromptResponseRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/respond-to-diplomatic-prompt") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun respondToCityStateProtectionPrompt(gameId: String, request: ApiV3CityStateProtectionPromptResponseRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/respond-to-city-state-protection-prompt") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun giftCityStateGold(gameId: String, request: ApiV3CityStateGoldGiftRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/gift-city-state-gold") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun setCityStateProtection(gameId: String, request: ApiV3CityStateProtectionRequest): ApiV3CommandAccepted =

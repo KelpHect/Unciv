@@ -100,6 +100,11 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun respondToCityStateProtectionPrompt(game: GameInfo, actorCivilizationId: String, promptId: String, response: CityStateProtectionResponse): EngineResult {
+        DiplomacyCommandExecutor.respondToCityStateProtectionPrompt(game, authenticatedCivilization(game, actorCivilizationId), promptId, response)
+        return result(game)
+    }
+
     fun giftCityStateGold(game: GameInfo, actorCivilizationId: String, cityStateId: String, amount: Int): EngineResult {
         CityStateCommandExecutor.giftGold(game, authenticatedCivilization(game, actorCivilizationId), cityStateId, amount)
         return result(game)

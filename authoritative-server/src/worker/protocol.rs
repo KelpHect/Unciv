@@ -468,6 +468,14 @@ pub(super) enum WorkerOperation<'a> {
         prompt_id: &'a str,
         accept: bool,
     },
+    RespondToCityStateProtectionPrompt {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "promptId")]
+        prompt_id: &'a str,
+        response: crate::projection::CityStateProtectionResponse,
+    },
     GiftCityStateGold {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

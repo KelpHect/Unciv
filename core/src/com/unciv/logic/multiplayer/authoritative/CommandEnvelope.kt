@@ -293,6 +293,10 @@ sealed interface GameCommand {
         val promptId: String,
         val accept: Boolean,
     ) : GameCommand
+    data class RespondToCityStateProtectionPrompt(
+        val promptId: String,
+        val response: CityStateProtectionResponse,
+    ) : GameCommand
 
     data class GiftCityStateGold(val cityStateCivilizationId: String, val amount: Int) : GameCommand
     data class SetCityStateProtection(val cityStateCivilizationId: String, val protect: Boolean) : GameCommand

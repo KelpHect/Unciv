@@ -499,6 +499,15 @@ data class ApiV3DiplomaticPromptResponseRequest(
 )
 
 @Serializable
+data class ApiV3CityStateProtectionPromptResponseRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("prompt_id") val promptId: String,
+    val response: CityStateProtectionResponse,
+)
+
+@Serializable
 data class ApiV3CityStateGoldGiftRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

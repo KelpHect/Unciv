@@ -538,6 +538,16 @@ pub(super) struct DiplomaticPromptResponseRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct CityStateProtectionPromptResponseRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) prompt_id: String,
+    pub(super) response: unciv_authoritative_server::projection::CityStateProtectionResponse,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct CityStateGoldGiftRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

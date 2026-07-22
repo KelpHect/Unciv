@@ -4,8 +4,11 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PopupAlert
+import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.diplomacy.Demand
+import com.unciv.logic.civilization.diplomacy.DeclareWarReason
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
+import com.unciv.logic.civilization.diplomacy.WarType
 import com.unciv.models.ruleset.unique.UniqueType
 
 /** Major-civilization diplomacy intents executed only by the canonical worker. */
@@ -41,6 +44,8 @@ object DiplomacyCommandExecutor {
             AlertType.DeclarationOfFriendship -> ProjectedDiplomacyPrompt(
                 promptId(alert), alert.value, DiplomacyPromptType.Friendship, null,
             )
+            AlertType.BulliedProtectedMinor, AlertType.AttackedProtectedMinor, AlertType.AttackedAllyMinor ->
+                protectionPrompt(actor, alert)
             else -> Demand.entries.singleOrNull { it.demandAlert == alert.type }?.let { demand ->
                 ProjectedDiplomacyPrompt(
                     promptId(alert), alert.value, DiplomacyPromptType.Demand,
@@ -49,6 +54,27 @@ object DiplomacyCommandExecutor {
             }
         }
     }.sortedBy { it.promptId }
+
+    private fun protectionPrompt(actor: Civilization, alert: PopupAlert): ProjectedDiplomacyPrompt? {
+        val ids = alert.value.split('@')
+        if (ids.size != 2) return null
+        val attacker = actor.gameInfo.civilizations.singleOrNull { it.civID == ids[0] } ?: return null
+        val cityState = actor.gameInfo.civilizations.singleOrNull { it.civID == ids[1] } ?: return null
+        if (attacker.isDefeated() || !attacker.isMajorCiv() || !cityState.isCityState) return null
+        val responses = buildList {
+            if (!actor.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange) &&
+                !actor.isAtWarWith(attacker) && actor.getDiplomacyManager(attacker)?.canDeclareWar() == true)
+                add(CityStateProtectionResponse.DeclareWar)
+            add(CityStateProtectionResponse.Condemn)
+            add(CityStateProtectionResponse.WithdrawProtection)
+        }
+        val type = when (alert.type) {
+            AlertType.BulliedProtectedMinor -> DiplomacyPromptType.BulliedProtectedMinor
+            AlertType.AttackedProtectedMinor -> DiplomacyPromptType.AttackedProtectedMinor
+            else -> DiplomacyPromptType.AttackedAllyMinor
+        }
+        return ProjectedDiplomacyPrompt(promptId(alert), attacker.civID, type, null, cityState.civID, responses)
+    }
 
     fun declareWar(game: GameInfo, actor: Civilization, otherId: String) {
         requireCurrentActor(game, actor)
@@ -114,6 +140,30 @@ object DiplomacyCommandExecutor {
                         diplomacy.declareWar()
                     }
                 }
+            }
+        }
+        actor.popupAlerts.remove(alert)
+    }
+
+    fun respondToCityStateProtectionPrompt(game: GameInfo, actor: Civilization, promptId: String, response: CityStateProtectionResponse) {
+        requireCurrentActor(game, actor)
+        val projected = prompts(actor).singleOrNull { it.promptId == promptId && response in it.availableCityStateResponses }
+            ?: error("City-state protection response is not available in canonical state")
+        val alert = actor.popupAlerts.single { promptId(it) == promptId }
+        val attacker = partner(game, actor, projected.requestingCivilizationId)
+        val cityState = game.civilizations.single { it.civID == projected.cityStateCivilizationId && it.isCityState }
+        when (response) {
+            CityStateProtectionResponse.DeclareWar -> {
+                actor.getDiplomacyManager(attacker)!!.sideWithCityState()
+                val reason = if (alert.type == AlertType.AttackedAllyMinor) WarType.AlliedCityStateWar else WarType.ProtectedCityStateWar
+                actor.getDiplomacyManager(attacker)!!.declareWar(DeclareWarReason(reason, cityState))
+                cityState.getDiplomacyManager(actor)!!.addInfluence(20f)
+            }
+            CityStateProtectionResponse.Condemn -> actor.getDiplomacyManager(attacker)!!.sideWithCityState()
+            CityStateProtectionResponse.WithdrawProtection -> {
+                actor.addNotification("You have broken your Pledge to Protect [${cityState.civName}]!",
+                    cityState.cityStateFunctions.getNotificationActions(), NotificationCategory.Diplomacy, cityState.civName)
+                cityState.cityStateFunctions.removeProtectorCiv(actor, forced = true)
             }
         }
         actor.popupAlerts.remove(alert)

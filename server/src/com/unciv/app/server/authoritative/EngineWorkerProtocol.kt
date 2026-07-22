@@ -9,6 +9,7 @@ import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
+import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
@@ -417,6 +418,8 @@ sealed interface WorkerOperation {
     data class MakeDiplomaticDemand(val snapshot: String, val actorCivilizationId: String, val otherCivilizationId: String, val demand: DiplomaticDemand) : WorkerOperation
     @Serializable @SerialName("respond_to_diplomatic_prompt")
     data class RespondToDiplomaticPrompt(val snapshot: String, val actorCivilizationId: String, val promptId: String, val accept: Boolean) : WorkerOperation
+    @Serializable @SerialName("respond_to_city_state_protection_prompt")
+    data class RespondToCityStateProtectionPrompt(val snapshot: String, val actorCivilizationId: String, val promptId: String, val response: CityStateProtectionResponse) : WorkerOperation
 
     @Serializable @SerialName("gift_city_state_gold")
     data class GiftCityStateGold(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val amount: Int) : WorkerOperation
@@ -987,6 +990,10 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.RespondToDiplomaticPrompt -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.respondToDiplomaticPrompt(game, operation.actorCivilizationId, operation.promptId, operation.accept).game)
+            }
+            is WorkerOperation.RespondToCityStateProtectionPrompt -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.respondToCityStateProtectionPrompt(game, operation.actorCivilizationId, operation.promptId, operation.response).game)
             }
             is WorkerOperation.GiftCityStateGold -> {
                 val game = engine.loadSnapshot(operation.snapshot)

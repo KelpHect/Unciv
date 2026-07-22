@@ -39,4 +39,15 @@ fn demands_and_responses_use_closed_types_and_projected_prompt_ids() {
     let mut forged = serde_json::to_value(response).unwrap();
     forged["diplomatic_modifier"] = serde_json::json!(-35);
     assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+
+    let protection: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "respond_to_city_state_protection_prompt",
+        "prompt_id": "b".repeat(64),
+        "response": "declare_war"
+    }))
+    .unwrap();
+    let mut forged = serde_json::to_value(protection).unwrap();
+    forged["war_reason"] = serde_json::json!("ordinary_war");
+    forged["influence_gained"] = serde_json::json!(999);
+    assert!(serde_json::from_value::<GameCommand>(forged).is_err());
 }

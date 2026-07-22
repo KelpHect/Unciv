@@ -13,6 +13,7 @@ import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
+import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
@@ -2185,6 +2186,40 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertTrue(cityState.isDefeated())
         Assert.assertTrue(cityIds.all { id -> austria.cities.any { it.id == id } })
         Assert.assertEquals(cityIds.toSet(), austria.popupAlerts.filter { it.type == AlertType.DiplomaticMarriage }.map { it.value }.toSet())
+    }
+
+    @Test
+    fun cityStateProtectionPromptResponsesAreCanonicalAndProjectionBound() {
+        val setup = testSetup().apply { gameParameters.numberOfCityStates = 1 }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val rome = game.getCivilization("Rome")
+        val greece = game.getCivilization("Greece")
+        val cityState = game.getAliveCityStates().single()
+        rome.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        rome.diplomacyFunctions.makeCivilizationsMeet(greece)
+
+        rome.popupAlerts.add(PopupAlert(AlertType.BulliedProtectedMinor, "${greece.civID}@${cityState.civID}"))
+        var prompt = engine.playerProjection(game, "Rome").diplomacyPrompts.single()
+        Assert.assertEquals(DiplomacyPromptType.BulliedProtectedMinor, prompt.type)
+        Assert.assertTrue(CityStateProtectionResponse.Condemn in prompt.availableCityStateResponses)
+        engine.respondToCityStateProtectionPrompt(game, "Rome", prompt.promptId, CityStateProtectionResponse.Condemn)
+        Assert.assertTrue(greece.getDiplomacyManager(rome)!!.hasModifier(com.unciv.logic.civilization.diplomacy.DiplomaticModifiers.SidedWithProtectedMinor))
+        Assert.assertTrue(rome.popupAlerts.none { it.type == AlertType.BulliedProtectedMinor })
+
+        cityState.cityStateFunctions.addProtectorCiv(rome)
+        rome.popupAlerts.add(PopupAlert(AlertType.AttackedProtectedMinor, "${greece.civID}@${cityState.civID}"))
+        prompt = engine.playerProjection(game, "Rome").diplomacyPrompts.single()
+        engine.respondToCityStateProtectionPrompt(game, "Rome", prompt.promptId, CityStateProtectionResponse.WithdrawProtection)
+        Assert.assertFalse(cityState.cityStateFunctions.getProtectorCivs().contains(rome))
+
+        rome.popupAlerts.add(PopupAlert(AlertType.AttackedAllyMinor, "${greece.civID}@${cityState.civID}"))
+        prompt = engine.playerProjection(game, "Rome").diplomacyPrompts.single()
+        val influenceBefore = cityState.getDiplomacyManager(rome)!!.getInfluence()
+        engine.respondToCityStateProtectionPrompt(game, "Rome", prompt.promptId, CityStateProtectionResponse.DeclareWar)
+        Assert.assertTrue(rome.isAtWarWith(greece))
+        Assert.assertEquals(influenceBefore + 20f, cityState.getDiplomacyManager(rome)!!.getInfluence())
+        Assert.assertTrue(rome.popupAlerts.none { it.type == AlertType.AttackedAllyMinor })
     }
 
     private fun testSetup(): GameSetupInfo {

@@ -16,6 +16,11 @@ pub struct DiplomaticPromptIntent<'a> {
     pub prompt_id: &'a str,
     pub accept: bool,
 }
+pub struct CityStateProtectionPromptIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub prompt_id: &'a str,
+    pub response: crate::projection::CityStateProtectionResponse,
+}
 
 enum PartnerDiplomacyOperation {
     DeclareWar,
@@ -149,6 +154,28 @@ impl EngineWorkerClient {
                     actor_civilization_id: intent.actor_civilization_id,
                     prompt_id: intent.prompt_id,
                     accept: intent.accept,
+                },
+            )
+            .await?;
+        commit_proposal(revision, response)
+    }
+    pub async fn respond_to_city_state_protection_prompt(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        revision: u64,
+        snapshot: &str,
+        intent: CityStateProtectionPromptIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::RespondToCityStateProtectionPrompt {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    prompt_id: intent.prompt_id,
+                    response: intent.response,
                 },
             )
             .await?;

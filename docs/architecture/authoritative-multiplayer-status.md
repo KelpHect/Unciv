@@ -3261,3 +3261,39 @@ Verification on 2026-07-22:
   `unciv-v3-marriage-pg19b2` container was removed and verified absent.
 
 Protector-response prompts are now the final inventoried city-state mutation.
+
+## Authoritative city-state protector responses
+
+Projection version 29 now exposes bullied-protected, attacked-protected, and
+attacked-allied city-state alerts only to the affected authenticated player.
+Each prompt has an opaque stable ID, the involved visible civilizations, and a
+closed allowlist of currently legal responses. The client submits only that ID
+and `declare_war`, `condemn`, or `withdraw_protection`.
+
+The Kotlin worker re-resolves the pending alert and both civilizations before
+applying existing rules. It owns the special protected/allied-city-state war
+reason, the city-state influence reward, the diplomatic condemnation modifier,
+forced pledge withdrawal, notifications, and prompt consumption. Relationship-
+immutable games do not expose the war choice. All three v3 alert buttons return
+before legacy mutation; non-v3 modes retain their existing behavior.
+
+Verification on 2026-07-22:
+
+- The focused headless-engine test covers all three outcomes, projection-bound
+  response legality, special war/influence effects, condemnation, pledge
+  withdrawal, and prompt consumption. Rust closed contracts reject forged war
+  reasons and influence outcomes.
+- `./gradlew :tests:test :server:test --no-daemon` completed 918 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test` passed 60 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in that lane. Generated
+  OpenAPI parity and the shared projection-v29 fixture passed.
+- `cargo fmt` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- All 8 serialized integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55432; the server reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-protector-pg19b2` container was removed and verified absent.
+
+The inventoried city-state interaction row is complete. The command-coverage
+audit now advances to espionage and remaining private-choice surfaces.

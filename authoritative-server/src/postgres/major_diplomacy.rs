@@ -1,5 +1,6 @@
 use super::commands::WorkerCommandState;
 use super::*;
+use crate::worker::CityStateProtectionPromptIntent;
 
 impl PostgresGameRepository {
     async fn execute_major_diplomacy<F, Fut>(
@@ -158,6 +159,38 @@ impl PostgresGameRepository {
                         actor_civilization_id: &civilization,
                         prompt_id: &prompt_id,
                         accept,
+                    },
+                )
+                .await
+        })
+        .await
+    }
+
+    pub async fn execute_respond_to_city_state_protection_prompt(
+        &self,
+        worker: &EngineWorkerClient,
+        actor: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (prompt_id, response) = match &envelope.command {
+            crate::GameCommand::RespondToCityStateProtectionPrompt {
+                prompt_id,
+                response,
+            } => (prompt_id.clone(), *response),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        let revision = envelope.expected_revision;
+        self.execute_major_diplomacy(actor, envelope, |state, civilization| async move {
+            worker
+                .respond_to_city_state_protection_prompt(
+                    &actor.to_string(),
+                    &state.manifest,
+                    revision,
+                    &state.snapshot,
+                    CityStateProtectionPromptIntent {
+                        actor_civilization_id: &civilization,
+                        prompt_id: &prompt_id,
+                        response,
                     },
                 )
                 .await

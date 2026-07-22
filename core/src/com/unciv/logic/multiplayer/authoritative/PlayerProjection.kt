@@ -39,7 +39,7 @@ data class PlayerProjection(
     val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 28
+        const val CURRENT_PROJECTION_VERSION = 29
     }
 }
 
@@ -80,10 +80,25 @@ data class ProjectedDiplomacyPrompt(
     val requestingCivilizationId: String,
     val type: DiplomacyPromptType,
     val demand: DiplomaticDemand?,
+    val cityStateCivilizationId: String? = null,
+    val availableCityStateResponses: List<CityStateProtectionResponse> = emptyList(),
 )
 
 @Serializable
-enum class DiplomacyPromptType { @SerialName("friendship") Friendship, @SerialName("demand") Demand }
+enum class DiplomacyPromptType {
+    @SerialName("friendship") Friendship,
+    @SerialName("demand") Demand,
+    @SerialName("bullied_protected_minor") BulliedProtectedMinor,
+    @SerialName("attacked_protected_minor") AttackedProtectedMinor,
+    @SerialName("attacked_ally_minor") AttackedAllyMinor,
+}
+
+@Serializable
+enum class CityStateProtectionResponse {
+    @SerialName("declare_war") DeclareWar,
+    @SerialName("condemn") Condemn,
+    @SerialName("withdraw_protection") WithdrawProtection,
+}
 
 @Serializable
 enum class DiplomaticDemand {

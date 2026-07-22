@@ -45,7 +45,10 @@ pub use intents::{
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
     SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
 };
-pub use major_diplomacy::{DiplomacyPartnerIntent, DiplomaticDemandIntent, DiplomaticPromptIntent};
+pub use major_diplomacy::{
+    CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
+    DiplomaticPromptIntent,
+};
 pub use protocol::{
     AssignedPlayer, CreatedGame, ProjectedState, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };

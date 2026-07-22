@@ -403,6 +403,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun sellBuilding(
+        gameId: String,
+        request: ApiV3SellBuildingRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/sell-building") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setCityTileAssignment(
         gameId: String,
         request: ApiV3SetCityTileAssignmentRequest,

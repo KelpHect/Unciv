@@ -715,6 +715,15 @@ class CityScreen(
         }
     }
 
+    internal fun submitAuthoritativeBuildingSale(buildingName: String) =
+        submitAuthoritativeCitizenPolicy("building sale") {
+            game.onlineMultiplayer.authoritativeSession?.sellBuildingIfOpen(
+                city.civ.gameInfo.gameId,
+                city.id,
+                buildingName,
+            )
+        }
+
     /** Ask whether user wants to buy [selectedTile] for gold.
      *
      * Used from onClick and keyboard dispatch, thus only minimal parameters are passed,

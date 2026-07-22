@@ -1016,6 +1016,32 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("actor"))
     }
 
+    @Test
+    fun buildingSaleSendsOnlyCanonicalIdentityIntent() = runBlocking {
+        val initial = projection(3, "hash-3", cityQueue = emptyList())
+        val committed = projection(4, "hash-4", cityQueue = emptyList())
+        val transport = FakeTransport(initial).apply {
+            onSellBuilding = { request ->
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "sale-command" }
+        bus.refresh()
+
+        assertTrue(bus.sellBuilding("city-1", "Monument") is AuthoritativeCommandOutcome.Accepted)
+
+        val request = transport.sellBuildingRequests.single()
+        assertEquals(ApiV3SellBuildingRequest(
+            "sale-command", 3, "hash-3", "city-1", "Monument",
+        ), request)
+        val encoded = Json.encodeToString(ApiV3SellBuildingRequest.serializer(), request)
+        assertTrue(!encoded.contains("refund"))
+        assertTrue(!encoded.contains("price"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("can_sell"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
@@ -1271,6 +1297,7 @@ class AuthoritativeGameCommandBusTests {
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
         val tilePurchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionAtTileRequest>()
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
+        val sellBuildingRequests = mutableListOf<ApiV3SellBuildingRequest>()
         val cityTileAssignmentRequests = mutableListOf<ApiV3SetCityTileAssignmentRequest>()
         val specialistCountRequests = mutableListOf<ApiV3SetSpecialistCountRequest>()
         val manualSpecialistRequests = mutableListOf<ApiV3SetManualSpecialistsRequest>()
@@ -1365,6 +1392,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onBuyCityTile: suspend (ApiV3BuyCityTileRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onSellBuilding: suspend (ApiV3SellBuildingRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetCityTileAssignment: suspend (ApiV3SetCityTileAssignmentRequest) -> ApiV3CommandAccepted = {
@@ -1615,6 +1645,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             buyCityTileRequests += request
             return onBuyCityTile(request)
+        }
+        override suspend fun sellBuilding(
+            gameId: String,
+            request: ApiV3SellBuildingRequest,
+        ): ApiV3CommandAccepted {
+            sellBuildingRequests += request
+            return onSellBuilding(request)
         }
         override suspend fun setCityTileAssignment(
             gameId: String,

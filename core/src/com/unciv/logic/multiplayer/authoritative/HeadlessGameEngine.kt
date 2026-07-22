@@ -1081,6 +1081,38 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Sells one canonical, non-free building after deriving every rule and
+     * economic effect from the server-owned snapshot. */
+    fun sellBuilding(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        buildingName: String,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(buildingName.isNotBlank() && buildingName.length <= 128) {
+            "Building name is invalid"
+        }
+        val building = city.getRuleset().buildings[buildingName]
+            ?: error("Building does not exist in the canonical ruleset")
+        require(building.isSellable()) { "Building cannot be sold" }
+        require(city.cityConstructions.isBuilt(buildingName)) { "Building is not built in this city" }
+        require(!city.civ.civConstructions.hasFreeBuilding(city, building)) {
+            "Free buildings cannot be sold"
+        }
+        require(!city.isPuppet) { "Buildings in puppeted cities cannot be sold" }
+        require(!city.hasSoldBuildingThisTurn || game.gameParameters.godMode) {
+            "This city has already sold a building this turn"
+        }
+        val previousGold = city.civ.gold
+        val canonicalRefund = city.getGoldForSellingBuilding(buildingName)
+        city.sellBuilding(building)
+        check(!city.cityConstructions.isBuilt(buildingName)) { "Sold building remains in the city" }
+        check(city.civ.gold == previousGold + canonicalRefund) { "Canonical building refund was not applied" }
+        check(city.hasSoldBuildingThisTurn) { "Building sale limit was not recorded" }
+        return result(game)
+    }
+
     fun setCityTileAssignment(
         game: GameInfo,
         actorCivilizationId: String,

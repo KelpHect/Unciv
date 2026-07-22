@@ -2669,3 +2669,50 @@ Verification on 2026-07-22:
 
 The next milestone is a fresh command-coverage audit rather than assuming the
 combat surface is complete.
+
+## Authoritative building sales
+
+The coverage audit identified city building sale as a reachable canonical
+mutation that still ran directly in the client. API v3 now uses the closed
+`SellBuilding(cityId, buildingName)` command. The client supplies identity
+only; it does not claim a refund, ownership, sellability, free-building state,
+puppet state, or whether the per-turn sale limit is available.
+
+The private Kotlin worker reloads canonical state and derives authenticated
+civilization ownership, current turn, building existence and sellability,
+whether the building is present or free, puppet restrictions, the one-sale
+limit, the canonical refund, population reassignment, city-stat refresh, and
+civilization resource-cache changes through the existing game engine. The
+Rust service remains a control plane and sole committer; its new API, worker,
+and persistence code is split into focused `city_economy` modules rather than
+expanding the existing large command modules.
+
+The city screen submits the command before any local mutation for explicitly
+opened authoritative games. Single-player, hotseat, legacy multiplayer, and
+server-owned AI keep their existing Kotlin-engine path.
+
+Verification on 2026-07-22:
+
+- Focused engine tests prove the worker derives the 10-percent canonical
+  refund, removes the building, records the per-turn limit, and rejects both
+  foreign-city and puppet-city sales. The command-bus contract proves the
+  request excludes refund, price, actor, and eligibility claims.
+- `./gradlew :tests:test :server:test --no-daemon`: 883 shared JVM tests
+  completed with 13 intentional skips and zero failures, plus all 4 worker
+  protocol tests.
+- `cargo test`: 48 active Rust library tests and all 7 HTTP/OpenAPI tests
+  passed; generated OpenAPI parity passed. The 8 database tests were then run
+  separately and all passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55444. The exact-name disposable container was removed and verified
+  absent afterward.
+- Rust formatting, warnings-as-errors Clippy, NUL-byte scanning, and module
+  size review passed. `main.rs` remains 6 lines, `lib.rs` remains 27, and every
+  Rust source remains below 800 lines (largest: `postgres/commands.rs`, 729
+  lines).
+
+The remaining audit surface is now concentrated in larger protocol families:
+diplomacy and trade, religion choices and religious unit actions, diplomatic
+votes and great-person choices, and city conquest governance such as annexing
+or razing. These require dedicated projections and typed intent designs rather
+than extending a generic mutation command.

@@ -12,6 +12,7 @@ use tokio::{
 
 use crate::CommitProposal;
 
+mod city_economy;
 mod city_population;
 mod protocol;
 mod unit_actions;
@@ -24,12 +25,12 @@ pub use protocol::{
     MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, ProjectedState,
     PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
     QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
-    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
-    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
-    WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    RenameUnitIntent, ResetCitizensIntent, SellBuildingIntent, SetAvoidGrowthIntent,
+    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    UpgradeUnitsIntent, WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 

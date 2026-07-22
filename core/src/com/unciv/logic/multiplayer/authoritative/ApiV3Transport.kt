@@ -45,6 +45,7 @@ interface ApiV3Transport {
     suspend fun purchaseConstruction(gameId: String, request: ApiV3PurchaseConstructionRequest): ApiV3CommandAccepted
     suspend fun purchaseConstructionAtTile(gameId: String, request: ApiV3PurchaseConstructionAtTileRequest): ApiV3CommandAccepted
     suspend fun buyCityTile(gameId: String, request: ApiV3BuyCityTileRequest): ApiV3CommandAccepted
+    suspend fun sellBuilding(gameId: String, request: ApiV3SellBuildingRequest): ApiV3CommandAccepted
     suspend fun setCityTileAssignment(gameId: String, request: ApiV3SetCityTileAssignmentRequest): ApiV3CommandAccepted
     suspend fun setSpecialistCount(gameId: String, request: ApiV3SetSpecialistCountRequest): ApiV3CommandAccepted
     suspend fun setManualSpecialists(gameId: String, request: ApiV3SetManualSpecialistsRequest): ApiV3CommandAccepted

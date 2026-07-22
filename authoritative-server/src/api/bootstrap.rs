@@ -186,6 +186,10 @@ pub(crate) async fn run() {
             post(buy_city_tile),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/sell-building",
+            post(sell_building),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

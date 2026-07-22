@@ -1467,6 +1467,10 @@ class AuthoritativeMultiplayerSessionTests {
                 request.expectedRevision + 1, "hash-8",
             )
         }
+        override suspend fun sellBuilding(
+            gameId: String,
+            request: ApiV3SellBuildingRequest,
+        ): ApiV3CommandAccepted = unsupported()
         override suspend fun setResearchPath(
             gameId: String,
             request: ApiV3SetResearchPathRequest,

@@ -1311,6 +1311,56 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(previousGold - expectedCost, civilization.gold)
     }
 
+    @Test
+    fun buildingSaleDerivesCanonicalRefundAndEnforcesServerRules() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val civilization = testGame.addCiv()
+        civilization.playerId = "account-1"
+        val city = testGame.addCity(civilization, testGame.getTile(HexCoord.Zero))
+        testGame.gameInfo.currentPlayer = civilization.civName
+        val building = testGame.createBuilding()
+        building.cost = 170
+        city.cityConstructions.addBuilding(building)
+        val previousGold = civilization.gold
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        engine.sellBuilding(testGame.gameInfo, civilization.civName, city.id, building.name)
+
+        Assert.assertFalse(city.cityConstructions.isBuilt(building.name))
+        Assert.assertEquals(previousGold + 17, civilization.gold)
+        Assert.assertTrue(city.hasSoldBuildingThisTurn)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.sellBuilding(testGame.gameInfo, civilization.civName, city.id, building.name)
+        }
+    }
+
+    @Test
+    fun buildingSaleRejectsAnotherCivilizationsCityAndPuppets() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val actor = testGame.addCiv()
+        actor.playerId = "account-1"
+        val other = testGame.addCiv()
+        other.playerId = "account-2"
+        val city = testGame.addCity(other, testGame.getTile(HexCoord.Zero))
+        val building = testGame.createBuilding()
+        city.cityConstructions.addBuilding(building)
+        testGame.gameInfo.currentPlayer = actor.civName
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.sellBuilding(testGame.gameInfo, actor.civName, city.id, building.name)
+        }
+
+        testGame.gameInfo.currentPlayer = other.civName
+        city.isPuppet = true
+        val otherEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            otherEngine.sellBuilding(testGame.gameInfo, other.civName, city.id, building.name)
+        }
+    }
+
     @Test(expected = IllegalStateException::class)
     fun actorCannotQueueConstructionInAnotherCivilizationsCity() {
         val engine = HeadlessGameEngine(serverContext { serverTime })

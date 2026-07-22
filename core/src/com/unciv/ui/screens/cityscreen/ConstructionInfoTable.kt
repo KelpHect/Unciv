@@ -120,7 +120,8 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
     private fun showSellButton(
         construction: IConstruction
     ) {
-        if (construction is Building && construction.isSellable()) {
+        if (construction is Building &&
+            (cityScreen.isAuthoritativeGame() || construction.isSellable())) {
             selectedConstructionTable.run {
                 val sellAmount = cityScreen.city.getGoldForSellingBuilding(construction.name)
                 val sellText = "{Sell} $sellAmount " + Fonts.gold
@@ -128,10 +129,9 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
                 row()
                 add(sellBuildingButton).padTop(5f).colspan(2).center()
 
-                val isFree = cityScreen.hasFreeBuilding(construction)
-                val enableSell = !isFree &&
-                    !cityScreen.city.isPuppet &&
-                    cityScreen.canChangeState &&
+                val enableSell = if (cityScreen.isAuthoritativeGame()) cityScreen.canChangeState
+                else !cityScreen.hasFreeBuilding(construction) &&
+                    !cityScreen.city.isPuppet && cityScreen.canChangeState &&
                     (!cityScreen.city.hasSoldBuildingThisTurn || cityScreen.city.civ.gameInfo.gameParameters.godMode)
                 sellBuildingButton.isEnabled = enableSell
                 if (enableSell)
@@ -140,9 +140,10 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
                         sellBuildingClicked(construction, sellText)
                     }
 
-                if (cityScreen.city.hasSoldBuildingThisTurn && !cityScreen.city.civ.gameInfo.gameParameters.godMode
+                if (!cityScreen.isAuthoritativeGame() &&
+                        (cityScreen.city.hasSoldBuildingThisTurn && !cityScreen.city.civ.gameInfo.gameParameters.godMode
                         || cityScreen.city.isPuppet
-                        || !cityScreen.canChangeState)
+                        || !cityScreen.canChangeState))
                     sellBuildingButton.disable()
             }
         }
@@ -164,6 +165,10 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
     }
 
     private fun sellBuildingConfirmed(construction: Building) {
+        if (cityScreen.isAuthoritativeGame()) {
+            cityScreen.submitAuthoritativeBuildingSale(construction.name)
+            return
+        }
         cityScreen.city.sellBuilding(construction)
         cityScreen.clearSelection()
         cityScreen.update()

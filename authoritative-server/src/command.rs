@@ -162,6 +162,10 @@ pub enum GameCommand {
         x: i32,
         y: i32,
     },
+    SellBuilding {
+        city_id: String,
+        building_name: String,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

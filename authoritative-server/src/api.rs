@@ -1,6 +1,7 @@
 mod auth;
 mod auth_helpers;
 mod bootstrap;
+mod city_economy;
 mod city_population;
 mod commands;
 mod contracts;
@@ -16,6 +17,7 @@ mod unit_orders;
 
 use auth::*;
 use auth_helpers::*;
+use city_economy::*;
 use city_population::*;
 use commands::*;
 use game_helpers::*;

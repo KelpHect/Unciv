@@ -283,6 +283,14 @@ sealed interface PendingAuthoritativeCommand {
         val y: Int,
     ) : PendingAuthoritativeCommand
 
+    data class SellBuilding(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val buildingName: String,
+    ) : PendingAuthoritativeCommand
+
     data class SetCityTileAssignment(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -867,6 +875,20 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun sellBuilding(cityId: String, buildingName: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownCities.any { it.id == cityId }) {
+            "City is absent from the current player projection"
+        }
+        require(buildingName.isNotBlank() && buildingName.length <= 128) {
+            "Building name is invalid"
+        }
+        submitLocked(PendingAuthoritativeCommand.SellBuilding(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, buildingName,
+        ), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1289,6 +1311,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3BuyCityTileRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.x, pending.y,
+                    ),
+                )
+                is PendingAuthoritativeCommand.SellBuilding -> transport.sellBuilding(
+                    gameId,
+                    ApiV3SellBuildingRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.buildingName,
                     ),
                 )
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(

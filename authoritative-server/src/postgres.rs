@@ -17,12 +17,13 @@ use crate::worker::{
     MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent,
     PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
     PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SetAvoidGrowthIntent,
-    SetCitizenFocusIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent, WorkerManifest,
+    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, SellBuildingIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityTileAssignmentIntent,
+    SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
+    SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent, UpgradeUnitsIntent,
+    WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
@@ -91,6 +92,7 @@ pub struct ClaimedOutboxEvent {
 }
 
 mod accounts;
+mod city_economy;
 mod city_population;
 mod commands;
 mod games;

@@ -908,6 +908,29 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun sellBuildingIfOpen(
+        gameId: String,
+        cityId: String,
+        buildingName: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.SellBuilding &&
+                    current.pending.cityId == cityId &&
+                    current.pending.buildingName == buildingName) {
+                    "Resolve the pending authoritative command before selling another building"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.sellBuilding(cityId, buildingName)
+            else -> {
+                bus.refresh()
+                bus.sellBuilding(cityId, buildingName)
+            }
+        }
+    }
+
     suspend fun setCityTileAssignmentIfOpen(
         gameId: String,
         cityId: String,

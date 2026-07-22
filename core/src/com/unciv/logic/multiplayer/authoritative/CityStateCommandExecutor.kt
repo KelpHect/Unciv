@@ -3,6 +3,8 @@ package com.unciv.logic.multiplayer.authoritative
 import com.unciv.Constants
 import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.civilization.PopupAlert
+import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.trade.TradeLogic
 import com.unciv.logic.trade.TradeOffer
@@ -35,6 +37,7 @@ object CityStateCommandExecutor {
                 canNegotiatePeace = canNegotiatePeace(actor, cityState),
                 canDeclareWar = !actor.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange) &&
                     actor.getDiplomacyManager(cityState)!!.canDeclareWar(),
+                diplomaticMarriageCost = functions.getDiplomaticMarriageCost().takeIf { functions.canBeMarriedBy(actor) },
             )
         }
         .sortedBy { it.civilizationId }
@@ -97,6 +100,15 @@ object CityStateCommandExecutor {
         trade.currentTrade.ourOffers.add(TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = game.speed))
         trade.currentTrade.theirOffers.add(TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = game.speed))
         trade.acceptTrade()
+    }
+
+    fun marry(game: GameInfo, actor: Civilization, cityStateId: String) {
+        requireCurrentActor(game, actor)
+        val cityState = cityState(game, actor, cityStateId)
+        require(cityState.cityStateFunctions.canBeMarriedBy(actor)) { "Diplomatic marriage is not legal in canonical state" }
+        val cityIds = cityState.cities.map { it.id }
+        cityState.cityStateFunctions.diplomaticMarriage(actor)
+        cityIds.forEach { actor.popupAlerts.add(PopupAlert(AlertType.DiplomaticMarriage, it)) }
     }
 
     private fun cityState(game: GameInfo, actor: Civilization, id: String): Civilization {

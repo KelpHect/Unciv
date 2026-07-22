@@ -20,7 +20,7 @@ pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 27;
+pub const PROJECTION_VERSION: u16 = 28;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

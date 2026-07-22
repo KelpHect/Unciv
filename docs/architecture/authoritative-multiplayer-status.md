@@ -3226,3 +3226,38 @@ Verification on 2026-07-22:
 
 Diplomatic marriage and protector-response prompts remain the final inventoried
 city-state mutations before the coverage audit advances to espionage.
+
+## Authoritative diplomatic marriage
+
+API v3 diplomatic marriage is now an intent-only command. Projection version
+28 exposes a cost only when the canonical Kotlin engine confirms the actor's
+unique, alliance, marriage cooldown, treasury, and the city-state's living city
+inventory. The request contains only the city-state ID; the worker derives the
+price, transfers units and cities through existing `CityStateFunctions`, and
+creates the exact captured-city disposition alerts. Clients cannot claim a
+price, captured city list, or annex/puppet outcome.
+
+The v3 city-state screen returns after submitting `MarryCityState`, before any
+legacy mutation. Local, hotseat, saves, legacy multiplayer, and server-owned AI
+continue using the same Kotlin rules. Rust worker wire DTOs were also moved out
+of `worker/protocol.rs` into `worker/intents.rs`, reducing the protocol module
+from 799 to 634 lines while keeping façades logic-free.
+
+Verification on 2026-07-22:
+
+- The focused Kotlin test proves server-derived cost, exact treasury deduction,
+  canonical city transfer, and server-created disposition alerts. Rust closed
+  contracts reject forged cost, captured-city, and disposition fields.
+- `./gradlew :tests:test :server:test --no-daemon` completed 917 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test` passed 60 active library tests and all 7 HTTP/OpenAPI tests; 8
+  database-only tests were intentionally skipped in that lane. Generated
+  OpenAPI parity and the shared projection-v28 fixture passed.
+- `cargo fmt` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- All 8 serialized integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55433; the server reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-marriage-pg19b2` container was removed and verified absent.
+
+Protector-response prompts are now the final inventoried city-state mutation.

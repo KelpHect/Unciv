@@ -1123,6 +1123,8 @@ class AuthoritativeMultiplayerSession(
         { it.giftCityStateImprovement(cityStateId, x, y, improvementName) })
     suspend fun negotiateCityStatePeaceIfOpen(gameId: String, cityStateId: String) = withDiplomacyBus(gameId,
         { it is PendingAuthoritativeCommand.NegotiateCityStatePeace && it.cityStateId == cityStateId }, { it.negotiateCityStatePeace(cityStateId) })
+    suspend fun marryCityStateIfOpen(gameId: String, cityStateId: String) = withDiplomacyBus(gameId,
+        { it is PendingAuthoritativeCommand.MarryCityState && it.cityStateId == cityStateId }, { it.marryCityState(cityStateId) })
 
     private suspend fun withDiplomacyBus(
         gameId: String,

@@ -82,6 +82,7 @@
     "canDemandWorker": false,
     "improvementGifts": [],
     "canNegotiatePeace": false,
-    "canDeclareWar": true
+    "canDeclareWar": true,
+    "diplomaticMarriageCost": 500
   }]
 }

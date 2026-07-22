@@ -334,6 +334,12 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val diplomaticMarriageButton =
             "Diplomatic Marriage ([${otherCiv.cityStateFunctions.getDiplomaticMarriageCost()}] Gold)".toTextButton()
         diplomaticMarriageButton.onClick {
+            if (diplomacyScreen.usesAuthoritativeCommands()) {
+                diplomacyScreen.submitAuthoritativeDiplomacy("diplomatic marriage") {
+                    it.marryCityStateIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
+                }
+                return@onClick
+            }
             val newCities = otherCiv.cities
             otherCiv.cityStateFunctions.diplomaticMarriage(viewingCiv)
             UncivGame.Current.popScreen() // The other civ will no longer exist

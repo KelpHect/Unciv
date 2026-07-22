@@ -2151,6 +2151,42 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertFalse(rome.isAtWarWith(cityState))
     }
 
+    @Test
+    fun diplomaticMarriageDerivesCostAndCapturedCitiesFromCanonicalState() {
+        val setup = testSetup().apply {
+            gameParameters.numberOfCityStates = 1
+            gameParameters.players[0].chosenCiv = "Austria"
+        }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val austria = game.getCivilization("Austria")
+        val cityState = game.getAliveCityStates().single()
+        if (cityState.cities.isEmpty()) {
+            val settler = cityState.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            cityState.addCity(settler.currentTile.position, settler)
+        }
+        austria.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        cityState.getDiplomacyManager(austria)!!.addInfluence(100f)
+        austria.getDiplomacyManager(cityState)!!.removeFlag(DiplomacyFlags.MarriageCooldown)
+        austria.addGold(10_000 - austria.gold)
+        val cityIds = cityState.cities.map { it.id }
+        Assert.assertTrue("Austria marriage unique missing", austria.hasUnique(UniqueType.CityStateCanBeBoughtForGold))
+        Assert.assertTrue("City-state alliance missing", cityState.getDiplomacyManager(austria)!!.isRelationshipLevelEQ(com.unciv.logic.civilization.diplomacy.RelationshipLevel.Ally))
+        Assert.assertTrue("Marriage cost exceeds fixture gold", austria.gold >= cityState.cityStateFunctions.getDiplomaticMarriageCost())
+        Assert.assertFalse("Marriage cooldown still present", austria.getDiplomacyManager(cityState)!!.hasFlag(DiplomacyFlags.MarriageCooldown))
+        Assert.assertTrue("Canonical marriage unexpectedly unavailable", cityState.cityStateFunctions.canBeMarriedBy(austria))
+        val projectedCost = engine.playerProjection(game, "Austria").cityStatePartners.single().diplomaticMarriageCost
+
+        Assert.assertNotNull(projectedCost)
+        val goldBefore = austria.gold
+        engine.marryCityState(game, "Austria", cityState.civID)
+
+        Assert.assertEquals(goldBefore - projectedCost!!, austria.gold)
+        Assert.assertTrue(cityState.isDefeated())
+        Assert.assertTrue(cityIds.all { id -> austria.cities.any { it.id == id } })
+        Assert.assertEquals(cityIds.toSet(), austria.popupAlerts.filter { it.type == AlertType.DiplomaticMarriage }.map { it.value }.toSet())
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

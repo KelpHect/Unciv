@@ -72,3 +72,175 @@ pub struct ChooseFreeTechnologyIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
 }
+use crate::UnitPosture;
+
+pub struct MoveUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+pub struct MoveUnitTowardIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+pub struct CancelUnitMovementOrderIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+pub struct SetUnitExplorationIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub enabled: bool,
+}
+pub struct SetUnitAutomationIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub enabled: bool,
+}
+pub struct SetUnitPostureIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub posture: UnitPosture,
+}
+pub struct DisbandUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+pub struct PillageTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+pub struct FoundCityIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+pub struct ParadropUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+pub struct AttackWithUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub target_x: i32,
+    pub target_y: i32,
+}
+pub struct BombardWithCityIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub target_x: i32,
+    pub target_y: i32,
+}
+pub struct LaunchNuclearStrikeIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub target_x: i32,
+    pub target_y: i32,
+}
+pub struct AirSweepIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub target_x: i32,
+    pub target_y: i32,
+}
+pub struct UpgradeUnitsIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_ids: &'a [i32],
+    pub target_unit_name: &'a str,
+}
+pub struct PromoteUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub promotion_names: &'a [String],
+    pub save_as_city_default: bool,
+}
+pub struct SetCityUnitPromotionPreferenceIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub base_unit_name: &'a str,
+    pub enabled: bool,
+}
+pub struct RenameUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub instance_name: Option<&'a str>,
+}
+pub struct SetTileImprovementOrderIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub improvement_name: Option<&'a str>,
+    pub queued_improvement_name: Option<&'a str>,
+}
+pub struct SetRoadConnectionOrderIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: Option<i32>,
+    pub destination_y: Option<i32>,
+}
+pub struct SwapUnitsIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub destination_x: i32,
+    pub destination_y: i32,
+}
+pub struct QueueConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+}
+pub struct QueueConstructionAtTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub x: i32,
+    pub y: i32,
+}
+pub struct SetPerpetualConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+}
+pub struct RemoveConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub queue_index: u32,
+    pub expected_construction_name: &'a str,
+}
+pub struct MoveConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub from_index: u32,
+    pub to_index: u32,
+    pub expected_construction_name: &'a str,
+}
+pub struct PurchaseConstructionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub currency_name: &'a str,
+    pub queue_index: Option<u32>,
+}
+pub struct PurchaseConstructionAtTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub construction_name: &'a str,
+    pub currency_name: &'a str,
+    pub x: i32,
+    pub y: i32,
+    pub queue_index: Option<u32>,
+}
+pub struct BuyCityTileIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub x: i32,
+    pub y: i32,
+}
+pub struct SellBuildingIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub building_name: &'a str,
+}

@@ -6,6 +6,7 @@ enum CityStateAction {
     Tribute(bool),
     Improvement { x: i32, y: i32, name: String },
     Peace,
+    Marriage,
 }
 
 struct CityStateCommandRequest {
@@ -54,6 +55,9 @@ async fn execute(
             return Err(ApiError::bad_request("invalid_command"));
         }
         CityStateAction::Peace => GameCommand::NegotiateCityStatePeace {
+            city_state_civilization_id: request.city_state_id,
+        },
+        CityStateAction::Marriage => GameCommand::MarryCityState {
             city_state_civilization_id: request.city_state_id,
         },
     };
@@ -184,6 +188,28 @@ pub(super) async fn negotiate_city_state_peace(
             city_state_id: request.city_state_civilization_id,
         },
         CityStateAction::Peace,
+    )
+    .await
+}
+
+#[utoipa::path(post, path = "/api/v3/games/{game_id}/commands/marry-city-state", params(("game_id" = uuid::Uuid, Path)), security(("bearer_auth" = [])), request_body = CityStateMarriageRequest, responses((status = 200, body = unciv_authoritative_server::CommandAccepted), (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse), (status = 409, body = ErrorResponse), (status = 422, body = ErrorResponse)))]
+pub(super) async fn marry_city_state(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<CityStateMarriageRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    execute(
+        state,
+        headers,
+        game_id,
+        CityStateCommandRequest {
+            command_id: request.command_id,
+            expected_revision: request.expected_revision,
+            observed_state_hash: request.client_observed_state_hash,
+            city_state_id: request.city_state_civilization_id,
+        },
+        CityStateAction::Marriage,
     )
     .await
 }

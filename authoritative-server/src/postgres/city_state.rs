@@ -52,6 +52,7 @@ impl PostgresGameRepository {
             Tribute(bool),
             Improvement { x: i32, y: i32, name: String },
             Peace,
+            Marriage,
         }
         let (city_state, action) = match &envelope.command {
             crate::GameCommand::GiftCityStateGold {
@@ -85,6 +86,9 @@ impl PostgresGameRepository {
             crate::GameCommand::NegotiateCityStatePeace {
                 city_state_civilization_id,
             } => (city_state_civilization_id.clone(), Action::Peace),
+            crate::GameCommand::MarryCityState {
+                city_state_civilization_id,
+            } => (city_state_civilization_id.clone(), Action::Marriage),
             _ => return Err(CommitError::InvalidCommand),
         };
         let revision = envelope.expected_revision;
@@ -155,6 +159,18 @@ impl PostgresGameRepository {
                 Action::Peace => {
                     worker
                         .negotiate_city_state_peace(
+                            &actor.to_string(),
+                            &state.manifest,
+                            revision,
+                            &state.snapshot,
+                            &civilization,
+                            &city_state,
+                        )
+                        .await
+                }
+                Action::Marriage => {
+                    worker
+                        .marry_city_state(
                             &actor.to_string(),
                             &state.manifest,
                             revision,

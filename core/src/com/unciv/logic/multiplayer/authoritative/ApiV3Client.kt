@@ -500,6 +500,8 @@ class ApiV3Client(
         decode(client.post("api/v3/games/$gameId/commands/gift-city-state-improvement") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
     override suspend fun negotiateCityStatePeace(gameId: String, request: ApiV3CityStatePeaceRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/negotiate-city-state-peace") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
+    override suspend fun marryCityState(gameId: String, request: ApiV3CityStateMarriageRequest): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/marry-city-state") { authenticate(); contentType(ContentType.Application.Json); setBody(request) })
 
     override suspend fun setCityTileAssignment(
         gameId: String,

@@ -33,4 +33,15 @@ fn city_state_commands_reject_client_claimed_rules_and_outcomes() {
     let mut forged = improvement;
     forged["gold_cost"] = serde_json::json!(0);
     assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+
+    let marriage = serde_json::json!({
+        "type": "marry_city_state",
+        "city_state_civilization_id": "Geneva"
+    });
+    assert!(serde_json::from_value::<GameCommand>(marriage.clone()).is_ok());
+    for field in ["gold_cost", "captured_city_ids", "annex"] {
+        let mut forged = marriage.clone();
+        forged[field] = serde_json::json!(0);
+        assert!(serde_json::from_value::<GameCommand>(forged).is_err());
+    }
 }

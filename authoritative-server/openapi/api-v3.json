@@ -2925,6 +2925,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/marry-city-state": {
+      "post": {
+        "tags": [],
+        "operationId": "marry_city_state",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CityStateMarriageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/move-construction": {
       "post": {
         "tags": [],
@@ -7713,6 +7797,35 @@
         },
         "additionalProperties": false
       },
+      "CityStateMarriageRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_state_civilization_id"
+        ],
+        "properties": {
+          "city_state_civilization_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "CityStatePeaceRequest": {
         "type": "object",
         "required": [
@@ -8949,6 +9062,14 @@
           },
           "civilizationId": {
             "type": "string"
+          },
+          "diplomaticMarriageCost": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
           },
           "improvementGifts": {
             "type": "array",

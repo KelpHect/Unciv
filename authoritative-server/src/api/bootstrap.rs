@@ -274,6 +274,10 @@ pub(crate) async fn run() {
             post(negotiate_city_state_peace),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/marry-city-state",
+            post(marry_city_state),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/set-city-tile-assignment",
             post(set_city_tile_assignment),
         )

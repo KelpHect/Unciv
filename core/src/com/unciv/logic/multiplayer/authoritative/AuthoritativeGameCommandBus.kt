@@ -379,6 +379,7 @@ sealed interface PendingAuthoritativeCommand {
     data class DemandCityStateTribute(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val worker: Boolean) : PendingAuthoritativeCommand
     data class GiftCityStateImprovement(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String, val x: Int, val y: Int, val improvementName: String) : PendingAuthoritativeCommand
     data class NegotiateCityStatePeace(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
+    data class MarryCityState(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val cityStateId: String) : PendingAuthoritativeCommand
 
     data class SetCityTileAssignment(
         override val commandId: String,
@@ -1180,6 +1181,14 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.NegotiateCityStatePeace(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId), current)
     }
 
+    suspend fun marryCityState(cityStateId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.cityStatePartners.any { it.civilizationId == cityStateId && it.diplomaticMarriageCost != null }) {
+            "Diplomatic marriage is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.MarryCityState(commandIdFactory(), current.committedRevision, current.canonicalStateHash, cityStateId), current)
+    }
+
     suspend fun setCityTileAssignment(
         cityId: String,
         x: Int,
@@ -1678,6 +1687,7 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.DemandCityStateTribute -> transport.demandCityStateTribute(gameId, ApiV3CityStateTributeRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.worker))
                 is PendingAuthoritativeCommand.GiftCityStateImprovement -> transport.giftCityStateImprovement(gameId, ApiV3CityStateImprovementGiftRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId, pending.x, pending.y, pending.improvementName))
                 is PendingAuthoritativeCommand.NegotiateCityStatePeace -> transport.negotiateCityStatePeace(gameId, ApiV3CityStatePeaceRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
+                is PendingAuthoritativeCommand.MarryCityState -> transport.marryCityState(gameId, ApiV3CityStateMarriageRequest(pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.cityStateId))
                 is PendingAuthoritativeCommand.SetCityTileAssignment -> transport.setCityTileAssignment(
                     gameId,
                     ApiV3SetCityTileAssignmentRequest(

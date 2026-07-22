@@ -136,4 +136,26 @@ impl EngineWorkerClient {
             .await?;
         commit_proposal(revision, response)
     }
+    pub async fn marry_city_state(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        revision: u64,
+        snapshot: &str,
+        actor_civilization_id: &str,
+        city_state_civilization_id: &str,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::MarryCityState {
+                    snapshot,
+                    actor_civilization_id,
+                    city_state_civilization_id,
+                },
+            )
+            .await?;
+        commit_proposal(revision, response)
+    }
 }

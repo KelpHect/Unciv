@@ -282,6 +282,9 @@ pub enum GameCommand {
     NegotiateCityStatePeace {
         city_state_civilization_id: String,
     },
+    MarryCityState {
+        city_state_civilization_id: String,
+    },
     SetCityTileAssignment {
         city_id: String,
         x: i32,

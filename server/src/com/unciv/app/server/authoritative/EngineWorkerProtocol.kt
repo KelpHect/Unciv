@@ -428,6 +428,8 @@ sealed interface WorkerOperation {
     data class GiftCityStateImprovement(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String, val x: Int, val y: Int, val improvementName: String) : WorkerOperation
     @Serializable @SerialName("negotiate_city_state_peace")
     data class NegotiateCityStatePeace(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String) : WorkerOperation
+    @Serializable @SerialName("marry_city_state")
+    data class MarryCityState(val snapshot: String, val actorCivilizationId: String, val cityStateCivilizationId: String) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -1005,6 +1007,10 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.NegotiateCityStatePeace -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 responseForGame(engine, engine.negotiateCityStatePeace(game, operation.actorCivilizationId, operation.cityStateCivilizationId).game)
+            }
+            is WorkerOperation.MarryCityState -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                responseForGame(engine, engine.marryCityState(game, operation.actorCivilizationId, operation.cityStateCivilizationId).game)
             }
             is WorkerOperation.SetCityTileAssignment -> {
                 val game = engine.loadSnapshot(operation.snapshot)

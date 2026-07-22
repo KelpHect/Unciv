@@ -3,6 +3,9 @@
 
 mod command;
 mod hashing;
+mod projection_city_economy;
+#[cfg(test)]
+mod projection_city_economy_tests;
 mod projection_combat;
 #[cfg(test)]
 mod projection_combat_tests;
@@ -27,7 +30,7 @@ pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 45;
+pub const PROJECTION_VERSION: u16 = 46;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

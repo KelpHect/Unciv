@@ -355,6 +355,7 @@ impl EngineWorkerClient {
         if !projection.research.is_consistent()
             || !projection.movement_is_consistent()
             || !projection.combat_is_consistent()
+            || !projection.city_economy_is_consistent()
         {
             return Err(WorkerClientError::Protocol);
         }

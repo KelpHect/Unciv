@@ -11002,6 +11002,10 @@
           "health",
           "constructionQueue",
           "availableConstructions",
+          "constructionQueueEntries",
+          "constructionOptions",
+          "tileStates",
+          "tilePurchases",
           "assignableTiles",
           "manualSpecialists",
           "specialists",
@@ -11045,10 +11049,22 @@
           "citizenFocus": {
             "$ref": "#/components/schemas/CitizenFocus"
           },
+          "constructionOptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedConstructionOption"
+            }
+          },
           "constructionQueue": {
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "constructionQueueEntries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedConstructionQueueEntry"
             }
           },
           "health": {
@@ -11084,6 +11100,18 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedSpecialist"
+            }
+          },
+          "tilePurchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityTilePurchase"
+            }
+          },
+          "tileStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityTileState"
             }
           },
           "unitPromotionPreferences": {
@@ -11244,6 +11272,75 @@
         },
         "additionalProperties": false
       },
+      "ProjectedCityTilePurchase": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "goldCost",
+          "affordable"
+        ],
+        "properties": {
+          "affordable": {
+            "type": "boolean"
+          },
+          "goldCost": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityTileState": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "ownedByActor",
+          "worked",
+          "locked"
+        ],
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          },
+          "ownedByActor": {
+            "type": "boolean"
+          },
+          "owningCityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "worked": {
+            "type": "boolean"
+          },
+          "workingCityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedCombatModifier": {
         "type": "object",
         "required": [
@@ -11365,6 +11462,130 @@
                 "$ref": "#/components/schemas/ProjectedCombatOutcome"
               }
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedConstructionOption": {
+        "type": "object",
+        "required": [
+          "name",
+          "queueable",
+          "storedProduction",
+          "placementTargets",
+          "purchases"
+        ],
+        "properties": {
+          "estimatedTurns": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "placementTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
+          },
+          "productionCost": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "purchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedConstructionPurchase"
+            }
+          },
+          "queueable": {
+            "type": "boolean"
+          },
+          "storedProduction": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedConstructionPurchase": {
+        "type": "object",
+        "required": [
+          "currency",
+          "cost",
+          "availableAmount",
+          "allowed",
+          "requiresTile",
+          "legalTargets"
+        ],
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "availableAmount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cost": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "legalTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
+          },
+          "requiresTile": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedConstructionQueueEntry": {
+        "type": "object",
+        "required": [
+          "name",
+          "storedProduction",
+          "purchases"
+        ],
+        "properties": {
+          "estimatedTurns": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "productionCost": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "purchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedConstructionPurchase"
+            }
+          },
+          "storedProduction": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -11871,6 +12092,24 @@
           "counter_intelligence",
           "dead"
         ]
+      },
+      "ProjectedTargetCoordinate": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
       },
       "ProjectedTileVisibility": {
         "type": "object",

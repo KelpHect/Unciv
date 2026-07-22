@@ -55,13 +55,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   if retained as a product feature, implement them as explicit server-owned AI
   operations rather than client automation.
 - [ ] City production: add safe add-to-top, all-cities, and bounded batch
-  operations where the production UI exposes them; project progress, costs,
-  legal tile targets, and public wonder effects needed for projection-only UI.
-- [ ] Purchases: project server-derived costs and legal targets for ordinary and
-  tile-targeted purchases.
-- [ ] City tiles: project ownership/working-city assignment, purchase costs, and
-  legal targets; restore any intentionally disabled multi-tile interaction with
-  bounded typed commands if it remains a supported feature.
+  operations where the production UI exposes them, plus the public wonder
+  completion/effect feed needed by projection-only UI. Projection v46 now
+  supplies queue progress, production costs/turn estimates, exact queueability,
+  tile-placement targets, and perpetual choices; opened-v3 single-city controls
+  consume those values without client rule evaluation.
+- [ ] Decide whether the intentionally disabled multi-tile buying and production
+  context-menu batches remain supported. If retained, implement bounded typed
+  commands, server-derived per-target results, partial-failure semantics, and
+  projection-only confirmation; never restore client loops that mutate several
+  canonical cities or tiles.
 - [ ] Research: implement bounded removal and reordering of queued technologies.
   Replace/append/free selection, researched history, queue progress/cost/
   overflow, turn estimates, and opaque public completion prompts plus their
@@ -251,7 +254,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test --no-daemon` passes (950 JVM/server tests,
   13 intentional skips).
-- Rust passes 90 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 95 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

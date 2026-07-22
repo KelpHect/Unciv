@@ -54,8 +54,8 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
             return null
 
         val city = cityScreen.city
-        if (cityScreen.isAuthoritativeGame() && construction is Building &&
-            construction.hasCreateOneImprovementUnique()) return null
+        if (cityScreen.isAuthoritativeGame())
+            return getAuthoritativeBuyButton(construction, stat)
         val button = "".toTextButton()
 
         if (!isConstructionPurchaseShown(construction, stat)) {
@@ -88,7 +88,42 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         return button
     }
 
+    private fun getAuthoritativeBuyButton(
+        construction: INonPerpetualConstruction,
+        stat: Stat,
+    ): TextButton? {
+        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
+        val purchase = cityScreen.authoritativeProjectedPurchase(
+            construction.name, stat.name, queueIndex,
+        ) ?: return null
+        preferredBuyStat = stat
+        return ("Buy".tr() + " " + purchase.cost.tr() + stat.character).toTextButton().apply {
+            onActivation(binding = KeyboardBinding.BuyConstruction) {
+                disable()
+                buyButtonOnClick(construction, stat)
+            }
+            isEnabled = cityScreen.canChangeState && purchase.allowed
+            labelCell.pad(5f)
+        }
+    }
+
     private fun buyButtonOnClick(construction: INonPerpetualConstruction, stat: Stat = preferredBuyStat) {
+        if (cityScreen.isAuthoritativeGame()) {
+            val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
+            val purchase = cityScreen.authoritativeProjectedPurchase(
+                construction.name, stat.name, queueIndex,
+            ) ?: return
+            if (!purchase.allowed) return
+            if (!purchase.requiresTile) return askToBuyConstruction(construction, stat)
+            if (queueIndex == null)
+                return (construction as? Building)?.let {
+                    cityScreen.startPickTileForCreatesOneImprovement(it, stat, true)
+                } ?: Unit
+            val target = purchase.legalTargets.singleOrNull() ?: return
+            val tile = cityScreen.city.civ.gameInfo.tileMap.getIfTileExistsOrNull(target.x, target.y)
+                ?: return
+            return askToBuyConstruction(construction, stat, tile)
+        }
         if (construction !is Building || !construction.hasCreateOneImprovementUnique())
             return askToBuyConstruction(construction, stat)
         if (cityScreen.selectedQueueEntry < 0)
@@ -111,24 +146,42 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         stat: Stat = preferredBuyStat,
         tile: Tile? = null
     ) {
-        if (!isConstructionPurchaseShown(construction, stat)) return
         val city = cityScreen.city
-        val constructionStatBuyCost = construction.getStatBuyCost(city, stat)!!
-        if (!city.cityConstructions.isConstructionPurchaseAllowed(construction, stat, constructionStatBuyCost)) return
+        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
+        val projectedPurchase = if (cityScreen.isAuthoritativeGame())
+            cityScreen.authoritativeProjectedPurchase(construction.name, stat.name, queueIndex)
+        else null
+        if (cityScreen.isAuthoritativeGame()) {
+            if (projectedPurchase?.allowed != true) return
+            if (projectedPurchase.requiresTile != (tile != null)) return
+            if (tile != null && projectedPurchase.legalTargets.none {
+                    it.x == tile.position.x && it.y == tile.position.y
+                }) return
+        } else {
+            if (!isConstructionPurchaseShown(construction, stat)) return
+            val constructionStatBuyCost = construction.getStatBuyCost(city, stat)!!
+            if (!city.cityConstructions.isConstructionPurchaseAllowed(
+                    construction, stat, constructionStatBuyCost,
+                )) return
+        }
+        val constructionStatBuyCost = projectedPurchase?.cost
+            ?: construction.getStatBuyCost(city, stat)!!
+        val availableAmount = projectedPurchase?.availableAmount ?: city.getStatReserve(stat)
 
         cityScreen.closeAllPopups()
-        ConfirmBuyPopup(construction, stat,constructionStatBuyCost, tile)
+        ConfirmBuyPopup(construction, stat, constructionStatBuyCost, availableAmount, tile)
     }
 
     private inner class ConfirmBuyPopup(
         construction: INonPerpetualConstruction,
         stat: Stat,
         constructionStatBuyCost: Int,
+        availableAmount: Int,
         tile: Tile?
     ) : Popup(cityScreen.stage) {
         init {
             val city = cityScreen.city
-            val balance = city.getStatReserve(stat)
+            val balance = availableAmount
             val majorityReligion = city.religion.getMajorityReligion()
             val yourReligion = city.civ.religionManager.religion
             val isBuyingWithFaithForForeignReligion = construction.hasUnique(UniqueType.ReligiousUnit)

@@ -4,7 +4,6 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.ReligionState
 import com.unciv.logic.map.mapunit.MapUnit
-import com.unciv.models.ruleset.PerpetualConstruction
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -41,7 +40,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 45
+        const val CURRENT_PROJECTION_VERSION = 46
     }
 }
 
@@ -203,6 +202,10 @@ data class ProjectedCity(
     val health: Int,
     val constructionQueue: List<String>,
     val availableConstructions: List<String>,
+    val constructionQueueEntries: List<ProjectedConstructionQueueEntry> = emptyList(),
+    val constructionOptions: List<ProjectedConstructionOption> = emptyList(),
+    val tileStates: List<ProjectedCityTileState> = emptyList(),
+    val tilePurchases: List<ProjectedCityTilePurchase> = emptyList(),
     val assignableTiles: List<ProjectedCityTile> = emptyList(),
     val manualSpecialists: Boolean = false,
     val specialists: List<ProjectedSpecialist> = emptyList(),
@@ -449,6 +452,7 @@ object PlayerProjectionBuilder {
             spies = EspionageCommandExecutor.spies(actor),
             eventPrompts = EventChoiceCommandExecutor.prompts(actor),
             ownCities = actor.cities.map {
+                val constructionOptions = CityEconomyProjection.options(it)
                 ProjectedCity(
                     id = it.id,
                     name = it.name,
@@ -457,13 +461,14 @@ object PlayerProjectionBuilder {
                     population = it.population.population,
                     health = it.health,
                     constructionQueue = it.cityConstructions.constructionQueue.toList(),
-                    availableConstructions = (
-                        it.cityConstructions.getBuildableBuildings().map { construction -> construction.name } +
-                            it.cityConstructions.getConstructableUnits().map { construction -> construction.name } +
-                            PerpetualConstruction.perpetualConstructionsMap.values
-                                .filter { construction -> construction.shouldBeDisplayed(it.cityConstructions) }
-                                .map { construction -> construction.name }
-                    ).sorted().toList(),
+                    availableConstructions = constructionOptions.asSequence()
+                        .filter { option -> option.queueable }
+                        .map { option -> option.name }
+                        .toList(),
+                    constructionQueueEntries = CityEconomyProjection.queueEntries(it),
+                    constructionOptions = constructionOptions,
+                    tileStates = CityEconomyProjection.tileStates(it),
+                    tilePurchases = CityEconomyProjection.tilePurchases(it),
                     assignableTiles = it.tilesInRange.asSequence()
                         .filter { tile -> tile.getOwner() == actor }
                         .filter { tile -> !tile.isCityCenter() }

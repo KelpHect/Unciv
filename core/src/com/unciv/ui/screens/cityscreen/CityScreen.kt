@@ -14,6 +14,9 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
+import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.ProjectedCity
+import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionPurchase
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
@@ -84,6 +87,27 @@ class CityScreen(
 
     internal fun isAuthoritativeGame() = city.civ.gameInfo.gameParameters.isOnlineMultiplayer &&
         game.onlineMultiplayer.authoritativeSession?.isGameOpen(city.civ.gameInfo.gameId) == true
+
+    internal fun authoritativeProjection(): PlayerProjection? =
+        if (!isAuthoritativeGame()) null else game.onlineMultiplayer.authoritativeSession
+            ?.cachedProjectionIfOpen(city.civ.gameInfo.gameId)
+
+    internal fun authoritativeProjectedCity(): ProjectedCity? = authoritativeProjection()
+        ?.ownCities?.singleOrNull { it.id == city.id }
+
+    internal fun authoritativeProjectedPurchase(
+        constructionName: String,
+        currencyName: String,
+        queueIndex: Int?,
+    ): ProjectedConstructionPurchase? {
+        val projectedCity = authoritativeProjectedCity() ?: return null
+        val purchases = if (queueIndex == null)
+            projectedCity.constructionOptions.singleOrNull { it.name == constructionName }?.purchases
+        else projectedCity.constructionQueueEntries.getOrNull(queueIndex)
+            ?.takeIf { it.name == constructionName }
+            ?.purchases
+        return purchases?.singleOrNull { it.currency == currencyName }
+    }
 
     // Clockwise from the top-left
 
@@ -273,9 +297,23 @@ class CityScreen(
 
         fun getPickImprovementColor(tile: Tile): Pair<Color, Float> {
             val improvementToPlace = pickTileData!!.improvement
+            val projectedLegal = if (!isAuthoritativeGame()) null else {
+                val data = pickTileData!!
+                val targets = if (data.isBuying) authoritativeProjectedPurchase(
+                    data.building.name,
+                    data.buyStat.name,
+                    selectedQueueEntry.takeIf { it >= 0 },
+                )?.legalTargets else authoritativeProjectedCity()?.constructionOptions
+                    ?.singleOrNull { it.name == data.building.name }
+                    ?.placementTargets
+                targets?.any { it.x == tile.position.x && it.y == tile.position.y } == true
+            }
             return when {
                 tile.isMarkedForCreatesOneImprovement() -> Color.BROWN to 0.7f
-                !city.cityConstructions.canPlaceCreateOneImprovementOn(improvementToPlace, tile) -> Color.RED to 0.4f
+                projectedLegal == false -> Color.RED to 0.4f
+                projectedLegal == null &&
+                    !city.cityConstructions.canPlaceCreateOneImprovementOn(improvementToPlace, tile) ->
+                    Color.RED to 0.4f
                 isExistingImprovementValuable(tile) -> Color.ORANGE to 0.5f
                 tile.improvement != null -> Color.YELLOW to 0.6f
                 tile.turnsToImprovement > 0 -> Color.YELLOW to 0.6f
@@ -395,11 +433,9 @@ class CityScreen(
     private fun addTiles() {
         val viewRange = max(city.getExpandRange(), city.getWorkRange())
         val tileSetStrings = TileSetStrings(city.civ.gameInfo.ruleset, game.settings)
-        val cityTileGroups = city.getCenterTile().getTilesInDistance(viewRange)
-                .filter { selectedCiv.hasExplored(it) }
-                .map { CityTileGroup(city, it, tileSetStrings, false, isSpying) }
-
-        for (tileGroup in cityTileGroups) {
+        city.getCenterTile().forEachTileInDistance(viewRange) { tile ->
+            if (!selectedCiv.hasExplored(tile)) return@forEachTileInDistance
+            val tileGroup = CityTileGroup(city, tile, tileSetStrings, false, isSpying)
             tileGroup.onClick { tileGroupOnClick(tileGroup, city) }
             tileGroup.layerMisc.onWorkedIconClick = {
                 tileWorkedIconOnClick(tileGroup, city)
@@ -760,13 +796,21 @@ class CityScreen(
      */
     internal fun askToBuyTile(selectedTile: Tile) {
         // These checks are redundant for the onClick action, but not for the keyboard binding
-        if (!canChangeState || !city.expansion.canBuyTile(selectedTile)) return
-        val goldCostOfTile = city.expansion.getGoldCostOfTile(selectedTile)
-        if (!city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)) return
+        if (!canChangeState) return
+        val authoritative = isAuthoritativeGame()
+        val projectedPurchase = if (authoritative) authoritativeProjectedCity()?.tilePurchases
+            ?.singleOrNull { it.x == selectedTile.position.x && it.y == selectedTile.position.y }
+        else null
+        if (authoritative && (projectedPurchase == null || !projectedPurchase.affordable)) return
+        if (!authoritative && !city.expansion.canBuyTile(selectedTile)) return
+        val goldCostOfTile = projectedPurchase?.goldCost
+            ?: city.expansion.getGoldCostOfTile(selectedTile)
+        if (!authoritative && !city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)) return
+        val goldBalance = if (authoritative) authoritativeProjection()?.gold ?: return else city.civ.gold
 
         closeAllPopups()
 
-        val purchasePrompt = "Currently you have [${city.civ.gold}] [Gold].".tr() + "\n\n" +
+        val purchasePrompt = "Currently you have [$goldBalance] [Gold].".tr() + "\n\n" +
             "Would you like to purchase [Tile] for [$goldCostOfTile] [${Stat.Gold.character}]?".tr()
         ConfirmPopup(
             this,
@@ -913,7 +957,22 @@ class CityScreen(
             val pickTileData = this.pickTileData!!
             this.pickTileData = null
             val improvement = pickTileData.improvement
-            if (city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
+            val projectedTarget = if (!isAuthoritativeGame()) false else {
+                val queueIndex = selectedQueueEntry.takeIf { it >= 0 }
+                if (pickTileData.isBuying)
+                    authoritativeProjectedPurchase(
+                        pickTileData.building.name, pickTileData.buyStat.name, queueIndex,
+                    )?.legalTargets?.any {
+                        it.x == tileInfo.position.x && it.y == tileInfo.position.y
+                    } == true
+                else authoritativeProjectedCity()?.constructionOptions
+                    ?.singleOrNull { it.name == pickTileData.building.name }
+                    ?.placementTargets?.any {
+                        it.x == tileInfo.position.x && it.y == tileInfo.position.y
+                    } == true
+            }
+            if (projectedTarget || !isAuthoritativeGame() &&
+                city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
                 
                 if (isAuthoritativeGame() && !pickTileData.isBuying) {
                     submitAuthoritativeTileConstruction(pickTileData.building, tileInfo)

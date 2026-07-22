@@ -1,7 +1,34 @@
 use crate::projection::{
-    PlayerProjection, ProjectedCombatPreview, ProjectedMovementDestination,
-    ProjectedTargetCoordinate,
+    PlayerProjection, ProjectedCombatPreview, ProjectedConstructionPurchase,
+    ProjectedMovementDestination, ProjectedTargetCoordinate,
 };
+
+const MAX_PROJECTED_CHOICES: usize = 10_000;
+
+fn coordinates_are_sorted(coordinates: &[ProjectedTargetCoordinate]) -> bool {
+    coordinates.len() <= MAX_PROJECTED_CHOICES
+        && coordinates
+            .windows(2)
+            .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+}
+
+fn purchases_are_consistent(purchases: &[ProjectedConstructionPurchase]) -> bool {
+    purchases.len() <= 32
+        && purchases
+            .windows(2)
+            .all(|pair| pair[0].currency < pair[1].currency)
+        && purchases.iter().all(|purchase| {
+            !purchase.currency.is_empty()
+                && purchase.currency.chars().count() <= 64
+                && purchase.cost >= 0
+                && purchase.available_amount >= 0
+                && coordinates_are_sorted(&purchase.legal_targets)
+                && (purchase.requires_tile || purchase.legal_targets.is_empty())
+                && (!purchase.allowed
+                    || !purchase.requires_tile
+                    || !purchase.legal_targets.is_empty())
+        })
+}
 
 fn combat_modifiers_are_valid(modifiers: &[crate::projection::ProjectedCombatModifier]) -> bool {
     modifiers.len() <= 64
@@ -48,6 +75,120 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn city_economy_is_consistent(&self) -> bool {
+        let own_city_ids = self
+            .own_cities
+            .iter()
+            .map(|city| city.id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        self.own_cities.iter().all(|city| {
+            let coordinate_is_in_city_view = |coordinate: &ProjectedTargetCoordinate| {
+                city.tile_states
+                    .iter()
+                    .any(|tile| tile.x == coordinate.x && tile.y == coordinate.y)
+            };
+            let queue_matches = city.construction_queue.len()
+                == city.construction_queue_entries.len()
+                && city
+                    .construction_queue
+                    .iter()
+                    .zip(&city.construction_queue_entries)
+                    .all(|(name, entry)| {
+                        name == &entry.name
+                            && entry.stored_production >= 0
+                            && entry.production_cost.is_none_or(|cost| cost >= 0)
+                            && entry.estimated_turns.is_none_or(|turns| turns >= 0)
+                            && entry.production_cost.is_some() == entry.estimated_turns.is_some()
+                            && purchases_are_consistent(&entry.purchases)
+                            && entry.purchases.iter().all(|purchase| {
+                                purchase
+                                    .legal_targets
+                                    .iter()
+                                    .all(coordinate_is_in_city_view)
+                            })
+                    });
+            let options_sorted = city.construction_options.len() <= MAX_PROJECTED_CHOICES
+                && city
+                    .construction_options
+                    .windows(2)
+                    .all(|pair| pair[0].name < pair[1].name);
+            let options_valid = city.construction_options.iter().all(|option| {
+                !option.name.is_empty()
+                    && option.name.chars().count() <= 128
+                    && option.stored_production >= 0
+                    && option.production_cost.is_none_or(|cost| cost >= 0)
+                    && option.estimated_turns.is_none_or(|turns| turns >= 0)
+                    && option.production_cost.is_some() == option.estimated_turns.is_some()
+                    && coordinates_are_sorted(&option.placement_targets)
+                    && purchases_are_consistent(&option.purchases)
+                    && option
+                        .placement_targets
+                        .iter()
+                        .all(coordinate_is_in_city_view)
+                    && option.purchases.iter().all(|purchase| {
+                        purchase
+                            .legal_targets
+                            .iter()
+                            .all(coordinate_is_in_city_view)
+                    })
+            });
+            let queueable_names = city
+                .construction_options
+                .iter()
+                .filter(|option| option.queueable)
+                .map(|option| option.name.as_str())
+                .collect::<Vec<_>>();
+            let advertised_names = city
+                .available_constructions
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            let tile_states_valid = city.tile_states.len() <= MAX_PROJECTED_CHOICES
+                && city
+                    .tile_states
+                    .windows(2)
+                    .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+                && city.tile_states.iter().all(|tile| {
+                    self.explored_tiles
+                        .iter()
+                        .any(|known| known.x == tile.x && known.y == tile.y)
+                        && (tile.owned_by_actor == tile.owning_city_id.is_some())
+                        && (tile.owned_by_actor
+                            || (tile.owning_city_id.is_none()
+                                && tile.working_city_id.is_none()
+                                && !tile.worked
+                                && !tile.locked))
+                        && tile
+                            .owning_city_id
+                            .as_deref()
+                            .is_none_or(|id| own_city_ids.contains(id))
+                        && tile
+                            .working_city_id
+                            .as_deref()
+                            .is_none_or(|id| own_city_ids.contains(id))
+                        && (!tile.worked || tile.working_city_id.is_some())
+                        && (!tile.locked || tile.worked)
+                });
+            let tile_purchases_valid = city.tile_purchases.len() <= MAX_PROJECTED_CHOICES
+                && city
+                    .tile_purchases
+                    .windows(2)
+                    .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+                && city.tile_purchases.iter().all(|purchase| {
+                    purchase.gold_cost >= 0
+                        && city.tile_states.iter().any(|tile| {
+                            tile.x == purchase.x && tile.y == purchase.y && !tile.owned_by_actor
+                        })
+                });
+            queue_matches
+                && options_sorted
+                && options_valid
+                && queueable_names == advertised_names
+                && tile_states_valid
+                && tile_purchases_valid
+        })
+    }
+
     pub fn movement_is_consistent(&self) -> bool {
         if self.visible_foreign_units.iter().any(|unit| {
             !unit.move_destinations.is_empty()

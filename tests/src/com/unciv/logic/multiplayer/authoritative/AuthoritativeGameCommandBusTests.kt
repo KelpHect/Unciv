@@ -1596,6 +1596,41 @@ class AuthoritativeGameCommandBusTests {
                 health = 200,
                 constructionQueue = cityQueue,
                 availableConstructions = availableConstructions,
+                constructionQueueEntries = cityQueue.map { constructionName ->
+                    val requiresTile = constructionName == "District"
+                    ProjectedConstructionQueueEntry(
+                        constructionName, 0, 40, 4,
+                        listOf(ProjectedConstructionPurchase(
+                            "Gold", 100, 1_000, true, requiresTile,
+                            if (requiresTile) exploredTiles.map {
+                                ProjectedTargetCoordinate(it.x, it.y)
+                            } else emptyList(),
+                        )),
+                    )
+                },
+                constructionOptions = availableConstructions.sorted().map { constructionName ->
+                    val requiresTile = constructionName == "District"
+                    val targets = if (requiresTile) exploredTiles.map {
+                        ProjectedTargetCoordinate(it.x, it.y)
+                    } else emptyList()
+                    ProjectedConstructionOption(
+                        constructionName, true, 0,
+                        if (constructionName == "Nothing") null else 40,
+                        if (constructionName == "Nothing") null else 4,
+                        targets,
+                        if (constructionName == "Nothing") emptyList() else listOf(
+                            ProjectedConstructionPurchase(
+                                "Gold", 100, 1_000, true, requiresTile, targets,
+                            ),
+                        ),
+                    )
+                },
+                tileStates = exploredTiles.map {
+                    ProjectedCityTileState(it.x, it.y, false, null, null, false, false)
+                },
+                tilePurchases = exploredTiles.map {
+                    ProjectedCityTilePurchase(it.x, it.y, 50, true)
+                },
                 assignableTiles = assignableTiles,
                 specialists = specialists,
                 avoidGrowth = avoidGrowth,

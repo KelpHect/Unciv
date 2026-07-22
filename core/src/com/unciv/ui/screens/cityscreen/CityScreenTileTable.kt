@@ -62,8 +62,14 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
         innerTable.row()
         innerTable.add(getTileStatsTable(stats)).row()
 
-        if (city.expansion.canBuyTile(selectedTile)) {
-            val goldCostOfTile = city.expansion.getGoldCostOfTile(selectedTile)
+        val projectedCity = cityScreen.authoritativeProjectedCity()
+        val projectedTilePurchase = projectedCity?.tilePurchases?.singleOrNull {
+            it.x == selectedTile.position.x && it.y == selectedTile.position.y
+        }
+        if (projectedTilePurchase != null ||
+            !cityScreen.isAuthoritativeGame() && city.expansion.canBuyTile(selectedTile)) {
+            val goldCostOfTile = projectedTilePurchase?.goldCost
+                ?: city.expansion.getGoldCostOfTile(selectedTile)
             val buyTileButton = "Buy for [$goldCostOfTile] gold".toTextButton()
             buyTileButton.onActivation(binding = KeyboardBinding.BuyTile) {
                 buyTileButton.disable()
@@ -71,18 +77,34 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
             }
             if (!cityScreen.isAuthoritativeGame())
                 buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
-            buyTileButton.isEnabled = cityScreen.canChangeState && city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)
+            buyTileButton.isEnabled = cityScreen.canChangeState &&
+                (projectedTilePurchase?.affordable
+                    ?: city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile))
             innerTable.add(buyTileButton).padTop(5f).row()
         }
 
-        if (selectedTile.owningCity != null)
-            innerTable.add("Owned by [${selectedTile.owningCity!!.name}]".toLabel()).row()
+        val projectedTileState = projectedCity?.tileStates?.singleOrNull {
+            it.x == selectedTile.position.x && it.y == selectedTile.position.y
+        }
+        val projectedCities = cityScreen.authoritativeProjection()?.ownCities.orEmpty()
+        val owningCityName = projectedTileState?.owningCityId?.let { cityId ->
+            projectedCities.singleOrNull { it.id == cityId }?.name
+        } ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.owningCity?.name else null
+        if (owningCityName != null)
+            innerTable.add("Owned by [$owningCityName]".toLabel()).row()
 
-        if (selectedTile.getWorkingCity() != null)
-            innerTable.add("Worked by [${selectedTile.getWorkingCity()!!.name}]".toLabel()).row()
+        val workingCityName = projectedTileState?.workingCityId?.let { cityId ->
+            projectedCities.singleOrNull { it.id == cityId }?.name
+        } ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.getWorkingCity()?.name else null
+        if (workingCityName != null)
+            innerTable.add("Worked by [$workingCityName]".toLabel()).row()
 
-        if (city.isWorked(selectedTile)) {
-            if (selectedTile.isLocked()) {
+        val isWorked = projectedTileState?.worked
+            ?: if (!cityScreen.isAuthoritativeGame()) city.isWorked(selectedTile) else false
+        val isLocked = projectedTileState?.locked
+            ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.isLocked() else false
+        if (isWorked) {
+            if (isLocked) {
                 val unlockButton = "Unlock".toTextButton()
                 unlockButton.onClick {
                     if (cityScreen.isAuthoritativeGame())

@@ -295,14 +295,28 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 city.getRuleset().buildings.values.asSequence()
 
         city.cityStats.updateTileStats() // only once
-        for (entry in constructionsSequence.filter { it.shouldBeDisplayed(cityConstructions) }) {
+        val projectedOptionNames = cityScreen.authoritativeProjectedCity()
+            ?.constructionOptions?.mapTo(hashSetOf()) { it.name }
+        for (entry in constructionsSequence.filter {
+            projectedOptionNames?.contains(it.name) ?: it.shouldBeDisplayed(cityConstructions)
+        }) {
 
             val useStoredProduction = entry is Building || !cityConstructions.isBeingConstructedOrEnqueued(entry.name)
+            val projectedOption = cityScreen.authoritativeProjectedCity()
+                ?.constructionOptions?.singleOrNull { it.name == entry.name }
 
             // this is susceptible to comodification since ANY change in unique sources - for example a new building -
             //   can cause comodification change
             // This is however rare enough and short enough in duration that a second run will work
-            val buttonText = try {
+            val buttonText = if (cityScreen.isAuthoritativeGame()) {
+                projectedOption?.let {
+                    projectedConstructionProgressText(
+                        it.storedProduction,
+                        it.productionCost,
+                        it.estimatedTurns,
+                    ).trim()
+                } ?: ""
+            } else try {
                 cityConstructions.getTurnsToConstructionString(entry, useStoredProduction).trim()
             } catch (_: Exception){
                 cityConstructions.getTurnsToConstructionString(entry, useStoredProduction).trim()
@@ -311,10 +325,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             val resourcesRequired = if (entry is BaseUnit)
                 entry.getResourceRequirementsPerTurn(city.civ.state)
                 else entry.getResourceRequirementsPerTurn(city.state)
-            val mostImportantRejection =
-                    entry.getRejectionReasons(cityConstructions)
-                        .filter { it.isImportantRejection() }
-                        .minByOrNull { it.getRejectionPrecedence() }
+            val mostImportantRejection = if (cityScreen.isAuthoritativeGame()) null else
+                entry.getRejectionReasons(cityConstructions)
+                    .filter { it.isImportantRejection() }
+                    .minByOrNull { it.getRejectionPrecedence() }
 
             constructionButtonDTOList.add(
                 ConstructionButtonDTO(
@@ -327,7 +341,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
 
         for (specialConstruction in PerpetualConstruction.perpetualConstructionsMap.values
-                .filter { it.shouldBeDisplayed(cityConstructions) }
+                .filter {
+                    projectedOptionNames?.contains(it.name)
+                        ?: it.shouldBeDisplayed(cityConstructions)
+                }
         ) {
             constructionButtonDTOList.add(
                 ConstructionButtonDTO(
@@ -428,9 +445,18 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         val construction = cityConstructions.getConstruction(constructionName)
         val isFirstConstructionOfItsKind = cityConstructions.isFirstConstructionOfItsKind(constructionQueueIndex, constructionName)
 
-        var text = constructionName.tr(true) +
-                if (constructionName in PerpetualConstruction.perpetualConstructionsMap) "\n" + Fonts.infinity
-                else cityConstructions.getTurnsToConstructionString(construction, isFirstConstructionOfItsKind)
+        val projectedQueueEntry = cityScreen.authoritativeProjectedCity()
+            ?.constructionQueueEntries?.getOrNull(constructionQueueIndex)
+            ?.takeIf { it.name == constructionName }
+        var text = constructionName.tr(true) + when {
+            constructionName in PerpetualConstruction.perpetualConstructionsMap -> "\n" + Fonts.infinity
+            projectedQueueEntry != null -> projectedConstructionProgressText(
+                projectedQueueEntry.storedProduction,
+                projectedQueueEntry.productionCost,
+                projectedQueueEntry.estimatedTurns,
+            )
+            else -> cityConstructions.getTurnsToConstructionString(construction, isFirstConstructionOfItsKind)
+        }
 
         val constructionResource = if (construction is BaseUnit)
                 construction.getResourceRequirementsPerTurn(city.civ.state)
@@ -441,7 +467,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
 
         table.defaults().pad(2f).minWidth(40f)
-        if (isFirstConstructionOfItsKind) table.add(getProgressBar(constructionName)).minWidth(5f)
+        if (isFirstConstructionOfItsKind) table.add(getProgressBar(constructionName, constructionQueueIndex)).minWidth(5f)
         else table.add().minWidth(5f)
         table.add(ImageGetter.getConstructionPortrait(constructionName, 40f)).padRight(10f)
         table.add(text.toLabel()).expandX().fillX().left()
@@ -504,14 +530,27 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 )
     }
 
-    private fun getProgressBar(constructionName: String): Group {
+    private fun getProgressBar(constructionName: String, queueIndex: Int? = null): Group {
         val cityConstructions = cityScreen.city.cityConstructions
         val construction = cityConstructions.getConstruction(constructionName)
         if (construction is PerpetualConstruction) return Table()
-        if (cityConstructions.getWorkDone(constructionName) == 0) return Table()
+        val projected = if (cityScreen.isAuthoritativeGame()) {
+            val city = cityScreen.authoritativeProjectedCity() ?: return Table()
+            if (queueIndex == null)
+                city.constructionOptions.singleOrNull { it.name == constructionName }
+                    ?.let { it.storedProduction to it.productionCost }
+            else city.constructionQueueEntries.getOrNull(queueIndex)
+                ?.takeIf { it.name == constructionName }
+                ?.let { it.storedProduction to it.productionCost }
+        } else null
+        val workDone = projected?.first ?: cityConstructions.getWorkDone(constructionName)
+        val productionCost = projected?.second
+            ?: (construction as INonPerpetualConstruction).getProductionCost(
+                cityConstructions.city.civ, cityConstructions.city,
+            )
+        if (workDone == 0 || productionCost <= 0) return Table()
 
-        val constructionPercentage = cityConstructions.getWorkDone(constructionName) /
-                (construction as INonPerpetualConstruction).getProductionCost(cityConstructions.city.civ, cityConstructions.city).toFloat()
+        val constructionPercentage = workDone / productionCost.toFloat()
         return ImageGetter.getProgressBarVertical(2f, 30f, constructionPercentage,
                 Color.BROWN.brighten(0.5f), Color.WHITE)
     }
@@ -660,11 +699,27 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     private fun isSelectedQueueEntry(): Boolean = selectedQueueEntry >= 0
 
     private fun cannotAddConstructionToQueue(construction: IConstruction, city: City, cityConstructions: CityConstructions): Boolean {
+        if (cityScreen.isAuthoritativeGame()) {
+            return !cityScreen.canChangeState || cityScreen.authoritativeProjectedCity()
+                ?.constructionOptions
+                ?.singleOrNull { it.name == construction.name }
+                ?.queueable != true
+        }
         return cityConstructions.isQueueFull()
                 || !construction.isBuildable(cityConstructions)
                 || !cityScreen.canChangeState
                 || construction is PerpetualConstruction && cityConstructions.isBeingConstructedOrEnqueued(construction.name)
                 || city.isPuppet
+    }
+
+    private fun projectedConstructionProgressText(
+        storedProduction: Int,
+        productionCost: Int?,
+        estimatedTurns: Int?,
+    ): String {
+        if (productionCost == null) return ""
+        val turns = estimatedTurns?.let { " $it${Fonts.turn}" } ?: ""
+        return "\n$storedProduction/$productionCost${Fonts.production}$turns"
     }
 
     private fun addConstructionToQueue(construction: IConstruction, cityConstructions: CityConstructions) {

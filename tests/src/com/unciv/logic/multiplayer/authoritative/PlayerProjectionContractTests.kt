@@ -48,6 +48,13 @@ class PlayerProjectionContractTests {
         assertEquals("Mining", projection.research.completionPrompts.single().technologyName)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
+        assertEquals(12, projection.ownCities.single().constructionQueueEntries.single().storedProduction)
+        assertEquals(160, projection.ownCities.single().constructionQueueEntries.single()
+            .purchases.single().cost)
+        assertEquals(listOf("Archer", "Granary"), projection.ownCities.single()
+            .constructionOptions.map { it.name })
+        assertEquals(75, projection.ownCities.single().tilePurchases.single().goldCost)
+        assertEquals("city-rome", projection.ownCities.single().tileStates.first().workingCityId)
         assertEquals(CitizenFocus.GoldFocus, projection.ownCities.single().citizenFocus)
         assertEquals("Warrior", projection.ownCities.single().unitPromotionPreferences.single().baseUnitName)
         assertTrue(projection.ownCities.single().unitPromotionPreferences.single().enabled)
@@ -156,6 +163,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v45.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v46.fixture.json") }
         .first { it.isFile }
 }

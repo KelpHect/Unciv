@@ -4509,3 +4509,60 @@ Verification on 2026-07-22:
   is below the 800-line guardrail, while `main.rs` and `lib.rs` remain thin.
   No compile, test, formatting, Clippy, OpenAPI, database, or disposable-resource
   error is deferred.
+
+## Authoritative city economy and projection v46
+
+Opened-v3 city production, construction purchases, and tile acquisition now
+consume a closed server-derived city-economy view. Each owned city projects its
+ordered queue with stored production, canonical production cost and estimated
+turns; sorted queueable construction/perpetual choices; exact create-one-
+improvement placement targets; per-currency canonical purchase cost, actor
+reserve, allowed state, tile requirement and legal targets; explored tile
+ownership plus actor-safe owning/working-city IDs and worked/locked state; and
+exact city-tile purchase costs and affordability. The client submits only the
+existing typed identity/coordinate intent and cannot send prices, balances,
+queueability, ownership, placement rules, or legality claims.
+
+`CityConstructionsTable`, `BuyButtonFactory`, `CityScreen`, and
+`CityScreenTileTable` now use projection v46 for opened-v3 availability,
+progress, turn display, purchase confirmation, tile labels, highlighting and
+preflight. The command bus fails closed when a requested choice is absent or
+has changed. The private Kotlin worker still re-derives every rule and price;
+manual production selection now explicitly rejects puppet cities. Local,
+hotseat, saved, legacy/API-v2, and server-AI execution retain shared Kotlin
+behavior.
+
+Rust accepts the additive v46 DTOs through a focused
+`projection_city_economy.rs` module and validates bounds, sorting, queue
+correspondence, queueable-name correspondence, progress/cost shapes, purchase
+shapes, explored coordinates, own-city-only identifiers, tile-state
+consistency, and unique purchase targets before exposing a worker result. The
+shared Kotlin/Rust fixture moved from v45 to v46. Optional add-to-top/all-city/
+batch controls and public wonder-effect feeds remain explicit in
+`missing_multiplayer.md`; single construction purchases and single-tile
+interactions are complete for the inventoried opened-v3 UI.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin engine, projection-contract, command-bus, and session tests
+  prove canonical queue/cost/target derivation, projection-only preflight,
+  retry identity, and price-free public requests. The broad
+  `./gradlew :tests:test :server:test --no-daemon` gate passes 950 tests with 13
+  intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 95 active library tests and
+  all 7 HTTP/OpenAPI tests. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, regenerated
+  OpenAPI parity, and `git diff --check` pass.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55463; the live server reported `PostgreSQL 19beta2`. The disposable
+  container, network, and volume were removed and cleanup was verified.
+- The first broad JVM run found five stale session fixtures that still modeled
+  construction legality with legacy name lists; they were upgraded to v46 and
+  the entire gate reran cleanly. A Cargo verification was also invoked once
+  from the repository root, correctly reported no `Cargo.toml`, then reran from
+  `authoritative-server` and passed. No product, test, formatting, Clippy,
+  OpenAPI, database, or disposable-resource error is deferred.
+- Rust façades remain thin (`main.rs` 6 lines and `lib.rs` under 40 lines).
+  City-economy wire types were split before `projection.rs` could become a god
+  file; the largest Rust source remains 783 lines.

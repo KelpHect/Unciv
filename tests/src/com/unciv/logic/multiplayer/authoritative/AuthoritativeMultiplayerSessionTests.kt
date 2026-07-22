@@ -809,6 +809,7 @@ class AuthoritativeMultiplayerSessionTests {
             health = 200,
             constructionQueue = emptyList(),
             availableConstructions = listOf("Monument"),
+            constructionOptions = listOf(projectedConstructionOption("Monument")),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -840,6 +841,7 @@ class AuthoritativeMultiplayerSessionTests {
             health = 200,
             constructionQueue = emptyList(),
             availableConstructions = listOf("Monument"),
+            constructionOptions = listOf(projectedConstructionOption("Monument")),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -1077,6 +1079,8 @@ class AuthoritativeMultiplayerSessionTests {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
             listOf("Monument"), listOf("Monument"),
+            constructionQueueEntries = listOf(projectedQueueEntry("Monument")),
+            constructionOptions = listOf(projectedConstructionOption("Monument")),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -1106,6 +1110,10 @@ class AuthoritativeMultiplayerSessionTests {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200,
             listOf("Monument"), listOf("Nothing"),
+            constructionQueueEntries = listOf(projectedQueueEntry("Monument")),
+            constructionOptions = listOf(ProjectedConstructionOption(
+                "Nothing", true, 0, null, null, emptyList(), emptyList(),
+            )),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -1132,6 +1140,8 @@ class AuthoritativeMultiplayerSessionTests {
     fun authoritativeTilePurchaseRetryRetainsCommandId() = runBlocking {
         val projectedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200, emptyList(), emptyList(),
+            tileStates = listOf(ProjectedCityTileState(2, 0, false, null, null, false, false)),
+            tilePurchases = listOf(ProjectedCityTilePurchase(2, 0, 50, true)),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -1216,6 +1226,20 @@ class AuthoritativeMultiplayerSessionTests {
             exploredTiles = emptyList(),
             visibleForeignUnits = emptyList(),
         ),
+    )
+
+    private fun projectedConstructionOption(name: String) = ProjectedConstructionOption(
+        name, true, 0, 40, 4, emptyList(),
+        listOf(ProjectedConstructionPurchase(
+            "Gold", 100, 1_000, true, false, emptyList(),
+        )),
+    )
+
+    private fun projectedQueueEntry(name: String) = ProjectedConstructionQueueEntry(
+        name, 0, 40, 4,
+        listOf(ProjectedConstructionPurchase(
+            "Gold", 100, 1_000, true, false, emptyList(),
+        )),
     )
 
     private inner class FakeTransport : ApiV3Transport {

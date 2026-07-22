@@ -6,6 +6,7 @@ use crate::{
     ReligiousUnitAction, UnitPosture,
 };
 
+pub use crate::projection_city_economy::*;
 pub use crate::projection_combat::*;
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -245,6 +246,10 @@ pub struct ProjectedCity {
     pub health: i32,
     pub construction_queue: Vec<String>,
     pub available_constructions: Vec<String>,
+    pub construction_queue_entries: Vec<ProjectedConstructionQueueEntry>,
+    pub construction_options: Vec<ProjectedConstructionOption>,
+    pub tile_states: Vec<ProjectedCityTileState>,
+    pub tile_purchases: Vec<ProjectedCityTilePurchase>,
     pub assignable_tiles: Vec<ProjectedCityTile>,
     pub manual_specialists: bool,
     pub specialists: Vec<ProjectedSpecialist>,
@@ -482,7 +487,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v46.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -674,7 +679,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v46.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -688,7 +693,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v45.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v46.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

@@ -26,6 +26,7 @@ import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
 import com.unciv.logic.multiplayer.authoritative.ProjectedMovementDestination
 import com.unciv.logic.multiplayer.authoritative.ProjectedAirSweepInterceptorDisclosure
 import com.unciv.logic.multiplayer.authoritative.ProjectedNuclearEffectDisclosure
+import com.unciv.logic.multiplayer.authoritative.ProjectedTargetCoordinate
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
@@ -1645,12 +1646,26 @@ class AuthoritativeGameExecutionContextTests {
         val construction = city.getRuleset().buildings.values
             .first { city.cityConstructions.canAddToQueue(it) }.name
 
+        city.isPuppet = true
+        val puppetOption = engine.playerProjection(game, "Rome").ownCities.single()
+            .constructionOptions.single { it.name == construction }
+        Assert.assertFalse(puppetOption.queueable)
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.queueConstruction(game, "Rome", city.id, construction)
+        }
+        city.isPuppet = false
+        val optionBeforeQueue = engine.playerProjection(game, "Rome").ownCities.single()
+            .constructionOptions.single { it.name == construction }
+        Assert.assertTrue(optionBeforeQueue.queueable)
+        Assert.assertTrue(optionBeforeQueue.productionCost!! > 0)
+
         val result = engine.queueConstruction(game, "Rome", city.id, construction)
         val projectedCity = engine.playerProjection(result.game, "Rome").ownCities.single { it.id == city.id }
 
         Assert.assertEquals(listOf(construction), city.cityConstructions.constructionQueue)
         Assert.assertEquals(listOf(construction), projectedCity.constructionQueue)
-        Assert.assertTrue(construction in projectedCity.availableConstructions)
+        Assert.assertEquals(construction, projectedCity.constructionQueueEntries.single().name)
+        Assert.assertTrue(projectedCity.constructionQueueEntries.single().productionCost!! > 0)
     }
 
     @Test
@@ -1666,6 +1681,11 @@ class AuthoritativeGameExecutionContextTests {
         val building = testGame.createBuilding("Creates a [Farm] improvement on a specific tile")
         val target = testGame.setTileTerrain(HexCoord(1, 0), Constants.grassland)
         val engine = HeadlessGameEngine(serverContext { serverTime })
+        val projectedOption = engine.playerProjection(testGame.gameInfo, civilization.civName)
+            .ownCities.single().constructionOptions.single { it.name == building.name }
+
+        Assert.assertTrue(ProjectedTargetCoordinate(target.position.x, target.position.y) in
+            projectedOption.placementTargets)
 
         engine.queueConstructionAtTile(
             testGame.gameInfo, civilization.civName, city.id, building.name, target.position,
@@ -2285,6 +2305,12 @@ class AuthoritativeGameExecutionContextTests {
         engine.queueConstruction(game, "Rome", city.id, construction.name)
         val expectedCost = construction.getStatBuyCost(city, Stat.Gold)!!
         val previousGold = rome.gold
+        val projectedPurchase = engine.playerProjection(game, "Rome").ownCities.single()
+            .constructionQueueEntries.single().purchases.single { it.currency == Stat.Gold.name }
+
+        Assert.assertEquals(expectedCost, projectedPurchase.cost)
+        Assert.assertEquals(previousGold, projectedPurchase.availableAmount)
+        Assert.assertTrue(projectedPurchase.allowed)
 
         engine.purchaseConstruction(game, "Rome", city.id, construction.name, Stat.Gold.name, 0)
 
@@ -2318,6 +2344,11 @@ class AuthoritativeGameExecutionContextTests {
         val tile = city.tilesInRange.first { city.expansion.canBuyTile(it) }
         val expectedCost = city.expansion.getGoldCostOfTile(tile)
         val previousGold = rome.gold
+        val projectedPurchase = engine.playerProjection(game, "Rome").ownCities.single()
+            .tilePurchases.single { it.x == tile.position.x && it.y == tile.position.y }
+
+        Assert.assertEquals(expectedCost, projectedPurchase.goldCost)
+        Assert.assertTrue(projectedPurchase.affordable)
 
         engine.buyCityTile(game, "Rome", city.id, tile.position)
 

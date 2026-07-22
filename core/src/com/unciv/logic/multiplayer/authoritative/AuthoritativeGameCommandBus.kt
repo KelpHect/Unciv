@@ -930,7 +930,7 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val city = current.projection.ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current player projection")
-        require(constructionName in city.availableConstructions) {
+        require(city.constructionOptions.any { it.name == constructionName && it.queueable }) {
             "Construction is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.QueueConstruction(
@@ -951,11 +951,12 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val city = current.projection.ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current player projection")
-        require(constructionName in city.availableConstructions) {
+        val option = city.constructionOptions.singleOrNull { it.name == constructionName }
+        require(option?.queueable == true) {
             "Construction is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
-            "Tile is absent from the current player projection"
+        require(option.placementTargets.any { it.x == x && it.y == y }) {
+            "Tile is absent from the construction's projected legal targets"
         }
         submitLocked(PendingAuthoritativeCommand.QueueConstructionAtTile(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -967,7 +968,7 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val city = current.projection.ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current player projection")
-        require(constructionName in city.availableConstructions) {
+        require(city.constructionOptions.any { it.name == constructionName && it.queueable }) {
             "Perpetual construction is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.SetPerpetualConstruction(
@@ -1011,18 +1012,9 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val city = current.projection.ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current player projection")
-        if (queueIndex == null) {
-            require(constructionName in city.availableConstructions) {
-                "Construction is absent from the current player projection"
-            }
-        } else {
-            require(queueIndex in city.constructionQueue.indices &&
-                city.constructionQueue[queueIndex] == constructionName) {
-                "Construction queue entry is absent from the current player projection"
-            }
-        }
-        require(currencyName.isNotBlank() && currencyName.length <= 32) {
-            "Purchase currency is invalid"
+        val purchase = projectedPurchase(city, constructionName, currencyName, queueIndex)
+        require(purchase.allowed && !purchase.requiresTile) {
+            "Ordinary construction purchase is absent from the projected legal choices"
         }
         submitLocked(PendingAuthoritativeCommand.PurchaseConstruction(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -1041,21 +1033,10 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val city = current.projection.ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current player projection")
-        if (queueIndex == null) {
-            require(constructionName in city.availableConstructions) {
-                "Construction is absent from the current player projection"
-            }
-        } else {
-            require(queueIndex in city.constructionQueue.indices &&
-                city.constructionQueue[queueIndex] == constructionName) {
-                "Construction queue entry is absent from the current player projection"
-            }
-        }
-        require(currencyName.isNotBlank() && currencyName.length <= 32) {
-            "Purchase currency is invalid"
-        }
-        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
-            "Tile is absent from the current player projection"
+        val purchase = projectedPurchase(city, constructionName, currencyName, queueIndex)
+        require(purchase.allowed && purchase.requiresTile &&
+            purchase.legalTargets.any { it.x == x && it.y == y }) {
+            "Tile-specific purchase is absent from the projected legal choices"
         }
         submitLocked(PendingAuthoritativeCommand.PurchaseConstructionAtTile(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -1065,11 +1046,10 @@ class AuthoritativeGameCommandBus(
 
     suspend fun buyCityTile(cityId: String, x: Int, y: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownCities.any { it.id == cityId }) {
-            "City is absent from the current player projection"
-        }
-        require(current.projection.exploredTiles.any { it.x == x && it.y == y }) {
-            "Tile is absent from the current player projection"
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(city.tilePurchases.any { it.x == x && it.y == y && it.affordable }) {
+            "Tile is absent from the city's projected affordable purchases"
         }
         submitLocked(PendingAuthoritativeCommand.BuyCityTile(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -1477,6 +1457,26 @@ class AuthoritativeGameCommandBus(
             "Construction queue entry is absent from the current player projection"
         }
         return city
+    }
+
+    private fun projectedPurchase(
+        city: ProjectedCity,
+        constructionName: String,
+        currencyName: String,
+        queueIndex: Int?,
+    ): ProjectedConstructionPurchase {
+        require(currencyName.isNotBlank() && currencyName.length <= 32) {
+            "Purchase currency is invalid"
+        }
+        val purchases = if (queueIndex == null) {
+            city.constructionOptions.singleOrNull { it.name == constructionName }?.purchases
+        } else {
+            city.constructionQueueEntries.getOrNull(queueIndex)
+                ?.takeIf { it.name == constructionName }
+                ?.purchases
+        } ?: error("Construction is absent from the current player projection")
+        return purchases.singleOrNull { it.currency == currencyName }
+            ?: error("Purchase currency is absent from the projected legal choices")
     }
 
     suspend fun setResearchPath(technologyName: String, append: Boolean = false) = mutex.withLock {

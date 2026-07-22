@@ -1042,6 +1042,7 @@ class HeadlessGameEngine(
         }
         val city = actorCivilization.cities.firstOrNull { it.id == cityId }
             ?: error("City is not controlled by the authenticated actor")
+        require(!city.isPuppet) { "Puppet-city production cannot be selected manually" }
         require(constructionName.isNotBlank() && constructionName.length <= 128) {
             "Construction name is invalid"
         }
@@ -1064,6 +1065,7 @@ class HeadlessGameEngine(
         constructionName: String,
     ): EngineResult {
         val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet) { "Puppet-city production cannot be selected manually" }
         require(constructionName.isNotBlank() && constructionName.length <= 128) {
             "Perpetual construction name is invalid"
         }
@@ -1178,6 +1180,7 @@ class HeadlessGameEngine(
         coordinates: HexCoord,
     ): EngineResult {
         val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        require(!city.isPuppet) { "Puppet-city production cannot be selected manually" }
         require(constructionName.isNotBlank() && constructionName.length <= 128) {
             "Construction name is invalid"
         }

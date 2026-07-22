@@ -350,6 +350,8 @@ sealed interface GameCommand {
     data class AdoptPolicy(val policyName: String) : GameCommand
 
     data class ChooseFreeTechnology(val technologyName: String) : GameCommand
+
+    data class AcknowledgeResearchCompletion(val promptId: String) : GameCommand
 }
 
 @Serializable

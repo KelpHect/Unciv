@@ -1340,6 +1340,34 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun researchCompletionAcknowledgmentUsesOnlyAnOpaqueProjectedPrompt() = runBlocking {
+        val prompt = ProjectedResearchCompletion("a".repeat(64), "Writing")
+        val initial = projection(0, "hash-0", completionPrompts = listOf(prompt))
+        val committed = projection(1, "hash-1")
+        val transport = FakeTransport(initial).apply {
+            onAcknowledgeResearchCompletion = { request ->
+                current = committed
+                accepted(request.commandId, 0, 1, "hash-1")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "research-ack-command" }
+        bus.refresh()
+
+        val outcome = bus.acknowledgeResearchCompletion(prompt.promptId)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(prompt.promptId, transport.researchCompletionRequests.single().promptId)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun researchCompletionAcknowledgmentRejectsAnUnprojectedPrompt() = runBlocking {
+        val bus = AuthoritativeGameCommandBus(gameId, FakeTransport(projection(0, "hash-0")))
+        bus.refresh()
+        bus.acknowledgeResearchCompletion("b".repeat(64))
+        Unit
+    }
+
+    @Test
     fun freshClientReconstructsFromServerProjection() = runBlocking {
         val transport = FakeTransport(projection(4, "hash-4"))
         val bus = AuthoritativeGameCommandBus(gameId, transport)
@@ -1433,6 +1461,7 @@ class AuthoritativeGameCommandBusTests {
         hash: String,
         cityQueue: List<String>? = null,
         freeTechnologyChoices: List<String> = emptyList(),
+        completionPrompts: List<ProjectedResearchCompletion> = emptyList(),
         availableConstructions: List<String> = listOf("Monument"),
         exploredTiles: List<ProjectedTileVisibility> = emptyList(),
         assignableTiles: List<ProjectedCityTile> = emptyList(),
@@ -1466,6 +1495,7 @@ class AuthoritativeGameCommandBusTests {
                 selectableTargets = listOf("Writing"),
                 appendableTargets = listOf("Writing"),
                 freeTechnologyChoices = freeTechnologyChoices,
+                completionPrompts = completionPrompts,
             ),
             policies = ProjectedPolicies(25, 25, 0, emptyList(), listOf("Tradition")),
             gold = 0,
@@ -1563,6 +1593,7 @@ class AuthoritativeGameCommandBusTests {
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
+        val researchCompletionRequests = mutableListOf<ApiV3AcknowledgeResearchCompletionRequest>()
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
@@ -1690,6 +1721,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onChooseFreeTechnology: suspend (ApiV3ChooseFreeTechnologyRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onAcknowledgeResearchCompletion: suspend (ApiV3AcknowledgeResearchCompletionRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
 
@@ -2083,6 +2117,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             freeTechnologyRequests += request
             return onChooseFreeTechnology(request)
+        }
+        override suspend fun acknowledgeResearchCompletion(
+            gameId: String,
+            request: ApiV3AcknowledgeResearchCompletionRequest,
+        ): ApiV3CommandAccepted {
+            researchCompletionRequests += request
+            return onAcknowledgeResearchCompletion(request)
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")

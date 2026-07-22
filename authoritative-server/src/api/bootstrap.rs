@@ -367,6 +367,10 @@ pub(crate) async fn run() {
             "/api/v3/games/{game_id}/commands/choose-free-technology",
             post(choose_free_technology),
         )
+        .route(
+            "/api/v3/games/{game_id}/commands/acknowledge-research-completion",
+            post(acknowledge_research_completion),
+        )
         .layer(DefaultBodyLimit::max(8 * 1024))
         .with_state(AppState {
             repository,

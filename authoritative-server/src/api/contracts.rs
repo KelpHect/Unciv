@@ -764,6 +764,15 @@ pub(super) struct ChooseFreeTechnologyRequest {
     pub(super) technology_name: String,
 }
 
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AcknowledgeResearchCompletionRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) prompt_id: String,
+}
+
 #[derive(Serialize, ToSchema)]
 pub(super) struct ErrorResponse {
     pub(super) code: &'static str,

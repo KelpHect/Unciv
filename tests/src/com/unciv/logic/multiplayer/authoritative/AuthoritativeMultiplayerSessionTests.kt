@@ -723,6 +723,30 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun researchCompletionAcknowledgmentRoutesOnlyForAnOpenedAuthoritativeGame() = runBlocking {
+        val prompt = ProjectedResearchCompletion("a".repeat(64), "Writing")
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(completionPrompts = listOf(prompt)),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.acknowledgeResearchCompletionIfOpen(GAME_ID, prompt.promptId))
+        session.openGame(GAME_ID)
+        val outcome = session.acknowledgeResearchCompletionIfOpen(GAME_ID, prompt.promptId)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(prompt.promptId), transport.researchCompletionPromptIds)
+        assertEquals(8, transport.current.committedRevision)
+        session.close()
+    }
+
+    @Test
     fun constructionRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val projectedCity = ProjectedCity(
             id = "city-1",
@@ -1130,6 +1154,7 @@ class AuthoritativeMultiplayerSessionTests {
                 selectableTargets = emptyList(),
                 appendableTargets = emptyList(),
                 freeTechnologyChoices = emptyList(),
+                completionPrompts = emptyList(),
             ),
             policies = ProjectedPolicies(0, 25, 0, emptyList(), emptyList()),
             gold = 0,
@@ -1179,6 +1204,7 @@ class AuthoritativeMultiplayerSessionTests {
         val researchTargets = mutableListOf<String>()
         val policyNames = mutableListOf<String>()
         val freeTechnologyNames = mutableListOf<String>()
+        val researchCompletionPromptIds = mutableListOf<String>()
         val queuedConstructions = mutableListOf<Pair<String, String>>()
         val perpetualConstructions = mutableListOf<Pair<String, String>>()
         val queueCommandIds = mutableListOf<String>()
@@ -2007,6 +2033,27 @@ class AuthoritativeMultiplayerSessionTests {
                     research = current.projection.research.copy(
                         freeTechnologyChoices = emptyList(),
                     ),
+                ),
+            )
+            return ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                current.committedRevision,
+                current.canonicalStateHash,
+            )
+        }
+        override suspend fun acknowledgeResearchCompletion(
+            gameId: String,
+            request: ApiV3AcknowledgeResearchCompletionRequest,
+        ): ApiV3CommandAccepted {
+            researchCompletionPromptIds += request.promptId
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-8",
+                projectionHash = "projection-hash-8",
+                projection = current.projection.copy(
+                    research = current.projection.research.copy(completionPrompts = emptyList()),
                 ),
             )
             return ApiV3CommandAccepted(

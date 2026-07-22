@@ -76,6 +76,7 @@ class AlertPopup(
 ): Popup(worldScreen) {
     private var authoritativeDispositionSubmissionInProgress = false
     private var authoritativeEventSubmissionInProgress = false
+    private var authoritativeResearchAcknowledgmentInProgress = false
     
     companion object {
         private const val SEPARATOR_LINE_TO_TEXT_PADDING = 25f
@@ -911,6 +912,58 @@ class AlertPopup(
     //endregion
 
     override fun close() {
+        if (popupAlert.type == AlertType.TechResearched &&
+            worldScreen.mapHolder.usesAuthoritativeCommands()
+        ) {
+            acknowledgeAuthoritativeResearchCompletion()
+            return
+        }
+        closeLocally()
+    }
+
+    private fun acknowledgeAuthoritativeResearchCompletion() {
+        if (authoritativeResearchAcknowledgmentInProgress) return
+        authoritativeResearchAcknowledgmentInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Acknowledge authoritative research completion") {
+            val outcome = try {
+                val session = worldScreen.game.onlineMultiplayer.authoritativeSession
+                    ?: error("Authoritative session is unavailable")
+                val projection = session.projectionIfOpen(gameInfo.gameId)
+                    ?: error("Authoritative projection is unavailable")
+                val prompt = projection.research.completionPrompts
+                    .firstOrNull { it.technologyName == popupAlert.value }
+                if (prompt == null) null
+                else session.acknowledgeResearchCompletionIfOpen(gameInfo.gameId, prompt.promptId)
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeResearchAcknowledgmentInProgress = false
+                    ToastPopup("Could not acknowledge research completion: [${ex.message ?: "Unknown"}]", worldScreen)
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted,
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        gameInfo.isUpToDate = false
+                        closeLocally()
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeResearchAcknowledgmentInProgress = false
+                        ToastPopup("Server rejected research acknowledgment: [${outcome.code}]", worldScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeResearchAcknowledgmentInProgress = false
+                        ToastPopup("Server response was lost - retry will use the same acknowledgment", worldScreen)
+                    }
+                    null -> closeLocally()
+                }
+            }
+        }
+    }
+
+    private fun closeLocally() {
         viewingCiv.popupAlerts.remove(popupAlert)
         worldScreen.shouldUpdate = true
         super.close()

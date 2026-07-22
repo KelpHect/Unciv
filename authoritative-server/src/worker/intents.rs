@@ -96,6 +96,11 @@ pub struct ChooseFreeTechnologyIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub technology_name: &'a str,
 }
+
+pub struct AcknowledgeResearchCompletionIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub prompt_id: &'a str,
+}
 use crate::UnitPosture;
 
 pub struct MoveSpyIntent<'a> {

@@ -9,6 +9,8 @@ mod espionage_contracts;
 mod event_choice_contracts;
 #[path = "lib_tests/major_diplomacy_contracts.rs"]
 mod major_diplomacy_contracts;
+#[path = "lib_tests/research_contracts.rs"]
+mod research_contracts;
 #[path = "lib_tests/trade_contracts.rs"]
 mod trade_contracts;
 #[path = "lib_tests/unit_action_contracts.rs"]
@@ -593,42 +595,6 @@ fn citizen_policy_contracts_are_typed_and_closed() {
 }
 
 #[test]
-fn set_research_path_contract_is_typed_and_closed() {
-    let command: GameCommand = serde_json::from_value(serde_json::json!({
-        "type": "set_research_path",
-        "technology_name": "Writing"
-    }))
-    .unwrap();
-    assert_eq!(
-        command,
-        GameCommand::SetResearchPath {
-            technology_name: "Writing".to_owned(),
-            append: false,
-        }
-    );
-    assert_eq!(
-        serde_json::from_value::<GameCommand>(serde_json::json!({
-            "type": "set_research_path",
-            "technology_name": "Writing",
-            "append": true
-        }))
-        .unwrap(),
-        GameCommand::SetResearchPath {
-            technology_name: "Writing".to_owned(),
-            append: true,
-        }
-    );
-    assert!(
-        serde_json::from_value::<GameCommand>(serde_json::json!({
-            "type": "set_research_path",
-            "technology_name": "Writing",
-            "research_queue": ["Pottery", "Writing"]
-        }))
-        .is_err()
-    );
-}
-
-#[test]
 fn adopt_policy_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "adopt_policy",
@@ -646,29 +612,6 @@ fn adopt_policy_contract_is_typed_and_closed() {
             "type": "adopt_policy",
             "policy_name": "Tradition",
             "free": true
-        }))
-        .is_err()
-    );
-}
-
-#[test]
-fn choose_free_technology_contract_is_typed_and_closed() {
-    let command: GameCommand = serde_json::from_value(serde_json::json!({
-        "type": "choose_free_technology",
-        "technology_name": "Writing"
-    }))
-    .unwrap();
-    assert_eq!(
-        command,
-        GameCommand::ChooseFreeTechnology {
-            technology_name: "Writing".to_owned(),
-        }
-    );
-    assert!(
-        serde_json::from_value::<GameCommand>(serde_json::json!({
-            "type": "choose_free_technology",
-            "technology_name": "Writing",
-            "free_techs": 99
         }))
         .is_err()
     );

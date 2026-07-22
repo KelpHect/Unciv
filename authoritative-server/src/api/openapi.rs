@@ -99,7 +99,8 @@ use super::*;
         set_citizen_focus,
         set_research_path,
         adopt_policy,
-        choose_free_technology
+        choose_free_technology,
+        acknowledge_research_completion
     ),
     components(schemas(
         HealthResponse,
@@ -206,6 +207,7 @@ use super::*;
         SetResearchPathRequest,
         AdoptPolicyRequest,
         ChooseFreeTechnologyRequest,
+        AcknowledgeResearchCompletionRequest,
         ErrorResponse,
         unciv_authoritative_server::CommandAccepted,
         unciv_authoritative_server::postgres::GameSummary,
@@ -310,6 +312,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
             "set_research_path",
             "adopt_policy",
             "choose_free_technology",
+            "acknowledge_research_completion",
             "end_turn",
         ],
         whole_state_upload: false,

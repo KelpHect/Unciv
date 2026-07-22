@@ -540,6 +540,13 @@ sealed interface WorkerOperation {
         val technologyName: String,
     ) : WorkerOperation
 
+    @Serializable @SerialName("acknowledge_research_completion")
+    data class AcknowledgeResearchCompletion(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val promptId: String,
+    ) : WorkerOperation
+
     @Serializable @SerialName("project_state")
     data class ProjectState(
         val snapshot: String,
@@ -1201,6 +1208,15 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.technologyName,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.AcknowledgeResearchCompletion -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.acknowledgeResearchCompletion(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.promptId,
                 )
                 responseForGame(engine, result.game)
             }

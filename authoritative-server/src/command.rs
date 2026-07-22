@@ -366,6 +366,9 @@ pub enum GameCommand {
     ChooseFreeTechnology {
         technology_name: String,
     },
+    AcknowledgeResearchCompletion {
+        prompt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

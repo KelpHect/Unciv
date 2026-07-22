@@ -27,7 +27,7 @@ Implemented on 2026-07-18:
 Generation and verification:
 
 ```text
-cargo run --manifest-path authoritative-server/Cargo.toml -- --write-openapi
+cargo run --manifest-path authoritative-server/Cargo.toml --bin unciv-authoritative-server -- --write-openapi
 cargo fmt --manifest-path authoritative-server/Cargo.toml -- --check
 cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path authoritative-server/Cargo.toml
@@ -4090,3 +4090,47 @@ Verification on 2026-07-22:
   on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
   `unciv-v3-research-history-pg19b2` container, network, and volume were removed
   and cleanup was verified.
+
+## Authoritative research-completion prompts and projection v39
+
+Player projection version 39 adds only the authenticated civilization's
+pending `TechResearched` alerts as closed `completionPrompts`. Each prompt
+contains an opaque SHA-256 identity and the public technology name. Other popup
+alerts do not cross this projection field, and the client cannot supply a
+technology, reward, research state, alert position, or completion outcome.
+
+`AcknowledgeResearchCompletion(promptId)` now crosses the complete v3 boundary:
+the opened client session preflights the opaque projected ID, Rust derives the
+actor civilization from PostgreSQL membership, and the private Kotlin worker
+re-derives the exact canonical alert for the current actor before consuming it.
+Rust then uses the normal idempotent, revision-CAS, immutable-snapshot, journal,
+and outbox commit path. A stale revision refreshes from the server; a duplicate
+command ID reuses its committed result; an invalid, foreign, or already-consumed
+prompt cannot mutate state.
+
+For explicitly opened v3 games, closing a technology-completion `AlertPopup`
+submits the typed acknowledgment before removing the disposable local popup.
+Rejected or lost responses leave the prompt open for a safe retry with the same
+command identity. Single-player, hotseat, saves, legacy multiplayer, and
+server-owned AI retain the existing shared Kotlin behavior.
+
+Verification on 2026-07-22:
+
+- Deterministic engine tests prove actor authorization, opaque prompt shape,
+  exclusion/preservation of unrelated alerts, one-shot consumption, and state
+  hash stability after rejected replay. Command-bus and session tests prove
+  projection preflight, typed transport, open-game gating, and reconciliation.
+- Strict Rust/Kotlin projection-v39 fixture tests, the closed Rust command test,
+  Kotlin/Rust worker-wire coverage, generated OpenAPI parity, all 86 active Rust
+  library tests, and all 7 HTTP/OpenAPI tests pass. `cargo fmt --check` and
+  warnings-as-errors `cargo clippy --all-targets -- -D warnings` pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes 940 JVM tests with 13
+  intentional skips and zero failures or errors.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55455; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-research-events-pg19b2` container, network, and volume were removed,
+  and cleanup was verified.
+
+Research queue removal/reordering and projection-only picker entry remain in
+`missing_multiplayer.md`; the public research-completion event gap is closed.

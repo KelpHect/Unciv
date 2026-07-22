@@ -1688,6 +1688,18 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun acknowledgeResearchCompletion(
+        game: GameInfo,
+        actorCivilizationId: String,
+        promptId: String,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        ResearchCompletionCommandExecutor.acknowledge(game, actorCivilization, promptId)
+        return result(game)
+    }
+
     fun playerProjection(game: GameInfo, actorCivilizationId: String): PlayerProjection {
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId

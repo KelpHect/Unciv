@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 38
+        const val CURRENT_PROJECTION_VERSION = 39
     }
 }
 
@@ -247,6 +247,13 @@ data class ProjectedResearch(
     val selectableTargets: List<String>,
     val appendableTargets: List<String>,
     val freeTechnologyChoices: List<String>,
+    val completionPrompts: List<ProjectedResearchCompletion>,
+)
+
+@Serializable
+data class ProjectedResearchCompletion(
+    val promptId: String,
+    val technologyName: String,
 )
 
 @Serializable
@@ -544,6 +551,7 @@ object PlayerProjectionBuilder {
                     .map { it.name }
                     .sorted()
                     .toList(),
+            completionPrompts = ResearchCompletionCommandExecutor.prompts(civilization),
         )
     }
 

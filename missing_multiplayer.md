@@ -51,16 +51,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] City tiles: project ownership/working-city assignment, purchase costs, and
   legal targets; restore any intentionally disabled multi-tile interaction with
   bounded typed commands if it remains a supported feature.
-- [ ] Research: implement removal and reordering of queued technologies and
-  project public research event data needed by the full projection-only research
-  UI. Replace/append/free selection and projection-owned researched history,
-  queue progress/cost/overflow, and turn estimates are complete in projection
-  v38. The worker derives all missing prerequisites without accepting a
-  client-authored queue. The current picker exposes no removal or drag-reordering
-  control; any future operation needs a bounded server semantic that preserves
-  prerequisite validity. Projection-only screen entry must also replace the
-  temporary local-cache flag currently used to choose ordinary versus free-tech
-  picker mode.
+- [ ] Research: implement bounded removal and reordering of queued technologies.
+  Replace/append/free selection, researched history, queue progress/cost/
+  overflow, turn estimates, and opaque public completion prompts plus their
+  authoritative acknowledgment are complete in projection v39. The worker
+  derives prerequisites and completion identity without accepting a
+  client-authored queue or outcome. The current picker exposes no removal or
+  drag-reordering control; any future operation needs server semantics that
+  preserve prerequisite validity. Projection-only screen entry must also
+  replace the temporary local-cache flag used to choose ordinary versus
+  free-tech picker mode.
 - [ ] Policies and ideology: implement ideology selection, tenets, and any
   supported mod-defined multi-choice policy flow; project public ideology/event
   data required by the UI.
@@ -236,14 +236,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
+- `./gradlew :tests:test :server:test --no-daemon` passes (940 JVM tests, 13
   intentional skips).
-- Rust passes 84 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 86 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 28-line facade, and the largest Rust source
-  is 775 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 6 lines, `lib.rs` is a 28-line facade, and the largest Rust sources
+  are 781 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

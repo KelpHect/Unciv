@@ -671,6 +671,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun acknowledgeResearchCompletion(
+        gameId: String,
+        request: ApiV3AcknowledgeResearchCompletionRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/acknowledge-research-completion") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun endTurn(
         gameId: String,
         request: ApiV3EndTurnRequest,

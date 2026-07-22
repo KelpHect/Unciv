@@ -486,6 +486,13 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
         val technologyName: String,
     ) : PendingAuthoritativeCommand
+
+    data class AcknowledgeResearchCompletion(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val promptId: String,
+    ) : PendingAuthoritativeCommand
 }
 
 sealed interface AuthoritativeCommandOutcome {
@@ -1468,6 +1475,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun acknowledgeResearchCompletion(promptId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.research.completionPrompts.any { it.promptId == promptId }) {
+            "Research completion is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.AcknowledgeResearchCompletion(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            promptId = promptId,
+        ), current)
+    }
+
     suspend fun retryPending(): AuthoritativeCommandOutcome = mutex.withLock {
         val retryable = state as? AuthoritativeSyncState.Retryable
             ?: error("There is no ambiguous command to retry")
@@ -1952,6 +1972,16 @@ class AuthoritativeGameCommandBus(
                         pending.technologyName,
                     ),
                 )
+                is PendingAuthoritativeCommand.AcknowledgeResearchCompletion ->
+                    transport.acknowledgeResearchCompletion(
+                        gameId,
+                        ApiV3AcknowledgeResearchCompletionRequest(
+                            pending.commandId,
+                            pending.expectedRevision,
+                            pending.observedStateHash,
+                            pending.promptId,
+                        ),
+                    )
             }
         } catch (exception: ApiV3Exception) {
             if (exception.httpStatus == 409 && exception.error.code == "stale_revision") {

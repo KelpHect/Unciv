@@ -746,6 +746,14 @@ data class ApiV3ChooseFreeTechnologyRequest(
 )
 
 @Serializable
+data class ApiV3AcknowledgeResearchCompletionRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("prompt_id") val promptId: String,
+)
+
+@Serializable
 data class ApiV3EndTurnRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

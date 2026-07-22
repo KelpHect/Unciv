@@ -93,6 +93,7 @@ interface ApiV3Transport {
     suspend fun setResearchPath(gameId: String, request: ApiV3SetResearchPathRequest): ApiV3CommandAccepted
     suspend fun adoptPolicy(gameId: String, request: ApiV3AdoptPolicyRequest): ApiV3CommandAccepted
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted
+    suspend fun acknowledgeResearchCompletion(gameId: String, request: ApiV3AcknowledgeResearchCompletionRequest): ApiV3CommandAccepted
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
     suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted
     suspend fun forceResign(gameId: String, request: ApiV3ForceResignRequest): ApiV3CommandAccepted

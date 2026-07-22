@@ -651,6 +651,50 @@ impl PostgresGameRepository {
         self.commit(actor_account_id, envelope, proposal).await
     }
 
+    pub async fn execute_acknowledge_research_completion(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let prompt_id = match &envelope.command {
+            crate::GameCommand::AcknowledgeResearchCompletion { prompt_id } => prompt_id.clone(),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .acknowledge_research_completion(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                AcknowledgeResearchCompletionIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    prompt_id: &prompt_id,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!("authoritative worker AcknowledgeResearchCompletion transport/protocol failure: {other}");
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
     /// Joins an authenticated account without accepting a civilization choice.
     /// The worker deterministically assigns an unclaimed canonical civilization;
     /// the snapshot revision and membership are committed atomically.

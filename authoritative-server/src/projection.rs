@@ -307,6 +307,14 @@ pub struct ProjectedResearch {
     pub selectable_targets: Vec<String>,
     pub appendable_targets: Vec<String>,
     pub free_technology_choices: Vec<String>,
+    pub completion_prompts: Vec<ProjectedResearchCompletion>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedResearchCompletion {
+    pub prompt_id: String,
+    pub technology_name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -337,6 +345,14 @@ impl ProjectedResearch {
                 .researched_technologies
                 .windows(2)
                 .all(|pair| pair[0] < pair[1])
+            && self.completion_prompts.iter().all(|prompt| {
+                prompt.prompt_id.len() == 64
+                    && prompt
+                        .prompt_id
+                        .bytes()
+                        .all(|value| value.is_ascii_digit() || (b'a'..=b'f').contains(&value))
+                    && !prompt.technology_name.is_empty()
+            })
     }
 }
 
@@ -442,7 +458,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v38.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v39.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -462,6 +478,10 @@ mod tests {
             Some(4)
         );
         assert_eq!(projection.research.overflow_science, 3);
+        assert_eq!(
+            projection.research.completion_prompts[0].technology_name,
+            "Mining"
+        );
         assert!(projection.research.is_consistent());
         assert_eq!(projection.diplomacy_partners[0].civilization_id, "Greece");
         assert_eq!(
@@ -581,7 +601,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v38.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v39.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());

@@ -305,6 +305,43 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun serverProjectsAndAcknowledgesOnlyTheAuthenticatedResearchCompletion() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        val technologyName = game.ruleset.technologies.keys.first()
+        val initialAlertCount = rome.popupAlerts.size
+        val unrelated = PopupAlert(AlertType.GoldenAge, "unrelated")
+        rome.popupAlerts += unrelated
+        rome.popupAlerts += PopupAlert(AlertType.TechResearched, technologyName)
+
+        val prompt = engine.playerProjection(game, "Rome").research.completionPrompts.single()
+        Assert.assertEquals(technologyName, prompt.technologyName)
+        Assert.assertTrue(prompt.promptId.matches(Regex("[0-9a-f]{64}")))
+
+        val initialHash = engine.stateHash(game)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.acknowledgeResearchCompletion(game, "Greece", prompt.promptId)
+        }
+        Assert.assertEquals(initialHash, engine.stateHash(game))
+
+        val result = engine.acknowledgeResearchCompletion(game, "Rome", prompt.promptId)
+        val remainingAlerts = result.game.getCivilization("Rome").popupAlerts
+        Assert.assertEquals(initialAlertCount + 1, remainingAlerts.size)
+        Assert.assertTrue(unrelated in remainingAlerts)
+        Assert.assertFalse(remainingAlerts.any {
+            it.type == AlertType.TechResearched && it.value == technologyName
+        })
+        Assert.assertTrue(engine.playerProjection(result.game, "Rome").research.completionPrompts.isEmpty())
+
+        val committedHash = engine.stateHash(result.game)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.acknowledgeResearchCompletion(result.game, "Rome", prompt.promptId)
+        }
+        Assert.assertEquals(committedHash, engine.stateHash(result.game))
+    }
+
+    @Test
     fun serverAdoptsOnlyAProjectedCanonicalPolicy() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

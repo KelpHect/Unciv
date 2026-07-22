@@ -674,6 +674,13 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "technologyName")]
         technology_name: &'a str,
     },
+    AcknowledgeResearchCompletion {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "promptId")]
+        prompt_id: &'a str,
+    },
     ProjectState {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

@@ -845,6 +845,27 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun acknowledgeResearchCompletionIfOpen(
+        gameId: String,
+        promptId: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.AcknowledgeResearchCompletion &&
+                    current.pending.promptId == promptId) {
+                    "Resolve the pending authoritative command before acknowledging research"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.acknowledgeResearchCompletion(promptId)
+            else -> {
+                bus.refresh()
+                bus.acknowledgeResearchCompletion(promptId)
+            }
+        }
+    }
+
     suspend fun queueConstructionIfOpen(
         gameId: String,
         cityId: String,

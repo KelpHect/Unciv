@@ -229,12 +229,18 @@ class WorldMapHolder(
 
         if (newSelectedUnit == null || newSelectedUnit.isCivilian()) {
             val unitsInTile = selectedTile!!.getUnits()
-            if (previousSelectedCity != null && previousSelectedCity.canBombard()
-                    && selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile())
-                    && unitsInTile.any()
-                    && unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)) {
+            val canBombardSelectedTile = when {
+                previousSelectedCity == null -> false
+                AuthoritativeCombatUi.isOpen(worldScreen) ->
+                    AuthoritativeCombatUi.canBombard(worldScreen, previousSelectedCity, selectedTile!!)
+                else -> previousSelectedCity.canBombard() &&
+                    selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile()) &&
+                    unitsInTile.any() &&
+                    unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)
+            }
+            if (canBombardSelectedTile) {
                 // try to select the closest city to bombard this guy
-                unitTable.citySelected(previousSelectedCity)
+                unitTable.citySelected(checkNotNull(previousSelectedCity))
             }
         }
         worldScreen.shouldUpdate = true
@@ -267,6 +273,25 @@ class WorldMapHolder(
             }
             /** If we are in unit-swapping mode and didn't find a swap partner, we don't want to move or attack */
         } else {
+            if (AuthoritativeCombatUi.isOpen(worldScreen)) {
+                val combatAction = AuthoritativeCombatUi.unitAction(worldScreen, unit, tile)
+                if (combatAction != null) {
+                    when (combatAction) {
+                        AuthoritativeCombatAction.Attack -> submitAuthoritativeUnitAttackIfOpen(unit, tile)
+                        AuthoritativeCombatAction.NuclearStrike ->
+                            submitAuthoritativeNuclearStrikeIfOpen(unit, tile)
+                        AuthoritativeCombatAction.AirSweep -> submitAuthoritativeAirSweepIfOpen(unit, tile)
+                    }
+                    localShouldUpdate = true
+                } else if (AuthoritativeMovementUi.movementIntent(worldScreen, unit, tile)?.let {
+                        it != AuthoritativeMovementIntent.Unavailable
+                    } == true) {
+                    moveUnitToTargetTile(listOf(unit), tile)
+                    localShouldUpdate = true
+                }
+                worldScreen.shouldUpdate = localShouldUpdate
+                return
+            }
             // This seems inefficient as the tileToAttack is already known - but the method also calculates tileToAttackFrom
             val attackableTile = TargetHelper
                     .getAttackableEnemies(unit, unit.movement.getDistanceToTiles())

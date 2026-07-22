@@ -38,11 +38,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: partial gameplay and projection families
 
-- [ ] Combat targeting and previews: project legal attack, bombardment, nuclear,
-  and air-sweep targets plus the bounded public preview data needed by the UI.
-  Canonical combat execution is already server-owned, but opened-v3 target
-  discovery/highlighting still consults disposable client rule objects before
-  deciding which typed command to submit.
+- [ ] Combat previews: project only the bounded public damage/strength/modifier
+  data that the combat confirmation UI genuinely needs. Projection v41 now
+  supplies attack, bombardment, nuclear-candidate, and air-sweep targets;
+  opened-v3 discovery, highlighting, preflight, and submission consume those
+  lists without running client legality rules. Nuclear entries deliberately
+  remain candidates because filtering them by hidden blast occupants would
+  create a confidentiality oracle; the worker revalidates every victim and
+  diplomacy constraint before commit.
 - [ ] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
   cancellation commands. Pending serialized unit orders now execute inside the

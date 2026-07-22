@@ -346,7 +346,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun unitAttackRequestContainsOnlyAttackerAndVisibleTargetIntent() = runBlocking {
-        val attacker = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val attacker = ProjectedUnit(
+            42, "Rome", "Warrior", 0, 0, 100, 2f,
+            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0)),
+        )
         val defender = ProjectedUnit(84, "Greece", "Warrior", 1, 0, 100, 2f)
         val base = projection(7, "hash-7", ownUnits = listOf(attacker))
         val initial = base.copy(projection = base.projection.copy(
@@ -383,7 +386,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun cityBombardRequestContainsOnlyOwnedCityAndVisibleTargetIntent() = runBlocking {
-        val city = ProjectedCity("city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList())
+        val city = ProjectedCity(
+            "city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList(),
+            bombardTargets = listOf(ProjectedTargetCoordinate(2, 0)),
+        )
         val defender = ProjectedUnit(84, "Greece", "Warrior", 2, 0, 100, 2f)
         val base = projection(7, "hash-7")
         val initial = base.copy(projection = base.projection.copy(
@@ -420,7 +426,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun nuclearStrikeRequestContainsOnlyOwnedUnitAndExploredTargetIntent() = runBlocking {
-        val nuke = ProjectedUnit(42, "Rome", "Nuclear Missile", 0, 0, 100, 2f)
+        val nuke = ProjectedUnit(
+            42, "Rome", "Nuclear Missile", 0, 0, 100, 2f,
+            nuclearTargetCandidates = listOf(ProjectedTargetCoordinate(4, -1)),
+        )
         val initial = projection(
             7, "hash-7",
             ownUnits = listOf(nuke),
@@ -454,7 +463,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun airSweepRequestContainsOnlyOwnedUnitAndTargetIntent() = runBlocking {
-        val fighter = ProjectedUnit(42, "Rome", "Fighter", 0, 0, 100, 1f)
+        val fighter = ProjectedUnit(
+            42, "Rome", "Fighter", 0, 0, 100, 1f,
+            airSweepTargets = listOf(ProjectedTargetCoordinate(4, -1)),
+        )
         val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(fighter))).apply {
             onAirSweep = { request ->
                 current = current.copy(
@@ -481,6 +493,28 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("random"))
         assertTrue(!encoded.contains("range"))
         assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
+    fun combatCommandsRejectTargetsAbsentFromTheirProjectedAllowlist() = runBlocking {
+        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val city = ProjectedCity("city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList())
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(projection(
+                7, "hash-7", ownUnits = listOf(unit), projectedCities = listOf(city),
+            )),
+        ) { "rejected-combat" }
+        bus.refresh()
+
+        assertTrue(runCatching { bus.attackWithUnit(42, 1, 0) }.exceptionOrNull()
+            is IllegalArgumentException)
+        assertTrue(runCatching { bus.bombardWithCity("city-1", 1, 0) }.exceptionOrNull()
+            is IllegalArgumentException)
+        assertTrue(runCatching { bus.launchNuclearStrike(42, 1, 0) }.exceptionOrNull()
+            is IllegalArgumentException)
+        assertTrue(runCatching { bus.airSweep(42, 1, 0) }.exceptionOrNull()
+            is IllegalArgumentException)
     }
 
     @Test
@@ -1485,6 +1519,7 @@ class AuthoritativeGameCommandBusTests {
         citizenFocus: CitizenFocus = CitizenFocus.NoFocus,
         selectableCitizenFocuses: List<CitizenFocus> = emptyList(),
         ownUnits: List<ProjectedUnit> = emptyList(),
+        projectedCities: List<ProjectedCity>? = null,
         pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
         pendingTurnActions: List<PendingEndTurnAction> = emptyList(),
         diplomaticVoteCandidates: List<String> = emptyList(),
@@ -1515,7 +1550,7 @@ class AuthoritativeGameCommandBusTests {
             policies = ProjectedPolicies(25, 25, 0, emptyList(), listOf("Tradition")),
             gold = 0,
             knownCivilizations = emptyList(),
-            ownCities = if (cityQueue == null) emptyList() else listOf(ProjectedCity(
+            ownCities = projectedCities ?: if (cityQueue == null) emptyList() else listOf(ProjectedCity(
                 id = "city-1",
                 name = "Rome",
                 x = 0,

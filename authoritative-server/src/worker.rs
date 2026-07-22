@@ -352,7 +352,10 @@ impl EngineWorkerClient {
             .ok_or(WorkerClientError::Incomplete)?;
         let projection: crate::projection::PlayerProjection =
             serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
-        if !projection.research.is_consistent() || !projection.movement_is_consistent() {
+        if !projection.research.is_consistent()
+            || !projection.movement_is_consistent()
+            || !projection.combat_is_consistent()
+        {
             return Err(WorkerClientError::Protocol);
         }
         Ok(ProjectedState { projection })

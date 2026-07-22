@@ -4238,3 +4238,53 @@ Verification on 2026-07-22:
   session fixtures. Both were corrected and the complete gates were rerun to a
   clean result; no compile, test, formatting, Clippy, or database error remains
   deferred.
+
+## Projection-owned combat targeting (projection v41)
+
+Player projection version 41 adds bounded, sorted target metadata for the
+authenticated current actor: exact unit attack targets with their server-chosen
+attack-from coordinate, exact city bombardment targets, nuclear target
+candidates, and air-sweep targets. Foreign units and cities and out-of-turn
+owned entities always receive empty combat lists. Exact attacks require both
+the target and attack-from tile to be visible.
+
+Nuclear coordinates intentionally remain candidates rather than a hidden-state
+legality oracle. The projection includes only explored in-range coordinates and
+does not call the full nuclear-legality rule, because filtering by unseen blast
+occupants or diplomacy would reveal private state. The private worker still
+revalidates the canonical unit, range, blast victims, diplomacy, and every
+effect before Rust commits a revision.
+
+For explicitly opened v3 games, map highlights, right-click actions, city
+bombard selection, command-bus preflight, and the battle confirmation panel now
+read the cached projection. They do not call client combat-targeting, nuclear
+legality, or damage simulation before submission. Unknown projected map
+coordinates fail closed. Local, hotseat, saved, legacy/API-v2, and server-owned
+AI paths continue using the shared Kotlin rules engine. Public damage/strength
+preview metrics remain explicitly listed in `missing_multiplayer.md`.
+
+The Rust semantic validator was split into the focused
+`projection_validation.rs` module before adding these rules; `main.rs` and
+`lib.rs` remain thin, and `projection.rs` remains below 800 lines.
+
+Verification on 2026-07-22:
+
+- Deterministic engine tests cover normal attack/attack-from, city bombardment,
+  nuclear confidentiality under a hidden blast victim, air-sweep targets, and
+  foreign/out-of-turn empty lists. Bus and session tests reject coordinates
+  absent from the corresponding projected allowlist.
+- The strict Rust/Kotlin projection-v41 fixture round-trips exactly. Rust rejects
+  hidden, duplicate, foreign, out-of-turn, unsorted, or oversized combat
+  metadata. Generated OpenAPI parity, all 88 active Rust library tests, all 7
+  HTTP/OpenAPI tests, `cargo fmt --check`, and warnings-as-errors Clippy pass.
+- `./gradlew :tests:test :server:test --no-daemon` passes 945 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- All 17 serialized PostgreSQL integration tests pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55457; the live binary reported `PostgreSQL 19beta2`. The disposable
+  `unciv-v3-combat-pg19b2` container, network, and volume were removed and
+  cleanup was verified.
+- A restart-resume compile exposed an out-of-order UI local variable. It was
+  corrected immediately; the complete focused and broad gates were rerun, and
+  no compile, test, formatting, Clippy, OpenAPI, or database error remains
+  deferred.

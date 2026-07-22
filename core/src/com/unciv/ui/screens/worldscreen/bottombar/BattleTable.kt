@@ -39,6 +39,8 @@ import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.clearUndoCheckpoin
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.getHealthBar
+import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeCombatUi
+import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeCombatAction
 import com.unciv.utils.DebugUtils
 import yairm210.purity.annotations.Readonly
 import kotlin.math.max
@@ -66,7 +68,13 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
     }
 
     fun update() {
-        when (val attacker = tryGetAttacker()) {
+        val authoritative = AuthoritativeCombatUi.isOpen(worldScreen)
+        val attacker = if (authoritative) selectedCombatant() else tryGetAttacker()
+        if (authoritative) {
+            updateAuthoritative(attacker)
+            return
+        }
+        when (attacker) {
             null -> return hide()
             is MapUnitCombatant if attacker.unit.isNuclearWeapon() -> {
                 val selectedTile = worldScreen.mapHolder.selectedTile
@@ -110,6 +118,62 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
         }
 
         setPosition(stage.width / 2 - width / 2, 5f)
+    }
+
+    /** API-v3 intentionally does not calculate combat legality or damage from
+     * the disposable local rules model. It renders only server-projected
+     * target availability and submits the selected typed intent. */
+    private fun updateAuthoritative(attacker: ICombatant?) {
+        if (attacker == null) return hide()
+        val target = worldScreen.mapHolder.selectedTile ?: return hide()
+        val action = when (attacker) {
+            is CityCombatant -> if (AuthoritativeCombatUi.canBombard(worldScreen, attacker.city, target))
+                "Bombard" to null else null
+            is MapUnitCombatant -> AuthoritativeCombatUi.unitAction(worldScreen, attacker.unit, target)
+                ?.let { combatAction -> when (combatAction) {
+                    AuthoritativeCombatAction.Attack -> "Attack"
+                    AuthoritativeCombatAction.NuclearStrike -> "NUKE"
+                    AuthoritativeCombatAction.AirSweep -> "Air Sweep"
+                } to combatAction }
+            else -> null
+        } ?: return hide()
+
+        clear()
+        add("${action.first} ${target.position.x},${target.position.y}".toLabel()).colspan(2).row()
+        val actionButton = action.first.toTextButton().apply { color = Color.RED }
+        if (!worldScreen.isPlayersTurn) {
+            actionButton.disable()
+            actionButton.label.color = Color.GRAY
+        } else actionButton.onClick(UncivSound.Silent) {
+            when (attacker) {
+                is CityCombatant -> worldScreen.mapHolder
+                    .submitAuthoritativeCityBombardIfOpen(attacker.city.id, target)
+                is MapUnitCombatant -> when (action.second) {
+                    AuthoritativeCombatAction.NuclearStrike -> worldScreen.mapHolder
+                        .submitAuthoritativeNuclearStrikeIfOpen(attacker.unit, target)
+                    AuthoritativeCombatAction.AirSweep -> worldScreen.mapHolder
+                        .submitAuthoritativeAirSweepIfOpen(attacker.unit, target)
+                    AuthoritativeCombatAction.Attack -> worldScreen.mapHolder
+                        .submitAuthoritativeUnitAttackIfOpen(attacker.unit, target)
+                    null -> Unit
+                }
+            }
+            worldScreen.mapHolder.removeUnitActionOverlay()
+            worldScreen.shouldUpdate = true
+            hide()
+        }
+        add(actionButton).colspan(2)
+        isVisible = true
+        pack()
+        addBorderAllowOpacity(2f, Color.WHITE)
+        addRoundCloseButton(this) { hide() }
+        setPosition(stage.width / 2 - width / 2, 5f)
+    }
+
+    private fun selectedCombatant(): ICombatant? {
+        val unitTable = worldScreen.bottomUnitTable
+        return unitTable.selectedUnit?.let(::MapUnitCombatant)
+            ?: unitTable.selectedCity?.let(::CityCombatant)
     }
 
     @Readonly

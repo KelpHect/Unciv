@@ -685,12 +685,13 @@ class AuthoritativeGameCommandBus(
 
     suspend fun attackWithUnit(unitId: Int, targetX: Int, targetY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Unit is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any {
-            it.x == targetX && it.y == targetY && it.visible
-        }) { "Attack target is absent from the current visible projection" }
+        require(unit.attackTargets.any { it.x == targetX && it.y == targetY }) {
+            "Attack target is absent from the unit's projected targets"
+        }
         submitLocked(PendingAuthoritativeCommand.AttackWithUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, targetX, targetY,
@@ -699,12 +700,13 @@ class AuthoritativeGameCommandBus(
 
     suspend fun bombardWithCity(cityId: String, targetX: Int, targetY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownCities.any { it.id == cityId }) {
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+        require(city != null) {
             "City is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any {
-            it.x == targetX && it.y == targetY && it.visible
-        }) { "Bombard target is absent from the current visible projection" }
+        require(city.bombardTargets.any { it.x == targetX && it.y == targetY }) {
+            "Bombard target is absent from the city's projected targets"
+        }
         submitLocked(PendingAuthoritativeCommand.BombardWithCity(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             cityId, targetX, targetY,
@@ -713,11 +715,12 @@ class AuthoritativeGameCommandBus(
 
     suspend fun launchNuclearStrike(unitId: Int, targetX: Int, targetY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Nuclear unit is absent from the current player projection"
         }
-        require(current.projection.exploredTiles.any { it.x == targetX && it.y == targetY }) {
-            "Nuclear target is absent from the current explored projection"
+        require(unit.nuclearTargetCandidates.any { it.x == targetX && it.y == targetY }) {
+            "Nuclear target is absent from the unit's projected candidates"
         }
         submitLocked(PendingAuthoritativeCommand.LaunchNuclearStrike(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -727,8 +730,12 @@ class AuthoritativeGameCommandBus(
 
     suspend fun airSweep(unitId: Int, targetX: Int, targetY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+        require(unit != null) {
             "Air-sweep unit is absent from the current player projection"
+        }
+        require(unit.airSweepTargets.any { it.x == targetX && it.y == targetY }) {
+            "Air-sweep target is absent from the unit's projected targets"
         }
         submitLocked(PendingAuthoritativeCommand.AirSweep(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,

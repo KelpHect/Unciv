@@ -1135,6 +1135,11 @@ class AuthoritativeGameExecutionContextTests {
         defender.removeFromTile()
         defender.putInTile(target)
         rome.cache.updateViewableTiles()
+        val projectedTarget = engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == attacker.id }.attackTargets
+            .single { it.x == target.position.x && it.y == target.position.y }
+        Assert.assertTrue(projectedTarget.attackFromX != target.position.x ||
+            projectedTarget.attackFromY != target.position.y)
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.attackWithUnit(
@@ -1199,6 +1204,9 @@ class AuthoritativeGameExecutionContextTests {
         defender.removeFromTile()
         defender.putInTile(target)
         rome.cache.updateViewableTiles()
+        Assert.assertTrue(engine.playerProjection(game, "Rome").ownCities
+            .single { it.id == city.id }.bombardTargets
+            .any { it.x == target.position.x && it.y == target.position.y })
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.bombardWithCity(
@@ -1259,10 +1267,17 @@ class AuthoritativeGameExecutionContextTests {
         val target = city.getCenterTile().getTilesAtDistance(3)
             .first { !it.isCityCenter() && it.getUnits().none() }
         target.setExplored(rome, true)
+        val candidatesBeforeHiddenVictim = engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == nuke.id }.nuclearTargetCandidates
         val victimTile = target.neighbors.first { it.isLand && it.militaryUnit == null }
         val defender = greece.units.getCivUnits().first { !it.isCivilian() }
         defender.removeFromTile()
         defender.putInTile(victimTile)
+        val candidatesAfterHiddenVictim = engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == nuke.id }.nuclearTargetCandidates
+        Assert.assertEquals(candidatesBeforeHiddenVictim, candidatesAfterHiddenVictim)
+        Assert.assertTrue(candidatesAfterHiddenVictim
+            .any { it.x == target.position.x && it.y == target.position.y })
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.launchNuclearStrike(
@@ -1333,6 +1348,9 @@ class AuthoritativeGameExecutionContextTests {
             greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
             greece.units.placeUnitNearTile(greekCity.location, "Fighter")!!,
         )
+        Assert.assertTrue(engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == attacker.id }.airSweepTargets
+            .any { it.x == target.position.x && it.y == target.position.y })
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.airSweep(
@@ -2705,12 +2723,21 @@ class AuthoritativeGameExecutionContextTests {
                 .all { (it.x to it.y) in visibleCoordinates })
         }
         Assert.assertTrue(projection.visibleForeignUnits
-            .all { it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() })
+            .all {
+                it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() &&
+                    it.attackTargets.isEmpty() && it.nuclearTargetCandidates.isEmpty() &&
+                    it.airSweepTargets.isEmpty()
+            })
 
         game.currentPlayer = "Greece"
         val outOfTurn = engine.playerProjection(game, "Rome")
         Assert.assertTrue(outOfTurn.ownUnits
-            .all { it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() })
+            .all {
+                it.moveDestinations.isEmpty() && it.swapDestinations.isEmpty() &&
+                    it.attackTargets.isEmpty() && it.nuclearTargetCandidates.isEmpty() &&
+                    it.airSweepTargets.isEmpty()
+            })
+        Assert.assertTrue(outOfTurn.ownCities.all { it.bombardTargets.isEmpty() })
     }
 
     private fun testSetup(): GameSetupInfo {

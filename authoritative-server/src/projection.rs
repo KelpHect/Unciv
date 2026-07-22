@@ -57,45 +57,6 @@ pub struct PlayerProjection {
     pub event_prompts: Vec<ProjectedEventPrompt>,
 }
 
-impl PlayerProjection {
-    pub fn movement_is_consistent(&self) -> bool {
-        if self
-            .visible_foreign_units
-            .iter()
-            .any(|unit| !unit.move_destinations.is_empty() || !unit.swap_destinations.is_empty())
-        {
-            return false;
-        }
-        if !self.is_current_turn
-            && self.own_units.iter().any(|unit| {
-                !unit.move_destinations.is_empty() || !unit.swap_destinations.is_empty()
-            })
-        {
-            return false;
-        }
-        self.own_units.iter().all(|unit| {
-            let sorted_and_not_current = |destinations: &[ProjectedMovementDestination]| {
-                destinations.windows(2).all(|pair| pair[0] < pair[1])
-                    && destinations
-                        .iter()
-                        .all(|destination| destination.x != unit.x || destination.y != unit.y)
-            };
-            sorted_and_not_current(&unit.move_destinations)
-                && unit.move_destinations.iter().all(|destination| {
-                    !self.explored_tiles.iter().any(|tile| {
-                        tile.x == destination.x && tile.y == destination.y && !tile.visible
-                    })
-                })
-                && sorted_and_not_current(&unit.swap_destinations)
-                && unit.swap_destinations.iter().all(|destination| {
-                    self.explored_tiles.iter().any(|tile| {
-                        tile.x == destination.x && tile.y == destination.y && tile.visible
-                    })
-                })
-        })
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedEventPrompt {
@@ -292,6 +253,7 @@ pub struct ProjectedCity {
     pub is_puppet: bool,
     pub is_being_razed: bool,
     pub available_governance_actions: Vec<CityGovernanceAction>,
+    pub bombard_targets: Vec<ProjectedTargetCoordinate>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -451,6 +413,9 @@ pub struct ProjectedUnit {
     pub available_trigger_actions: Vec<ProjectedUnitTriggerAction>,
     pub move_destinations: Vec<ProjectedMovementDestination>,
     pub swap_destinations: Vec<ProjectedMovementDestination>,
+    pub attack_targets: Vec<ProjectedAttackTarget>,
+    pub nuclear_target_candidates: Vec<ProjectedTargetCoordinate>,
+    pub air_sweep_targets: Vec<ProjectedTargetCoordinate>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
@@ -458,6 +423,22 @@ pub struct ProjectedUnit {
 pub struct ProjectedMovementDestination {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedTargetCoordinate {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedAttackTarget {
+    pub x: i32,
+    pub y: i32,
+    pub attack_from_x: i32,
+    pub attack_from_y: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -506,7 +487,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v41.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -604,6 +585,20 @@ mod tests {
             [ProjectedMovementDestination { x: 2, y: -1 }]
         );
         assert!(projection.movement_is_consistent());
+        assert_eq!(
+            projection.own_units[0].attack_targets,
+            [ProjectedAttackTarget {
+                x: 2,
+                y: -1,
+                attack_from_x: 3,
+                attack_from_y: -1,
+            }]
+        );
+        assert_eq!(
+            projection.own_cities[0].bombard_targets,
+            [ProjectedTargetCoordinate { x: 2, y: -1 }]
+        );
+        assert!(projection.combat_is_consistent());
         assert!(projection.own_units[0].automated);
         assert!(!projection.own_units[0].exploring);
         assert_eq!(projection.own_units[0].posture, Some(UnitPosture::Fortify));
@@ -653,6 +648,21 @@ mod tests {
                 .swap_destinations
                 .is_empty()
         );
+        assert!(
+            projection.visible_foreign_units[0]
+                .attack_targets
+                .is_empty()
+        );
+        assert!(
+            projection.visible_foreign_units[0]
+                .nuclear_target_candidates
+                .is_empty()
+        );
+        assert!(
+            projection.visible_foreign_units[0]
+                .air_sweep_targets
+                .is_empty()
+        );
         assert_eq!(serde_json::to_value(projection).unwrap(), expected);
 
         let mut unknown = expected;
@@ -668,7 +678,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v41.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -682,11 +692,11 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v40.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v41.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();
-        hidden.own_units[0].move_destinations[0] = ProjectedMovementDestination { x: 3, y: -1 };
+        hidden.own_units[0].move_destinations[0] = ProjectedMovementDestination { x: 5, y: -1 };
         assert!(!hidden.movement_is_consistent());
 
         let mut unseen_swap = projection.clone();
@@ -708,6 +718,36 @@ mod tests {
         let mut out_of_turn = projection;
         out_of_turn.is_current_turn = false;
         assert!(!out_of_turn.movement_is_consistent());
+    }
+
+    #[test]
+    fn combat_metadata_rejects_hidden_duplicate_foreign_and_out_of_turn_options() {
+        let fixture = include_str!("../../protocol/player-projection-v41.fixture.json");
+        let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
+
+        let mut hidden_attack = projection.clone();
+        hidden_attack.own_units[0].attack_targets[0].x = 5;
+        assert!(!hidden_attack.combat_is_consistent());
+
+        let mut hidden_bombard = projection.clone();
+        hidden_bombard.own_cities[0].bombard_targets[0] = ProjectedTargetCoordinate { x: 5, y: -1 };
+        assert!(!hidden_bombard.combat_is_consistent());
+
+        let mut duplicate = projection.clone();
+        duplicate.own_units[0]
+            .nuclear_target_candidates
+            .push(ProjectedTargetCoordinate { x: 2, y: -1 });
+        assert!(!duplicate.combat_is_consistent());
+
+        let mut foreign = projection.clone();
+        foreign.visible_foreign_units[0]
+            .air_sweep_targets
+            .push(ProjectedTargetCoordinate { x: 2, y: -1 });
+        assert!(!foreign.combat_is_consistent());
+
+        let mut out_of_turn = projection;
+        out_of_turn.is_current_turn = false;
+        assert!(!out_of_turn.combat_is_consistent());
     }
 
     #[test]

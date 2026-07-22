@@ -10873,6 +10873,34 @@
         },
         "additionalProperties": false
       },
+      "ProjectedAttackTarget": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "attackFromX",
+          "attackFromY"
+        ],
+        "properties": {
+          "attackFromX": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attackFromY": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedCity": {
         "type": "object",
         "required": [
@@ -10893,7 +10921,8 @@
           "unitPromotionPreferences",
           "isPuppet",
           "isBeingRazed",
-          "availableGovernanceActions"
+          "availableGovernanceActions",
+          "bombardTargets"
         ],
         "properties": {
           "assignableTiles": {
@@ -10916,6 +10945,12 @@
           },
           "avoidGrowth": {
             "type": "boolean"
+          },
+          "bombardTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
           },
           "citizenFocus": {
             "$ref": "#/components/schemas/CitizenFocus"
@@ -11589,6 +11624,24 @@
           "dead"
         ]
       },
+      "ProjectedTargetCoordinate": {
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedTileVisibility": {
         "type": "object",
         "required": [
@@ -11755,9 +11808,24 @@
           "availableTransformActions",
           "availableTriggerActions",
           "moveDestinations",
-          "swapDestinations"
+          "swapDestinations",
+          "attackTargets",
+          "nuclearTargetCandidates",
+          "airSweepTargets"
         ],
         "properties": {
+          "airSweepTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
+          },
+          "attackTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedAttackTarget"
+            }
+          },
           "automated": {
             "type": "boolean"
           },
@@ -11853,6 +11921,12 @@
               "null"
             ],
             "format": "int32"
+          },
+          "nuclearTargetCandidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
           },
           "posture": {
             "oneOf": [

@@ -56,6 +56,14 @@ class PlayerProjectionContractTests {
             projection.ownUnits.single().moveDestinations)
         assertEquals(listOf(ProjectedMovementDestination(2, -1)),
             projection.ownUnits.single().swapDestinations)
+        assertEquals(listOf(ProjectedAttackTarget(2, -1, 3, -1)),
+            projection.ownUnits.single().attackTargets)
+        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
+            projection.ownUnits.single().nuclearTargetCandidates)
+        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
+            projection.ownUnits.single().airSweepTargets)
+        assertEquals(listOf(ProjectedTargetCoordinate(2, -1)),
+            projection.ownCities.single().bombardTargets)
         assertTrue(projection.ownUnits.single().automated)
         assertTrue(!projection.ownUnits.single().exploring)
         assertEquals(UnitPosture.Fortify, projection.ownUnits.single().posture)
@@ -90,6 +98,12 @@ class PlayerProjectionContractTests {
             projection.visibleForeignUnits.single().moveDestinations)
         assertEquals(emptyList<ProjectedMovementDestination>(),
             projection.visibleForeignUnits.single().swapDestinations)
+        assertEquals(emptyList<ProjectedAttackTarget>(),
+            projection.visibleForeignUnits.single().attackTargets)
+        assertEquals(emptyList<ProjectedTargetCoordinate>(),
+            projection.visibleForeignUnits.single().nuclearTargetCandidates)
+        assertEquals(emptyList<ProjectedTargetCoordinate>(),
+            projection.visibleForeignUnits.single().airSweepTargets)
         assertEquals(
             json.parseToJsonElement(fixture),
             json.parseToJsonElement(json.encodeToString(PlayerProjection.serializer(), projection)),
@@ -126,6 +140,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v40.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v41.fixture.json") }
         .first { it.isFile }
 }

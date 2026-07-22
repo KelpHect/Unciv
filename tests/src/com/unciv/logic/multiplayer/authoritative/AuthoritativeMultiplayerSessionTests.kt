@@ -442,7 +442,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitAttackRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val attacker = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val attacker = ProjectedUnit(
+            42, "Rome", "Warrior", 0, 0, 100, 2f,
+            attackTargets = listOf(ProjectedAttackTarget(1, 0, 0, 0)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(
@@ -464,7 +467,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun cityBombardRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val city = ProjectedCity("city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList())
+        val city = ProjectedCity(
+            "city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList(),
+            bombardTargets = listOf(ProjectedTargetCoordinate(2, 0)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(
@@ -486,7 +492,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun nuclearStrikeRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val nuke = ProjectedUnit(42, "Rome", "Nuclear Missile", 0, 0, 100, 2f)
+        val nuke = ProjectedUnit(
+            42, "Rome", "Nuclear Missile", 0, 0, 100, 2f,
+            nuclearTargetCandidates = listOf(ProjectedTargetCoordinate(4, -1)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(
@@ -508,7 +517,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun airSweepRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val fighter = ProjectedUnit(42, "Rome", "Fighter", 0, 0, 100, 1f)
+        val fighter = ProjectedUnit(
+            42, "Rome", "Fighter", 0, 0, 100, 1f,
+            airSweepTargets = listOf(ProjectedTargetCoordinate(4, -1)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(fighter)))

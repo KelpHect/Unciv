@@ -41,7 +41,7 @@ data class PlayerProjection(
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 40
+        const val CURRENT_PROJECTION_VERSION = 41
     }
 }
 
@@ -213,6 +213,7 @@ data class ProjectedCity(
     val isPuppet: Boolean = false,
     val isBeingRazed: Boolean = false,
     val availableGovernanceActions: List<CityGovernanceAction> = emptyList(),
+    val bombardTargets: List<ProjectedTargetCoordinate> = emptyList(),
 )
 
 @Serializable
@@ -303,10 +304,24 @@ data class ProjectedUnit(
     val availableTriggerActions: List<ProjectedUnitTriggerAction> = emptyList(),
     val moveDestinations: List<ProjectedMovementDestination> = emptyList(),
     val swapDestinations: List<ProjectedMovementDestination> = emptyList(),
+    val attackTargets: List<ProjectedAttackTarget> = emptyList(),
+    val nuclearTargetCandidates: List<ProjectedTargetCoordinate> = emptyList(),
+    val airSweepTargets: List<ProjectedTargetCoordinate> = emptyList(),
 )
 
 @Serializable
 data class ProjectedMovementDestination(val x: Int, val y: Int)
+
+@Serializable
+data class ProjectedTargetCoordinate(val x: Int, val y: Int)
+
+@Serializable
+data class ProjectedAttackTarget(
+    val x: Int,
+    val y: Int,
+    val attackFromX: Int,
+    val attackFromY: Int,
+)
 
 @Serializable
 data class ProjectedUnitTransformAction(val actionId: String, val targetUnitName: String)
@@ -425,6 +440,7 @@ object PlayerProjectionBuilder {
                     isPuppet = it.isPuppet,
                     isBeingRazed = it.isBeingRazed,
                     availableGovernanceActions = CityGovernanceExecutor.availableActions(it),
+                    bombardTargets = CombatTargetProjection.bombardTargets(it, canIssueTurnCommands),
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,
@@ -539,6 +555,12 @@ object PlayerProjectionBuilder {
             UnitTriggerCommandExecutor.projectedActions(unit) else emptyList(),
         moveDestinations = moveDestinations,
         swapDestinations = swapDestinations,
+        attackTargets = if (includePrivateOrders)
+            CombatTargetProjection.attackTargets(unit, canIssueTurnCommands) else emptyList(),
+        nuclearTargetCandidates = if (includePrivateOrders)
+            CombatTargetProjection.nuclearTargetCandidates(unit, canIssueTurnCommands) else emptyList(),
+        airSweepTargets = if (includePrivateOrders)
+            CombatTargetProjection.airSweepTargets(unit, canIssueTurnCommands) else emptyList(),
     )
     }
 

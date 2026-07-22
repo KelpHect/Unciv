@@ -62,6 +62,7 @@ object WorldMapTileUpdater {
     private fun WorldMapHolder.updateTilesForSelectedUnit(unit: MapUnit) {
 
         val tileGroup = tileGroups[unit.getTile()] ?: return
+        val authoritativeCombat = AuthoritativeCombatUi.isOpen(worldScreen)
 
         // Update flags for units which have them
         if (!unit.baseUnit.movesLikeAirUnits) {
@@ -69,7 +70,7 @@ object WorldMapTileUpdater {
         }
 
         // Fade out less relevant images if a military unit is selected
-        if (unit.isMilitary()) {
+        if (authoritativeCombat || unit.isMilitary()) {
             for (group in tileGroups.values) {
 
                 // Fade out population icons
@@ -146,7 +147,8 @@ object WorldMapTileUpdater {
             }
         } ?: unit.movement.getReachableTilesInCurrentTurn()
         // Prepare special Nuke blast radius display
-        val nukeBlastRadius = if (unit.isNuclearWeapon() && selectedTile != null && selectedTile != unit.getTile())
+        val nukeBlastRadius = if (!authoritativeCombat && unit.isNuclearWeapon() &&
+            selectedTile != null && selectedTile != unit.getTile())
             unit.getNukeBlastRadius() else -1
 
         // Z-Layer: 1
@@ -155,7 +157,7 @@ object WorldMapTileUpdater {
             val group = tileGroups[tile]!!
 
             // Air-units have additional highlights
-            if (isAirUnit && !unit.isPreparingAirSweep()) {
+            if (!authoritativeCombat && isAirUnit && !unit.isPreparingAirSweep()) {
                 if (nukeBlastRadius >= 0 && tile.aerialDistanceTo(selectedTile!!) <= nukeBlastRadius) {
                     // The tile is within the nuke blast radius
                     group.layerMisc.overlayTerrain(Color.FIREBRICK, 0.6f)
@@ -184,7 +186,7 @@ object WorldMapTileUpdater {
 
         // Z-Layer: 2
         // Add back in the red markers for Air Unit Attack range since they can't move, but can still attack
-        if (unit.cache.cannotMove && isAirUnit && !unit.isPreparingAirSweep()) {
+        if (!authoritativeCombat && unit.cache.cannotMove && isAirUnit && !unit.isPreparingAirSweep()) {
             val tilesInAttackRange = unit.getTile().getTilesInDistanceRange(IntRange(1, unit.getRange()))
             for (tile in tilesInAttackRange) {
                 // The tile is within attack range
@@ -225,10 +227,32 @@ object WorldMapTileUpdater {
 
         // Z-Layer: 6
         // Highlight attackable tiles
-        if (unit.isMilitary()) {
+        if (authoritativeCombat || unit.isMilitary()) {
 
             val attackableTiles: List<AttackableTile> =
-                if (nukeBlastRadius >= 0)
+                if (authoritativeCombat) {
+                    val projection = AuthoritativeCombatUi.projection(worldScreen)
+                    val projectedUnit = projection?.ownUnits?.singleOrNull { it.id == unit.id }
+                    val tilesByCoordinate = tileGroups.keys.associateBy {
+                        it.position.x to it.position.y
+                    }
+                    val targets = when {
+                        projectedUnit?.nuclearTargetCandidates?.isNotEmpty() == true ->
+                            projectedUnit.nuclearTargetCandidates
+                            .mapNotNull { target -> tilesByCoordinate[target.x to target.y] }
+                            .map { target -> AttackableTile(unit.getTile(), target, 1f, null) }
+                        unit.isPreparingAirSweep() -> projectedUnit?.airSweepTargets.orEmpty()
+                            .mapNotNull { target -> tilesByCoordinate[target.x to target.y] }
+                            .map { target -> AttackableTile(unit.getTile(), target, 1f, null) }
+                        else -> projectedUnit?.attackTargets.orEmpty().mapNotNull { target ->
+                            val attackFrom = tilesByCoordinate[target.attackFromX to target.attackFromY]
+                            val tileToAttack = tilesByCoordinate[target.x to target.y]
+                            if (attackFrom == null || tileToAttack == null) null
+                            else AttackableTile(attackFrom, tileToAttack, 1f, null)
+                        }
+                    }
+                    targets
+                } else if (nukeBlastRadius >= 0)
                     selectedTile!!.getTilesInDistance(nukeBlastRadius)
                         // Should not display invisible submarine units even if the tile is visible.
                         .filter { targetTile -> (targetTile.isVisible(unit.civ) && targetTile.getUnits().any { !it.isInvisible(unit.civ) })
@@ -279,6 +303,21 @@ object WorldMapTileUpdater {
     }
 
     private fun WorldMapHolder.updateBombardableTilesForSelectedCity(city: City) {
+        if (AuthoritativeCombatUi.isOpen(worldScreen)) {
+            val targets = AuthoritativeCombatUi.projection(worldScreen)?.ownCities
+                ?.singleOrNull { it.id == city.id }
+                ?.bombardTargets
+                .orEmpty()
+                .mapNotNull { target -> tileGroups.keys.singleOrNull {
+                    it.position.x == target.x && it.position.y == target.y
+                } }
+            for (target in targets) {
+                val group = tileGroups[target]!!
+                group.layerOverlay.showHighlight(colorFromRGB(237, 41, 57))
+                group.layerOverlay.showCrosshair()
+            }
+            return
+        }
         if (!city.canBombard()) return
         for (attackableTile in TargetHelper.getBombardableTiles(city)) {
             val group = tileGroups[attackableTile]!!

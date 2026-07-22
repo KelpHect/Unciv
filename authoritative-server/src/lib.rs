@@ -7,6 +7,7 @@ mod repository;
 
 pub mod auth;
 pub mod notifications;
+pub mod operations;
 pub mod postgres;
 pub mod projection;
 pub mod worker;

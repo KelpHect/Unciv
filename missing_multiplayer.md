@@ -83,9 +83,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   does not reconstruct it.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
-- [ ] Add reconciliation tooling for missing snapshots, orphan revisions,
-  duplicate memberships, invalid heads, and commits without matching outbox
-  events.
+- [ ] Add reviewed, dry-run-first repair workflows for reconciliation findings.
+  The bounded read-only CLI now detects invalid heads/chains, missing or orphaned
+  snapshots, commands and commit-outbox events, owner/civilization membership
+  damage, quarantine state, and invalid compressed/canonical snapshot bytes.
 - [ ] Add controlled process fault tests that kill/restart Rust, the Kotlin
   worker, and database connections at execution, commit, response, and outbox
   boundaries. Prove no phantom revision and safe same-command retry.
@@ -225,10 +226,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 ## Current verification health
 
 - No known compile, test, formatting, clippy, or database integration error is
-  being deferred from the player-invitation milestone.
+  being deferred from the reconciliation milestone.
 - `./gradlew :tests:test :server:test --no-daemon` passes (935 JVM tests, 13
   intentional skips).
-- Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 14 serialized
+- Rust passes 83 active library tests and 7 HTTP/OpenAPI tests; 15 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
   warnings`, and `git diff --check` pass.

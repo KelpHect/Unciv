@@ -45,10 +45,36 @@ Before changing the pinned image:
 1. Take and verify a logical backup plus the volume/storage snapshot.
 2. Restore into a separate PostgreSQL 19 candidate instance.
 3. Run every ignored Rust PostgreSQL integration test serially.
-4. Validate every canonical snapshot hash and quarantined-game invariant.
+4. Run the read-only reconciliation CLI and require a clean report.
 5. Run command concurrency, idempotency, outbox, and representative load tests.
 6. Promote only after rollback has been rehearsed; never point two major/beta
-   versions at the same data directory.
+versions at the same data directory.
+
+## Read-only canonical reconciliation
+
+Run reconciliation with a database role that has `SELECT` access only. The CLI
+does not apply migrations, quarantine games, or perform repairs:
+
+```text
+cargo run --manifest-path authoritative-server/Cargo.toml --bin unciv-v3-reconcile
+```
+
+Set `UNCIV_V3_DATABASE_URL` outside source control before running it. Exit code
+`0` means no findings, `2` means the JSON report contains findings, and `1`
+means configuration, connection, or query failure. Treat a truncated report as
+an incident requiring database-preserved investigation; the tool records at
+most 1,000 detailed findings while still counting every finding it scans.
+
+The report checks heads, revision parent chains, snapshot/revision links,
+accepted-command links, revision-commit outbox correspondence, owner count,
+duplicate civilization assignment, quarantine state, and every stored
+snapshot's bounded codec, sizes, protocol, UTF-8, payload hash, and canonical
+hash. It outputs only game/revision identifiers and fixed invariant messages;
+canonical bytes, credentials, command payloads, and account data are excluded.
+
+Never repair directly from this report. Preserve a backup and audit evidence,
+identify the failure source, rehearse a deterministic repair on a restored copy,
+and run reconciliation plus the complete PostgreSQL suite before promotion.
 
 PostgreSQL 19 features to evaluate next with measured workloads include
 autovacuum scoring, lock/autovacuum statistics, online checksum management,

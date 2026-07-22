@@ -3880,3 +3880,48 @@ Verification on 2026-07-22:
 Canonical snapshots are now compressed with bounded, fail-closed decoding.
 Prior-snapshot journal recovery and retention/compaction remain separately
 tracked because neither may weaken immutable history or command idempotency.
+
+## Read-only canonical reconciliation tooling
+
+The standalone `unciv-v3-reconcile` binary audits authoritative PostgreSQL
+state without starting the public listener, contacting the Kotlin worker,
+applying migrations, quarantining games, or attempting repair. It is a thin
+binary over a focused operations entry point and a streaming repository audit;
+operator logic does not enter `main.rs`, `lib.rs`, or API bootstrap code.
+
+The structural pass detects invalid heads, missing and orphaned snapshots,
+broken parent chains, missing and orphaned command links, missing/duplicate and
+orphaned revision-commit outbox events, duplicate civilization memberships,
+invalid owner cardinality, and quarantined games. A second streaming pass
+validates every stored snapshot's closed codec, compressed/uncompressed sizes,
+protocol, validation status, payload hash, canonical hash, revision hash, and
+UTF-8 after bounded decompression. Reports contain fixed finding text plus
+game/revision identifiers only; they exclude canonical snapshots, commands,
+accounts, credentials, and outbox payloads.
+
+Detailed output is capped at 1,000 findings while the total count continues,
+making memory use bounded for a damaged database. Exit code zero means clean,
+two means findings, and one means configuration/connection/query failure. The
+tool deliberately requires a separately supplied database URL and does not run
+migrations, allowing operators to execute it with a read-only database role.
+
+Verification on 2026-07-22:
+
+- The PostgreSQL integration test first proves a valid canonical database has
+  zero findings, then introduces a broken chain/command link, missing commit
+  event, orphan command/snapshot/commit event, zero-owner game, quarantine, and
+  invalid zstd payload. Every expected category is reported.
+- Row counts, quarantine reason, and snapshot validation status are captured
+  before and after reconciliation and remain byte-for-byte equal, proving the
+  audit performs no repair or quarantine mutation.
+- The compiled CLI returned exit code 2 and a redacted ten-finding JSON report
+  for damaged state, then exit code 0 and an empty report after the complete
+  serialized suite reset the database to valid state.
+- All 15 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55457; the live server reported `19beta2`. The disposable
+  `unciv-v3-reconcile-final-pg19b2` container was removed and cleanup verified.
+
+Detection is now operational and fail-closed. Deterministic reviewed repair,
+prior-snapshot journal recovery, and retention/compaction remain tracked as
+separate work because the audit must never silently rewrite canonical history.

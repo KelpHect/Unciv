@@ -149,6 +149,7 @@ mod invitations;
 mod lifecycle;
 mod major_diplomacy;
 mod outbox;
+mod reconciliation;
 mod religion;
 mod security;
 mod snapshot_codec;
@@ -160,6 +161,8 @@ mod unit_movement;
 mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
+
+pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

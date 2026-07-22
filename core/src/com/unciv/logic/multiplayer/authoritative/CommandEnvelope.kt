@@ -307,6 +307,7 @@ sealed interface GameCommand {
     data class MoveSpy(val spyName: String, val cityId: String?) : GameCommand
     data class SetSpyCoup(val spyName: String, val enabled: Boolean) : GameCommand
     data class ResolveEventChoice(val promptId: String, val choiceId: String) : GameCommand
+    data class UseGreatPersonUnit(val unitId: Int, val action: GreatPersonUnitAction) : GameCommand
 
     data class SetCityTileAssignment(
         val cityId: String,
@@ -351,6 +352,15 @@ enum class ReligiousUnitAction {
     @SerialName("enhance_religion") EnhanceReligion,
     @SerialName("spread_religion") SpreadReligion,
     @SerialName("remove_heresy") RemoveHeresy,
+}
+
+@Serializable
+enum class GreatPersonUnitAction {
+    @SerialName("hurry_research") HurryResearch,
+    @SerialName("hurry_policy") HurryPolicy,
+    @SerialName("hurry_wonder") HurryWonder,
+    @SerialName("hurry_building") HurryBuilding,
+    @SerialName("conduct_trade_mission") ConductTradeMission,
 }
 
 sealed interface CommandEnvelopeValidation {

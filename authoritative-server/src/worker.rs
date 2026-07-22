@@ -47,7 +47,7 @@ pub use intents::{
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    UpgradeUnitsIntent,
+    UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,

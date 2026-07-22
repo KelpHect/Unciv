@@ -9,6 +9,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.UncivGame
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
+import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.models.UnitAction
 import com.unciv.models.UnitActionType
 import com.unciv.models.UpgradeUnitAction
@@ -204,6 +205,16 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         }
         if (authoritativeReligiousAction != null &&
             worldScreen.mapHolder.useReligiousUnit(unit, authoritativeReligiousAction)) return
+        val authoritativeGreatPersonAction = when (unitAction.type) {
+            UnitActionType.HurryResearch -> GreatPersonUnitAction.HurryResearch
+            UnitActionType.HurryPolicy -> GreatPersonUnitAction.HurryPolicy
+            UnitActionType.HurryWonder -> GreatPersonUnitAction.HurryWonder
+            UnitActionType.HurryBuilding -> GreatPersonUnitAction.HurryBuilding
+            UnitActionType.ConductTradeMission -> GreatPersonUnitAction.ConductTradeMission
+            else -> null
+        }
+        if (authoritativeGreatPersonAction != null &&
+            worldScreen.mapHolder.useGreatPersonUnit(unit, authoritativeGreatPersonAction)) return
         unitAction.action!!.invoke()
         worldScreen.shouldUpdate = true
         // We keep the unit action/selection overlay from the previous unit open even when already selecting another unit

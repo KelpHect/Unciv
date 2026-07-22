@@ -457,6 +457,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun useGreatPersonUnit(
+        gameId: String,
+        request: ApiV3UseGreatPersonUnitRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/use-great-person-unit") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun chooseReligiousBeliefs(
         gameId: String,
         request: ApiV3ChooseReligiousBeliefsRequest,

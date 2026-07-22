@@ -7243,6 +7243,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/use-great-person-unit": {
+      "post": {
+        "tags": [],
+        "operationId": "use_great_person_unit",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseGreatPersonUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/use-religious-unit": {
       "post": {
         "tags": [],
@@ -8755,6 +8839,16 @@
           }
         }
       },
+      "GreatPersonUnitAction": {
+        "type": "string",
+        "enum": [
+          "hurry_research",
+          "hurry_policy",
+          "hurry_wonder",
+          "hurry_building",
+          "conduct_trade_mission"
+        ]
+      },
       "HealthResponse": {
         "type": "object",
         "required": [
@@ -10077,11 +10171,18 @@
           "availablePromotions",
           "improvementOrder",
           "roadConnectionPath",
-          "availableReligiousActions"
+          "availableReligiousActions",
+          "availableGreatPersonActions"
         ],
         "properties": {
           "automated": {
             "type": "boolean"
+          },
+          "availableGreatPersonActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GreatPersonUnitAction"
+            }
           },
           "availablePromotions": {
             "type": "array",
@@ -11383,6 +11484,40 @@
               "type": "integer",
               "format": "int32"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UseGreatPersonUnitRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/GreatPersonUnitAction"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

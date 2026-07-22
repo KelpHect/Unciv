@@ -335,6 +335,14 @@ sealed interface PendingAuthoritativeCommand {
         val action: ReligiousUnitAction,
     ) : PendingAuthoritativeCommand
 
+    data class UseGreatPersonUnit(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val unitId: Int,
+        val action: GreatPersonUnitAction,
+    ) : PendingAuthoritativeCommand
+
     data class ChooseReligiousBeliefs(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -1048,6 +1056,19 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun useGreatPersonUnit(unitId: Int, action: GreatPersonUnitAction) = mutex.withLock {
+        val current = requireSynchronized()
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(action in unit.availableGreatPersonActions) {
+            "Great-person action is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.UseGreatPersonUnit(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, action,
+        ), current)
+    }
+
     suspend fun chooseReligiousBeliefs(
         beliefNames: List<String>,
         religionIconName: String?,
@@ -1689,6 +1710,13 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.UseReligiousUnit -> transport.useReligiousUnit(
                     gameId,
                     ApiV3UseReligiousUnitRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.unitId, pending.action,
+                    ),
+                )
+                is PendingAuthoritativeCommand.UseGreatPersonUnit -> transport.useGreatPersonUnit(
+                    gameId,
+                    ApiV3UseGreatPersonUnitRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.unitId, pending.action,
                     ),

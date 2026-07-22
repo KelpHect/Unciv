@@ -25,8 +25,8 @@ use crate::worker::{
     SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
     SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetTileImprovementOrderIntent,
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    TradePartnerIntent, TradeRequestIntent, UpgradeUnitsIntent, UseReligiousUnitIntent,
-    WorkerManifest,
+    TradePartnerIntent, TradeRequestIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    UseReligiousUnitIntent, WorkerManifest,
 };
 use crate::{
     CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,

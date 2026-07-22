@@ -20,6 +20,12 @@ pub struct ChooseGreatPersonIntent<'a> {
     pub unit_name: &'a str,
 }
 
+pub struct UseGreatPersonUnitIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub action: crate::GreatPersonUnitAction,
+}
+
 pub struct SetCityTileAssignmentIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,

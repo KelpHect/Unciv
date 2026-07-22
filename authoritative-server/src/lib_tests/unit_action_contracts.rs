@@ -1,6 +1,42 @@
 use crate::*;
 
 #[test]
+fn great_person_unit_action_contract_excludes_yields_targets_and_outcomes() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "use_great_person_unit", "unit_id": 17, "action": "conduct_trade_mission"
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::UseGreatPersonUnit {
+            unit_id: 17,
+            action: GreatPersonUnitAction::ConductTradeMission,
+        }
+    );
+    for untrusted in [
+        "actor_id",
+        "city_id",
+        "civilization_id",
+        "science",
+        "culture",
+        "production",
+        "gold",
+        "influence",
+        "consume_unit",
+        "outcome",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "use_great_person_unit", "unit_id": 17, "action": "hurry_policy"
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn religious_unit_contract_excludes_target_pressure_charges_religion_and_actor() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "use_religious_unit", "unit_id": 17, "action": "spread_religion"

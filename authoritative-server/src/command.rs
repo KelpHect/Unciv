@@ -51,6 +51,16 @@ pub enum ReligiousUnitAction {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum GreatPersonUnitAction {
+    HurryResearch,
+    HurryPolicy,
+    HurryWonder,
+    HurryBuilding,
+    ConductTradeMission,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ReligiousBeliefType {
     Pantheon,
     Founder,
@@ -221,6 +231,10 @@ pub enum GameCommand {
     UseReligiousUnit {
         unit_id: i32,
         action: ReligiousUnitAction,
+    },
+    UseGreatPersonUnit {
+        unit_id: i32,
+        action: GreatPersonUnitAction,
     },
     ChooseReligiousBeliefs {
         belief_names: Vec<String>,

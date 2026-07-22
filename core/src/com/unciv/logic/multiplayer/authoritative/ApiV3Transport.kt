@@ -51,6 +51,7 @@ interface ApiV3Transport {
     suspend fun castDiplomaticVote(gameId: String, request: ApiV3CastDiplomaticVoteRequest): ApiV3CommandAccepted
     suspend fun chooseGreatPerson(gameId: String, request: ApiV3ChooseGreatPersonRequest): ApiV3CommandAccepted
     suspend fun useReligiousUnit(gameId: String, request: ApiV3UseReligiousUnitRequest): ApiV3CommandAccepted
+    suspend fun useGreatPersonUnit(gameId: String, request: ApiV3UseGreatPersonUnitRequest): ApiV3CommandAccepted
     suspend fun chooseReligiousBeliefs(gameId: String, request: ApiV3ChooseReligiousBeliefsRequest): ApiV3CommandAccepted
     suspend fun offerTrade(gameId: String, request: ApiV3OfferTradeRequest): ApiV3CommandAccepted
     suspend fun retractTradeOffer(gameId: String, request: ApiV3RetractTradeOfferRequest): ApiV3CommandAccepted

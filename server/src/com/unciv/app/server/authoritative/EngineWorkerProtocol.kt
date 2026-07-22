@@ -15,6 +15,7 @@ import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
+import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
@@ -373,6 +374,13 @@ sealed interface WorkerOperation {
         val actorCivilizationId: String,
         val unitId: Int,
         val action: ReligiousUnitAction,
+    ) : WorkerOperation
+    @Serializable @SerialName("use_great_person_unit")
+    data class UseGreatPersonUnit(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val unitId: Int,
+        val action: GreatPersonUnitAction,
     ) : WorkerOperation
 
     @Serializable @SerialName("choose_religious_beliefs")
@@ -943,6 +951,13 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.unitId,
                     operation.action,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.UseGreatPersonUnit -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.useGreatPersonUnit(
+                    game, operation.actorCivilizationId, operation.unitId, operation.action,
                 )
                 responseForGame(engine, result.game)
             }

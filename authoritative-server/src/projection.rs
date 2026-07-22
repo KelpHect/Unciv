@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
-    CityDispositionAction, CityGovernanceAction, ReligiousBeliefType, ReligiousUnitAction,
-    UnitPosture,
+    CityDispositionAction, CityGovernanceAction, GreatPersonUnitAction, ReligiousBeliefType,
+    ReligiousUnitAction, UnitPosture,
 };
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
@@ -337,6 +337,7 @@ pub struct ProjectedUnit {
     pub road_connection_destination_y: Option<i32>,
     pub road_connection_path: Vec<ProjectedRoadPathTile>,
     pub available_religious_actions: Vec<ReligiousUnitAction>,
+    pub available_great_person_actions: Vec<GreatPersonUnitAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -371,7 +372,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v31.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v32.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

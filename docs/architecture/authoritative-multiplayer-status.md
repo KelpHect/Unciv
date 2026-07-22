@@ -3388,3 +3388,45 @@ Verification on 2026-07-22:
 
 The mod-event choice leak is closed. The audit now advances to remaining unit
 special actions and multiplayer lifecycle mutations.
+
+## Authoritative direct great-person actions
+
+Projection version 32 adds a closed allowlist of currently legal direct
+great-person actions to each owned unit. The public command contains only the
+stable unit ID and one of `hurry_research`, `hurry_policy`, `hurry_wonder`,
+`hurry_building`, or `conduct_trade_mission`.
+
+The private Kotlin worker re-resolves current-turn ownership and invokes the
+existing shared `UnitActionsGreatPerson` implementation through a focused
+executor. It therefore owns research and culture yields, construction checks
+and production, speed and trade-mission modifiers, city-state ownership and
+war checks, gold, influence, notifications, construction completion, and unit
+consumption. Rust validates only the closed shape and never reproduces rules.
+
+`UnitActionsTable` intercepts all five action types for opened v3 games before
+their local callbacks. Local, hotseat, saves, legacy multiplayer, and AI retain
+the same Kotlin implementations.
+
+Verification on 2026-07-22:
+
+- The focused Kotlin test proves action projection, server-calculated research,
+  canonical unit consumption, and replay rejection for an owned Great
+  Scientist. The closed Rust contract rejects claimed targets, yields,
+  influence, consumption, and outcomes.
+- `./gradlew :tests:test :server:test --no-daemon` completed 921 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test --all-targets` passed 65 active library tests and all 7
+  HTTP/OpenAPI tests; 8 database tests were intentionally skipped in that lane.
+  Generated OpenAPI parity and the projection-v32 fixture passed.
+- `cargo fmt --check` and warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55469; the live server reported `19beta2`. The disposable
+  `unciv-v3-great-person-pg19` container was removed afterward.
+- Module-size review found a 743-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line façade.
+
+The five inventoried direct great-person mutations are authoritative. The unit
+special-action audit now advances to gift, transform, airlift, and generic
+trigger-unique paths.

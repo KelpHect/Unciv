@@ -23,6 +23,7 @@ import com.unciv.logic.map.mapunit.movement.UnitMovement
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
+import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Spy
 import com.unciv.models.UnitActionType
@@ -705,6 +706,16 @@ class WorldMapHolder(
         submitAuthoritativeUnitCommand("religious unit action", submit = {
             worldScreen.game.onlineMultiplayer.authoritativeSession
                 ?.useReligiousUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, action)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
+    /** Returns true when a closed direct great-person action was submitted to API v3. */
+    fun useGreatPersonUnit(unit: MapUnit, action: GreatPersonUnitAction): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("great-person unit action", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.useGreatPersonUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, action)
         }) { removeUnitActionOverlay() }
         return true
     }

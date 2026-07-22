@@ -23,6 +23,7 @@ import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
+import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.HexCoord
@@ -2314,6 +2315,32 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertTrue(engine.playerProjection(game, "Rome").eventPrompts.isEmpty())
         Assert.assertThrows(IllegalStateException::class.java) {
             engine.resolveEventChoice(game, "Rome", prompt.promptId, prompt.choices.last().choiceId)
+        }
+    }
+
+    @Test
+    fun greatPersonActionIsProjectedAndExecutedByCanonicalWorker() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        if (rome.cities.isEmpty()) {
+            val settler = rome.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            rome.addCity(settler.currentTile.position, settler)
+        }
+        val scientistType = game.ruleset.units.values.single { it.hasUnique(UniqueType.CanHurryResearch) }
+        val scientist = rome.units.addUnit(scientistType, rome.getCapital())!!
+        rome.tech.techsToResearch.add("Pottery")
+        rome.tech.scienceOfLast8Turns.fill(100)
+
+        val projected = engine.playerProjection(game, "Rome").ownUnits.single { it.id == scientist.id }
+        Assert.assertEquals(listOf(GreatPersonUnitAction.HurryResearch), projected.availableGreatPersonActions)
+
+        engine.useGreatPersonUnit(game, "Rome", scientist.id, GreatPersonUnitAction.HurryResearch)
+
+        Assert.assertTrue(rome.tech.isResearched("Pottery") || rome.tech.researchOfTech("Pottery") > 0)
+        Assert.assertTrue(scientist.isDestroyed)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.useGreatPersonUnit(game, "Rome", scientist.id, GreatPersonUnitAction.HurryResearch)
         }
     }
 

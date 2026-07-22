@@ -218,6 +218,10 @@ pub(crate) async fn run() {
             post(transform_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/trigger-unit-unique",
+            post(trigger_unit_unique),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/use-religious-unit",
             post(use_religious_unit),
         )

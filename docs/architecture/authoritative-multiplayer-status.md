@@ -3517,3 +3517,48 @@ Verification on 2026-07-22:
 
 Mod-defined unit transformation is authoritative. The unit special-action
 audit now advances to airlift and generic trigger-unique paths.
+
+## Authoritative generic unit trigger actions
+
+The follow-up airlift audit found no independent player-authored `UnitAction`
+or rules mutation: air rebasing uses the already-authoritative unit movement
+path. No duplicate command surface was added.
+
+Projection version 35 exposes every currently executable generic mod-defined
+unit trigger as an opaque action ID and presentation title. The
+`TriggerUnitUnique` command contains only the stable unit ID and selected
+opaque action ID. It cannot name a unique or claim effects, multipliers, costs,
+unit consumption, randomness, or outcomes. Duplicate identical uniques remain
+independently addressable.
+
+The private Kotlin worker re-resolves authenticated current-turn ownership and
+the exact canonical action, then invokes the existing
+`UnitActionsFromUniques` callback. Trigger conditions, movement and stat costs,
+limited uses, multipliers, random effects, consumption, and side effects all
+remain inside the shared engine used by local play and server AI. Opened v3
+games intercept the UI action before its legacy local callback; single-player,
+hotseat, saves, legacy multiplayer, and AI behavior are unchanged.
+
+Verification on 2026-07-22:
+
+- A focused synthetic-mod Kotlin test projects two identical gold trigger
+  actions with distinct opaque IDs, executes the selected second action in the
+  canonical worker, proves server-owned gold and movement effects, and rejects
+  replay. Rust rejects actor, unique, effect, multiplier, cost, consumption,
+  and outcome claims; the worker wire-name test passes.
+- `./gradlew :tests:test :server:test --no-daemon` completed 924 JVM tests with
+  13 intentional skips and zero failures.
+- `cargo test --lib` passed 71 active library tests and all 7 HTTP/OpenAPI tests
+  passed. Generated OpenAPI parity and the projection-v35 fixture passed.
+- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings`, and `git diff --check` passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55465; the live server reported `19beta2`. The disposable
+  `unciv-v3-unit-trigger-pg19b2` container was removed and cleanup verified.
+- Module-size review found a 772-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line facade.
+
+The inventoried generic trigger-unique mutation surface is authoritative. The
+coverage audit now advances to any remaining lifecycle and non-unit mutation
+gaps.

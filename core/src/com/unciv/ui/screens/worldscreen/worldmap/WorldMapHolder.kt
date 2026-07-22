@@ -740,6 +740,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when a mod-defined trigger action was submitted to the authoritative server. */
+    fun triggerUnitUnique(unit: MapUnit, actionId: String): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("unit trigger", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.triggerUnitUniqueIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     /** Returns true when founding was submitted to the authoritative server. */
     fun foundCity(unit: MapUnit): Boolean {
         if (!isAuthoritativeGame()) return false

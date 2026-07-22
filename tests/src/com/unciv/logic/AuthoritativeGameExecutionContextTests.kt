@@ -2420,6 +2420,44 @@ class AuthoritativeGameExecutionContextTests {
         }
     }
 
+    @Test
+    fun genericUnitTriggerIsOpaqueProjectedAndExecutedByCanonicalWorker() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val rome = game.getCivilization("Rome")
+        if (rome.cities.isEmpty()) {
+            val settler = rome.units.getCivUnits().first { it.hasUnique(UniqueType.FoundCity) }
+            rome.addCity(settler.currentTile.position, settler)
+        }
+        val triggerUnit = com.unciv.models.ruleset.unit.BaseUnit().apply {
+            name = "Server Trigger"
+            cost = 40
+            movement = 2
+            strength = 8
+            unitType = "Melee"
+            uniques.add("Gain [100] [Gold] <for all movement>")
+            uniques.add("Gain [100] [Gold] <for all movement>")
+            setRuleset(game.ruleset)
+        }
+        game.ruleset.units[triggerUnit.name] = triggerUnit
+        val unit = rome.units.addUnit(triggerUnit, rome.getCapital())!!
+        val beforeGold = rome.gold
+
+        val actions = engine.playerProjection(game, "Rome").ownUnits
+            .single { it.id == unit.id }.availableTriggerActions
+        Assert.assertEquals(2, actions.size)
+        Assert.assertEquals(2, actions.map { it.actionId }.distinct().size)
+        Assert.assertTrue(actions.all { it.actionId.matches(Regex("[0-9a-f]{64}")) })
+
+        engine.triggerUnitUnique(game, "Rome", unit.id, actions.last().actionId)
+
+        Assert.assertEquals(beforeGold + 100, rome.gold)
+        Assert.assertEquals(0f, unit.currentMovement, 0.001f)
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.triggerUnitUnique(game, "Rome", unit.id, actions.last().actionId)
+        }
+    }
+
     private fun testSetup(): GameSetupInfo {
         val parameters = GameParameters().apply {
             numberOfCityStates = 0

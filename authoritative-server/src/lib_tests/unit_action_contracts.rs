@@ -59,6 +59,39 @@ fn transform_unit_contract_contains_only_unit_and_projected_action_identity() {
 }
 
 #[test]
+fn trigger_unit_unique_contract_contains_only_unit_and_projected_action_identity() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "trigger_unit_unique", "unit_id": 17, "action_id": "b".repeat(64)
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::TriggerUnitUnique {
+            unit_id: 17,
+            action_id: "b".repeat(64),
+        }
+    );
+    for untrusted in [
+        "actor_id",
+        "unique",
+        "effect",
+        "multiplier",
+        "cost",
+        "consume_unit",
+        "outcome",
+    ] {
+        let mut value = serde_json::json!({
+            "type": "trigger_unit_unique", "unit_id": 17, "action_id": "b".repeat(64)
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn great_person_unit_action_contract_excludes_yields_targets_and_outcomes() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "use_great_person_unit", "unit_id": 17, "action": "conduct_trade_mission"

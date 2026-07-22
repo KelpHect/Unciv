@@ -31,6 +31,7 @@ mod unit_gifts;
 mod unit_movement;
 mod unit_orders;
 mod unit_transforms;
+mod unit_triggers;
 pub use city_state::{
     CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
     CityStateTributeIntent,
@@ -49,7 +50,7 @@ pub use intents::{
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    TransformUnitIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
@@ -742,6 +743,25 @@ mod tests {
         assert_eq!(
             value["actionId"],
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert!(value.get("action_id").is_none());
+    }
+
+    #[test]
+    fn trigger_unit_unique_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::TriggerUnitUnique {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            unit_id: 17,
+            action_id: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        })
+        .unwrap();
+        assert_eq!(value["type"], "trigger_unit_unique");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["unitId"], 17);
+        assert_eq!(
+            value["actionId"],
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         );
         assert!(value.get("action_id").is_none());
     }

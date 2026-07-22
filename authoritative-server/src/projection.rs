@@ -340,6 +340,7 @@ pub struct ProjectedUnit {
     pub available_great_person_actions: Vec<GreatPersonUnitAction>,
     pub can_gift: bool,
     pub available_transform_actions: Vec<ProjectedUnitTransformAction>,
+    pub available_trigger_actions: Vec<ProjectedUnitTriggerAction>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -347,6 +348,13 @@ pub struct ProjectedUnit {
 pub struct ProjectedUnitTransformAction {
     pub action_id: String,
     pub target_unit_name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedUnitTriggerAction {
+    pub action_id: String,
+    pub title: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -381,7 +389,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v34.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v35.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);

@@ -399,6 +399,15 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "actionId")]
         action_id: &'a str,
     },
+    TriggerUnitUnique {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+        #[serde(rename = "actionId")]
+        action_id: &'a str,
+    },
     UseReligiousUnit {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

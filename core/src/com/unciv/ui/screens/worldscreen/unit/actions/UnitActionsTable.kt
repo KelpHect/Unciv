@@ -11,6 +11,7 @@ import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitTransformCommandExecutor
+import com.unciv.logic.multiplayer.authoritative.UnitTriggerCommandExecutor
 import com.unciv.models.UnitAction
 import com.unciv.models.UnitActionType
 import com.unciv.models.UpgradeUnitAction
@@ -220,6 +221,10 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         if (unitAction.type == UnitActionType.Transform) {
             val actionId = UnitTransformCommandExecutor.actionIdFor(unit, unitAction)
             if (actionId != null && worldScreen.mapHolder.transformUnit(unit, actionId)) return
+        }
+        if (unitAction.type == UnitActionType.TriggerUnique) {
+            val actionId = UnitTriggerCommandExecutor.actionIdFor(unit, unitAction)
+            if (actionId != null && worldScreen.mapHolder.triggerUnitUnique(unit, actionId)) return
         }
         unitAction.action!!.invoke()
         worldScreen.shouldUpdate = true

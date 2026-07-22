@@ -310,6 +310,7 @@ sealed interface GameCommand {
     data class UseGreatPersonUnit(val unitId: Int, val action: GreatPersonUnitAction) : GameCommand
     data class GiftUnit(val unitId: Int) : GameCommand
     data class TransformUnit(val unitId: Int, val actionId: String) : GameCommand
+    data class TriggerUnitUnique(val unitId: Int, val actionId: String) : GameCommand
 
     data class SetCityTileAssignment(
         val cityId: String,

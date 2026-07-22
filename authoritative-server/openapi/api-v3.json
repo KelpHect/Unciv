@@ -7307,6 +7307,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/trigger-unit-unique": {
+      "post": {
+        "tags": [],
+        "operationId": "trigger_unit_unique",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerUnitUniqueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/upgrade-units": {
       "post": {
         "tags": [],
@@ -10372,7 +10456,8 @@
           "availableReligiousActions",
           "availableGreatPersonActions",
           "canGift",
-          "availableTransformActions"
+          "availableTransformActions",
+          "availableTriggerActions"
         ],
         "properties": {
           "automated": {
@@ -10400,6 +10485,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedUnitTransformAction"
+            }
+          },
+          "availableTriggerActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedUnitTriggerAction"
             }
           },
           "canGift": {
@@ -10547,6 +10638,22 @@
             "type": "string"
           },
           "targetUnitName": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedUnitTriggerAction": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "title"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "title": {
             "type": "string"
           }
         },
@@ -11667,6 +11774,40 @@
         "additionalProperties": false
       },
       "TransformUnitRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id",
+          "action_id"
+        ],
+        "properties": {
+          "action_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TriggerUnitUniqueRequest": {
         "type": "object",
         "required": [
           "command_id",

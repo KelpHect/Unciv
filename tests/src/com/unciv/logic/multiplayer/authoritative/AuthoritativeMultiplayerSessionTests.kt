@@ -1914,6 +1914,14 @@ class AuthoritativeMultiplayerSessionTests {
                 current.canonicalStateHash,
             )
         }
+        override suspend fun resign(gameId: String, request: ApiV3ResignRequest) =
+            ApiV3CommandAccepted(
+                gameId,
+                request.commandId,
+                request.expectedRevision,
+                request.expectedRevision + 1,
+                "resigned",
+            )
         override fun notifications(): Flow<ApiV3RevisionNotification> = notifications
 
         private fun unsupported(): Nothing = error("not used by this lifecycle test")

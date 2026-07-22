@@ -14,6 +14,19 @@ class AuthoritativeGameCommandBusTests {
     private val gameId = "00000000-0000-0000-0000-000000000001"
 
     @Test
+    fun resignationIsTerminalAndDoesNotFetchAnUnauthorizedProjection() = runBlocking {
+        val transport = FakeTransport(projection(7, "hash-7"))
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "resign-command" }
+        bus.refresh()
+
+        val outcome = bus.resign()
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(1, transport.projectionCalls)
+        assertEquals("resign-command", transport.resignRequests.single().commandId)
+    }
+
+    @Test
     fun moveRequestWireShapeContainsNoActorOrStatePayload() {
         val encoded = Json.encodeToString(
             ApiV3MoveUnitRequest.serializer(),
@@ -1455,6 +1468,8 @@ class AuthoritativeGameCommandBusTests {
     )
 
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
+        var projectionCalls = 0
+        val resignRequests = mutableListOf<ApiV3ResignRequest>()
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val cancelMovementOrderRequests = mutableListOf<ApiV3CancelUnitMovementOrderRequest>()
@@ -1650,7 +1665,10 @@ class AuthoritativeGameCommandBusTests {
             ApiV3GameMetadata(gameId, 0, "hash-0", "owner", "Rome")
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
-        override suspend fun projection(gameId: String) = current
+        override suspend fun projection(gameId: String): ApiV3GameProjection {
+            projectionCalls++
+            return current
+        }
         override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted {
             moveRequests += request
             return onMove(request)
@@ -2011,6 +2029,10 @@ class AuthoritativeGameCommandBusTests {
         }
         override suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
+        override suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted {
+            resignRequests += request
+            return accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "resigned")
+        }
         override fun notifications(): Flow<ApiV3RevisionNotification> = emptyFlow()
     }
 }

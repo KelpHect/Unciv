@@ -30,6 +30,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/projection",
         "/api/v3/games/{game_id}/join",
         "/api/v3/games/{game_id}/commands/end-turn",
+        "/api/v3/games/{game_id}/commands/resign",
         "/api/v3/games/{game_id}/commands/move-unit",
         "/api/v3/games/{game_id}/commands/move-unit-toward",
         "/api/v3/games/{game_id}/commands/cancel-unit-movement-order",
@@ -127,6 +128,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
     }
     for schema in [
         "EndTurnRequest",
+        "ResignRequest",
         "JoinGameRequest",
         "MoveUnitRequest",
         "MoveUnitTowardRequest",

@@ -129,6 +129,47 @@ async fn postgres_commit_is_atomic_idempotent_and_stale_safe() {
 
 #[tokio::test]
 #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn resignation_atomically_commits_and_removes_membership_but_remains_idempotent() {
+    let repository = PostgresGameRepository::connect(&database_url())
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    let (account, game) = seed_repository(&repository).await;
+    let command_id = Uuid::new_v4();
+    let envelope = CommandEnvelope {
+        command: GameCommand::Resign {},
+        ..command(game, command_id, 0)
+    };
+
+    let accepted = repository
+        .commit_resignation(account, envelope.clone(), proposal(0, b"resigned-revision"))
+        .await
+        .unwrap();
+    let duplicate = repository
+        .commit_resignation(account, envelope, proposal(0, b"must-not-replace"))
+        .await
+        .unwrap();
+
+    assert_eq!(accepted, duplicate);
+    let membership_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM game_members WHERE game_id = $1 AND account_id = $2",
+    )
+    .bind(game)
+    .bind(account)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    let head_revision: i64 = sqlx::query_scalar("SELECT head_revision FROM games WHERE id = $1")
+        .bind(game)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap();
+    assert_eq!(membership_count, 0);
+    assert_eq!(head_revision, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
 async fn corrupt_canonical_snapshot_quarantines_game_without_advancing_head() {
     let repository = PostgresGameRepository::connect(&database_url())
         .await

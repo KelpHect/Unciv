@@ -7,6 +7,7 @@ import com.unciv.Constants
 import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.MultiplayerGamePreview
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.widgets.UncivTextField
@@ -207,6 +208,28 @@ class MultiplayerScreen : PickerScreen() {
 
         Concurrency.runOnNonDaemonThreadPool("Resign") {
             try {
+                val authoritativeGameId = multiplayerGamePreview.preview?.gameId
+                val authoritative = authoritativeGameId?.let { gameId ->
+                    game.onlineMultiplayer.authoritativeSession?.takeIf { it.isGameOpen(gameId) }
+                }
+                if (authoritative != null) {
+                    val isSelfResignation = responsibleCivNameOrPlayerId.isEmpty() ||
+                        responsibleCivNameOrPlayerId == playerCiv
+                    val outcome = if (isSelfResignation)
+                        authoritative.resignIfOpen(requireNotNull(authoritativeGameId))
+                    else null
+                    val message = when (outcome) {
+                        AuthoritativeCommandOutcome.RetryRequired -> "Resignation status is uncertain - retry to confirm"
+                        is AuthoritativeCommandOutcome.StaleRefreshed -> "Game was out of sync with server - updated"
+                        is AuthoritativeCommandOutcome.Rejected -> outcome.code
+                        is AuthoritativeCommandOutcome.Accepted -> ""
+                        null -> "Force resignation is not available for authoritative games yet"
+                    }
+                    launchOnGLThread {
+                        if (message.isEmpty()) popup.close() else popup.reuseWith(message, true)
+                    }
+                    return@runOnNonDaemonThreadPool
+                }
                 val errorMessage = game.onlineMultiplayer.resignPlayer(
                     multiplayerGamePreview,
                     playerCiv,

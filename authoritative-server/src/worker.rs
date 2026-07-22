@@ -22,6 +22,7 @@ mod espionage;
 mod event_choices;
 mod great_people;
 mod intents;
+mod lifecycle;
 mod major_diplomacy;
 mod protocol;
 mod religion;
@@ -764,5 +765,17 @@ mod tests {
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         );
         assert!(value.get("action_id").is_none());
+    }
+
+    #[test]
+    fn resign_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::Resign {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+        })
+        .unwrap();
+        assert_eq!(value["type"], "resign");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert!(value.get("actor_civilization_id").is_none());
     }
 }

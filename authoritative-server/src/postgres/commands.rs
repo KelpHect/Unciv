@@ -691,6 +691,7 @@ impl PostgresGameRepository {
             Some(NewMemberAssignment {
                 civilization_id: assigned.civilization_id,
             }),
+            false,
         )
         .await
     }

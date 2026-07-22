@@ -34,6 +34,21 @@ fn proposal(previous_revision: u64, snapshot: &[u8]) -> CommitProposal {
 }
 
 #[test]
+fn resign_contract_contains_no_client_claimed_target_or_actor() {
+    assert_eq!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({"type": "resign"})).unwrap(),
+        GameCommand::Resign {},
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "resign",
+            "civilization_id": "Rome"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn queue_construction_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "queue_construction",

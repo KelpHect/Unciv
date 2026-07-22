@@ -86,6 +86,22 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun resignationTransfersTheAuthenticatedCivilizationToServerAI() {
+        val engine = HeadlessGameEngine(serverContext { serverTime + 5_000L })
+        val game = engine.createGame(testSetup()).game
+
+        engine.resign(game, "Rome")
+
+        val rome = game.getCivilization("Rome")
+        Assert.assertEquals(PlayerType.AI, rome.playerType)
+        Assert.assertEquals("", rome.playerId)
+        Assert.assertEquals("Greece", game.currentPlayer)
+        Assert.assertTrue(game.getCivilization("Greece").notifications.any {
+            it.text.contains("resigned and is now controlled by AI")
+        })
+    }
+
+    @Test
     fun aSnapshotReloadsToTheSameCanonicalHash() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val created = engine.createGame(testSetup()).game

@@ -107,6 +107,7 @@ mod espionage;
 mod event_choices;
 mod games;
 mod great_people;
+mod lifecycle;
 mod major_diplomacy;
 mod outbox;
 mod religion;
@@ -262,7 +263,17 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
     ) -> Result<CommandAccepted, CommitError> {
-        self.commit_internal(actor_account_id, envelope, proposal, None)
+        self.commit_internal(actor_account_id, envelope, proposal, None, false)
+            .await
+    }
+
+    async fn commit_resignation(
+        &self,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+        proposal: CommitProposal,
+    ) -> Result<CommandAccepted, CommitError> {
+        self.commit_internal(actor_account_id, envelope, proposal, None, true)
             .await
     }
 
@@ -272,6 +283,7 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
         new_member: Option<NewMemberAssignment>,
+        remove_actor_membership: bool,
     ) -> Result<CommandAccepted, CommitError> {
         if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(CommitError::UnsupportedProtocol(envelope.protocol_version));
@@ -432,6 +444,17 @@ impl PostgresGameRepository {
             .execute(&mut *tx)
             .await
             .map_err(CommitError::storage)?;
+        if remove_actor_membership {
+            if !matches!(&envelope.command, crate::GameCommand::Resign {}) {
+                return Err(CommitError::InvalidCommand);
+            }
+            sqlx::query("DELETE FROM game_members WHERE game_id = $1 AND account_id = $2")
+                .bind(envelope.game_id)
+                .bind(actor_account_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?;
+        }
         tx.commit().await.map_err(CommitError::storage)?;
 
         Ok(CommandAccepted {

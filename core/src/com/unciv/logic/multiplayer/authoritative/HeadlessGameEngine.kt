@@ -22,6 +22,7 @@ import com.unciv.logic.map.mapunit.actions.UnitParadrop
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.UnitActionType
+import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.INonPerpetualConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
@@ -704,6 +705,19 @@ class HeadlessGameEngine(
             "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
         }
         game.nextTurn(executionContext = executionContext)
+        return result(game)
+    }
+
+    /** Relinquishes the authenticated civilization to server-owned AI. */
+    fun resign(game: GameInfo, actorCivilizationId: String): EngineResult {
+        val actorCivilization = authenticatedCivilization(game, actorCivilizationId)
+        val wasCurrentPlayer = game.currentPlayer == actorCivilization.civID
+        actorCivilization.playerType = PlayerType.AI
+        actorCivilization.playerId = ""
+        val notification = "[${actorCivilization.civName}] resigned and is now controlled by AI"
+        for (civilization in game.civilizations)
+            civilization.addNotification(notification, NotificationCategory.General, actorCivilization.civName)
+        if (wasCurrentPlayer) game.nextTurn(executionContext = executionContext)
         return result(game)
     }
 

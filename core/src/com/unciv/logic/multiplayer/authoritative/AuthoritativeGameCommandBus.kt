@@ -213,6 +213,12 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
     ) : PendingAuthoritativeCommand
 
+    data class Resign(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+    ) : PendingAuthoritativeCommand
+
     data class QueueConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -490,11 +496,20 @@ class AuthoritativeGameCommandBus(
     private val commandIdFactory: () -> String = { UUID.randomUUID().toString() },
 ) {
     private val mutex = Mutex()
+    private var terminalAccepted = false
     var state: AuthoritativeSyncState = AuthoritativeSyncState.Uninitialized
         private set
 
     suspend fun refresh(): ApiV3GameProjection = mutex.withLock {
         refreshLocked(cachedProjection())
+    }
+
+    suspend fun resign() = mutex.withLock {
+        require(!terminalAccepted) { "This authoritative game session has ended" }
+        val current = requireSynchronized()
+        submitLocked(PendingAuthoritativeCommand.Resign(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+        ), current)
     }
 
     suspend fun moveUnit(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
@@ -1642,6 +1657,14 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                     ),
                 )
+                is PendingAuthoritativeCommand.Resign -> transport.resign(
+                    gameId,
+                    ApiV3ResignRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                    ),
+                )
                 is PendingAuthoritativeCommand.QueueConstruction -> transport.queueConstruction(
                     gameId,
                     ApiV3QueueConstructionRequest(
@@ -1895,6 +1918,10 @@ class AuthoritativeGameCommandBus(
         check(accepted.gameId == gameId) { "Server accepted a command for a different game" }
         check(accepted.commandId == pending.commandId) { "Server returned a different command ID" }
         check(accepted.previousRevision == pending.expectedRevision) { "Server returned an invalid parent revision" }
+        if (pending is PendingAuthoritativeCommand.Resign) {
+            terminalAccepted = true
+            return AuthoritativeCommandOutcome.Accepted(accepted, current)
+        }
         return try {
             val refreshed = transport.projection(gameId)
             check(refreshed.committedRevision == accepted.committedRevision) {

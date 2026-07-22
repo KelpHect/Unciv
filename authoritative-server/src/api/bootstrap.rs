@@ -69,6 +69,7 @@ pub(crate) async fn run() {
         .route("/api/v3/games/{game_id}/projection", get(game_projection))
         .route("/api/v3/games/{game_id}/join", post(join_game))
         .route("/api/v3/games/{game_id}/commands/end-turn", post(end_turn))
+        .route("/api/v3/games/{game_id}/commands/resign", post(resign))
         .route(
             "/api/v3/games/{game_id}/commands/move-unit",
             post(move_unit),

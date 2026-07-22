@@ -711,6 +711,13 @@ data class ApiV3EndTurnRequest(
 )
 
 @Serializable
+data class ApiV3ResignRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+)
+
+@Serializable
 data class ApiV3ErrorResponse(
     val code: String,
     @SerialName("current_revision") val currentRevision: Long? = null,

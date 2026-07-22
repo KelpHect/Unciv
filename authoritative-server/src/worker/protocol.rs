@@ -45,6 +45,11 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "actorCivilizationId")]
         actor_civilization_id: &'a str,
     },
+    Resign {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+    },
     MoveUnit {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

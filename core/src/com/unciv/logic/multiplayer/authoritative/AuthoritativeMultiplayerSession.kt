@@ -643,6 +643,30 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    /** Resignation is terminal for this player projection. Once accepted, the
+     * game is removed locally because the server atomically removes membership. */
+    suspend fun resignIfOpen(gameId: String): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        val outcome = when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.Resign) {
+                    "Resolve the pending authoritative command before resigning"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.resign()
+            else -> {
+                bus.refresh()
+                bus.resign()
+            }
+        }
+        if (outcome is AuthoritativeCommandOutcome.Accepted) {
+            mutex.withLock { games.remove(gameId) }
+            openedGameIds.remove(gameId)
+        }
+        return outcome
+    }
+
     /** Selects research only for a game explicitly opened through API v3.
      * Legacy and local callers receive null and retain their existing path. */
     suspend fun setResearchPathIfOpen(

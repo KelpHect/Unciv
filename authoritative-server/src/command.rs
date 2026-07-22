@@ -74,6 +74,7 @@ pub enum ReligiousBeliefType {
 pub enum GameCommand {
     JoinGame,
     EndTurn,
+    Resign {},
     MoveUnit {
         unit_id: i32,
         destination_x: i32,

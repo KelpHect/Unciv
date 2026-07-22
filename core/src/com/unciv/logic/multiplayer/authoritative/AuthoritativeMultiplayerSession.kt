@@ -667,6 +667,23 @@ class AuthoritativeMultiplayerSession(
         return outcome
     }
 
+    suspend fun forceResignIfOpen(gameId: String): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ForceResign) {
+                    "Resolve the pending authoritative command before force-resigning"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.forceResign()
+            else -> {
+                bus.refresh()
+                bus.forceResign()
+            }
+        }
+    }
+
     /** Selects research only for a game explicitly opened through API v3.
      * Legacy and local callers receive null and retain their existing path. */
     suspend fun setResearchPathIfOpen(

@@ -58,7 +58,8 @@ pub use major_diplomacy::{
     DiplomaticPromptIntent,
 };
 pub use protocol::{
-    AssignedPlayer, CreatedGame, ProjectedState, WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    AssignedPlayer, CreatedGame, ForcedResignation, ProjectedState, WorkerCapabilities,
+    WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
@@ -775,6 +776,18 @@ mod tests {
         })
         .unwrap();
         assert_eq!(value["type"], "resign");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert!(value.get("actor_civilization_id").is_none());
+    }
+
+    #[test]
+    fn force_resign_worker_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::ForceResign {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+        })
+        .unwrap();
+        assert_eq!(value["type"], "force_resign");
         assert_eq!(value["actorCivilizationId"], "Rome");
         assert!(value.get("actor_civilization_id").is_none());
     }

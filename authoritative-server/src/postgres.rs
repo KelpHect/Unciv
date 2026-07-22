@@ -51,6 +51,11 @@ struct NewMemberAssignment {
     civilization_id: String,
 }
 
+enum MembershipRemoval {
+    Actor,
+    Civilization(String),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GameMetadata {
     pub game_id: Uuid,
@@ -263,7 +268,7 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
     ) -> Result<CommandAccepted, CommitError> {
-        self.commit_internal(actor_account_id, envelope, proposal, None, false)
+        self.commit_internal(actor_account_id, envelope, proposal, None, None)
             .await
     }
 
@@ -273,8 +278,31 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
     ) -> Result<CommandAccepted, CommitError> {
-        self.commit_internal(actor_account_id, envelope, proposal, None, true)
-            .await
+        self.commit_internal(
+            actor_account_id,
+            envelope,
+            proposal,
+            None,
+            Some(MembershipRemoval::Actor),
+        )
+        .await
+    }
+
+    async fn commit_forced_resignation(
+        &self,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+        proposal: CommitProposal,
+        civilization_id: String,
+    ) -> Result<CommandAccepted, CommitError> {
+        self.commit_internal(
+            actor_account_id,
+            envelope,
+            proposal,
+            None,
+            Some(MembershipRemoval::Civilization(civilization_id)),
+        )
+        .await
     }
 
     async fn commit_internal(
@@ -283,7 +311,7 @@ impl PostgresGameRepository {
         envelope: CommandEnvelope,
         proposal: CommitProposal,
         new_member: Option<NewMemberAssignment>,
-        remove_actor_membership: bool,
+        membership_removal: Option<MembershipRemoval>,
     ) -> Result<CommandAccepted, CommitError> {
         if envelope.protocol_version != PROTOCOL_VERSION {
             return Err(CommitError::UnsupportedProtocol(envelope.protocol_version));
@@ -444,16 +472,35 @@ impl PostgresGameRepository {
             .execute(&mut *tx)
             .await
             .map_err(CommitError::storage)?;
-        if remove_actor_membership {
-            if !matches!(&envelope.command, crate::GameCommand::Resign {}) {
-                return Err(CommitError::InvalidCommand);
+        if let Some(removal) = membership_removal {
+            let result = match removal {
+                MembershipRemoval::Actor
+                    if matches!(&envelope.command, crate::GameCommand::Resign {}) =>
+                {
+                    sqlx::query("DELETE FROM game_members WHERE game_id = $1 AND account_id = $2")
+                        .bind(envelope.game_id)
+                        .bind(actor_account_id)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(CommitError::storage)?
+                }
+                MembershipRemoval::Civilization(civilization_id)
+                    if matches!(&envelope.command, crate::GameCommand::ForceResign {}) =>
+                {
+                    sqlx::query(
+                        "DELETE FROM game_members WHERE game_id = $1 AND civilization_id = $2",
+                    )
+                    .bind(envelope.game_id)
+                    .bind(civilization_id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(CommitError::storage)?
+                }
+                _ => return Err(CommitError::InvalidCommand),
+            };
+            if result.rows_affected() != 1 {
+                return Err(CommitError::WorkerRevisionMismatch);
             }
-            sqlx::query("DELETE FROM game_members WHERE game_id = $1 AND account_id = $2")
-                .bind(envelope.game_id)
-                .bind(actor_account_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(CommitError::storage)?;
         }
         tx.commit().await.map_err(CommitError::storage)?;
 

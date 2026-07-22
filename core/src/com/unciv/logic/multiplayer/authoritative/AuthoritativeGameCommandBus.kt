@@ -219,6 +219,12 @@ sealed interface PendingAuthoritativeCommand {
         override val observedStateHash: String,
     ) : PendingAuthoritativeCommand
 
+    data class ForceResign(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+    ) : PendingAuthoritativeCommand
+
     data class QueueConstruction(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -508,6 +514,13 @@ class AuthoritativeGameCommandBus(
         require(!terminalAccepted) { "This authoritative game session has ended" }
         val current = requireSynchronized()
         submitLocked(PendingAuthoritativeCommand.Resign(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+        ), current)
+    }
+
+    suspend fun forceResign() = mutex.withLock {
+        val current = requireSynchronized()
+        submitLocked(PendingAuthoritativeCommand.ForceResign(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
         ), current)
     }
@@ -1660,6 +1673,14 @@ class AuthoritativeGameCommandBus(
                 is PendingAuthoritativeCommand.Resign -> transport.resign(
                     gameId,
                     ApiV3ResignRequest(
+                        pending.commandId,
+                        pending.expectedRevision,
+                        pending.observedStateHash,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ForceResign -> transport.forceResign(
+                    gameId,
+                    ApiV3ForceResignRequest(
                         pending.commandId,
                         pending.expectedRevision,
                         pending.observedStateHash,

@@ -711,14 +711,40 @@ class HeadlessGameEngine(
     /** Relinquishes the authenticated civilization to server-owned AI. */
     fun resign(game: GameInfo, actorCivilizationId: String): EngineResult {
         val actorCivilization = authenticatedCivilization(game, actorCivilizationId)
-        val wasCurrentPlayer = game.currentPlayer == actorCivilization.civID
-        actorCivilization.playerType = PlayerType.AI
-        actorCivilization.playerId = ""
-        val notification = "[${actorCivilization.civName}] resigned and is now controlled by AI"
-        for (civilization in game.civilizations)
-            civilization.addNotification(notification, NotificationCategory.General, actorCivilization.civName)
-        if (wasCurrentPlayer) game.nextTurn(executionContext = executionContext)
+        transferPlayerToAi(game, actorCivilization, null)
         return result(game)
+    }
+
+    /** Force-resigns only the canonical current player after the server-owned
+     * turn clock reaches that civilization's canonical allowance. */
+    fun forceResign(game: GameInfo, actorCivilizationId: String): ForcedResignationResult {
+        val actor = authenticatedCivilization(game, actorCivilizationId)
+        val target = game.getCivilization(game.currentPlayer)
+        require(target.civID != actor.civID) { "Use self-resignation for the current player" }
+        require(target.playerType == PlayerType.Human && target.playerId.isNotEmpty()) {
+            "The current civilization is not controlled by a player"
+        }
+        val elapsedMillis = (executionContext.clockMillis() - game.currentTurnStartTime).coerceAtLeast(0L)
+        val allowedMillis = target.playerMinutesBeforeForceResign.toLong() * 60_000L
+        require(elapsedMillis >= allowedMillis) { "The current player is not yet eligible for force resignation" }
+        transferPlayerToAi(game, target, actor.civName)
+        return ForcedResignationResult(result(game), target.civID)
+    }
+
+    private fun transferPlayerToAi(
+        game: GameInfo,
+        target: Civilization,
+        responsibleCivilizationName: String?,
+    ) {
+        val wasCurrentPlayer = game.currentPlayer == target.civID
+        target.playerType = PlayerType.AI
+        target.playerId = ""
+        val notification = if (responsibleCivilizationName == null)
+            "[${target.civName}] resigned and is now controlled by AI"
+        else "[${target.civName}] was forcibly resigned by [$responsibleCivilizationName] and is now controlled by AI"
+        for (civilization in game.civilizations)
+            civilization.addNotification(notification, NotificationCategory.General, target.civName)
+        if (wasCurrentPlayer) game.nextTurn(executionContext = executionContext)
     }
 
     /** Applies one exact movement intent through Unciv's canonical movement
@@ -1668,6 +1694,11 @@ data class EngineResult(
 )
 
 data class PlayerAssignmentResult(
+    val result: EngineResult,
+    val civilizationId: String,
+)
+
+data class ForcedResignationResult(
     val result: EngineResult,
     val civilizationId: String,
 )

@@ -634,6 +634,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun forceResign(
+        gameId: String,
+        request: ApiV3ForceResignRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/force-resign") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
         var retryDelayMillis = 250L
         while (currentCoroutineContext().isActive) {

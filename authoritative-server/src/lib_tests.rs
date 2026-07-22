@@ -49,6 +49,22 @@ fn resign_contract_contains_no_client_claimed_target_or_actor() {
 }
 
 #[test]
+fn force_resign_contract_contains_no_client_claimed_target_time_or_actor() {
+    assert_eq!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({"type": "force_resign"})).unwrap(),
+        GameCommand::ForceResign {},
+    );
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "force_resign",
+            "civilization_id": "Greece",
+            "inactive_minutes": 999999
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn queue_construction_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "queue_construction",

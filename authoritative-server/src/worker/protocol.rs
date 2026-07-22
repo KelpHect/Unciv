@@ -50,6 +50,11 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "actorCivilizationId")]
         actor_civilization_id: &'a str,
     },
+    ForceResign {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+    },
     MoveUnit {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -686,6 +691,10 @@ pub struct CreatedGame {
     pub owner_civilization_id: String,
 }
 pub struct AssignedPlayer {
+    pub proposal: CommitProposal,
+    pub civilization_id: String,
+}
+pub struct ForcedResignation {
     pub proposal: CommitProposal,
     pub civilization_id: String,
 }

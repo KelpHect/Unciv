@@ -217,13 +217,13 @@ class MultiplayerScreen : PickerScreen() {
                         responsibleCivNameOrPlayerId == playerCiv
                     val outcome = if (isSelfResignation)
                         authoritative.resignIfOpen(requireNotNull(authoritativeGameId))
-                    else null
+                    else authoritative.forceResignIfOpen(requireNotNull(authoritativeGameId))
                     val message = when (outcome) {
                         AuthoritativeCommandOutcome.RetryRequired -> "Resignation status is uncertain - retry to confirm"
                         is AuthoritativeCommandOutcome.StaleRefreshed -> "Game was out of sync with server - updated"
                         is AuthoritativeCommandOutcome.Rejected -> outcome.code
                         is AuthoritativeCommandOutcome.Accepted -> ""
-                        null -> "Force resignation is not available for authoritative games yet"
+                        null -> "The authoritative game is not open"
                     }
                     launchOnGLThread {
                         if (message.isEmpty()) popup.close() else popup.reuseWith(message, true)

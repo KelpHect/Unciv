@@ -87,6 +87,7 @@ interface ApiV3Transport {
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
     suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted
+    suspend fun forceResign(gameId: String, request: ApiV3ForceResignRequest): ApiV3CommandAccepted
     fun notifications(): Flow<ApiV3RevisionNotification>
 }
 

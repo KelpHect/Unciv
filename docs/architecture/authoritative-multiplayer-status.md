@@ -3604,3 +3604,45 @@ Verification on 2026-07-22:
 Self-resignation is authoritative. Force-resignation remains the next lifecycle
 milestone and must use durable server time/inactivity evidence, never a client
 preview timestamp.
+
+## Authoritative force-resignation
+
+API v3 now provides a separate closed, zero-payload `ForceResign` command. Rust
+permits it only for the authenticated game owner and supplies only that owner's
+membership-derived civilization to the private worker. The client cannot name
+a target, submit elapsed time, choose an allowance, or claim a current player.
+
+Kotlin selects the canonical current civilization, requires it to be a distinct
+human player, and compares the server execution clock against the snapshot's
+canonical `currentTurnStartTime` and that civilization's canonical
+`playerMinutesBeforeForceResign`. An early request is rejected without changing
+the canonical hash. An eligible request transfers the player to AI, clears the
+identity, emits the shared force-resignation notification, and runs canonical
+AI/turn rotation. The worker returns the selected civilization identity only to
+the private Rust control plane.
+
+Rust atomically commits the snapshot, journal, immutable revision, head, and
+outbox while deleting exactly the worker-identified civilization membership.
+The owner's membership remains intact, and response-loss retries with the same
+command ID return the original result without re-running the worker.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin tests prove exact-boundary acceptance, early rejection without
+  mutation, canonical target selection, identity clearing, and server-side turn
+  progression. The command-bus test proves the client wire payload contains no
+  actor, target, or inactivity claim and reconciles the accepted projection.
+- `./gradlew :tests:test :server:test --no-daemon` completed 929 JVM tests with
+  13 intentional skips and zero failures.
+- Rust passed 75 active library tests and all 7 API/OpenAPI tests. Closed-command
+  and worker wire tests cover the new operation.
+- All 10 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55463; the live server reported `19beta2`. The disposable
+  `unciv-v3-force-resign-pg19b2` container was removed and cleanup verified.
+- Module-size review found a 794-line largest Rust source. `main.rs` remains 6
+  lines and `lib.rs` remains a 28-line facade; force-resignation reuses the
+  focused lifecycle modules rather than adding bootstrap logic.
+
+The inventoried resign/force-resign lifecycle is authoritative. The coverage
+audit now advances to spectator membership and projection policy.

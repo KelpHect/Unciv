@@ -170,6 +170,73 @@ async fn resignation_atomically_commits_and_removes_membership_but_remains_idemp
 
 #[tokio::test]
 #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn force_resignation_removes_only_the_worker_identified_membership() {
+    let repository = PostgresGameRepository::connect(&database_url())
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    let (owner, game) = seed_repository(&repository).await;
+    let target = Uuid::new_v4();
+    sqlx::query("INSERT INTO accounts (id, username_normalized, password_hash) VALUES ($1, $2, 'test-hash')")
+        .bind(target)
+        .bind(format!("account-{target}"))
+        .execute(&repository.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO game_members (game_id, account_id, role, civilization_id) VALUES ($1, $2, 'player', 'Greece')")
+        .bind(game)
+        .bind(target)
+        .execute(&repository.pool)
+        .await
+        .unwrap();
+    let command_id = Uuid::new_v4();
+    let envelope = CommandEnvelope {
+        command: GameCommand::ForceResign {},
+        ..command(game, command_id, 0)
+    };
+
+    let accepted = repository
+        .commit_forced_resignation(
+            owner,
+            envelope.clone(),
+            proposal(0, b"force-resigned-revision"),
+            "Greece".to_owned(),
+        )
+        .await
+        .unwrap();
+    let duplicate = repository
+        .commit_forced_resignation(
+            owner,
+            envelope,
+            proposal(0, b"must-not-replace"),
+            "Greece".to_owned(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(accepted, duplicate);
+    let owner_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id = $1 AND account_id = $2)",
+    )
+    .bind(game)
+    .bind(owner)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    let target_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id = $1 AND account_id = $2)",
+    )
+    .bind(game)
+    .bind(target)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert!(owner_exists);
+    assert!(!target_exists);
+}
+
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
 async fn corrupt_canonical_snapshot_quarantines_game_without_advancing_head() {
     let repository = PostgresGameRepository::connect(&database_url())
         .await

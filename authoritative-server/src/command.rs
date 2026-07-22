@@ -75,6 +75,7 @@ pub enum GameCommand {
     JoinGame,
     EndTurn,
     Resign {},
+    ForceResign {},
     MoveUnit {
         unit_id: i32,
         destination_x: i32,

@@ -27,6 +27,22 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun forceResignationContainsNoTargetOrTimingClaimAndReconciles() = runBlocking {
+        val transport = FakeTransport(projection(7, "hash-7"))
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "force-resign-command" }
+        bus.refresh()
+
+        val outcome = bus.forceResign()
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        val request = transport.forceResignRequests.single()
+        val encoded = Json.encodeToString(ApiV3ForceResignRequest.serializer(), request)
+        assertTrue(!encoded.contains("civilization"))
+        assertTrue(!encoded.contains("inactive"))
+        assertTrue(!encoded.contains("actor"))
+    }
+
+    @Test
     fun moveRequestWireShapeContainsNoActorOrStatePayload() {
         val encoded = Json.encodeToString(
             ApiV3MoveUnitRequest.serializer(),
@@ -1470,6 +1486,7 @@ class AuthoritativeGameCommandBusTests {
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         var projectionCalls = 0
         val resignRequests = mutableListOf<ApiV3ResignRequest>()
+        val forceResignRequests = mutableListOf<ApiV3ForceResignRequest>()
         val moveRequests = mutableListOf<ApiV3MoveUnitRequest>()
         val moveTowardRequests = mutableListOf<ApiV3MoveUnitTowardRequest>()
         val cancelMovementOrderRequests = mutableListOf<ApiV3CancelUnitMovementOrderRequest>()
@@ -2032,6 +2049,22 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted {
             resignRequests += request
             return accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "resigned")
+        }
+        override suspend fun forceResign(
+            gameId: String,
+            request: ApiV3ForceResignRequest,
+        ): ApiV3CommandAccepted {
+            forceResignRequests += request
+            current = current.copy(
+                committedRevision = request.expectedRevision + 1,
+                canonicalStateHash = "force-resigned",
+            )
+            return accepted(
+                request.commandId,
+                request.expectedRevision,
+                request.expectedRevision + 1,
+                "force-resigned",
+            )
         }
         override fun notifications(): Flow<ApiV3RevisionNotification> = emptyFlow()
     }

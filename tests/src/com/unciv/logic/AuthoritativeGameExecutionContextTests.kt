@@ -102,6 +102,42 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun forceResignationUsesOnlyCanonicalTurnTimeAndAllowance() {
+        val now = serverTime + 60_000L
+        val engine = HeadlessGameEngine(serverContext { now })
+        val game = engine.createGame(testSetup()).game
+        val greece = game.getCivilization("Greece")
+        game.currentPlayer = greece.civID
+        game.currentTurnStartTime = serverTime
+        greece.playerMinutesBeforeForceResign = 1
+
+        val forced = engine.forceResign(game, "Rome")
+
+        Assert.assertEquals("Greece", forced.civilizationId)
+        Assert.assertEquals(PlayerType.AI, greece.playerType)
+        Assert.assertEquals("", greece.playerId)
+        Assert.assertEquals("Rome", game.currentPlayer)
+    }
+
+    @Test
+    fun forceResignationRejectsBeforeCanonicalAllowanceWithoutMutation() {
+        val engine = HeadlessGameEngine(serverContext { serverTime + 59_999L })
+        val game = engine.createGame(testSetup()).game
+        val greece = game.getCivilization("Greece")
+        game.currentPlayer = greece.civID
+        game.currentTurnStartTime = serverTime
+        greece.playerMinutesBeforeForceResign = 1
+        val hashBefore = engine.stateHash(game)
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.forceResign(game, "Rome")
+        }
+        Assert.assertEquals(hashBefore, engine.stateHash(game))
+        Assert.assertEquals(PlayerType.Human, greece.playerType)
+        Assert.assertEquals("account-2", greece.playerId)
+    }
+
+    @Test
     fun aSnapshotReloadsToTheSameCanonicalHash() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val created = engine.createGame(testSetup()).game

@@ -10,6 +10,7 @@ use crate::auth::{
     token_digest,
 };
 use crate::projection::PlayerProjection;
+use crate::projection::SpectatorProjection;
 use crate::worker::{
     AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent,
     BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
@@ -91,6 +92,16 @@ pub struct GameProjection {
     pub projection: PlayerProjection,
 }
 
+#[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
+pub struct SpectatorGameProjection {
+    pub game_id: Uuid,
+    pub projection_version: u16,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+    pub projection_hash: String,
+    pub projection: SpectatorProjection,
+}
+
 #[derive(Clone, Debug)]
 pub struct ClaimedOutboxEvent {
     pub id: i64,
@@ -117,6 +128,7 @@ mod major_diplomacy;
 mod outbox;
 mod religion;
 mod security;
+mod spectators;
 mod trade;
 mod unit_actions;
 mod unit_gifts;

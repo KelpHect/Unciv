@@ -20,6 +20,7 @@ mod major_diplomacy;
 mod notifications;
 mod openapi;
 mod religion;
+mod spectators;
 mod state;
 mod trade;
 mod unit_actions;
@@ -47,6 +48,7 @@ use lifecycle::*;
 use major_diplomacy::*;
 pub(super) use notifications::*;
 use religion::*;
+use spectators::*;
 use trade::*;
 use unit_actions::*;
 use unit_gifts::*;
@@ -66,7 +68,7 @@ pub(super) use axum::{
     extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 pub(super) use futures_util::{SinkExt, StreamExt};
 pub(super) use serde::{Deserialize, Serialize};

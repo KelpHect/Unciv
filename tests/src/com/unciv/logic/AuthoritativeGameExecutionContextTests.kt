@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.unciv.UncivGame
 import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.civilization.CivFlags
@@ -17,6 +18,7 @@ import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
@@ -135,6 +137,25 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(hashBefore, engine.stateHash(game))
         Assert.assertEquals(PlayerType.Human, greece.playerType)
         Assert.assertEquals("account-2", greece.playerId)
+    }
+
+    @Test
+    fun spectatorProjectionContainsOnlyTheExplicitPublicSummary() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        game.getCivilization("Rome").addNotification(
+            "SPECTATOR_PRIVATE_SENTINEL",
+            NotificationCategory.General,
+        )
+
+        val encoded = Json.encodeToString(
+            SpectatorProjection.serializer(),
+            engine.spectatorProjection(game),
+        )
+
+        Assert.assertFalse(encoded.contains("SPECTATOR_PRIVATE_SENTINEL"))
+        for (forbidden in listOf("gold", "unit", "city", "tile", "research", "policy", "diplomacy", "notification", "queue", "rng"))
+            Assert.assertFalse("spectator projection leaked $forbidden", encoded.contains(forbidden, ignoreCase = true))
     }
 
     @Test

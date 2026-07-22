@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CommitProposal, UnitPosture,
-    projection::{PlayerProjection, ProjectedTrade},
+    projection::{PlayerProjection, ProjectedTrade, SpectatorProjection},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -671,6 +671,9 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "actorCivilizationId")]
         actor_civilization_id: &'a str,
     },
+    ProjectSpectatorState {
+        snapshot: &'a str,
+    },
 }
 
 #[derive(Deserialize)]
@@ -683,6 +686,7 @@ pub(super) struct WorkerResponse {
     pub(super) canonical_state_hash: Option<String>,
     pub(super) actor_civilization_id: Option<String>,
     pub(super) player_projection: Option<serde_json::Value>,
+    pub(super) spectator_projection: Option<serde_json::Value>,
     pub(super) error: Option<WorkerError>,
 }
 
@@ -700,6 +704,9 @@ pub struct ForcedResignation {
 }
 pub struct ProjectedState {
     pub projection: PlayerProjection,
+}
+pub struct ProjectedSpectatorState {
+    pub projection: SpectatorProjection,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

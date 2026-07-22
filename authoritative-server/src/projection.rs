@@ -6,6 +6,24 @@ use crate::{
     ReligiousUnitAction, UnitPosture,
 };
 
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SpectatorProjection {
+    pub protocol_version: u16,
+    pub turn: i32,
+    pub current_player_civilization_id: String,
+    pub major_civilizations: Vec<SpectatorCivilization>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SpectatorCivilization {
+    pub civilization_id: String,
+    pub display_name: String,
+    pub human_controlled: bool,
+    pub defeated: bool,
+}
+
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
 /// Rust API boundary.
@@ -516,5 +534,28 @@ mod tests {
             .to_string()
             .replace("pick_policy", "replace_canonical_state");
         assert!(serde_json::from_str::<PlayerProjection>(&unknown_action).is_err());
+    }
+
+    #[test]
+    fn spectator_projection_is_a_closed_public_summary() {
+        let projection = SpectatorProjection {
+            protocol_version: 3,
+            turn: 7,
+            current_player_civilization_id: "Rome".to_owned(),
+            major_civilizations: vec![SpectatorCivilization {
+                civilization_id: "Rome".to_owned(),
+                display_name: "Rome".to_owned(),
+                human_controlled: true,
+                defeated: false,
+            }],
+        };
+        let value = serde_json::to_value(&projection).unwrap();
+        let encoded = value.to_string();
+        for forbidden in ["gold", "unit", "city", "tile", "research", "notification"] {
+            assert!(!encoded.to_lowercase().contains(forbidden));
+        }
+        let mut malicious = value;
+        malicious["canonicalGameInfo"] = serde_json::json!({"secret": true});
+        assert!(serde_json::from_value::<SpectatorProjection>(malicious).is_err());
     }
 }

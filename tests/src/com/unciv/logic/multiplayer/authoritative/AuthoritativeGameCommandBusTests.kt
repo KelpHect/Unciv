@@ -1686,6 +1686,10 @@ class AuthoritativeGameCommandBusTests {
             projectionCalls++
             return current
         }
+        override suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection =
+            error("not used by command-bus tests")
+        override suspend fun addSpectator(gameId: String, username: String) = Unit
+        override suspend fun leaveSpectator(gameId: String) = Unit
         override suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted {
             moveRequests += request
             return onMove(request)

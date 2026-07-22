@@ -26,6 +26,7 @@ mod lifecycle;
 mod major_diplomacy;
 mod protocol;
 mod religion;
+mod spectators;
 mod trade;
 mod unit_actions;
 mod unit_gifts;
@@ -58,8 +59,8 @@ pub use major_diplomacy::{
     DiplomaticPromptIntent,
 };
 pub use protocol::{
-    AssignedPlayer, CreatedGame, ForcedResignation, ProjectedState, WorkerCapabilities,
-    WorkerManifest, WorkerRuleset,
+    AssignedPlayer, CreatedGame, ForcedResignation, ProjectedSpectatorState, ProjectedState,
+    WorkerCapabilities, WorkerManifest, WorkerRuleset,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};

@@ -87,6 +87,19 @@ data class ApiV3GameProjection(
 )
 
 @Serializable
+data class ApiV3SpectatorGameProjection(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("projection_version") val projectionVersion: Int,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    @SerialName("projection_hash") val projectionHash: String,
+    val projection: SpectatorProjection,
+)
+
+@Serializable
+data class ApiV3AddSpectatorRequest(val username: String)
+
+@Serializable
 data class ApiV3CommandAccepted(
     @SerialName("game_id") val gameId: String,
     @SerialName("command_id") val commandId: String,

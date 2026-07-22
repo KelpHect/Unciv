@@ -16,6 +16,9 @@ interface ApiV3Transport {
     suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection
+    suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection
+    suspend fun addSpectator(gameId: String, username: String)
+    suspend fun leaveSpectator(gameId: String)
     suspend fun moveUnit(gameId: String, request: ApiV3MoveUnitRequest): ApiV3CommandAccepted
     suspend fun moveUnitToward(gameId: String, request: ApiV3MoveUnitTowardRequest): ApiV3CommandAccepted
     suspend fun cancelUnitMovementOrder(gameId: String, request: ApiV3CancelUnitMovementOrderRequest): ApiV3CommandAccepted

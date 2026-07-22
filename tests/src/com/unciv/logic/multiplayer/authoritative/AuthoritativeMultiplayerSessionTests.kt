@@ -107,6 +107,24 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun spectatorLifecycleUsesOnlyThePublicProjectionEndpoint() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        assertTrue(session.restore())
+
+        session.addSpectator(GAME_ID, "Spectator_Name")
+        val projection = session.spectatorProjection(GAME_ID)
+        session.leaveSpectator(GAME_ID)
+
+        assertEquals(listOf(GAME_ID to "Spectator_Name"), transport.addedSpectators)
+        assertEquals(listOf(GAME_ID), transport.spectatorProjectionCalls)
+        assertEquals(listOf(GAME_ID), transport.leftSpectatorGames)
+        assertEquals(0, transport.projectionCalls)
+        assertEquals(7, projection.committedRevision)
+        session.close()
+    }
+
+    @Test
     fun apiClientRejectsMalformedPagingBeforeNetworkAccess() = runBlocking {
         val client = ApiV3Client(
             "http://127.0.0.1:1",
@@ -1130,6 +1148,9 @@ class AuthoritativeMultiplayerSessionTests {
         val passwordChanges = mutableListOf<Pair<String, String>>()
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
+        val addedSpectators = mutableListOf<Pair<String, String>>()
+        val spectatorProjectionCalls = mutableListOf<String>()
+        val leftSpectatorGames = mutableListOf<String>()
         var disableFailure: Throwable? = null
         @Volatile
         var current = projection(7, "hash-7")
@@ -1167,6 +1188,27 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun projection(gameId: String): ApiV3GameProjection {
             projectionCalls++
             return current
+        }
+        override suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection {
+            spectatorProjectionCalls += gameId
+            return ApiV3SpectatorGameProjection(
+            gameId = gameId,
+            projectionVersion = SpectatorProjection.CURRENT_PROJECTION_VERSION,
+            committedRevision = current.committedRevision,
+            canonicalStateHash = current.canonicalStateHash,
+            projectionHash = "spectator-hash",
+            projection = SpectatorProjection(
+                turn = current.projection.turn,
+                currentPlayerCivilizationId = current.projection.currentPlayerCivilizationId,
+                majorCivilizations = emptyList(),
+            ),
+            )
+        }
+        override suspend fun addSpectator(gameId: String, username: String) {
+            addedSpectators += gameId to username
+        }
+        override suspend fun leaveSpectator(gameId: String) {
+            leftSpectatorGames += gameId
         }
         override suspend fun moveUnit(
             gameId: String,

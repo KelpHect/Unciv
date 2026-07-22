@@ -103,6 +103,21 @@ class AuthoritativeMultiplayerSession(
         return transport.listGames(after, limit)
     }
 
+    suspend fun addSpectator(gameId: String, username: String) {
+        requireAuthenticated()
+        transport.addSpectator(gameId, username)
+    }
+
+    suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection {
+        requireAuthenticated()
+        return transport.spectatorProjection(gameId)
+    }
+
+    suspend fun leaveSpectator(gameId: String) {
+        requireAuthenticated()
+        transport.leaveSpectator(gameId)
+    }
+
     suspend fun openGame(gameId: String): AuthoritativeGameCommandBus {
         requireAuthenticated()
         require(gameId.isNotBlank()) { "gameId must not be blank" }

@@ -3646,3 +3646,46 @@ Verification on 2026-07-22:
 
 The inventoried resign/force-resign lifecycle is authoritative. The coverage
 audit now advances to spectator membership and projection policy.
+
+## Owner-controlled spectators and public-only projection
+
+API v3 now has an explicit spectator policy instead of reusing player joins or
+player projections. Only the authenticated game owner may add an enabled
+account as a spectator, the target cannot already hold another membership, and
+repeating the same add is idempotent. A spectator has no civilization, cannot
+read the player projection or open a gameplay command bus, and may remove only
+their own spectator membership.
+
+Spectator reads use a separate private-worker operation and projection schema.
+The Kotlin engine derives a sorted public summary containing only the turn,
+current civilization ID, and each major civilization's public identity,
+human-control, and defeat state. Map state, units, cities, yields, resources,
+diplomacy, notifications, private orders, and canonical `GameInfo` bytes are
+not fields in the closed DTO. Rust authenticates the spectator membership,
+validates the canonical snapshot and manifest, hashes the public projection,
+and returns it through a dedicated endpoint. Membership changes emit durable
+outbox events but do not create fake gameplay revisions.
+
+Verification on 2026-07-22:
+
+- Focused Kotlin tests prove private sentinel data and forbidden canonical
+  field families cannot occur in serialized spectator output. A client-session
+  test proves add/read/leave use only spectator endpoints and never invoke the
+  player projection.
+- `./gradlew :tests:test :server:test --no-daemon` completed 931 JVM tests with
+  13 intentional skips and zero failures.
+- Rust passed 77 active library tests and all 7 HTTP/OpenAPI tests. Closed DTO,
+  generated OpenAPI parity, and Kotlin-compatible private worker wire tests
+  passed.
+- All 11 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55462; the live server reported `19beta2`. The disposable
+  `unciv-v3-spectator-pg19b2` container was removed and cleanup verified.
+- `cargo fmt --check`, warnings-as-errors `cargo clippy --all-targets -- -D
+  warnings`, and `git diff --check` passed. `main.rs` remains 6 lines,
+  `lib.rs` remains a 28-line facade, and every Rust source remains below 800
+  lines (largest: `worker.rs`, 795 lines).
+
+The owner-invited public-summary spectator lifecycle is authoritative and
+leak-tested. The coverage audit now advances to game administration and the
+remaining partial command/projection families.

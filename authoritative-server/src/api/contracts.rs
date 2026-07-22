@@ -76,6 +76,12 @@ pub(super) struct ListGamesQuery {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct AddSpectatorRequest {
+    pub(super) username: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct EndTurnRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

@@ -12,6 +12,7 @@ import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
@@ -536,6 +537,9 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
     ) : WorkerOperation
+
+    @Serializable @SerialName("project_spectator_state")
+    data class ProjectSpectatorState(val snapshot: String) : WorkerOperation
 }
 
 @Serializable
@@ -547,6 +551,7 @@ data class WorkerResponse(
     val canonicalStateHash: String? = null,
     val actorCivilizationId: String? = null,
     val playerProjection: PlayerProjection? = null,
+    val spectatorProjection: SpectatorProjection? = null,
     val error: WorkerError? = null,
 )
 
@@ -1185,6 +1190,10 @@ class AuthoritativeEngineWorker {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val projection = engine.playerProjection(game, operation.actorCivilizationId)
                 WorkerResponse(playerProjection = projection)
+            }
+            is WorkerOperation.ProjectSpectatorState -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                WorkerResponse(spectatorProjection = engine.spectatorProjection(game))
             }
         }
     } catch (exception: Exception) {

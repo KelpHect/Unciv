@@ -1670,6 +1670,9 @@ class HeadlessGameEngine(
         return PlayerProjectionBuilder.build(game, actorCivilization)
     }
 
+    fun spectatorProjection(game: GameInfo): SpectatorProjection =
+        SpectatorProjectionBuilder.build(game)
+
     /**
      * Rebuilds the ruleset-dependent transient graph from a canonical snapshot.
      * Snapshot validation, size limits, and version selection belong to the

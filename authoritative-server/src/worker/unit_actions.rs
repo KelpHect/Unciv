@@ -1,6 +1,30 @@
 use super::*;
 
 impl EngineWorkerClient {
+    pub async fn bombard_with_city(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: BombardWithCityIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::BombardWithCity {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    city_id: intent.city_id,
+                    target_x: intent.target_x,
+                    target_y: intent.target_y,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
     pub async fn attack_with_unit(
         &self,
         actor_id: &str,

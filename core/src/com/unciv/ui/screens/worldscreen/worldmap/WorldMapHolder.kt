@@ -398,6 +398,19 @@ class WorldMapHolder(
         return true
     }
 
+    internal fun submitAuthoritativeCityBombardIfOpen(cityId: String, target: Tile): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("city bombardment", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession?.bombardWithCityIfOpen(
+                worldScreen.gameInfo.gameId,
+                cityId,
+                target.position.x,
+                target.position.y,
+            )
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     private fun submitAuthoritativeUnitMove(
         selectedUnits: List<MapUnit>,
         requestedTarget: Tile,

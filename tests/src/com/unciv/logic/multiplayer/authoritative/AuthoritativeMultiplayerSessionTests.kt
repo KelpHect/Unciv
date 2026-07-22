@@ -391,6 +391,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun cityBombardRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
+        val city = ProjectedCity("city-1", "Rome", 0, 0, 5, 200, emptyList(), emptyList())
+        val transport = FakeTransport().apply {
+            restored = true
+            current = current.copy(projection = current.projection.copy(
+                ownCities = listOf(city),
+                exploredTiles = listOf(ProjectedTileVisibility(2, 0, true)),
+            ))
+        }
+        val session = session(transport)
+        session.restore()
+
+        assertEquals(null, session.bombardWithCityIfOpen(GAME_ID, "city-1", 2, 0))
+        session.openGame(GAME_ID)
+        val outcome = session.bombardWithCityIfOpen(GAME_ID, "city-1", 2, 0)
+
+        assertTrue(outcome is AuthoritativeCommandOutcome.Accepted)
+        assertEquals(listOf(Triple("city-1", 2, 0)), transport.cityBombardments)
+        session.close()
+    }
+
+    @Test
     fun unitUpgradeBatchRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val units = listOf(
             ProjectedUnit(42, "Rome", "Archer", 1, 0, 100, 2f),
@@ -841,6 +863,7 @@ class AuthoritativeMultiplayerSessionTests {
         val pillagedByUnits = mutableListOf<Int>()
         val foundingUnits = mutableListOf<Int>()
         val unitAttacks = mutableListOf<Triple<Int, Int, Int>>()
+        val cityBombardments = mutableListOf<Triple<String, Int, Int>>()
         val upgradedUnits = mutableListOf<Pair<List<Int>, String>>()
         val promotedUnits = mutableListOf<Pair<Int, List<String>>>()
         val unitPromotionPreferences = mutableListOf<Triple<String, String, Boolean>>()
@@ -1083,6 +1106,20 @@ class AuthoritativeMultiplayerSessionTests {
             current = current.copy(
                 committedRevision = current.committedRevision + 1,
                 canonicalStateHash = "hash-attack",
+            )
+            return ApiV3CommandAccepted(
+                gameId, request.commandId, request.expectedRevision,
+                current.committedRevision, current.canonicalStateHash,
+            )
+        }
+        override suspend fun bombardWithCity(
+            gameId: String,
+            request: ApiV3BombardWithCityRequest,
+        ): ApiV3CommandAccepted {
+            cityBombardments += Triple(request.cityId, request.targetX, request.targetY)
+            current = current.copy(
+                committedRevision = current.committedRevision + 1,
+                canonicalStateHash = "hash-bombard",
             )
             return ApiV3CommandAccepted(
                 gameId, request.commandId, request.expectedRevision,

@@ -202,6 +202,17 @@ pub(super) struct AttackWithUnitRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct BombardWithCityRequest {
+    pub(super) command_id: uuid::Uuid,
+    pub(super) expected_revision: u64,
+    pub(super) client_observed_state_hash: Option<String>,
+    pub(super) city_id: String,
+    pub(super) target_x: i32,
+    pub(super) target_y: i32,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct UpgradeUnitsRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

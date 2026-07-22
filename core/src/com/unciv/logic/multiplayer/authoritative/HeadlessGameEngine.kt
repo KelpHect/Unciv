@@ -4,6 +4,9 @@ import com.unciv.Constants
 import com.unciv.logic.GameExecutionContext
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
+import com.unciv.logic.battle.Battle
+import com.unciv.logic.battle.CityCombatant
+import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.battle.UnitAttackExecutor
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.managers.ImprovementFunctions
@@ -161,6 +164,35 @@ class HeadlessGameEngine(
         require(UnitAttackExecutor.attack(unit, target) != null) {
             "Unit cannot attack the requested canonical target"
         }
+        return result(game)
+    }
+
+    /** Bombards one canonical visible enemy from an owned city. Range,
+     * line-of-sight, attack availability, defender, RNG, and damage are server-derived. */
+    fun bombardWithCity(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        targetX: Int,
+        targetY: Int,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot bombard outside their turn"
+        }
+        val city = actorCivilization.cities.singleOrNull { it.id == cityId }
+            ?: error("City is not controlled by the authenticated actor")
+        require(city.canBombard()) { "City cannot currently bombard" }
+        val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
+            ?: error("Bombard target is outside the canonical map")
+        require(TargetHelper.getBombardableTiles(city).any { it == target }) {
+            "City cannot bombard the requested canonical target"
+        }
+        val defender = Battle.getMapCombatantOfTile(target)
+            ?: error("Canonical bombard target has no defender")
+        Battle.attack(CityCombatant(city), defender)
         return result(game)
     }
 

@@ -159,6 +159,15 @@ sealed interface WorkerOperation {
         val targetY: Int,
     ) : WorkerOperation
 
+    @Serializable @SerialName("bombard_with_city")
+    data class BombardWithCity(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val cityId: String,
+        val targetX: Int,
+        val targetY: Int,
+    ) : WorkerOperation
+
     @Serializable @SerialName("upgrade_units")
     data class UpgradeUnits(
         val snapshot: String,
@@ -538,6 +547,17 @@ class AuthoritativeEngineWorker {
                     game,
                     operation.actorCivilizationId,
                     operation.unitId,
+                    operation.targetX,
+                    operation.targetY,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.BombardWithCity -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.bombardWithCity(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.cityId,
                     operation.targetX,
                     operation.targetY,
                 )

@@ -70,6 +70,11 @@ pub enum GameCommand {
         target_x: i32,
         target_y: i32,
     },
+    BombardWithCity {
+        city_id: String,
+        target_x: i32,
+        target_y: i32,
+    },
     UpgradeUnits {
         unit_ids: Vec<i32>,
         target_unit_name: String,

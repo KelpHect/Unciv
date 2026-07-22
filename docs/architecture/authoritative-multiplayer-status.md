@@ -2517,3 +2517,50 @@ Verification on 2026-07-21:
 
 City bombardment is the next combat command gap, followed by explicit nuclear
 strike targeting and air-sweep handling.
+
+## Authoritative city bombardment
+
+API-v3 city attacks now use the closed
+`BombardWithCity(cityId, targetX, targetY)` command. The coordinates express
+target intent only. Authenticated membership supplies the civilization, and
+the private Kotlin worker reloads canonical state before deriving city
+ownership, current turn, attack availability, range, line of sight, visibility,
+war status, and the target combatant.
+
+The existing Kotlin `TargetHelper` and `Battle` engine remain the sole rules
+implementation. The server therefore owns defender selection, combat RNG,
+damage, destruction, XP and triggered effects, diplomacy consequences,
+notifications, the city's spent-attack state, and the resulting canonical
+hash. Rust remains a control plane and contains no city-combat rules.
+
+The battle-panel attack control submits this typed command for explicitly
+opened authoritative games before any local mutation. Single-player, hotseat,
+legacy multiplayer, and server-owned AI continue through the shared Kotlin
+rules paths. The client request contains no actor identity, defender identity,
+range or visibility claims, damage, random values, or result state.
+
+Verification on 2026-07-22:
+
+- Repeated city bombardment from the same canonical snapshot produced the same
+  canonical hash and projected damage. Foreign accounts, out-of-turn actors,
+  and invalid targets were rejected.
+- Command-bus and session tests prove only an owned projected city and visible
+  target can be submitted, only explicitly opened games route the command, and
+  the wire payload excludes server-derived rules and outcomes.
+- `cargo test --all-targets`: 45 active Rust library tests and all 7
+  HTTP/OpenAPI tests passed; 8 database tests were explicitly gated from that
+  invocation. Generated OpenAPI parity also passed.
+- All 8 serialized PostgreSQL integration tests passed against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55443. The exact-name disposable container was removed and verified
+  absent afterward.
+- `./gradlew :server:test :tests:test --no-daemon --no-build-cache`: 872 shared
+  JVM tests completed with 13 intentional skips and zero failures, plus all 4
+  worker protocol tests.
+- Rust formatting, warnings-as-errors Clippy, `git diff --check`, NUL-byte
+  scanning, and module-size review passed. `main.rs` remains 6 lines, `lib.rs`
+  remains 27, and every Rust source remains below 800 lines (largest:
+  `postgres/commands.rs`, 729 lines).
+
+Explicit empty-tile nuclear strike targeting and air-sweep handling are the
+next combat command gaps.

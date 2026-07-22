@@ -241,6 +241,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun bombardWithCity(
+        gameId: String,
+        request: ApiV3BombardWithCityRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/bombard-with-city") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun upgradeUnits(
         gameId: String,
         request: ApiV3UpgradeUnitsRequest,

@@ -1,6 +1,58 @@
 use super::*;
 
 impl PostgresGameRepository {
+    pub async fn execute_bombard_with_city(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        let (city_id, target_x, target_y) = match &envelope.command {
+            crate::GameCommand::BombardWithCity {
+                city_id,
+                target_x,
+                target_y,
+            } => (city_id.as_str(), *target_x, *target_y),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self
+            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
+            .await?
+        {
+            return Ok(accepted);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let actor_civilization_id = self
+            .actor_civilization_id(envelope.game_id, actor_account_id)
+            .await?;
+        let proposal = worker
+            .bombard_with_city(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                BombardWithCityIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id,
+                    target_x,
+                    target_y,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                other => {
+                    eprintln!(
+                        "authoritative worker BombardWithCity transport/protocol failure: {other}"
+                    );
+                    CommitError::WorkerRevisionMismatch
+                }
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
     pub async fn execute_attack_with_unit(
         &self,
         worker: &EngineWorkerClient,

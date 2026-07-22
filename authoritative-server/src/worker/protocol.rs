@@ -138,6 +138,17 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "targetY")]
         target_y: i32,
     },
+    BombardWithCity {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        #[serde(rename = "targetX")]
+        target_x: i32,
+        #[serde(rename = "targetY")]
+        target_y: i32,
+    },
     UpgradeUnits {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -456,6 +467,12 @@ pub struct ParadropUnitIntent<'a> {
 pub struct AttackWithUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,
+    pub target_x: i32,
+    pub target_y: i32,
+}
+pub struct BombardWithCityIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
     pub target_x: i32,
     pub target_y: i32,
 }

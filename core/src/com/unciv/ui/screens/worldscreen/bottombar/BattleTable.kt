@@ -338,6 +338,14 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
             hide()
             return
         }
+        if (attacker is CityCombatant &&
+            worldScreen.mapHolder.submitAuthoritativeCityBombardIfOpen(attacker.city.id, defender.getTile())
+        ) {
+            worldScreen.mapHolder.removeUnitActionOverlay()
+            worldScreen.shouldUpdate = true
+            hide()
+            return
+        }
         val canStillAttack = Battle.movePreparingAttack(attacker, attackableTile)
         worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
         // There was a direct worldScreen.update() call here, removing its 'private' but not the comment justifying the modifier.

@@ -10917,7 +10917,8 @@
           "diplomacyPrompts",
           "cityStatePartners",
           "spies",
-          "eventPrompts"
+          "eventPrompts",
+          "wonderEvents"
         ],
         "properties": {
           "cityStatePartners": {
@@ -11052,6 +11053,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedUnit"
+            }
+          },
+          "wonderEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedWonderEvent"
             }
           }
         },
@@ -12699,6 +12706,59 @@
           },
           "title": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedWonderEvent": {
+        "type": "object",
+        "required": [
+          "completionTurn",
+          "wonderName",
+          "effectSummary"
+        ],
+        "properties": {
+          "builderCivilizationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cityName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completionTurn": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "effectSummary": {
+            "type": "string"
+          },
+          "wonderName": {
+            "type": "string"
+          },
+          "x": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "y": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false

@@ -4617,3 +4617,52 @@ Verification on 2026-07-22:
   `api/city_economy_contracts.rs` module, and focused construction persistence
   lives in `postgres/construction_queues.rs`; the largest Rust source is 781
   lines, safely below the 800-line guardrail.
+
+## Durable public wonder events and projection v48
+
+World-wonder completion is now a durable canonical engine event rather than a
+client inference from mutable notification text. Shared
+`CityConstructions.completeConstruction` records the canonical completion turn,
+wonder, builder, city identity, and coordinates in `GameInfo`; clone and save
+serialization preserve the journal, so worker reloads and fresh-device
+reconciliation do not lose it. Existing single-player, hotseat, saved-game,
+legacy multiplayer, and server-owned AI completion paths continue to use the
+same shared Kotlin construction engine.
+
+Projection v48 exposes a sorted, bounded `wonderEvents` feed containing the
+public wonder identity, canonical completion turn, and ruleset-derived effect
+summary. The builder civilization is absent unless the authenticated actor owns
+or knows it. City identity, name, and coordinates are an all-or-none group and
+remain absent until that player has explored the completion tile. The canonical
+event record itself never crosses the Rust public boundary. Rust accepts the
+wire shape through the focused `projection_wonder_events.rs` module and rejects
+future turns, reordered or oversized feeds, partial location disclosure, and
+oversized identities/descriptions before returning a worker projection.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests prove canonical event creation, clone durability, known
+  versus unknown builder disclosure, and exploration-gated location disclosure.
+  The shared Kotlin/Rust projection fixture moved from v47 to v48 and round
+  trips semantically in both runtimes.
+- `./gradlew :tests:test :server:test --no-daemon` passes 955 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 99 active library tests and
+  all 7 HTTP/OpenAPI tests. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, regenerated
+  OpenAPI parity, and `git diff --check` pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55465; the live binary reported `PostgreSQL 19beta2`. The disposable
+  container was stopped with `--rm` and verified absent.
+- The first focused test compile found a cross-module test reaching an internal
+  helper and was changed to exercise the public projection builder. Initial
+  Cargo/OpenAPI invocations also exposed the required crate working directory
+  and explicit binary selector, and the first database readiness probe expected
+  a Compose-only healthcheck. Each invocation was corrected and every affected
+  gate reran cleanly; the unavailable root `ktlintFormat` task changed no files.
+  No compile, test, format, Clippy, OpenAPI, database, or cleanup error remains.
+- Rust façades remain declaration-only (`main.rs` 6 lines and `lib.rs` 41
+  lines). Wonder DTOs and semantic validation live in a focused 44-line module;
+  the largest Rust source remains 781 lines.

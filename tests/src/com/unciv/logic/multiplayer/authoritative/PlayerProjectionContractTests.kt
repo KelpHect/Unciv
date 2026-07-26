@@ -47,6 +47,10 @@ class PlayerProjectionContractTests {
         assertEquals(listOf("Agriculture", "Mining"), projection.research.researchedTechnologies)
         assertEquals("Mining", projection.research.completionPrompts.single().technologyName)
         assertEquals(listOf("Tradition"), projection.policies.selectablePolicies)
+        assertEquals(listOf("Great Library", "Stonehenge"),
+            projection.wonderEvents.map { it.wonderName })
+        assertEquals("Rome", projection.wonderEvents.first().builderCivilizationId)
+        assertEquals(null, projection.wonderEvents.last().cityId)
         assertEquals(listOf("Monument"), projection.ownCities.single().constructionQueue)
         assertEquals(12, projection.ownCities.single().constructionQueueEntries.single().storedProduction)
         assertEquals(160, projection.ownCities.single().constructionQueueEntries.single()
@@ -165,6 +169,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v47.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v48.fixture.json") }
         .first { it.isFile }
 }

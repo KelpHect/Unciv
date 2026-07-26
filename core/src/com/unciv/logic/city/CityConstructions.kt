@@ -2,6 +2,7 @@ package com.unciv.logic.city
 
 import com.unciv.GUI
 import com.unciv.UncivGame
+import com.unciv.logic.WonderCompletionEvent
 import com.unciv.logic.automation.Timers.Companion.timeThis
 import com.unciv.logic.IsPartOfGameInfoSerialization
 import com.unciv.logic.automation.Automation
@@ -579,6 +580,17 @@ class CityConstructions : IsPartOfGameInfoSerialization {
         val locationAndPediaActions = listOf(locationAction, pediaAction)
 
         if (construction is Building && construction.isWonder) {
+            city.civ.gameInfo.wonderCompletionEvents.add(
+                WonderCompletionEvent(
+                    turn = city.civ.gameInfo.turns,
+                    wonderName = construction.name,
+                    builderCivilizationId = city.civ.civID,
+                    cityId = city.id,
+                    cityName = city.name,
+                    x = city.location.x,
+                    y = city.location.y,
+                )
+            )
             city.civ.popupAlerts.add(PopupAlert(AlertType.WonderBuilt, construction.name))
             for (civ in city.civ.gameInfo.civilizations) {
                 if (civ.hasExplored(city.getCenterTile()))

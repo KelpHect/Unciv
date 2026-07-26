@@ -114,6 +114,7 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
     var gameId = randomGameId()
     var checksum = ""
     private var lastUnitId = 0
+    var wonderCompletionEvents = ArrayList<WonderCompletionEvent>()
 
     var victoryData: VictoryData? = null
 
@@ -202,6 +203,7 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
         toReturn.historyStartTurn = historyStartTurn
         toReturn.lastUnitId = lastUnitId
         toReturn.unitNamesTaken.addAll(unitNamesTaken)
+        toReturn.wonderCompletionEvents.addAll(wonderCompletionEvents)
 
         return toReturn
     }

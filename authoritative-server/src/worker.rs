@@ -356,6 +356,7 @@ impl EngineWorkerClient {
             || !projection.movement_is_consistent()
             || !projection.combat_is_consistent()
             || !projection.city_economy_is_consistent()
+            || !projection.wonder_events_are_consistent()
         {
             return Err(WorkerClientError::Protocol);
         }

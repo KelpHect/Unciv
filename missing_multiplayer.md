@@ -59,8 +59,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   add-or-move-to-top-in-all-cities, and remove-from-all-cities) through a
   server-derived bounded city set and private worker execution, with no client
   save mutation loop.
-- [ ] Add the public wonder completion/effect event feed needed by projection-only
-  UI.
+- [x] Add the public wonder completion/effect event feed needed by projection-only
+  UI. Projection v48 now exposes a durable canonical completion turn, wonder
+  identity, and ruleset-derived effect summary while revealing the builder only
+  when known and the city/location only after exploration.
 - [ ] Decide whether intentionally disabled multi-tile buying remains supported.
   If retained, implement a bounded typed command, server-derived target/result
   semantics, and projection-only confirmation; never restore a client loop that

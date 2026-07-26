@@ -38,9 +38,10 @@ data class PlayerProjection(
     val cityStatePartners: List<ProjectedCityStatePartner> = emptyList(),
     val spies: List<ProjectedSpy> = emptyList(),
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
+    val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 47
+        const val CURRENT_PROJECTION_VERSION = 48
     }
 }
 
@@ -451,6 +452,7 @@ object PlayerProjectionBuilder {
             cityStatePartners = CityStateCommandExecutor.partners(actor),
             spies = EspionageCommandExecutor.spies(actor),
             eventPrompts = EventChoiceCommandExecutor.prompts(actor),
+            wonderEvents = WonderEventProjection.build(game, actor),
             ownCities = actor.cities.map {
                 val constructionOptions = CityEconomyProjection.options(it)
                 ProjectedCity(

@@ -395,5 +395,27 @@
     }
   ],
   "spies": [],
-  "eventPrompts": []
+  "eventPrompts": [],
+  "wonderEvents": [
+    {
+      "completionTurn": 9,
+      "wonderName": "Great Library",
+      "effectSummary": "+1 Science",
+      "builderCivilizationId": "Rome",
+      "cityId": "city-rome",
+      "cityName": "Rome",
+      "x": 2,
+      "y": -1
+    },
+    {
+      "completionTurn": 11,
+      "wonderName": "Stonehenge",
+      "effectSummary": "+5 Faith",
+      "builderCivilizationId": null,
+      "cityId": null,
+      "cityName": null,
+      "x": null,
+      "y": null
+    }
+  ]
 }

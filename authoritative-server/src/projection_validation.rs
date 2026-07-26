@@ -76,6 +76,18 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn wonder_events_are_consistent(&self) -> bool {
+        self.wonder_events.len() <= MAX_PROJECTED_CHOICES
+            && self.wonder_events.windows(2).all(|pair| {
+                (pair[0].completion_turn, pair[0].wonder_name.as_str())
+                    < (pair[1].completion_turn, pair[1].wonder_name.as_str())
+            })
+            && self
+                .wonder_events
+                .iter()
+                .all(|event| event.is_consistent(self.turn))
+    }
+
     pub fn city_economy_is_consistent(&self) -> bool {
         let own_city_ids = self
             .own_cities

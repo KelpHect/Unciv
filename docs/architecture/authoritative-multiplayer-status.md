@@ -1,5 +1,47 @@
 # Authoritative multiplayer v3 status
 
+## Outbox acknowledgement process-death recovery
+
+Implemented on 2026-07-26:
+
+- Added a controlled process fixture around the real API outbox dispatcher and
+  the packaged authenticated Kotlin worker used during API startup.
+- A temporary test-only PostgreSQL trigger pauses the production
+  `acknowledge_outbox` update after the dispatcher has durably claimed a valid
+  revision event. The harness proves the claim is visible, forcibly terminates
+  the API process and its exact sleeping database backend, then verifies the
+  acknowledgement transaction rolled back.
+- The interrupted event remains undelivered with attempt count one and its
+  durable claim token. The genesis revision and immutable snapshot remain
+  unchanged and no command appears; notifications therefore remain
+  non-authoritative hints.
+- After removing the test trigger and aging the claim beyond the production
+  30-second lease, a restarted API reclaims the event as attempt two,
+  acknowledges it, clears both claim fields, and records delivery. Final
+  reconciliation reports zero findings.
+- The trigger and function exist only inside the disposable test database and
+  are removed before recovery. No production failpoint, endpoint, or alternate
+  dispatcher was added.
+
+Verification on 2026-07-26:
+
+- The focused
+  `outbox_acknowledgement_process_death_recovers_the_persisted_claim` process
+  test passes in 1.51 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- All 24 in-crate PostgreSQL integration/fault tests pass in 8.01 seconds, both
+  Rust API process tests pass in 4.39 seconds, and the two packaged-worker/API
+  process tests pass in 3.82 seconds in the same serialized run. The disposable
+  PostgreSQL container was removed and cleanup was verified.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 24 database tests and four process tests are intentionally
+  ignored without their explicit prerequisites. `cargo fmt --all -- --check`
+  and warnings-as-errors `cargo clippy --all-targets --all-features -- -D
+  warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+
 ## Forced packaged Kotlin worker termination
 
 Implemented on 2026-07-26:

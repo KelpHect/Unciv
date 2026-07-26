@@ -14,7 +14,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use unciv_authoritative_server::{
-    postgres::PostgresGameRepository,
+    postgres::{NewGame, PostgresGameRepository},
     state_hash,
     worker::{EngineWorkerClient, WorkerIdentityKey},
 };
@@ -174,6 +174,184 @@ async fn packaged_worker_death_during_creation_leaves_no_game_and_retry_succeeds
     retry_worker.stop();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires UNCIV_V3_DATABASE_URL and the packaged Kotlin worker jar"]
+async fn outbox_acknowledgement_process_death_recovers_the_persisted_claim() {
+    let database_url = std::env::var("UNCIV_V3_DATABASE_URL")
+        .expect("UNCIV_V3_DATABASE_URL is required for PostgreSQL integration tests");
+    let worker_jar = packaged_worker_jar();
+    let assets = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("android")
+        .join("assets");
+    let repository = PostgresGameRepository::connect(&database_url)
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    let pool = PgPool::connect(&database_url).await.unwrap();
+    sqlx::query(
+        "TRUNCATE game_creation_operations, game_outbox, game_revisions,
+         game_commands, game_snapshots, game_members, games, ruleset_manifests,
+         sessions, accounts CASCADE",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let account = repository
+        .register_account("outbox-process-death", "correct horse battery staple")
+        .await
+        .unwrap();
+
+    let worker_address = unused_address();
+    let mut worker = spawn_worker(&worker_jar, &assets, worker_address);
+    let capabilities = wait_for_worker(worker_address, &mut worker.0).await;
+    let base_ruleset = capabilities
+        .installed_rulesets
+        .into_iter()
+        .find(|ruleset| ruleset.name == "Civ V - Vanilla")
+        .expect("packaged worker must expose the vanilla ruleset");
+    let manifest = json!({
+        "engineBuild": capabilities.engine_build,
+        "baseRuleset": {
+            "name": base_ruleset.name,
+            "sha256": base_ruleset.sha256,
+        },
+        "mods": [],
+    });
+    let manifest_hash = state_hash(&serde_json::to_vec(&manifest).unwrap());
+    sqlx::query(
+        "INSERT INTO ruleset_manifests (hash, engine_build, manifest)
+         VALUES ($1, $2, $3)",
+    )
+    .bind(&manifest_hash)
+    .bind(manifest["engineBuild"].as_str().unwrap())
+    .bind(manifest)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let game_id = Uuid::new_v4();
+    repository
+        .create_game(NewGame {
+            game_id,
+            owner_account_id: account.id,
+            ruleset_manifest_hash: manifest_hash,
+            snapshot: b"revision-0".to_vec(),
+            owner_civilization_id: "test-civilization".to_owned(),
+        })
+        .await
+        .unwrap();
+    let canonical_state_hash: String = sqlx::query_scalar(
+        "SELECT canonical_state_hash
+         FROM game_revisions
+         WHERE game_id=$1 AND revision=0",
+    )
+    .bind(game_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let event_id: i64 = sqlx::query_scalar(
+        "INSERT INTO game_outbox (game_id, revision, topic, payload)
+         VALUES ($1, 0, 'game.revision.committed', $2)
+         RETURNING id",
+    )
+    .bind(game_id)
+    .bind(json!({"state_hash": canonical_state_hash}))
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    sqlx::query(
+        "CREATE OR REPLACE FUNCTION unciv_test_block_outbox_ack()
+         RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN
+             IF NEW.delivered_at IS NOT NULL AND OLD.delivered_at IS NULL THEN
+                 PERFORM pg_sleep(30);
+             END IF;
+             RETURN NEW;
+         END
+         $$",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "CREATE TRIGGER unciv_test_block_outbox_ack
+         BEFORE UPDATE ON game_outbox
+         FOR EACH ROW EXECUTE FUNCTION unciv_test_block_outbox_ack()",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let first_api_address = unused_address();
+    let mut first_api = spawn_api(&database_url, first_api_address, worker_address);
+    wait_until_api_ready(first_api_address, &mut first_api.0).await;
+    let acknowledgement_backend = wait_for_blocked_outbox_ack(&pool, event_id).await;
+    first_api.stop();
+    let terminated: bool = sqlx::query_scalar("SELECT pg_terminate_backend($1)")
+        .bind(acknowledgement_backend)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(terminated);
+
+    let interrupted: (i32, bool, bool) = sqlx::query_as(
+        "SELECT attempt_count, claim_token IS NOT NULL, delivered_at IS NOT NULL
+         FROM game_outbox WHERE id=$1",
+    )
+    .bind(event_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(interrupted, (1, true, false));
+    assert_eq!(canonical_counts(&pool, game_id).await, (1, 1, 0));
+
+    sqlx::query("DROP TRIGGER unciv_test_block_outbox_ack ON game_outbox")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DROP FUNCTION unciv_test_block_outbox_ack()")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE game_outbox
+         SET claimed_at=now() - interval '31 seconds'
+         WHERE id=$1",
+    )
+    .bind(event_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let retry_api_address = unused_address();
+    let mut retry_api = spawn_api(&database_url, retry_api_address, worker_address);
+    wait_until_api_ready(retry_api_address, &mut retry_api.0).await;
+    wait_for_outbox_delivery(&pool, event_id).await;
+    let recovered: (i32, bool, bool, bool) = sqlx::query_as(
+        "SELECT attempt_count, claimed_at IS NULL, claim_token IS NULL,
+                delivered_at IS NOT NULL
+         FROM game_outbox WHERE id=$1",
+    )
+    .bind(event_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(recovered, (2, true, true, true));
+    assert_eq!(canonical_counts(&pool, game_id).await, (1, 1, 0));
+    assert_eq!(
+        repository
+            .reconcile_authoritative_state()
+            .await
+            .unwrap()
+            .total_findings,
+        0
+    );
+
+    retry_api.stop();
+    worker.stop();
+}
+
 fn packaged_worker_jar() -> PathBuf {
     let jar = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -298,6 +476,44 @@ async fn connect_worker(address: SocketAddr) -> TcpStream {
     panic!("proxy could not connect to packaged worker");
 }
 
+async fn wait_for_blocked_outbox_ack(pool: &PgPool, event_id: i64) -> i32 {
+    for _ in 0..400 {
+        let blocked_pid: Option<i32> = sqlx::query_scalar(
+            "SELECT pid FROM pg_stat_activity
+             WHERE query LIKE 'UPDATE game_outbox SET delivered_at=%'
+               AND wait_event='PgSleep'
+               AND (SELECT claimed_at IS NOT NULL
+                    FROM game_outbox WHERE id=$1)
+             LIMIT 1",
+        )
+        .bind(event_id)
+        .fetch_optional(pool)
+        .await
+        .unwrap();
+        if let Some(pid) = blocked_pid {
+            return pid;
+        }
+        sleep(Duration::from_millis(10)).await;
+    }
+    panic!("outbox acknowledgement did not reach the controlled process boundary");
+}
+
+async fn wait_for_outbox_delivery(pool: &PgPool, event_id: i64) {
+    for _ in 0..400 {
+        let delivered: bool =
+            sqlx::query_scalar("SELECT delivered_at IS NOT NULL FROM game_outbox WHERE id=$1")
+                .bind(event_id)
+                .fetch_one(pool)
+                .await
+                .unwrap();
+        if delivered {
+            return;
+        }
+        sleep(Duration::from_millis(10)).await;
+    }
+    panic!("restarted dispatcher did not recover the expired event claim");
+}
+
 fn creation_request(operation_id: Uuid, manifest_hash: &str) -> String {
     json!({
         "operation_id": operation_id,
@@ -376,6 +592,19 @@ async fn creation_artifact_counts(pool: &PgPool) -> (i64, i64, i64, i64, i64) {
             (SELECT count(*) FROM game_snapshots),
             (SELECT count(*) FROM game_members)",
     )
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
+async fn canonical_counts(pool: &PgPool, game_id: Uuid) -> (i64, i64, i64) {
+    sqlx::query_as(
+        "SELECT
+            (SELECT count(*) FROM game_revisions WHERE game_id=$1),
+            (SELECT count(*) FROM game_snapshots WHERE game_id=$1),
+            (SELECT count(*) FROM game_commands WHERE game_id=$1)",
+    )
+    .bind(game_id)
     .fetch_one(pool)
     .await
     .unwrap()

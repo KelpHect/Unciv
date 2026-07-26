@@ -471,10 +471,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Rust. No game or creation-operation artifact survives; restarting both sides
   and retrying the exact operation ID creates revision zero once, and a further
   duplicate returns that same game.
-- [ ] Complete controlled whole-process fault tests at outbox-dispatch
-  boundaries. Forced database-connection termination while blocked at the
-  canonical commit lock is covered: it leaves no phantom rows and the same
-  command retries safely.
+- [x] Complete controlled whole-process fault tests at the outbox
+  acknowledgement boundary. A temporary test-only PostgreSQL trigger holds the
+  real dispatcher after its durable claim; the API and its exact sleeping
+  backend are terminated, leaving attempt one leased but undelivered. After
+  lease expiry, a restarted API reclaims attempt two, clears the claim,
+  acknowledges delivery, and leaves canonical history unchanged.
 - [ ] Test actual PostgreSQL/service failover and reconnection under load. The
   independent-replica CAS race is covered: two valid commands at one expected
   revision produce exactly one complete head and one stale conflict.

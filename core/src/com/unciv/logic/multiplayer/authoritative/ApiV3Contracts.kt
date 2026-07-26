@@ -140,6 +140,12 @@ data class ApiV3SpectatorGameProjection(
 data class ApiV3AddSpectatorRequest(val username: String)
 
 @Serializable
+data class ApiV3RevokeSpectatorRequest(
+    @SerialName("operation_id") val operationId: String,
+    val username: String,
+)
+
+@Serializable
 data class ApiV3TransferOwnershipRequest(
     @SerialName("operation_id") val operationId: String,
     val username: String,

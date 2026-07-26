@@ -2387,6 +2387,10 @@ class AuthoritativeGameCommandBusTests {
             error("not used by command-bus tests")
         override suspend fun addSpectator(gameId: String, username: String) = Unit
         override suspend fun leaveSpectator(gameId: String) = Unit
+        override suspend fun revokeSpectator(
+            gameId: String,
+            request: ApiV3RevokeSpectatorRequest,
+        ) = Unit
         override suspend fun transferOwnership(gameId: String, request: ApiV3TransferOwnershipRequest) = Unit
         override suspend fun closeGameAdmin(gameId: String, request: ApiV3GameAdminOperationRequest) = Unit
         override suspend fun archiveGame(gameId: String, request: ApiV3GameAdminOperationRequest) = Unit

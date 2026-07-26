@@ -36,6 +36,7 @@ interface ApiV3Transport {
     suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection
     suspend fun addSpectator(gameId: String, username: String)
     suspend fun leaveSpectator(gameId: String)
+    suspend fun revokeSpectator(gameId: String, request: ApiV3RevokeSpectatorRequest)
     suspend fun transferOwnership(gameId: String, request: ApiV3TransferOwnershipRequest)
     suspend fun closeGameAdmin(gameId: String, request: ApiV3GameAdminOperationRequest)
     suspend fun archiveGame(gameId: String, request: ApiV3GameAdminOperationRequest)

@@ -93,6 +93,95 @@ impl PostgresGameRepository {
         }
     }
 
+    pub async fn revoke_spectator(
+        &self,
+        owner_account_id: Uuid,
+        game_id: Uuid,
+        operation_id: Uuid,
+        username: &str,
+    ) -> Result<(), CommitError> {
+        let username = normalize_username(username).map_err(|_| CommitError::InvalidCommand)?;
+        let request = json!({"username": username});
+        let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
+        if let Some(row) = sqlx::query(
+            "SELECT actor_account_id, operation_kind, request FROM game_admin_operations WHERE game_id=$1 AND operation_id=$2",
+        )
+        .bind(game_id)
+        .bind(operation_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?
+        {
+            if row.get::<Uuid, _>("actor_account_id") == owner_account_id
+                && row.get::<String, _>("operation_kind") == "revoke_spectator"
+                && row.get::<serde_json::Value, _>("request") == request
+            {
+                return tx.commit().await.map_err(CommitError::storage);
+            }
+            return Err(CommitError::InvalidCommand);
+        }
+
+        let game =
+            sqlx::query("SELECT head_revision, lifecycle_status FROM games WHERE id=$1 FOR UPDATE")
+                .bind(game_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?
+                .ok_or(CommitError::NotFound)?;
+        if game.get::<String, _>("lifecycle_status") == "archived" {
+            return Err(CommitError::InvalidCommand);
+        }
+        let owner: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id=$1 AND account_id=$2 AND role='owner')",
+        )
+        .bind(game_id)
+        .bind(owner_account_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?;
+        if !owner {
+            return Err(CommitError::Unauthorized);
+        }
+        let target: Uuid = sqlx::query_scalar(
+            "SELECT gm.account_id FROM game_members gm JOIN accounts a ON a.id=gm.account_id WHERE gm.game_id=$1 AND a.username_normalized=$2 AND gm.role='spectator'",
+        )
+        .bind(game_id)
+        .bind(&username)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let removed = sqlx::query(
+            "DELETE FROM game_members WHERE game_id=$1 AND account_id=$2 AND role='spectator'",
+        )
+        .bind(game_id)
+        .bind(target)
+        .execute(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?;
+        if removed.rows_affected() != 1 {
+            return Err(CommitError::InvalidCommand);
+        }
+        sqlx::query(
+            "INSERT INTO game_admin_operations (game_id, operation_id, actor_account_id, operation_kind, request) VALUES ($1, $2, $3, 'revoke_spectator', $4)",
+        )
+        .bind(game_id)
+        .bind(operation_id)
+        .bind(owner_account_id)
+        .bind(&request)
+        .execute(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?;
+        sqlx::query("INSERT INTO game_outbox (game_id, revision, topic, payload) VALUES ($1, $2, 'game.membership.changed', $3)")
+            .bind(game_id)
+            .bind(game.get::<i64, _>("head_revision"))
+            .bind(json!({"game_id": game_id, "account_id": target, "role": null}))
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+        tx.commit().await.map_err(CommitError::storage)
+    }
+
     pub async fn spectator_projection(
         &self,
         worker: &EngineWorkerClient,

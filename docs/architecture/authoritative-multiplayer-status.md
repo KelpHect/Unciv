@@ -6660,6 +6660,60 @@ Verification:
 - `main.rs` remains 6 lines and `lib.rs` remains a thin façade. Every Rust
   source remains below 800 lines; the largest is `projection.rs` at 796 lines.
 
+## Owner-controlled spectator revocation
+
+Implemented and verified on 2026-07-26:
+
+- Owners can revoke a named spectator through the new authenticated
+  `POST /api/v3/games/{game_id}/spectator-revocations` operation. It accepts
+  only a caller-stable operation UUID and username; the server derives the
+  owner and target account and never accepts a role, account UUID, revision, or
+  canonical-state mutation from the client.
+- Migration `0019_spectator_revocations.sql` extends the existing closed
+  `game_admin_operations.operation_kind` constraint rather than weakening it.
+  The transaction locks the game, rejects archived games and non-owners,
+  deletes only a spectator membership, journals the exact normalized request,
+  and emits one `game.membership.changed` outbox hint at the unchanged head
+  revision.
+- Exact lost-response retries return success after the membership is gone.
+  Reusing the operation ID with another actor, username, game meaning, or
+  operation kind fails closed. Revoked accounts immediately lose game metadata
+  and spectator-projection authorization; self-leave remains a separate
+  spectator-only operation.
+- The Kotlin API client, authenticated session, and administration coordinator
+  carry the stable operation identity. The production owner popup now supports
+  both spectator invitation and revocation; revocation remains available for a
+  closed game so access can be withdrawn after gameplay stops.
+- The PostgreSQL spectator scenario moved from the broad integration file into
+  a descriptive focused module before that façade crossed the 800-line
+  guardrail.
+
+Verification:
+
+- The focused PostgreSQL test passes against only the exact pinned PostgreSQL
+  19 Beta 2 image, then all 24 serialized database integration/fault tests pass
+  in 8.21 seconds.
+- `cargo test --all-targets` passes 143 active library tests and 16
+  HTTP/OpenAPI tests. The regenerated 104-path checked-in OpenAPI contract
+  matches generated output. `cargo fmt --all -- --check` and
+  warnings-as-errors `cargo clippy --all-targets --all-features -- -D warnings`
+  pass.
+- Both real Rust API process-fault tests pass in 4.40 seconds, and both
+  packaged Kotlin worker/outbox process-fault tests pass in 3.98 seconds.
+- Focused Kotlin administration/session tests pass. The broad
+  `./gradlew.bat :android:lintDebug :android:assembleDebug :tests:test
+  :server:test :desktop:compileKotlin --no-parallel --console=plain` gate passes
+  63 tasks in 50 seconds (19 executed, 44 up-to-date).
+- Initial checks correctly caught the stale OpenAPI path inventory and the
+  closed SQL operation-kind constraint. Both were updated and every affected
+  gate rerun. SQLx required a clean package rebuild to embed the newly added
+  migration; the rebuilt focused and full database suites pass. Android D8
+  emits its existing Kotlin-metadata rewrite warnings but completes lint and
+  assembly successfully. No failing check remains deferred.
+- Rust façades remain thin (`main.rs` 6 lines, `lib.rs` 49 lines), and every
+  Rust source remains below 800 lines; the largest remains `projection.rs` at
+  796 lines.
+
 ## Projection v56 and authoritative city controls
 
 Implemented on 2026-07-26:

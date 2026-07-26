@@ -14,6 +14,8 @@ import java.util.UUID
 class AuthoritativeAdministrationCoordinator(
     private val kickMember: suspend (String, String) -> AuthoritativeCommandOutcome?,
     private val forceResignPlayer: suspend (String) -> AuthoritativeCommandOutcome?,
+    private val addSpectator: suspend (String, String) -> Unit,
+    private val revokeSpectatorAccess: suspend (String, String, String) -> Unit,
     private val transferOwnership: suspend (String, String, String) -> Unit,
     private val closeGame: suspend (String, String) -> Unit,
     private val archiveGame: suspend (String, String) -> Unit,
@@ -28,6 +30,8 @@ class AuthoritativeAdministrationCoordinator(
             if (!session.isGameOpen(gameId)) session.openGame(gameId)
             session.forceResignIfOpen(gameId)
         },
+        session::addSpectator,
+        session::revokeSpectator,
         session::transferOwnership,
         session::closeAuthoritativeGame,
         session::archiveAuthoritativeGame,
@@ -49,6 +53,19 @@ class AuthoritativeAdministrationCoordinator(
         val target = validateUsername(username)
         perform(AdministrationMeaning(gameId, Operation.Transfer, target)) {
             transferOwnership(gameId, target, it)
+        }
+    }
+
+    suspend fun inviteSpectator(gameId: String, username: String) {
+        validateGameId(gameId)
+        addSpectator(gameId, validateUsername(username))
+    }
+
+    suspend fun revokeSpectator(gameId: String, username: String) {
+        validateGameId(gameId)
+        val target = validateUsername(username)
+        perform(AdministrationMeaning(gameId, Operation.RevokeSpectator, target)) {
+            revokeSpectatorAccess(gameId, target, it)
         }
     }
 
@@ -105,6 +122,7 @@ class AuthoritativeAdministrationCoordinator(
 
     private enum class Operation {
         Transfer,
+        RevokeSpectator,
         Close,
         Archive,
     }

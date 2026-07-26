@@ -96,6 +96,13 @@ pub(super) struct AddSpectatorRequest {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct RevokeSpectatorRequest {
+    pub(super) operation_id: uuid::Uuid,
+    pub(super) username: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct JoinGameRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,

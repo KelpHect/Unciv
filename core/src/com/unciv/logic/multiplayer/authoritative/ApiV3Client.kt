@@ -563,6 +563,17 @@ class ApiV3Client(
         decodeUnit(client.delete("api/v3/games/$gameId/spectators") { authenticate() })
     }
 
+    override suspend fun revokeSpectator(
+        gameId: String,
+        request: ApiV3RevokeSpectatorRequest,
+    ) {
+        decodeUnit(client.post("api/v3/games/$gameId/spectator-revocations") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        })
+    }
+
     override suspend fun transferOwnership(
         gameId: String,
         request: ApiV3TransferOwnershipRequest,

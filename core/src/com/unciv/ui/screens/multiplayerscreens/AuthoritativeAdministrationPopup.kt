@@ -26,6 +26,8 @@ class AuthoritativeAdministrationPopup(
 ) : Popup(screen) {
     private val memberUsername = UncivTextField("Member account username")
     private val kickButton = "Kick player".toTextButton()
+    private val inviteSpectatorButton = "Invite spectator".toTextButton()
+    private val revokeSpectatorButton = "Revoke spectator".toTextButton()
     private val forceResignButton = "Force current player to resign".toTextButton()
     private val transferButton = "Transfer ownership".toTextButton()
     private val closeGameButton = "Close game".toTextButton()
@@ -33,6 +35,8 @@ class AuthoritativeAdministrationPopup(
     private val actionButtons =
         listOf(
             kickButton,
+            inviteSpectatorButton,
+            revokeSpectatorButton,
             forceResignButton,
             transferButton,
             closeGameButton,
@@ -57,6 +61,18 @@ class AuthoritativeAdministrationPopup(
                 "Kick [${memberUsername.text.trim()}] from this game?",
                 "Kick",
             ) { kick() }
+        }
+        inviteSpectatorButton.onClick {
+            confirm(
+                "Invite [${memberUsername.text.trim()}] as a public-summary spectator?",
+                "Invite spectator",
+            ) { inviteSpectator() }
+        }
+        revokeSpectatorButton.onClick {
+            confirm(
+                "Revoke spectator access for [${memberUsername.text.trim()}]?",
+                "Revoke spectator",
+            ) { revokeSpectator() }
         }
         forceResignButton.onClick {
             confirm(
@@ -86,6 +102,8 @@ class AuthoritativeAdministrationPopup(
 
         val active = gameSummary.lifecycleStatus == "active"
         kickButton.isVisible = active
+        inviteSpectatorButton.isVisible = active
+        revokeSpectatorButton.isVisible = true
         forceResignButton.isVisible = active
         transferButton.isVisible = active
         closeGameButton.isVisible = active
@@ -116,6 +134,16 @@ class AuthoritativeAdministrationPopup(
 
     private fun transfer() = runAction("Transfer authoritative ownership") {
         coordinator.transfer(gameSummary.gameId, memberUsername.text)
+        ActionResult()
+    }
+
+    private fun inviteSpectator() = runAction("Invite authoritative spectator") {
+        coordinator.inviteSpectator(gameSummary.gameId, memberUsername.text)
+        ActionResult()
+    }
+
+    private fun revokeSpectator() = runAction("Revoke authoritative spectator") {
+        coordinator.revokeSpectator(gameSummary.gameId, memberUsername.text)
         ActionResult()
     }
 

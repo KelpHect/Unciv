@@ -61,7 +61,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [x] Implement inventoried espionage controls, great-person selection,
   mod-defined event choices, self-resignation, and owner force-resignation.
 - [x] Implement owner-invited spectators with a distinct public-only projection
-  and no access to player commands or canonical state.
+  and no access to player commands or canonical state. Owners can also revoke
+  spectator access through a distinct retry-safe audited operation; spectators
+  retain a separate self-leave operation.
 - [x] Implement authoritative end-turn readiness and advancement, including
   worker-owned pending orders, all AI players, canonical blocker validation,
   and server-side player rotation.
@@ -424,8 +426,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   refreshes without falling through to legacy save mutation.
 - [ ] Add a richer game administration/history projection if the product needs
   more than the current lifecycle status and durable audit/outbox records.
-- [ ] Decide whether spectator invitations can be revoked by the owner and, if
-  supported, implement it as a distinct audited operation.
+- [x] Allow an owner to revoke spectator access through a distinct audited
+  operation. The caller-stable operation ID is durably bound to the owner,
+  game, normalized target username, and revocation kind; exact retries succeed
+  after membership removal, changed actor/meaning reuse fails closed, and the
+  membership change emits a non-authoritative outbox resynchronization hint.
+  Active owners can invite or revoke from the production administration popup;
+  closed-game owners can revoke remaining access, while self-leave remains a
+  separate spectator-only endpoint.
 
 ## P0: recovery and canonical-history guarantees
 

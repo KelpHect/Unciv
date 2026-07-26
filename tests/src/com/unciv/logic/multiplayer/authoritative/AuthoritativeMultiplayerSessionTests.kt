@@ -273,10 +273,15 @@ class AuthoritativeMultiplayerSessionTests {
 
         session.addSpectator(GAME_ID, "Spectator_Name")
         val projection = session.spectatorProjection(GAME_ID)
+        session.revokeSpectator(GAME_ID, "Spectator_Name", "revocation-operation")
         session.leaveSpectator(GAME_ID)
 
         assertEquals(listOf(GAME_ID to "Spectator_Name"), transport.addedSpectators)
         assertEquals(listOf(GAME_ID), transport.spectatorProjectionCalls)
+        assertEquals(
+            listOf(Triple(GAME_ID, "revocation-operation", "Spectator_Name")),
+            transport.revokedSpectators,
+        )
         assertEquals(listOf(GAME_ID), transport.leftSpectatorGames)
         assertEquals(0, transport.projectionCalls)
         assertEquals(7, projection.committedRevision)
@@ -1524,6 +1529,7 @@ class AuthoritativeMultiplayerSessionTests {
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
         val addedSpectators = mutableListOf<Pair<String, String>>()
+        val revokedSpectators = mutableListOf<Triple<String, String, String>>()
         val spectatorProjectionCalls = mutableListOf<String>()
         val leftSpectatorGames = mutableListOf<String>()
         val ownershipTransfers = mutableListOf<Triple<String, String, String>>()
@@ -1618,6 +1624,12 @@ class AuthoritativeMultiplayerSessionTests {
         }
         override suspend fun leaveSpectator(gameId: String) {
             leftSpectatorGames += gameId
+        }
+        override suspend fun revokeSpectator(
+            gameId: String,
+            request: ApiV3RevokeSpectatorRequest,
+        ) {
+            revokedSpectators += Triple(gameId, request.operationId, request.username)
         }
         override suspend fun transferOwnership(gameId: String, request: ApiV3TransferOwnershipRequest) {
             ownershipTransfers += Triple(gameId, request.operationId, request.username)

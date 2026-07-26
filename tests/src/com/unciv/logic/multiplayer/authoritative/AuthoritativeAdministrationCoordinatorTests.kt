@@ -45,6 +45,37 @@ class AuthoritativeAdministrationCoordinatorTests {
     }
 
     @Test
+    fun exactSpectatorRevocationRetryKeepsOperationIdAndChangedTargetDoesNot() = runBlocking {
+        val calls = mutableListOf<Triple<String, String, String>>()
+        val coordinator = coordinator(
+            revokeSpectator = { gameId, username, operationId ->
+                calls += Triple(gameId, username, operationId)
+                throw IOException("response lost")
+            },
+        )
+
+        assertThrows<IOException> { coordinator.revokeSpectator("game-a", " Viewer ") }
+        assertThrows<IOException> { coordinator.revokeSpectator("game-a", " Viewer ") }
+        assertThrows<IOException> { coordinator.revokeSpectator("game-a", "Other") }
+
+        assertEquals("Viewer", calls[0].second)
+        assertEquals(calls[0].third, calls[1].third)
+        assertNotEquals(calls[1].third, calls[2].third)
+    }
+
+    @Test
+    fun spectatorInvitationTrimsTheAccountName() = runBlocking {
+        var call: Pair<String, String>? = null
+        val coordinator = coordinator(addSpectator = { gameId, username ->
+            call = gameId to username
+        })
+
+        coordinator.inviteSpectator("game-a", " Viewer ")
+
+        assertEquals("game-a" to "Viewer", call)
+    }
+
+    @Test
     fun closeAndArchiveHaveDistinctRetryIdentities() = runBlocking {
         val closeIds = mutableListOf<String>()
         val archiveIds = mutableListOf<String>()
@@ -107,13 +138,15 @@ class AuthoritativeAdministrationCoordinatorTests {
             { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
         forceResign: suspend (String) -> AuthoritativeCommandOutcome? =
             { AuthoritativeCommandOutcome.Rejected("test") },
+        addSpectator: suspend (String, String) -> Unit = { _, _ -> },
+        revokeSpectator: suspend (String, String, String) -> Unit = { _, _, _ -> },
         transfer: suspend (String, String, String) -> Unit = { _, _, _ -> },
         close: suspend (String, String) -> Unit = { _, _ -> },
         archive: suspend (String, String) -> Unit = { _, _ -> },
     ): AuthoritativeAdministrationCoordinator {
         var id = 0
         return AuthoritativeAdministrationCoordinator(
-            kick, forceResign, transfer, close, archive,
+            kick, forceResign, addSpectator, revokeSpectator, transfer, close, archive,
         ) {
             "operation-${++id}"
         }

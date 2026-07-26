@@ -189,6 +189,19 @@ class AuthoritativeMultiplayerSession(
         transport.leaveSpectator(gameId)
     }
 
+    suspend fun revokeSpectator(
+        gameId: String,
+        username: String,
+        operationId: String = UUID.randomUUID().toString(),
+    ) {
+        requireAuthenticated()
+        require(username.isNotBlank()) { "Username must not be blank" }
+        transport.revokeSpectator(
+            gameId,
+            ApiV3RevokeSpectatorRequest(operationId, username),
+        )
+    }
+
     suspend fun transferOwnership(
         gameId: String,
         username: String,

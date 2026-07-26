@@ -15,6 +15,8 @@ mod manifests;
 mod reconciliation;
 #[path = "recovery_integration_tests.rs"]
 mod recovery;
+#[path = "repair_integration_tests.rs"]
+mod repair;
 #[path = "replica_fault_integration_tests.rs"]
 mod replica_faults;
 #[path = "retention_integration_tests.rs"]

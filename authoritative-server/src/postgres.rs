@@ -36,6 +36,7 @@ use crate::{
     MAX_SNAPSHOT_BYTES, PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
+pub use repair::RepairReport;
 pub use retention::{SnapshotCompactionReport, SnapshotRetentionPolicy};
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
 
@@ -160,6 +161,7 @@ mod outbox;
 mod reconciliation;
 mod recovery;
 mod religion;
+mod repair;
 mod research;
 mod retention;
 mod security;

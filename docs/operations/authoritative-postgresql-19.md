@@ -61,6 +61,8 @@ cargo run --manifest-path authoritative-server/Cargo.toml --bin unciv-v3-reconci
 
 See `authoritative-snapshot-retention.md` for the dry-run-first snapshot
 payload compaction workflow. Run reconciliation after every applied batch.
+See `authoritative-reconciliation-repair.md` for the reviewed, dry-run-first
+response to every finding and the narrow deterministic outbox repair.
 
 Set `UNCIV_V3_DATABASE_URL` outside source control before running it. Exit code
 `0` means no findings, `2` means the JSON report contains findings, and `1`
@@ -75,9 +77,10 @@ snapshot's bounded codec, sizes, protocol, UTF-8, payload hash, and canonical
 hash. It outputs only game/revision identifiers and fixed invariant messages;
 canonical bytes, credentials, command payloads, and account data are excluded.
 
-Never repair directly from this report. Preserve a backup and audit evidence,
-identify the failure source, rehearse a deterministic repair on a restored copy,
-and run reconciliation plus the complete PostgreSQL suite before promotion.
+Never make an ad hoc repair directly from this report. Preserve a backup and
+audit evidence, identify the failure source, use the reviewed bounded workflow,
+rehearse canonical recovery or a bespoke migration on a restored copy, and run
+reconciliation plus the complete PostgreSQL suite before promotion.
 
 PostgreSQL 19 features to evaluate next with measured workloads include
 autovacuum scoring, lock/autovacuum statistics, online checksum management,

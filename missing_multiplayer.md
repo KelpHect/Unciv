@@ -441,12 +441,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
   only revision metadata and the canonical hash by default; `--apply` publishes
   only a still-current, verified quarantined head as a new immutable revision.
-- [ ] Add reviewed repair workflows for the remaining reconciliation findings.
-  The bounded read-only reconciliation CLI detects invalid heads/chains,
-  missing or orphaned snapshots, commands and commit-outbox events,
-  owner/civilization membership damage, missing replay identities, time, or
-  exact operations, quarantine state, and invalid compressed/canonical snapshot
-  bytes, but it intentionally does not mutate those findings.
+- [x] Add reviewed repair workflows for the remaining reconciliation findings.
+  `unciv-v3-repair` is dry-run by default and game-lock serialized. It can
+  reconstruct only deterministic derived commit-outbox hints from immutable
+  revisions; every canonical-history, snapshot, replay-evidence, membership,
+  ownership, or orphan finding is quarantined without deleting or guessing
+  data. Applied actions are append-only audited and idempotent, and the operator
+  runbook maps every closed reconciliation finding to recovery, restore, or
+  reviewed bespoke migration.
 - [ ] Complete controlled process fault tests for Rust process death, Kotlin
   worker death, lost HTTP responses, and outbox-dispatch boundaries. Forced
   database-connection termination while blocked at the canonical commit lock is

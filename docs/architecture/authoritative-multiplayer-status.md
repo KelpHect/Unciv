@@ -1,5 +1,46 @@
 # Authoritative multiplayer v3 status
 
+## Reviewed reconciliation repair workflows
+
+Implemented on 2026-07-26:
+
+- Migration `0018_reconciliation_repairs.sql` enforces one commit/recovery
+  outbox event per revision and adds append-only, idempotent repair audit
+  events.
+- Added game-lock-serialized `unciv-v3-repair`. It is dry-run by default and
+  fails closed on a truncated audit. The only automatic reconstruction is a
+  missing derived commit-outbox hint, rebuilt from the immutable revision's
+  exact topic, revision, and canonical hash.
+- Every canonical-history, snapshot, replay-evidence, membership, ownership,
+  and orphan finding instead marks the game unavailable with
+  `reconciliation_required`. The tool never deletes evidence, rewrites
+  snapshots or immutable history, changes membership, advances a head, or
+  clears quarantine.
+- Added `docs/operations/authoritative-reconciliation-repair.md`, mapping every
+  closed finding to its reviewed response and defining backup, rehearsal,
+  recovery, verification, and promotion gates.
+
+Verification on 2026-07-26:
+
+- The PostgreSQL repair fixture proves that preview changes no rows, apply
+  reconstructs and audits exactly one missing outbox event, repeat apply is
+  idempotent, missing canonical snapshot bytes trigger quarantine, and later
+  commands fail with `GameUnavailable`.
+- All 23 serialized PostgreSQL integration and replica-fault tests pass against
+  only the pinned PostgreSQL 19 Beta 2 image digest. The disposable database
+  was removed.
+- `cargo test --all-features` passes 140 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 23 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1099 JVM/server cases: 1086 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Every substantive Rust source remains below the 800-line guardrail. The
+  largest remains 796 lines; repair logic is isolated in a 133-line focused
+  module, and the binary delegates to a 47-line CLI module.
+
 ## Immutable-history snapshot payload retention
 
 Implemented on 2026-07-26:

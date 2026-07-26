@@ -6720,6 +6720,66 @@ Verification on 2026-07-26:
   isolated in a 222-line descriptive module, worker transport is 587 lines,
   and the worker façade remains 688 lines.
 
+## Managed private-worker lifecycle and deterministic startup
+
+Implemented on 2026-07-26:
+
+- The private worker now validates independent socket-read and complete-command
+  deadlines. Every authenticated command arms a hard watchdog across shared
+  Kotlin rules execution, canonical serialization, signing, and response
+  writing; expiry terminates the JVM with exit 124 so it cannot continue after
+  Rust has abandoned the command.
+- A hardened systemd unit runs the packaged worker under dedicated identities,
+  a loopback-only network boundary, immutable assets, a protected environment
+  file, a bounded JVM heap/metaspace/direct-memory budget, cgroup memory and CPU
+  ceilings, no swap, task and descriptor limits, automatic crash restart, and
+  six-hour process recycling. The accompanying runbook documents installation,
+  secret handling, health checks, and controlled failure drills.
+- `LoopbackEngineWorkerServer` moved out of the already-large protocol module
+  into a focused 78-line lifecycle module. Configuration/watchdog policy is
+  isolated in `EngineWorkerRuntimeLimits.kt`; Rust systemd-contract tests live
+  in their own integration target.
+- The broad JVM gate exposed a real fresh-process creation mismatch: equal
+  starting-location scores retained identity-based `HashMap` iteration order.
+  `GameStarter` now uses explicit continent and tile-coordinate tie-breakers.
+  Twenty-one fresh JVM creations then produced byte-identical city-state
+  snapshots and hashes.
+- Correcting the Android toolchain exposed four errors previously hidden by an
+  incompatible lint frontend. Declared Kotlin is now 2.3.0, AGP is 8.13.2, and
+  Gradle is 8.13. Android notification posting checks the Android 13 runtime
+  permission through one guarded helper, and the SDK property path is valid.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin runtime-limit/watchdog and worker-protocol tests pass,
+  including watchdog expiry and cancellation. The 21-process deterministic
+  creation stress run passed before the normal two-process regression fixture
+  was restored.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes on JDK 21 and the
+  aligned Kotlin 2.3.0/AGP 8.13.2/Gradle 8.13 toolchain in 1 minute 19 seconds.
+  A separate non-baselined Android lint rerun passes after fixing all four
+  newly exposed errors.
+- `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --workspace --all-targets --all-features -- -D warnings`, and
+  `cargo test --workspace --all-features` pass: 153 active library tests, all
+  16 HTTP/OpenAPI tests, and all three systemd packaging tests pass; 24
+  database and five explicit process/failover tests remain ignored only in the
+  unprovisioned default lane.
+- All 24 PostgreSQL integration tests pass in 8.06 seconds, both
+  lost-response/Rust-process tests pass in 4.37 seconds, and both packaged
+  worker/outbox death tests pass in 3.86 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- Live Linux systemd/cgroup/OOM qualification remains explicitly unchecked;
+  Windows cannot provide that evidence. The combined implementation checklist
+  was split so completed lifecycle controls are checked without pretending the
+  production-host drill has run.
+- Rust entry façades remain nearly logic-free. Every Rust source remains below
+  800 lines (largest: `projection.rs`, 796 lines). The Kotlin protocol module
+  remains 1,472 lines after extracting server lifecycle and is still a
+  proactive modularization target; it is below the absolute 2,000-line ban but
+  is not treated as ideal.
+
 ## Packaged-worker research and all-AI-turn parity
 
 Implemented on 2026-07-26:

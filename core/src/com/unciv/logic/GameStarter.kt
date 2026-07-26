@@ -539,7 +539,9 @@ class GameStarter private constructor(
         // We want to  distribute starting locations fairly, and thus not place anybody on a small island
         // - unless necessary. Old code would only consider landmasses >= 20 tiles.
         // Instead, take continents until >=90% total area or everybody can get their own island
-        val orderedContinents = tileMap.continentSizes.asSequence().sortedByDescending { it.value }.toList()
+        val orderedContinents = tileMap.continentSizes.asSequence()
+            .sortedWith(compareByDescending<Map.Entry<Int, Int>> { it.value }.thenBy { it.key })
+            .toList()
         val totalArea = tileMap.continentSizes.values.sum()
         var candidateArea = 0
         val candidateContinents = HashSet<Int>()
@@ -590,7 +592,11 @@ class GameStarter private constructor(
             .filter {
                 HexMath.getDistanceFromEdge(it.key.position, tileMap.mapParameters) >=
                     (minimumDistanceBetweenStartingLocations * 2) / 3
-            }.sortedBy { it.value }
+            }.sortedWith(
+                compareBy<Map.Entry<Tile, Float>> { it.value }
+                    .thenBy { it.key.position.x }
+                    .thenBy { it.key.position.y }
+            )
             .map { it.key }
             .toMutableList()
     }
@@ -650,7 +656,11 @@ class GameStarter private constructor(
             // startPref wants Natural wonder neighbor: Rare and very likely to be outside getDistanceFromEdge
             val wonderNeighbor = tileMap.values.asSequence()
                 .filter { it.isNaturalWonder() && it.naturalWonder!! in civ.nation.startBias }
-                .sortedByDescending { startScores[it] }
+                .sortedWith(
+                    compareByDescending<Tile> { startScores[it] }
+                        .thenBy { it.position.x }
+                        .thenBy { it.position.y }
+                )
                 .firstOrNull()
             if (wonderNeighbor != null) return wonderNeighbor
         }

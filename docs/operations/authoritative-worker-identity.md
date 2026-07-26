@@ -85,6 +85,10 @@ failed probe reopens it for the complete cooldown. The breaker is an
 availability control only: PostgreSQL revision CAS and idempotency remain the
 canonical correctness boundary.
 
+Production crash recycling, JVM/cgroup limits, the hard command watchdog, and
+the Linux failure drill are defined in
+`docs/operations/authoritative-worker-systemd.md`.
+
 ## Rotation and incident response
 
 The first deployment supports one active key, so rotation is a coordinated

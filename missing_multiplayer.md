@@ -556,16 +556,23 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authenticates before JSON/rules execution, Rust authenticates before parsing
   or persistence, missing/malformed secrets fail startup, and captured or
   reflected frames fail closed.
-- [ ] Add separately configurable connect/read/write deadlines, worker crash
-  recycling, circuit breakers, and per-command CPU/memory limits. A bounded
-  total command deadline already cancels the connection and in-flight request.
+- [x] Add separately configurable connect/read/write deadlines, worker crash
+  recycling, circuit breakers, and per-command CPU/memory limits.
   Connect, request-write, response-read/execution, and total deadlines are now
   independently configured, validated at startup, and tested with phase-specific
   redacted failures; each operation already discards its one-shot socket.
   A shared configurable circuit breaker now fails fast after consecutive
   transport/protocol failures, permits one recovery probe after cooldown, and
-  excludes normal authenticated rules-engine rejections. Managed worker-process
-  recycling and OS-enforced per-command CPU/memory isolation remain open.
+  excludes normal authenticated rules-engine rejections. The packaged worker
+  now applies a bounded socket read plus a hard per-command watchdog that
+  terminates an unresponsive JVM. A least-privilege systemd unit restarts
+  crashes/timeouts, periodically recycles the JVM, and applies JVM heap,
+  metaspace, direct-memory, cgroup memory/no-swap, CPU, task, and descriptor
+  limits to the sequential one-command process.
+- [ ] Qualify the packaged worker unit on the documented Linux production
+  target. Exercise systemd restart/recycling, timeout exit 124, JVM OOM exit,
+  cgroup CPU/memory/no-swap enforcement, task/descriptor ceilings, immutable
+  assets, secret-file permissions, and recovery after each forced failure.
 - [ ] Verify the manifest inside the worker and finish immutable mod acquisition:
   allowlisting, archive path/link defenses, byte/entry quotas, redirect and host
   policy, atomic staging, semantic validation, and no client-selected URL fetch.
@@ -620,6 +627,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Turn the current development compose setup into production packaging with
   separate Rust, private Kotlin worker, and exact digest-pinned PostgreSQL 19
   Beta 2 services, health/readiness gates, resource limits, and upgrade checks.
+  The private worker now has a hardened least-privilege systemd unit, immutable
+  artifact layout, secret-file permissions, automatic crash/periodic recycling,
+  and enforceable JVM/cgroup limits. The Rust API, PostgreSQL, reverse proxy/TLS,
+  migration, readiness, backup, and upgrade units remain to complete this item.
 - [ ] Configure production TLS/HSTS and explicit trusted-proxy handling. Never
   trust forwarding headers from an untrusted peer.
 - [ ] Create separate least-privilege PostgreSQL roles for runtime, migrations,

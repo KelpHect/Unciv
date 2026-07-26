@@ -1,0 +1,56 @@
+[Unit]
+Description=Unciv API v3 private authoritative Kotlin worker
+Documentation=file:/opt/unciv-authoritative/docs/authoritative-worker-systemd.md
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=unciv-worker
+Group=unciv-authoritative
+WorkingDirectory=/opt/unciv-authoritative/assets
+EnvironmentFile=/etc/unciv-authoritative/worker.env
+ExecStart=/usr/bin/java -Djava.awt.headless=true -Xms64m -Xmx384m -XX:MaxMetaspaceSize=96m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError -jar /opt/unciv-authoritative/worker/UncivAuthoritativeWorker.jar
+
+# The worker processes one connection synchronously. These cgroup/JVM limits
+# therefore bound the only command executing in this process.
+CPUQuota=80%
+MemoryHigh=448M
+MemoryMax=512M
+MemorySwapMax=0
+TasksMax=64
+LimitNOFILE=1024
+OOMPolicy=stop
+
+# A crash, OOM exit, or scheduled lifetime boundary always gets a fresh JVM.
+Restart=always
+RestartSec=2s
+RuntimeMaxSec=6h
+TimeoutStopSec=45s
+KillSignal=SIGTERM
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

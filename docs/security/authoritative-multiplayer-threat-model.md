@@ -109,8 +109,9 @@ bounded connect/write/read/total deadlines, authenticated direction-separated
 local IPC, schema negotiation, deterministic replay tests, redacted errors, and
 a shared fail-fast circuit breaker with a single recovery probe. PostgreSQL
 keeps the old canonical head on every worker failure. Remaining hardening
-includes bounded worker concurrency, per-command CPU and memory isolation,
-managed crash recycling, and manifest verification inside the worker.
+includes live Linux qualification of the checked-in hard command watchdog,
+systemd crash recycling, and JVM/cgroup CPU-memory limits, plus manifest
+verification inside the worker.
 
 ### PostgreSQL, snapshots, outbox, and recovery
 

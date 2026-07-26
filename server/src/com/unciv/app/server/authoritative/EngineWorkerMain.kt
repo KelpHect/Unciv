@@ -29,6 +29,10 @@ object EngineWorkerMain {
         val authentication = System.getenv("UNCIV_ENGINE_WORKER_SECRET")
             ?.let(EngineWorkerAuthentication::fromHex)
             ?: error("UNCIV_ENGINE_WORKER_SECRET is required")
-        LoopbackEngineWorkerServer(authentication = authentication).serve(port)
+        val runtimeLimits = EngineWorkerRuntimeLimits.fromEnvironment()
+        LoopbackEngineWorkerServer(
+            authentication = authentication,
+            runtimeLimits = runtimeLimits,
+        ).serve(port)
     }
 }

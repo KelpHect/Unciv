@@ -1,5 +1,7 @@
 package com.unciv.app
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -8,6 +10,7 @@ import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -15,6 +18,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationCompat.DEFAULT_VIBRATE
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.NetworkType
@@ -58,6 +62,16 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
 
         private const val NOTIFICATION_CHANNEL_ID_INFO = "UNCIV_NOTIFICATION_CHANNEL_INFO"
         private const val NOTIFICATION_CHANNEL_ID_SERVICE = "UNCIV_NOTIFICATION_CHANNEL_SERVICE_02"
+
+        @SuppressLint("MissingPermission")
+        private fun postNotification(context: Context, notification: android.app.Notification) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) return
+
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_INFO, notification)
+        }
 
         private const val FAIL_COUNT = "FAIL_COUNT"
         private const val GAME_ID = "GAME_ID"
@@ -153,9 +167,7 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
                     .setOngoing(true)
                     .setShowWhen(false)
 
-            with(NotificationManagerCompat.from(appContext)) {
-                notify(NOTIFICATION_ID_INFO, notification.build())
-            }
+            postNotification(appContext, notification.build())
         }
 
         fun notifyUserAboutTurn(applicationContext: Context, game: Pair<String, String>) {
@@ -182,9 +194,7 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
                     .setCategory(NotificationCompat.CATEGORY_SOCIAL)
                     .setOngoing(false)
 
-            with(NotificationManagerCompat.from(applicationContext)) {
-                notify(NOTIFICATION_ID_INFO, notification.build())
-            }
+            postNotification(applicationContext, notification.build())
         }
 
         fun startTurnChecker(applicationContext: Context, files: UncivFiles, currentGameInfo: GameInfo, settings: GameSettingsMultiplayer) {
@@ -423,8 +433,6 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
                 .setOngoing(false)
                 .addAction(0, applicationContext.resources.getString(R.string.Notify_Error_CopyAction), pendingCopyClipboardIntent)
 
-        with(NotificationManagerCompat.from(applicationContext)) {
-            notify(NOTIFICATION_ID_INFO, notification.build())
-        }
+        postNotification(applicationContext, notification.build())
     }
 }

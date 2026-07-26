@@ -25,10 +25,6 @@ import com.unciv.models.ruleset.RulesetCache
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.net.ServerSocket
-import java.net.Socket
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.UUID
@@ -1473,58 +1469,4 @@ object InstalledRulesetCatalog {
             val relative = if (prefix.isEmpty()) child.name() else "$prefix/${child.name()}"
             if (child.isDirectory) collectFiles(child, relative) else listOf(relative to child)
         }
-}
-
-class LoopbackEngineWorkerServer(
-    private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker(),
-    private val authentication: EngineWorkerAuthentication,
-) {
-    fun serve(port: Int) = ServerSocket(port, 50, java.net.InetAddress.getLoopbackAddress()).use { server ->
-        while (true) {
-            server.accept().use { socket ->
-                // A readiness probe or a malformed local peer must not kill
-                // the long-lived worker process. Valid requests receive their
-                // structured engine result; invalid frames are simply dropped.
-                runCatching { serveConnection(socket) }
-            }
-        }
-    }
-
-    private fun serveConnection(socket: Socket) {
-        val input = DataInputStream(socket.getInputStream())
-        val output = DataOutputStream(socket.getOutputStream())
-        val frameSize = input.readInt()
-        require(frameSize in 1..EngineWorkerProtocol.maxFrameBytes) { "Invalid frame length" }
-        val nonce = input.readNBytes(EngineWorkerAuthentication.nonceBytes)
-        require(nonce.size == EngineWorkerAuthentication.nonceBytes) {
-            "Incomplete worker authentication nonce"
-        }
-        val requestTag = input.readNBytes(EngineWorkerAuthentication.tagBytes)
-        require(requestTag.size == EngineWorkerAuthentication.tagBytes) {
-            "Incomplete worker authentication tag"
-        }
-        val requestPayload = input.readNBytes(frameSize)
-        authentication.verify(
-            EngineWorkerFrameDirection.Request,
-            nonce,
-            requestPayload,
-            requestTag,
-        )
-        val request = EngineWorkerProtocol.decodeRequest(frameSize, requestPayload)
-        val response = EngineWorkerProtocol.json
-            .encodeToString(WorkerResponse.serializer(), worker.execute(request))
-            .encodeToByteArray()
-        EngineWorkerProtocol.validateJsonFrame(response)
-        output.writeInt(response.size)
-        output.write(nonce)
-        output.write(
-            authentication.sign(
-                EngineWorkerFrameDirection.Response,
-                nonce,
-                response,
-            ),
-        )
-        output.write(response)
-        output.flush()
-    }
 }

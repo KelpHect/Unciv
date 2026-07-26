@@ -460,10 +460,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   journal row without reading the response, reconnects, and retries the exact
   command ID. The API returns the original acceptance with one worker execution
   and exactly one revision, snapshot, command, and outbox event.
-- [ ] Complete controlled whole-process fault tests for Rust process death,
-  packaged Kotlin worker termination, and outbox-dispatch boundaries. Forced
-  database-connection termination while blocked at the canonical commit lock is
-  covered: it leaves no phantom rows and the same command retries safely.
+- [x] Prove forced Rust API process death after worker execution but before
+  commit is atomic. The test holds the canonical PostgreSQL row lock, observes
+  the real API blocked there after authenticated worker execution, terminates
+  the process, and verifies zero commit artifacts. A restarted API safely
+  re-executes the same command ID and commits exactly one revision.
+- [ ] Complete controlled whole-process fault tests for packaged Kotlin worker
+  termination and outbox-dispatch boundaries. Forced database-connection
+  termination while blocked at the canonical commit lock is covered: it leaves
+  no phantom rows and the same command retries safely.
 - [ ] Test actual PostgreSQL/service failover and reconnection under load. The
   independent-replica CAS race is covered: two valid commands at one expected
   revision produce exactly one complete head and one stale conflict.

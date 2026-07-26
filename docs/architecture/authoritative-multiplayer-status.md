@@ -1,5 +1,41 @@
 # Authoritative multiplayer v3 status
 
+## Forced Rust process death at the commit boundary
+
+Implemented on 2026-07-26:
+
+- Extended the process-level fault harness to hold the canonical PostgreSQL game
+  row lock, submit `EndTurn` through the actual Rust API binary, and observe one
+  completed authenticated worker execution.
+- The API's transaction is proven blocked on its production `SELECT ... FOR
+  UPDATE` head lock before the process is forcibly terminated. Releasing the
+  external lock then proves PostgreSQL rolled the interrupted transaction back:
+  no revision, snapshot, command journal entry, or outbox event exists.
+- A newly launched API and worker accept the exact same game, command ID,
+  expected revision, account session, and snapshot. Rules execute again because
+  the first result was never committed, but only the retry becomes canonical;
+  it creates exactly one complete revision and reconciliation remains clean.
+- The test drives only the shipped binary, raw HTTP, authenticated worker TCP,
+  and PostgreSQL. It introduces no production failpoint or privileged endpoint.
+
+Verification on 2026-07-26:
+
+- The focused
+  `rust_process_death_after_worker_execution_leaves_no_phantom_commit` test
+  passes in 2.94 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- All 24 in-crate PostgreSQL integration/fault tests pass in 8.11 seconds; both
+  process tests then pass in 4.43 seconds in the same serialized run. The
+  disposable PostgreSQL container was removed and cleanup was verified.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; the 24 database tests and two process tests are
+  intentionally ignored without an explicit database. `cargo fmt --all
+  -- --check` and warnings-as-errors `cargo clippy --all-targets --all-features
+  -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+
 ## Lost HTTP response recovery
 
 Implemented on 2026-07-26:

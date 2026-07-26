@@ -97,17 +97,7 @@ async fn lost_http_response_retries_without_reexecuting_the_worker() {
     let worker_task = tokio::spawn(run_worker(worker_listener, Arc::clone(&command_executions)));
 
     let api_address = unused_address();
-    let child = Command::new(env!("CARGO_BIN_EXE_unciv-authoritative-server"))
-        .env("UNCIV_V3_BIND", api_address.to_string())
-        .env("UNCIV_V3_DATABASE_URL", &database_url)
-        .env("UNCIV_ENGINE_WORKER_ADDR", worker_address.to_string())
-        .env("UNCIV_ENGINE_WORKER_SECRET", WORKER_SECRET_HEX)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
-    let mut api = ChildGuard(child);
+    let mut api = spawn_api(&database_url, api_address, worker_address);
     wait_until_ready(api_address, &mut api.0).await;
 
     let request_body = json!({
@@ -167,6 +157,163 @@ async fn lost_http_response_retries_without_reexecuting_the_worker() {
     worker_task.await.unwrap();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn rust_process_death_after_worker_execution_leaves_no_phantom_commit() {
+    let database_url = std::env::var("UNCIV_V3_DATABASE_URL")
+        .expect("UNCIV_V3_DATABASE_URL is required for PostgreSQL integration tests");
+    let repository = PostgresGameRepository::connect(&database_url)
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    let pool = PgPool::connect(&database_url).await.unwrap();
+    sqlx::query(
+        "TRUNCATE game_outbox, game_revisions, game_commands, game_snapshots,
+         game_members, games, ruleset_manifests, sessions, accounts CASCADE",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let account = repository
+        .register_account("rust-death-owner", "correct horse battery staple")
+        .await
+        .unwrap();
+    let session = repository.issue_session(account.id).await.unwrap();
+    let game_id = Uuid::new_v4();
+    let command_id = Uuid::new_v4();
+    let manifest_hash = "a".repeat(64);
+    sqlx::query(
+        "INSERT INTO ruleset_manifests (hash, engine_build, manifest)
+         VALUES ($1, 'test-engine', $2)",
+    )
+    .bind(&manifest_hash)
+    .bind(json!({
+        "engineBuild": "test-engine",
+        "baseRuleset": {
+            "name": "Base",
+            "sha256": "b".repeat(64),
+        },
+        "mods": [],
+    }))
+    .execute(&pool)
+    .await
+    .unwrap();
+    repository
+        .create_game(NewGame {
+            game_id,
+            owner_account_id: account.id,
+            ruleset_manifest_hash: manifest_hash,
+            snapshot: b"revision-0".to_vec(),
+            owner_civilization_id: "test-civilization".to_owned(),
+        })
+        .await
+        .unwrap();
+
+    let mut lock_holder = pool.begin().await.unwrap();
+    sqlx::query("SELECT id FROM games WHERE id=$1 FOR UPDATE")
+        .bind(game_id)
+        .fetch_one(&mut *lock_holder)
+        .await
+        .unwrap();
+
+    let first_worker_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let first_worker_address = first_worker_listener.local_addr().unwrap();
+    let first_executions = Arc::new(AtomicUsize::new(0));
+    let first_worker_task = tokio::spawn(run_worker(
+        first_worker_listener,
+        Arc::clone(&first_executions),
+    ));
+    let first_api_address = unused_address();
+    let mut first_api = spawn_api(&database_url, first_api_address, first_worker_address);
+    wait_until_ready(first_api_address, &mut first_api.0).await;
+
+    let request_body = json!({
+        "command_id": command_id,
+        "expected_revision": 0,
+        "client_observed_state_hash": null,
+    })
+    .to_string();
+    let mut interrupted_request = TcpStream::connect(first_api_address).await.unwrap();
+    interrupted_request
+        .write_all(
+            command_request(first_api_address, game_id, &session.token, &request_body).as_bytes(),
+        )
+        .await
+        .unwrap();
+
+    wait_for_blocked_commit(&pool).await;
+    assert_eq!(first_executions.load(Ordering::SeqCst), 1);
+    first_api.0.kill().unwrap();
+    first_api.0.wait().unwrap();
+    drop(interrupted_request);
+    lock_holder.rollback().await.unwrap();
+    first_worker_task.await.unwrap();
+
+    assert_eq!(
+        canonical_artifact_counts(&pool, game_id, command_id).await,
+        (0, 0, 0, 0)
+    );
+
+    let retry_worker_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let retry_worker_address = retry_worker_listener.local_addr().unwrap();
+    let retry_executions = Arc::new(AtomicUsize::new(0));
+    let retry_worker_task = tokio::spawn(run_worker(
+        retry_worker_listener,
+        Arc::clone(&retry_executions),
+    ));
+    let retry_api_address = unused_address();
+    let mut retry_api = spawn_api(&database_url, retry_api_address, retry_worker_address);
+    wait_until_ready(retry_api_address, &mut retry_api.0).await;
+
+    let retry_response = send_http(
+        retry_api_address,
+        &command_request(retry_api_address, game_id, &session.token, &request_body),
+    )
+    .await;
+    let (status, body) = split_http_response(&retry_response);
+    assert!(status.starts_with("HTTP/1.1 200"), "{status}\n{body}");
+    let accepted: Value = serde_json::from_str(body).unwrap();
+    assert_eq!(accepted["command_id"], command_id.to_string());
+    assert_eq!(accepted["committed_revision"], 1);
+    assert_eq!(retry_executions.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        canonical_artifact_counts(&pool, game_id, command_id).await,
+        (1, 1, 1, 1)
+    );
+    assert_eq!(
+        repository
+            .reconcile_authoritative_state()
+            .await
+            .unwrap()
+            .total_findings,
+        0
+    );
+
+    retry_api.0.kill().unwrap();
+    retry_api.0.wait().unwrap();
+    retry_worker_task.await.unwrap();
+}
+
+fn spawn_api(
+    database_url: &str,
+    api_address: SocketAddr,
+    worker_address: SocketAddr,
+) -> ChildGuard {
+    ChildGuard(
+        Command::new(env!("CARGO_BIN_EXE_unciv-authoritative-server"))
+            .env("UNCIV_V3_BIND", api_address.to_string())
+            .env("UNCIV_V3_DATABASE_URL", database_url)
+            .env("UNCIV_ENGINE_WORKER_ADDR", worker_address.to_string())
+            .env("UNCIV_ENGINE_WORKER_SECRET", WORKER_SECRET_HEX)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    )
+}
+
 fn unused_address() -> SocketAddr {
     let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -196,6 +343,26 @@ async fn wait_until_ready(address: SocketAddr, child: &mut Child) {
     panic!("authoritative API did not become ready");
 }
 
+async fn wait_for_blocked_commit(pool: &PgPool) {
+    for _ in 0..200 {
+        let blocked: bool = sqlx::query_scalar(
+            "SELECT EXISTS(
+                SELECT 1 FROM pg_stat_activity
+                WHERE wait_event_type='Lock'
+                  AND query LIKE 'SELECT g.unavailable_at%'
+            )",
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        if blocked {
+            return;
+        }
+        sleep(Duration::from_millis(10)).await;
+    }
+    panic!("API commit did not block on the canonical game lock");
+}
+
 async fn wait_for_command(pool: &PgPool, game_id: Uuid, command_id: Uuid) {
     for _ in 0..200 {
         let committed: bool = sqlx::query_scalar(
@@ -214,6 +381,25 @@ async fn wait_for_command(pool: &PgPool, game_id: Uuid, command_id: Uuid) {
         sleep(Duration::from_millis(10)).await;
     }
     panic!("command did not commit before the response-loss deadline");
+}
+
+async fn canonical_artifact_counts(
+    pool: &PgPool,
+    game_id: Uuid,
+    command_id: Uuid,
+) -> (i64, i64, i64, i64) {
+    sqlx::query_as(
+        "SELECT
+            (SELECT count(*) FROM game_revisions WHERE game_id=$1 AND revision=1),
+            (SELECT count(*) FROM game_snapshots WHERE game_id=$1 AND revision=1),
+            (SELECT count(*) FROM game_commands WHERE game_id=$1 AND command_id=$2),
+            (SELECT count(*) FROM game_outbox WHERE game_id=$1 AND revision=1)",
+    )
+    .bind(game_id)
+    .bind(command_id)
+    .fetch_one(pool)
+    .await
+    .unwrap()
 }
 
 fn command_request(address: SocketAddr, game_id: Uuid, bearer_token: &str, body: &str) -> String {

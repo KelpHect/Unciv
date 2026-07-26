@@ -3,6 +3,8 @@ use uuid::Uuid;
 
 #[path = "lib_tests/city_state_contracts.rs"]
 mod city_state_contracts;
+#[path = "lib_tests/city_tile_batch_contracts.rs"]
+mod city_tile_batch_contracts;
 #[path = "lib_tests/espionage_contracts.rs"]
 mod espionage_contracts;
 #[path = "lib_tests/event_choice_contracts.rs"]

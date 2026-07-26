@@ -301,6 +301,11 @@ pub struct BuyCityTileIntent<'a> {
     pub x: i32,
     pub y: i32,
 }
+pub struct BuyCityTileBatchIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub city_id: &'a str,
+    pub ring: u32,
+}
 pub struct SellBuildingIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,

@@ -140,6 +140,7 @@ mod city_economy;
 mod city_governance;
 mod city_population;
 mod city_state;
+mod city_tile_batches;
 mod commands;
 mod construction_queues;
 mod diplomacy;

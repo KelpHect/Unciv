@@ -282,12 +282,24 @@ impl PlayerProjection {
                             tile.x == purchase.x && tile.y == purchase.y && !tile.owned_by_actor
                         })
                 });
+            let tile_batch_purchases_valid = city.tile_batch_purchases.len() <= 32
+                && city
+                    .tile_batch_purchases
+                    .windows(2)
+                    .all(|pair| pair[0].ring < pair[1].ring)
+                && city.tile_batch_purchases.iter().all(|purchase| {
+                    (1..=32).contains(&purchase.ring)
+                        && purchase.tile_count >= 2
+                        && purchase.tile_count as usize <= MAX_PROJECTED_CHOICES
+                        && purchase.gold_cost >= 0
+                });
             queue_matches
                 && options_sorted
                 && options_valid
                 && queueable_names == advertised_names
                 && tile_states_valid
                 && tile_purchases_valid
+                && tile_batch_purchases_valid
         })
     }
 

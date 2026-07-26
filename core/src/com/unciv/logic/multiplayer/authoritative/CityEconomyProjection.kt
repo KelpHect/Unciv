@@ -70,6 +70,14 @@ data class ProjectedCityTilePurchase(
     val affordable: Boolean,
 )
 
+@Serializable
+data class ProjectedCityTileBatchPurchase(
+    val ring: Int,
+    val tileCount: Int,
+    val goldCost: Int,
+    val affordable: Boolean,
+)
+
 /** Builds bounded city-economy choices from canonical worker state. */
 internal object CityEconomyProjection {
     private const val MAX_OPTIONS = 10_000
@@ -166,6 +174,9 @@ internal object CityEconomyProjection {
         .sortedWith(compareBy<ProjectedCityTilePurchase> { it.x }.thenBy { it.y })
         .take(MAX_TILES)
         .toList()
+
+    fun tileBatchPurchases(city: City): List<ProjectedCityTileBatchPurchase> =
+        CityTileBatchPurchaseExecutor.options(city)
 
     private fun purchases(
         city: City,

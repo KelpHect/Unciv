@@ -237,6 +237,10 @@ pub enum GameCommand {
         x: i32,
         y: i32,
     },
+    BuyCityTileBatch {
+        city_id: String,
+        ring: u32,
+    },
     SellBuilding {
         city_id: String,
         building_name: String,

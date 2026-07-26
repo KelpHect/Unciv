@@ -63,12 +63,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   UI. Projection v48 now exposes a durable canonical completion turn, wonder
   identity, and ruleset-derived effect summary while revealing the builder only
   when known and the city/location only after exploration.
-- [ ] Decide whether intentionally disabled multi-tile buying remains supported.
-  If retained, implement a bounded typed command, server-derived target/result
-  semantics, and projection-only confirmation; never restore a client loop that
-  mutates several canonical tiles. Production context-menu batches no longer
-  belong to this gap: all inventoried variants are authoritative in projection
-  v47.
+- [x] Retain multi-tile buying through bounded authoritative batches.
+  Projection v51 advertises only complete server-derived ring proposals with
+  canonical tile count, sequential price, and affordability. The client submits
+  only city ID and ring; the private Kotlin worker derives the deterministic
+  contiguous tile order, validates full affordability before mutation, and
+  applies the batch atomically. Retry reuses the same idempotency key, and no
+  client-authored tile list, actor, price, legality, or result crosses the wire.
 - [x] Research: implement bounded removal and reordering of queued technologies.
   Replace/append/free selection, researched history, queue progress/cost/
   overflow, turn estimates, and opaque public completion prompts plus their

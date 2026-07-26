@@ -425,6 +425,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun buyCityTileBatch(
+        gameId: String,
+        request: ApiV3BuyCityTileBatchRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/buy-city-tile-batch") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun sellBuilding(
         gameId: String,
         request: ApiV3SellBuildingRequest,

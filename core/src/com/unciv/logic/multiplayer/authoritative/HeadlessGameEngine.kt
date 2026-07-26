@@ -1390,6 +1390,17 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun buyCityTileBatch(
+        game: GameInfo,
+        actorCivilizationId: String,
+        cityId: String,
+        ring: Int,
+    ): EngineResult {
+        val city = requireOwnedCurrentTurnCity(game, actorCivilizationId, cityId)
+        CityTileBatchPurchaseExecutor.execute(city, ring)
+        return result(game)
+    }
+
     /** Sells one canonical, non-free building after deriving every rule and
      * economic effect from the server-owned snapshot. */
     fun sellBuilding(

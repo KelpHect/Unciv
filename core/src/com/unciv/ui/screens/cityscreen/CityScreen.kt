@@ -829,6 +829,25 @@ class CityScreen(
         }.open()
     }
 
+    internal fun askToBuyTileBatch(ring: Int) {
+        if (!canChangeState || !isAuthoritativeGame()) return
+        val option = authoritativeProjectedCity()?.tileBatchPurchases
+            ?.singleOrNull { it.ring == ring && it.affordable } ?: return
+        closeAllPopups()
+        ConfirmPopup(
+            this,
+            "Currently you have [${authoritativeProjection()?.gold ?: return}] [Gold].".tr() +
+                "\n\n" +
+                "Would you like to purchase [${option.tileCount}] tiles for " +
+                "[${option.goldCost}] [${Stat.Gold.character}]?".tr(),
+            "Purchase",
+            true,
+            restoreDefault = { update() },
+        ) {
+            submitAuthoritativeTileBatchPurchase(ring)
+        }.open()
+    }
+
     private fun submitAuthoritativeTilePurchase(selectedTile: Tile) {
         if (authoritativeTilePurchaseSubmissionInProgress) return
         authoritativeTilePurchaseSubmissionInProgress = true
@@ -872,6 +891,72 @@ class CityScreen(
                     null -> {
                         authoritativeTilePurchaseSubmissionInProgress = false
                         ToastPopup("Authoritative game was closed before tile purchase", this@CityScreen)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun submitAuthoritativeTileBatchPurchase(ring: Int) {
+        if (authoritativeTilePurchaseSubmissionInProgress) return
+        authoritativeTilePurchaseSubmissionInProgress = true
+        Concurrency.runOnNonDaemonThreadPool("Buy authoritative city tile batch") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.buyCityTileBatchIfOpen(
+                    city.civ.gameInfo.gameId,
+                    city.id,
+                    ring,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    authoritativeTilePurchaseSubmissionInProgress = false
+                    ToastPopup(
+                        "Could not submit tile batch purchase: [${ex.message ?: "Unknown"}]",
+                        this@CityScreen,
+                    )
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        SoundPlayer.play(UncivSound.Coin)
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup(
+                            "Tile batch purchase committed by the authoritative server",
+                            GUI.getWorldScreen(),
+                        )
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        city.civ.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup(
+                            "Game changed on the server - tiles were not purchased",
+                            GUI.getWorldScreen(),
+                        )
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup(
+                            "Server rejected tile batch purchase: [${outcome.code}]",
+                            this@CityScreen,
+                        )
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup(
+                            "Server response was lost - retry will use the same command",
+                            this@CityScreen,
+                        )
+                    }
+                    null -> {
+                        authoritativeTilePurchaseSubmissionInProgress = false
+                        ToastPopup(
+                            "Authoritative game was closed before tile batch purchase",
+                            this@CityScreen,
+                        )
                     }
                 }
             }

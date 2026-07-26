@@ -4819,3 +4819,57 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   45 lines). Readiness validation and its focused test remain separate from
   bootstrap code; the largest Rust source remains below 800 lines.
+
+## Authoritative multi-tile city acquisition and projection v51
+
+Opened-v3 city border context-menu purchases now cross the complete authority
+boundary as `BuyCityTileBatch(cityId, ring)`. The public request contains only
+the stable owned-city identity and a ring bounded to 1 through 32. It cannot
+claim the actor, target tiles, order, prices, affordability, legality, or
+result. Rust derives membership and serializes the canonical commit; it does
+not contain Unciv tile-acquisition rules.
+
+The private Kotlin worker deterministically derives every complete contiguous
+unowned proposal in coordinate order, recomputes the shared escalating
+`CityExpansionManager` cost for that sequence, rejects unavailable or
+unaffordable batches before mutation, and verifies every resulting owner and
+the exact treasury delta. Projection v51 publishes only the proposal ring,
+tile count, canonical total cost, and affordability. The city UI confirms from
+that disposable projection, sends the bounded intent, and reconciles after the
+commit. A lost response retries the exact command ID and payload. Local,
+hotseat, save, legacy multiplayer, and server-owned AI paths continue to use
+the shared Kotlin engine behavior.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests prove the projected batch is complete, affordable,
+  atomically applied with the exact tile-count and gold delta, absent after
+  purchase, and rejected on stale repeat, wrong account, insufficient funds,
+  or an out-of-range ring without changing the canonical state hash. Command
+  bus tests prove lost-response retry reuses the exact idempotency key and that
+  serialized intent contains no tiles, price, actor, or result.
+- The shared Kotlin/Rust projection fixture moved from v50 to v51 and
+  round-trips semantically in both runtimes. Rust rejects duplicate,
+  reordered, out-of-range, undersized, oversized, or malformed projected batch
+  options, and closed-contract tests enforce the bounded intent.
+- `./gradlew :tests:test :server:test --no-daemon` passes 968 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 105 active library tests and
+  all 7 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings`, regenerated OpenAPI parity, and
+  `git diff --check` pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55491. The disposable `--rm` container was stopped and verified
+  absent.
+- Early compilation found one new test assigning through the private Kotlin
+  gold setter; the fixture now uses the public shared-domain adjustment API,
+  and the focused plus full gates reran cleanly. No compile, test, format,
+  Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  45 lines). New HTTP, persistence, worker-wire, and contract-test logic lives
+  in focused city-tile modules. The largest Rust source is 781 lines, below the
+  800-line guardrail.

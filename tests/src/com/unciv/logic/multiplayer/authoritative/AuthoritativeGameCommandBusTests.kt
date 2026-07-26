@@ -1187,6 +1187,49 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun tileBatchPurchaseRetriesTheSameBoundedIntentWithoutClientRuleClaims() = runBlocking {
+        val option = ProjectedCityTileBatchPurchase(2, 3, 180, true)
+        val initial = projection(
+            3, "hash-3", cityQueue = emptyList(), tileBatchPurchases = listOf(option),
+        )
+        val committed = projection(4, "hash-4", cityQueue = emptyList())
+        var attempts = 0
+        val transport = FakeTransport(initial).apply {
+            onBuyCityTileBatch = { request ->
+                attempts++
+                current = committed
+                if (attempts == 1) throw IOException("response lost after commit")
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "tile-batch-command" }
+        bus.refresh()
+
+        assertTrue(bus.buyCityTileBatch("city-1", 2) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(bus.retryPending() is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.buyCityTileBatchRequests.size)
+        assertEquals(
+            ApiV3BuyCityTileBatchRequest(
+                "tile-batch-command", 3, "hash-3", "city-1", 2,
+            ),
+            transport.buyCityTileBatchRequests.first(),
+        )
+        assertEquals(
+            transport.buyCityTileBatchRequests.first(),
+            transport.buyCityTileBatchRequests.last(),
+        )
+        val encoded = Json.encodeToString(
+            ApiV3BuyCityTileBatchRequest.serializer(),
+            transport.buyCityTileBatchRequests.first(),
+        )
+        assertTrue(!encoded.contains("tiles"))
+        assertTrue(!encoded.contains("gold_cost"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("result"))
+    }
+
+    @Test
     fun buildingSaleSendsOnlyCanonicalIdentityIntent() = runBlocking {
         val initial = projection(3, "hash-3", cityQueue = emptyList())
         val committed = projection(4, "hash-4", cityQueue = emptyList())
@@ -1652,6 +1695,7 @@ class AuthoritativeGameCommandBusTests {
         pendingTurnActions: List<PendingEndTurnAction> = emptyList(),
         diplomaticVoteCandidates: List<String> = emptyList(),
         selectableGreatPeople: List<String> = emptyList(),
+        tileBatchPurchases: List<ProjectedCityTileBatchPurchase> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -1722,6 +1766,7 @@ class AuthoritativeGameCommandBusTests {
                 tilePurchases = exploredTiles.map {
                     ProjectedCityTilePurchase(it.x, it.y, 50, true)
                 },
+                tileBatchPurchases = tileBatchPurchases,
                 assignableTiles = assignableTiles,
                 specialists = specialists,
                 avoidGrowth = avoidGrowth,
@@ -1795,6 +1840,7 @@ class AuthoritativeGameCommandBusTests {
         val purchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionRequest>()
         val tilePurchaseConstructionRequests = mutableListOf<ApiV3PurchaseConstructionAtTileRequest>()
         val buyCityTileRequests = mutableListOf<ApiV3BuyCityTileRequest>()
+        val buyCityTileBatchRequests = mutableListOf<ApiV3BuyCityTileBatchRequest>()
         val sellBuildingRequests = mutableListOf<ApiV3SellBuildingRequest>()
         val cityGovernanceRequests = mutableListOf<ApiV3SetCityGovernanceRequest>()
         val cityDispositionRequests = mutableListOf<ApiV3ResolveCityDispositionRequest>()
@@ -1901,6 +1947,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onBuyCityTile: suspend (ApiV3BuyCityTileRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onBuyCityTileBatch: suspend (ApiV3BuyCityTileBatchRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSellBuilding: suspend (ApiV3SellBuildingRequest) -> ApiV3CommandAccepted = {
@@ -2191,6 +2240,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             buyCityTileRequests += request
             return onBuyCityTile(request)
+        }
+        override suspend fun buyCityTileBatch(
+            gameId: String,
+            request: ApiV3BuyCityTileBatchRequest,
+        ): ApiV3CommandAccepted {
+            buyCityTileBatchRequests += request
+            return onBuyCityTileBatch(request)
         }
         override suspend fun sellBuilding(
             gameId: String,

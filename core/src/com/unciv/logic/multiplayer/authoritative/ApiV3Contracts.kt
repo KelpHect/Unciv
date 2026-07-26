@@ -431,6 +431,15 @@ data class ApiV3BuyCityTileRequest(
 )
 
 @Serializable
+data class ApiV3BuyCityTileBatchRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("city_id") val cityId: String,
+    val ring: Int,
+)
+
+@Serializable
 data class ApiV3SellBuildingRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

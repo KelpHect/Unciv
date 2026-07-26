@@ -17,6 +17,7 @@ mod city_economy;
 mod city_governance;
 mod city_population;
 mod city_state;
+mod city_tiles;
 mod diplomacy;
 mod espionage;
 mod event_choices;
@@ -41,20 +42,21 @@ pub use city_state::{
 };
 pub use intents::{
     AcknowledgeResearchCompletionIntent, AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent,
-    BombardWithCityIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
-    CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent, ChooseGreatPersonIntent,
-    DisbandUnitIntent, FoundCityIntent, GiftUnitIntent, LaunchNuclearStrikeIntent,
-    ManageConstructionQueuesIntent, ManageResearchQueueIntent, MoveConstructionIntent,
-    MoveSpyIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent,
-    PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
-    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
-    RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent, ResolveEventChoiceIntent,
-    SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
-    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
-    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
-    SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
-    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
-    TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    BombardWithCityIntent, BuyCityTileBatchIntent, BuyCityTileIntent,
+    CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent,
+    ChooseGreatPersonIntent, DisbandUnitIntent, FoundCityIntent, GiftUnitIntent,
+    LaunchNuclearStrikeIntent, ManageConstructionQueuesIntent, ManageResearchQueueIntent,
+    MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent, MoveUnitTowardIntent,
+    ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
+    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
+    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
+    ResolveEventChoiceIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
+    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
+    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
+    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetSpyCoupIntent,
+    SetTileImprovementOrderIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
+    SetUnitPostureIntent, SwapUnitsIntent, TransformUnitIntent, TriggerUnitUniqueIntent,
+    UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,

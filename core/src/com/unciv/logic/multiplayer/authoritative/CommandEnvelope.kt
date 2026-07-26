@@ -245,6 +245,11 @@ sealed interface GameCommand {
         val y: Int,
     ) : GameCommand
 
+    data class BuyCityTileBatch(
+        val cityId: String,
+        val ring: Int,
+    ) : GameCommand
+
     data class SellBuilding(
         val cityId: String,
         val buildingName: String,

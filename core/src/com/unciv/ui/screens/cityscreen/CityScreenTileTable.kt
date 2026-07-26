@@ -75,7 +75,8 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
                 buyTileButton.disable()
                 cityScreen.askToBuyTile(selectedTile)
             }
-            if (!cityScreen.isAuthoritativeGame())
+            if (!cityScreen.isAuthoritativeGame() ||
+                projectedCity?.tileBatchPurchases?.isNotEmpty() == true)
                 buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
             buyTileButton.isEnabled = cityScreen.canChangeState &&
                 (projectedTilePurchase?.affordable
@@ -157,6 +158,25 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
 
     private inner class TileBuyMenu(buyTileButton: TextButton) : AnimatedMenuPopup(stage, buyTileButton) {
         override fun createContentTable(): Table? {
+            if (cityScreen.isAuthoritativeGame()) {
+                val options = cityScreen.authoritativeProjectedCity()
+                    ?.tileBatchPurchases.orEmpty()
+                if (options.isEmpty()) return null
+                val gold = cityScreen.authoritativeProjection()?.gold ?: return null
+                return super.createContentTable()!!.apply {
+                    add("Currently you have [$gold] [Gold].".toLabel(alignment = Align.center))
+                        .growX().row()
+                    for (option in options) {
+                        val text = "Buy [${option.tileCount}] tiles in ring [${option.ring}] for " +
+                            "[${option.goldCost}][${Stat.Gold.character}]"
+                        val button = getButton(text, KeyboardBinding.None) {
+                            cityScreen.askToBuyTileBatch(option.ring)
+                        }
+                        button.isDisabled = !option.affordable
+                        add(button).row()
+                    }
+                }
+            }
             val maxRing = city.getWorkRange()
             val counts = IntArray(maxRing + 1) { countBuyableInRing(it) }
             if (counts.sum() < 2) return null

@@ -40,6 +40,15 @@ pub struct ProjectedConstructionPurchase {
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityTileBatchPurchase {
+    pub ring: u32,
+    pub tile_count: u32,
+    pub gold_cost: i32,
+    pub affordable: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedCityTileState {
     pub x: i32,
     pub y: i32,

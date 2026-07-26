@@ -369,6 +369,14 @@ pub(super) enum WorkerOperation<'a> {
         x: i32,
         y: i32,
     },
+    BuyCityTileBatch {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "cityId")]
+        city_id: &'a str,
+        ring: u32,
+    },
     SellBuilding {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

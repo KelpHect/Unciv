@@ -126,6 +126,7 @@
         }
       ],
       "tilePurchases": [{ "x": 3, "y": -1, "goldCost": 75, "affordable": true }],
+      "tileBatchPurchases": [{ "ring": 2, "tileCount": 3, "goldCost": 180, "affordable": true }],
       "assignableTiles": [
         { "x": 2, "y": 0, "worked": true, "locked": true },
         { "x": 3, "y": -1, "worked": false, "locked": false }

@@ -320,6 +320,14 @@ sealed interface PendingAuthoritativeCommand {
         val y: Int,
     ) : PendingAuthoritativeCommand
 
+    data class BuyCityTileBatch(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val cityId: String,
+        val ring: Int,
+    ) : PendingAuthoritativeCommand
+
     data class SellBuilding(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -1104,6 +1112,19 @@ class AuthoritativeGameCommandBus(
         submitLocked(PendingAuthoritativeCommand.BuyCityTile(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             cityId, x, y,
+        ), current)
+    }
+
+    suspend fun buyCityTileBatch(cityId: String, ring: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(city.tileBatchPurchases.any { it.ring == ring && it.affordable }) {
+            "Tile batch is absent from the city's projected affordable purchases"
+        }
+        submitLocked(PendingAuthoritativeCommand.BuyCityTileBatch(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            cityId, ring,
         ), current)
     }
 
@@ -1924,6 +1945,13 @@ class AuthoritativeGameCommandBus(
                     ApiV3BuyCityTileRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,
                         pending.cityId, pending.x, pending.y,
+                    ),
+                )
+                is PendingAuthoritativeCommand.BuyCityTileBatch -> transport.buyCityTileBatch(
+                    gameId,
+                    ApiV3BuyCityTileBatchRequest(
+                        pending.commandId, pending.expectedRevision, pending.observedStateHash,
+                        pending.cityId, pending.ring,
                     ),
                 )
                 is PendingAuthoritativeCommand.SellBuilding -> transport.sellBuilding(

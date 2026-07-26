@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 50
+        const val CURRENT_PROJECTION_VERSION = 51
     }
 }
 
@@ -208,6 +208,7 @@ data class ProjectedCity(
     val constructionOptions: List<ProjectedConstructionOption> = emptyList(),
     val tileStates: List<ProjectedCityTileState> = emptyList(),
     val tilePurchases: List<ProjectedCityTilePurchase> = emptyList(),
+    val tileBatchPurchases: List<ProjectedCityTileBatchPurchase> = emptyList(),
     val assignableTiles: List<ProjectedCityTile> = emptyList(),
     val manualSpecialists: Boolean = false,
     val specialists: List<ProjectedSpecialist> = emptyList(),
@@ -473,6 +474,7 @@ object PlayerProjectionBuilder {
                     constructionOptions = constructionOptions,
                     tileStates = CityEconomyProjection.tileStates(it),
                     tilePurchases = CityEconomyProjection.tilePurchases(it),
+                    tileBatchPurchases = CityEconomyProjection.tileBatchPurchases(it),
                     assignableTiles = it.tilesInRange.asSequence()
                         .filter { tile -> tile.getOwner() == actor }
                         .filter { tile -> !tile.isCityCenter() }

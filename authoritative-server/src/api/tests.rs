@@ -70,6 +70,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/purchase-construction",
         "/api/v3/games/{game_id}/commands/purchase-construction-at-tile",
         "/api/v3/games/{game_id}/commands/buy-city-tile",
+        "/api/v3/games/{game_id}/commands/buy-city-tile-batch",
         "/api/v3/games/{game_id}/commands/sell-building",
         "/api/v3/games/{game_id}/commands/set-city-governance",
         "/api/v3/games/{game_id}/commands/resolve-city-disposition",
@@ -279,6 +280,7 @@ async fn capabilities_forbid_whole_state_uploads() {
             .contains(&"purchase_construction_at_tile")
     );
     assert!(response.0.commands.contains(&"buy_city_tile"));
+    assert!(response.0.commands.contains(&"buy_city_tile_batch"));
     assert!(response.0.commands.contains(&"disband_unit"));
     assert!(response.0.commands.contains(&"pillage_tile"));
     assert!(response.0.commands.contains(&"found_city"));

@@ -1564,6 +1564,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/buy-city-tile-batch": {
+      "post": {
+        "tags": [],
+        "operationId": "buy_city_tile_batch",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyCityTileBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/cancel-unit-movement-order": {
       "post": {
         "tags": [],
@@ -9410,6 +9524,41 @@
         },
         "additionalProperties": false
       },
+      "BuyCityTileBatchRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "city_id",
+          "ring"
+        ],
+        "properties": {
+          "city_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ring": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "BuyCityTileRequest": {
         "type": "object",
         "required": [
@@ -11336,6 +11485,7 @@
           "constructionOptions",
           "tileStates",
           "tilePurchases",
+          "tileBatchPurchases",
           "assignableTiles",
           "manualSpecialists",
           "specialists",
@@ -11430,6 +11580,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedSpecialist"
+            }
+          },
+          "tileBatchPurchases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityTileBatchPurchase"
             }
           },
           "tilePurchases": {
@@ -11598,6 +11754,35 @@
           "y": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityTileBatchPurchase": {
+        "type": "object",
+        "required": [
+          "ring",
+          "tileCount",
+          "goldCost",
+          "affordable"
+        ],
+        "properties": {
+          "affordable": {
+            "type": "boolean"
+          },
+          "goldCost": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ring": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "tileCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         },
         "additionalProperties": false

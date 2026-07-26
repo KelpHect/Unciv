@@ -1,5 +1,37 @@
 # Authoritative multiplayer v3 status
 
+## Canonical secret-sentinel projection matrix
+
+Implemented on 2026-07-26:
+
+- Added deterministic projection leak tests built from real canonical
+  `GameInfo` state rather than hand-authored projection DTOs. The fixture
+  plants unique secrets in known and unknown major civilizations, a city-state,
+  barbarians, foreign cities and units, player notifications, diplomatic
+  modifiers, foreign religion state, and foreign espionage state.
+- Runs the player projection against every closed `DiplomaticStatus` value and
+  proves only the actor's own city sentinel is disclosed. All foreign,
+  unknown, minor, barbarian, notification, diplomacy, religion, and espionage
+  sentinels remain absent.
+- Covers all fog states independently: never-explored tiles are absent;
+  explored-but-not-visible tiles retain terrain while hiding stale
+  improvements and unrevealed resources; currently visible improvements are
+  positively disclosed.
+- Proves visible foreign units cannot expose their exact movement, destination,
+  escort, automation, or instance-name state.
+- Builds the spectator projection from the same secret-bearing canonical game
+  and proves its public summary contains no city, unit, notification,
+  diplomacy, religion, or espionage payload.
+
+Verification on 2026-07-26:
+
+- Focused `ProjectionLeakSentinelTests` pass all four matrix cases.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1090 JVM/server cases: 1077
+  executed, 13 intentional skips, zero failures, and zero errors.
+- `git diff --check` passes. This milestone changes tests and status documents
+  only; projection v59 and its production implementation remain unchanged.
+
 ## Fail-closed projection disclosure policy
 
 Implemented on 2026-07-26:

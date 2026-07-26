@@ -462,9 +462,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   machine-checked audience, classification, and rationale; descriptor/schema
   growth fails until reviewed. Projection v59 also structurally redacts exact
   remaining movement from visible foreign units.
-- [ ] Expand golden sentinel leak tests across every civilization/relationship,
+- [x] Expand golden sentinel leak tests across every civilization/relationship,
   fog state, private order, city, resource, notification, diplomacy, religion,
-  espionage, and spectator role.
+  espionage, and spectator role. Real canonical games now carry unique secret
+  sentinels through own, known, unknown, city-state, and barbarian state; all
+  diplomatic statuses; never-explored, stale, and visible fog; and player plus
+  public spectator serialization.
 - [ ] Add compact projection deltas with revision/hash validation, while keeping
   full authenticated HTTP projection as the recovery path.
 - [ ] Prove canonical snapshots and hidden fields never occur in public HTTP,

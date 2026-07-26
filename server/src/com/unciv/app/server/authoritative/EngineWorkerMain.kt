@@ -8,6 +8,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.ruleset.RulesetCache
+import java.nio.file.Paths
 
 /** Starts a private, headless Kotlin rules worker. It has no HTTP listener. */
 object EngineWorkerMain {
@@ -24,7 +25,10 @@ object EngineWorkerMain {
             files = UncivFiles(Gdx.files)
             settings = GameSettings()
         }
-        RulesetCache.loadRulesets(noMods = true)
+        WorkerRulesetAssets.validate(Paths.get("").toAbsolutePath().normalize())
+        val loadingErrors = RulesetCache.loadRulesets(consoleMode = true, noMods = false)
+        require(loadingErrors.isEmpty()) { "Worker ruleset loading failed" }
+        InstalledRulesetCatalog.initialize()
         val port = System.getenv("UNCIV_ENGINE_WORKER_PORT")?.toIntOrNull() ?: 43170
         val authentication = System.getenv("UNCIV_ENGINE_WORKER_SECRET")
             ?.let(EngineWorkerAuthentication::fromHex)

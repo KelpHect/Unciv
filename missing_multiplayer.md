@@ -579,9 +579,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   target. Exercise systemd restart/recycling, timeout exit 124, JVM OOM exit,
   cgroup CPU/memory/no-swap enforcement, task/descriptor ceilings, immutable
   assets, secret-file permissions, and recovery after each forced failure.
-- [ ] Verify the manifest inside the worker and finish immutable mod acquisition:
-  allowlisting, archive path/link defenses, byte/entry quotas, redirect and host
-  policy, atomic staging, semantic validation, and no client-selected URL fetch.
+- [x] Verify every pinned manifest inside the worker before parsing a snapshot.
+  The worker now captures one immutable hash catalog immediately after parsing
+  its root-owned rulesets, rejects engine/name/hash/component mismatches, and
+  executes only against that captured identity. Startup rejects links,
+  unsupported filesystem entries, more than 64 staged mods, more than 16,384
+  ruleset entries, files over 16 MiB, or more than 512 MiB total.
+- [ ] Finish the immutable mod-acquisition pipeline: explicit operator
+  allowlisting, archive traversal defenses before extraction, redirect and host
+  policy, authenticated downloads, atomic version-directory staging, semantic
+  validation, rollback, and garbage collection. Clients have no URL-fetch or
+  content-upload surface, and the worker can now load pre-staged read-only
+  `mods/<name>/jsons` trees, but acquisition itself is not implemented.
 - [ ] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
   Packaged-worker coverage currently proves seeded creation with city-states
@@ -705,8 +714,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :android:assembleDebug :tests:test :server:test
-  :desktop:compileKotlin --no-parallel` passes (1083 JVM/server cases: 1070
-  executed, 13 intentional skips), and `:android:lintDebug` passes.
+  :desktop:compileKotlin --no-parallel` passes (1,112 JVM/server cases: 1,098
+  executed, 14 intentional skips), and `:android:lintDebug` passes.
 - Rust passes 157 active library tests and 16 HTTP/OpenAPI tests; all 24
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death

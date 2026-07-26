@@ -500,12 +500,12 @@ class EngineWorkerProtocolTests {
             Files.writeString(secondRoot.resolve("nested/a.json"), "a")
             Files.writeString(secondRoot.resolve("z.json"), "z")
 
-            val first = InstalledRulesetCatalog.hashDirectory(FileHandle(firstRoot.toFile()))
-            val same = InstalledRulesetCatalog.hashDirectory(FileHandle(secondRoot.toFile()))
+            val first = RulesetCatalogSnapshot.hashDirectory(FileHandle(firstRoot.toFile()))
+            val same = RulesetCatalogSnapshot.hashDirectory(FileHandle(secondRoot.toFile()))
             assertEquals(first, same)
 
             Files.writeString(secondRoot.resolve("nested/a.json"), "changed")
-            val changed = InstalledRulesetCatalog.hashDirectory(FileHandle(secondRoot.toFile()))
+            val changed = RulesetCatalogSnapshot.hashDirectory(FileHandle(secondRoot.toFile()))
             assertNotEquals(first, changed)
         } finally {
             firstRoot.toFile().deleteRecursively()
@@ -687,6 +687,7 @@ class EngineWorkerProtocolTests {
                 settings = GameSettings()
             }
             RulesetCache.loadRulesets(consoleMode = true, noMods = true)
+            InstalledRulesetCatalog.initialize()
         }
     }
 }

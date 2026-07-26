@@ -6610,6 +6610,60 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Worker-bound immutable ruleset identity
+
+Implemented on 2026-07-26:
+
+- The packaged worker now validates its root-owned gameplay asset tree before
+  parsing. Built-ins come from `jsons/`; optional operator-staged mods come only
+  from `mods/<name>/jsons/` under the worker working directory. Links, special
+  files, unsafe names, more than 64 mods, more than 16,384 total entries,
+  individual files over 16 MiB, more than 512 MiB total, and any ruleset
+  parsing error fail startup.
+- `InstalledRulesetCatalog` moved out of the already-large protocol file and
+  captures component SHA-256 identities exactly once, immediately after
+  `RulesetCache` parses the same files. Handshake and command verification use
+  that immutable snapshot rather than re-reading mutable paths for every
+  command. This closes the time-of-check/time-of-use mismatch between executing
+  parsed rules and attesting current filesystem bytes.
+- Kotlin now independently rejects noncanonical hashes, unsafe or duplicate
+  component names, more than 64 mods, unavailable engine builds, and content
+  mismatches before parsing a canonical snapshot. Rust continues to validate
+  the same boundary before sending work.
+- The systemd runbook records the read-only asset layout and safe versioned
+  staging boundary. Automated authenticated download, archive extraction,
+  allowlisting, atomic version activation, rollback, and garbage collection
+  remain explicitly unchecked.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.EngineWorkerProtocolTests --tests
+  com.unciv.app.server.authoritative.InstalledRulesetCatalogTests --tests
+  com.unciv.app.server.authoritative.WorkerRulesetAssetsTests --no-parallel
+  --console=plain` passes. Tests prove stable path-framed hashes, command
+  rejection before snapshot parsing, immutable catalog behavior after a file
+  replacement, canonical/bounded manifest identities, bounded staged mod
+  acceptance, missing JSON rejection, and link rejection where the host permits
+  link creation.
+- The first focused compile exposed three tests that still referenced the hash
+  helper at its old location after the module extraction. The references were
+  corrected and the complete focused lane passed; no compile or test error was
+  deferred.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes 1,112 JVM/server
+  cases: 1,098 executed, 14 intentional skips, zero failures, and zero errors.
+  Android lint and debug assembly also pass.
+- `cargo fmt --all -- --check`, warnings-as-errors `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`, and `cargo test --workspace
+  --all-features` pass. Rust reports 157 active library tests, 16 HTTP/OpenAPI
+  tests, two benchmark tests, and three systemd packaging tests.
+- All 24 serialized database tests pass in 8.56 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Both response-loss/Rust-process cases pass in 4.39 seconds, and both rebuilt
+  packaged-worker/outbox-death cases pass in a final 4.88-second rerun. The
+  disposable container and worker processes were removed and verified absent.
+
 ## Phase-specific private-worker deadlines
 
 Implemented on 2026-07-26:

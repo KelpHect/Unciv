@@ -76,6 +76,33 @@ The Rust service must use `127.0.0.1:43170`, possess the same 256-bit secret
 through its separate protected configuration, and pass its authenticated
 capability handshake before accepting traffic.
 
+## Ruleset asset integrity
+
+The worker loads built-in rulesets from `jsons/` and optional operator-staged
+mods from `mods/<name>/jsons/` beneath its working directory. It never accepts
+ruleset bytes, paths, archives, or download URLs from a client. Before parsing,
+startup walks those gameplay trees without following links and fails closed on
+symbolic links, special filesystem entries, more than 64 mods, more than 16,384
+entries, an individual file over 16 MiB, or more than 512 MiB in total.
+Any ruleset parsing error also aborts startup instead of silently omitting the
+affected mod.
+
+Immediately after `RulesetCache` parses the files, the worker captures a single
+content catalog. The authenticated handshake and every command use that
+immutable snapshot. Replacing files underneath a running JVM cannot change the
+identity it advertises or make already-parsed rules appear to have a different
+hash. Every command rejects a mismatched engine build, ruleset name, lowercase
+SHA-256, duplicate component, or component count before loading its canonical
+snapshot.
+
+The unit's `ProtectSystem=strict` setting makes the root-owned asset tree
+read-only to `unciv-worker`. Stage a complete version directory while the
+service is stopped, validate its manifest through a disposable worker
+handshake, then atomically switch the deployment path and restart the service.
+Do not edit a live asset directory. Automated authenticated acquisition,
+archive extraction, allowlisting, rollback, and garbage collection remain a
+separate production prerequisite.
+
 ## Recycle and failure drill
 
 Run this on the documented Linux target during deployment rehearsal:

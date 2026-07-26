@@ -64,6 +64,27 @@ fail startup. The total deadline may be shorter than an individual phase and
 always wins. Timeout errors identify only the transport phase and never include
 request, response, snapshot, account, or rules-engine diagnostics.
 
+## Circuit breaker
+
+All clones of one Rust worker client share a circuit breaker:
+
+| Environment variable | Default | Valid range |
+| --- | ---: | ---: |
+| `UNCIV_ENGINE_WORKER_CIRCUIT_FAILURE_THRESHOLD` | 3 | 1-100 consecutive failures |
+| `UNCIV_ENGINE_WORKER_CIRCUIT_OPEN_MS` | 5000 | 1-600000 milliseconds |
+
+Transport timeouts/failures, invalid worker identity, malformed or incompatible
+responses, and oversized frames count as failures. A normal authenticated
+rules-engine rejection proves that the worker is responsive and does not count
+as a circuit failure.
+
+Once open, the client fails fast without opening a socket. After the cooldown,
+exactly one request becomes the recovery probe; concurrent requests continue to
+fail fast. A valid response or normal engine rejection closes the circuit. A
+failed probe reopens it for the complete cooldown. The breaker is an
+availability control only: PostgreSQL revision CAS and idempotency remain the
+canonical correctness boundary.
+
 ## Rotation and incident response
 
 The first deployment supports one active key, so rotation is a coordinated

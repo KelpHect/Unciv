@@ -6664,6 +6664,62 @@ Verification on 2026-07-26:
   guardrail; deadline policy is isolated in a 142-line descriptive module and
   transport remains 495 lines.
 
+## Private-worker circuit breaker
+
+Implemented on 2026-07-26:
+
+- All clones of one `EngineWorkerClient` now share a bounded circuit breaker.
+  The default opens after three consecutive availability/protocol failures for
+  five seconds; deployments can configure a threshold from 1-100 and a
+  cooldown from 1-600000 milliseconds. Empty, malformed, disabled, or excessive
+  values fail API and recovery-CLI startup.
+- Connect/write/read/total timeouts, transport failures, invalid service
+  identity, oversized frames, and malformed or incompatible responses count
+  toward the threshold. A valid response or authenticated rules-engine
+  rejection resets the failure count because the worker is responsive.
+- An open circuit rejects immediately without opening a socket. After cooldown,
+  exactly one caller owns the recovery probe while concurrent callers continue
+  to fail fast. A successful or normally rejected probe closes the circuit; a
+  failed probe reopens it for the complete cooldown.
+- The breaker is availability backpressure, not authority. The PostgreSQL
+  transaction, revision compare-and-swap, and command idempotency remain the
+  canonical commit boundary. A database integration fixture proves both the
+  transport failure and the subsequent open-circuit retry create zero
+  revisions, snapshots, commands, or outbox rows before a healthy retry commits
+  exactly once.
+- The operational worker-identity runbook and threat model now document exact
+  configuration and failure classification. The broad checklist remains open
+  for managed worker-process recycling and OS-enforced per-command CPU/memory
+  isolation.
+
+Verification on 2026-07-26:
+
+- Focused tests prove threshold opening, shared-client fail-fast behavior,
+  exclusion of normal engine rejections, one recovery probe, successful
+  closing, and failed-probe reopening.
+- `cargo test --all-targets` passes 153 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 24 provisioned database tests and five explicit
+  process/failover tests remain ignored by default.
+- All 24 serialized PostgreSQL integration tests pass in 8.01 seconds against
+  only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Both lost-response/Rust-process tests pass in 4.38 seconds and both packaged
+  worker/outbox process-death tests pass in 3.86 seconds.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+- Clippy initially rejected an unnecessary explicit `drop` of a non-`Drop`
+  permit, and the first broad format check found the new database-test import
+  needed rustfmt. Both were corrected and every affected gate reran cleanly; no
+  compile, test, lint, format, database, process, or Android error remains
+  deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  59 lines). The largest Rust source remains 796 lines; circuit policy is
+  isolated in a 222-line descriptive module, worker transport is 587 lines,
+  and the worker façade remains 688 lines.
+
 ## Packaged-worker research and all-AI-turn parity
 
 Implemented on 2026-07-26:

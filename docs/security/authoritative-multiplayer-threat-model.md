@@ -104,7 +104,13 @@ malformed. The worker verifies identity before JSON parsing or rule execution,
 and Rust verifies the response before parsing or persistence. The worker reuses
 Unciv's game engine instead of accepting client outcomes.
 
-Required hardening includes strict request and response frame limits, connect/read/write/deadline timeouts, bounded worker concurrency, per-command CPU and memory isolation, crash recycling, authenticated local IPC or an equivalent service-identity control, schema-version negotiation, deterministic replay tests, manifest verification inside the worker, structured redacted errors, and circuit breakers that preserve the old canonical head on every failure.
+Implemented controls include strict request/response frame limits, independently
+bounded connect/write/read/total deadlines, authenticated direction-separated
+local IPC, schema negotiation, deterministic replay tests, redacted errors, and
+a shared fail-fast circuit breaker with a single recovery probe. PostgreSQL
+keeps the old canonical head on every worker failure. Remaining hardening
+includes bounded worker concurrency, per-command CPU and memory isolation,
+managed crash recycling, and manifest verification inside the worker.
 
 ### PostgreSQL, snapshots, outbox, and recovery
 

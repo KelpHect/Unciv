@@ -3,6 +3,7 @@
 
 use std::{
     net::SocketAddr,
+    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -12,6 +13,7 @@ use crate::CommitProposal;
 
 mod authentication;
 mod capital_project;
+mod circuit_breaker;
 mod city_disposition;
 mod city_economy;
 mod city_governance;
@@ -45,6 +47,7 @@ mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
 pub use authentication::WorkerIdentityKey;
+pub use circuit_breaker::{WorkerCircuitBreakerConfig, WorkerCircuitBreakerConfigError};
 pub use city_state::{
     CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
     CityStateTributeIntent,
@@ -94,6 +97,7 @@ const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 pub struct EngineWorkerClient {
     address: SocketAddr,
     deadlines: WorkerDeadlines,
+    circuit_breaker: Arc<circuit_breaker::WorkerCircuitBreaker>,
     identity_key: WorkerIdentityKey,
 }
 
@@ -109,6 +113,8 @@ pub enum WorkerClientError {
     ReadTimeout,
     #[error("worker total deadline expired")]
     TotalTimeout,
+    #[error("worker circuit is open")]
+    CircuitOpen,
     #[error("worker frame exceeded its limit")]
     FrameTooLarge,
     #[error("worker returned an incompatible protocol")]
@@ -168,6 +174,9 @@ impl EngineWorkerClient {
         Self {
             address,
             deadlines: WorkerDeadlines::uniform(request_timeout),
+            circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(
+                WorkerCircuitBreakerConfig::default_bounded(),
+            )),
             identity_key,
         }
     }
@@ -180,6 +189,23 @@ impl EngineWorkerClient {
         Self {
             address,
             deadlines,
+            circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(
+                WorkerCircuitBreakerConfig::default_bounded(),
+            )),
+            identity_key,
+        }
+    }
+
+    pub fn with_transport_policy(
+        address: SocketAddr,
+        deadlines: WorkerDeadlines,
+        circuit_breaker: WorkerCircuitBreakerConfig,
+        identity_key: WorkerIdentityKey,
+    ) -> Self {
+        Self {
+            address,
+            deadlines,
+            circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(circuit_breaker)),
             identity_key,
         }
     }

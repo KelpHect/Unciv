@@ -106,7 +106,8 @@ impl EngineWorkerClient {
             &request_nonce,
             &payload,
         )?;
-        let response = timeout(self.deadlines.total, async {
+        let permit = self.circuit_breaker.acquire()?;
+        let result = timeout(self.deadlines.total, async {
             let mut stream =
                 connect_with_deadline(self.deadlines.connect, TcpStream::connect(self.address))
                     .await?;
@@ -155,8 +156,16 @@ impl EngineWorkerClient {
             .map_err(|_| WorkerClientError::ReadTimeout)?
         })
         .await
-        .map_err(|_| WorkerClientError::TotalTimeout)??;
-        validate_worker_response(response)
+        .map_err(|_| WorkerClientError::TotalTimeout)
+        .and_then(|response| response)
+        .and_then(validate_worker_response);
+        match &result {
+            Ok(_) | Err(WorkerClientError::Rejected(_)) => {
+                self.circuit_breaker.record_responsive(permit);
+            }
+            Err(_) => self.circuit_breaker.record_failure(permit),
+        }
+        result
     }
 }
 
@@ -386,6 +395,90 @@ mod property_tests {
                 .await;
         assert!(matches!(result, Err(WorkerClientError::TotalTimeout)));
         server.abort();
+    }
+
+    #[tokio::test]
+    async fn repeated_transport_failures_open_the_shared_client_circuit() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (stream, _) = listener.accept().await.unwrap();
+                drop(stream);
+            }
+        });
+        let client = EngineWorkerClient::with_transport_policy(
+            address,
+            WorkerDeadlines::uniform(Duration::from_secs(1)),
+            WorkerCircuitBreakerConfig::new(2, Duration::from_secs(1)).unwrap(),
+            WorkerIdentityKey::for_test(),
+        );
+        let cloned_client = client.clone();
+        let request = || {
+            json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "operation": {"type": "handshake"},
+            })
+        };
+        assert!(matches!(
+            cloned_client.execute_request(request()).await,
+            Err(WorkerClientError::Transport),
+        ));
+        assert!(matches!(
+            client.execute_request(request()).await,
+            Err(WorkerClientError::Transport),
+        ));
+        assert!(matches!(
+            client.execute_request(request()).await,
+            Err(WorkerClientError::CircuitOpen),
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn normal_worker_rejection_does_not_trip_the_circuit() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut rejected_stream, _) = listener.accept().await.unwrap();
+            let (rejected_nonce, _) = read_authenticated_test_frame(&mut rejected_stream).await;
+            write_authenticated_test_frame(
+                &mut rejected_stream,
+                rejected_nonce,
+                json!({
+                    "protocolVersion": WORKER_PROTOCOL_VERSION,
+                    "error": {"code": "engine_rejected", "message": "private"},
+                }),
+            )
+            .await;
+
+            let (mut healthy_stream, _) = listener.accept().await.unwrap();
+            let (healthy_nonce, _) = read_authenticated_test_frame(&mut healthy_stream).await;
+            write_authenticated_test_frame(
+                &mut healthy_stream,
+                healthy_nonce,
+                json!({"protocolVersion": WORKER_PROTOCOL_VERSION}),
+            )
+            .await;
+        });
+        let client = EngineWorkerClient::with_transport_policy(
+            address,
+            WorkerDeadlines::uniform(Duration::from_secs(1)),
+            WorkerCircuitBreakerConfig::new(1, Duration::from_secs(1)).unwrap(),
+            WorkerIdentityKey::for_test(),
+        );
+        let request = || {
+            json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "operation": {"type": "handshake"},
+            })
+        };
+        assert!(matches!(
+            client.execute_request(request()).await,
+            Err(WorkerClientError::Rejected(_)),
+        ));
+        assert!(client.execute_request(request()).await.is_ok());
+        server.await.unwrap();
     }
 
     #[tokio::test]

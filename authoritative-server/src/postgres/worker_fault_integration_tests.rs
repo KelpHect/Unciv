@@ -5,8 +5,8 @@ use tokio::net::TcpListener;
 
 use super::*;
 use crate::worker::{
-    EngineWorkerClient, WORKER_PROTOCOL_VERSION, WorkerIdentityKey, read_authenticated_test_frame,
-    write_authenticated_test_frame,
+    EngineWorkerClient, WORKER_PROTOCOL_VERSION, WorkerCircuitBreakerConfig, WorkerDeadlines,
+    WorkerIdentityKey, read_authenticated_test_frame, write_authenticated_test_frame,
 };
 
 async fn end_turn_worker(
@@ -41,9 +41,10 @@ async fn end_turn_worker(
         .await;
     });
     (
-        EngineWorkerClient::new(
+        EngineWorkerClient::with_transport_policy(
             address,
-            Duration::from_secs(2),
+            WorkerDeadlines::uniform(Duration::from_secs(2)),
+            WorkerCircuitBreakerConfig::new(1, Duration::from_secs(1)).unwrap(),
             WorkerIdentityKey::for_test(),
         ),
         task,
@@ -101,6 +102,10 @@ async fn worker_connection_death_cannot_create_a_phantom_revision_and_retry_is_s
         .await;
     assert_eq!(failed, Err(CommitError::WorkerRevisionMismatch));
     dying_task.await.unwrap();
+    let circuit_open = repository
+        .execute_end_turn(&dying_worker, owner, envelope.clone())
+        .await;
+    assert_eq!(circuit_open, Err(CommitError::WorkerRevisionMismatch));
     assert_eq!(
         commit_artifact_counts(&repository, game).await,
         (0, 0, 0, 0)

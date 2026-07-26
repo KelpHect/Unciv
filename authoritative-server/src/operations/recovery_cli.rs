@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     postgres::PostgresGameRepository,
-    worker::{EngineWorkerClient, WorkerDeadlines, WorkerIdentityKey},
+    worker::{EngineWorkerClient, WorkerCircuitBreakerConfig, WorkerDeadlines, WorkerIdentityKey},
 };
 
 const DEFAULT_MAX_TAIL: u64 = 128;
@@ -66,8 +66,16 @@ pub async fn run_recovery_cli() -> ExitCode {
         eprintln!("authoritative engine worker deadlines must be valid");
         return ExitCode::FAILURE;
     };
-    let worker =
-        EngineWorkerClient::with_deadlines(worker_address, worker_deadlines, worker_identity);
+    let Ok(worker_circuit_breaker) = WorkerCircuitBreakerConfig::from_environment() else {
+        eprintln!("authoritative engine worker circuit breaker must be valid");
+        return ExitCode::FAILURE;
+    };
+    let worker = EngineWorkerClient::with_transport_policy(
+        worker_address,
+        worker_deadlines,
+        worker_circuit_breaker,
+        worker_identity,
+    );
     let Ok(recovered) = repository
         .reconstruct_head(&worker, game_id, max_tail)
         .await

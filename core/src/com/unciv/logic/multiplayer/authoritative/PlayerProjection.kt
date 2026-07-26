@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 53
+        const val CURRENT_PROJECTION_VERSION = 54
     }
 }
 
@@ -426,7 +426,48 @@ data class ProjectedTileVisibility(
     val improvementPillaged: Boolean? = null,
     val roadStatus: String? = null,
     val roadPillaged: Boolean? = null,
-)
+    val baseTerrain: String,
+    val terrainFeatures: List<String>,
+    val naturalWonderName: String?,
+    val resourceName: String?,
+    val resourceAmount: Int?,
+) {
+    /** Compact constructor for tests that do not exercise world rendering. */
+    constructor(x: Int, y: Int, visible: Boolean) : this(
+        x,
+        y,
+        visible,
+        baseTerrain = "Unknown",
+        terrainFeatures = emptyList(),
+        naturalWonderName = null,
+        resourceName = null,
+        resourceAmount = null,
+    )
+
+    /** Compatibility constructor for tests focused on visible improvements. */
+    constructor(
+        x: Int,
+        y: Int,
+        visible: Boolean,
+        improvementName: String?,
+        improvementPillaged: Boolean?,
+        roadStatus: String?,
+        roadPillaged: Boolean?,
+    ) : this(
+        x,
+        y,
+        visible,
+        improvementName,
+        improvementPillaged,
+        roadStatus,
+        roadPillaged,
+        baseTerrain = "Unknown",
+        terrainFeatures = emptyList(),
+        naturalWonderName = null,
+        resourceName = null,
+        resourceAmount = null,
+    )
+}
 
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
@@ -532,13 +573,20 @@ object PlayerProjectionBuilder {
                 .map { tile ->
                     val visible = tile in actor.viewableTiles
                     ProjectedTileVisibility(
-                        tile.position.x,
-                        tile.position.y,
-                        visible,
+                        x = tile.position.x,
+                        y = tile.position.y,
+                        visible = visible,
                         improvementName = tile.improvement.takeIf { visible },
                         improvementPillaged = tile.improvementIsPillaged.takeIf { visible },
                         roadStatus = tile.roadStatus.name.takeIf { visible },
                         roadPillaged = tile.roadIsPillaged.takeIf { visible },
+                        baseTerrain = tile.baseTerrain,
+                        terrainFeatures = tile.terrainFeatures.sorted(),
+                        naturalWonderName = tile.naturalWonder,
+                        resourceName = tile.resource.takeIf { actor.canSeeResource(tile.tileResource) },
+                        resourceAmount = tile.resourceAmount.takeIf {
+                            actor.canSeeResource(tile.tileResource)
+                        },
                     )
                 }
                 .sortedWith(compareBy<ProjectedTileVisibility> { it.x }.thenBy { it.y })

@@ -77,6 +77,44 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn tiles_are_consistent(&self) -> bool {
+        self.explored_tiles.len() <= 1_000_000
+            && self
+                .explored_tiles
+                .windows(2)
+                .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+            && self.explored_tiles.iter().all(|tile| {
+                !tile.base_terrain.is_empty()
+                    && tile.base_terrain.chars().count() <= 128
+                    && tile.terrain_features.len() <= 16
+                    && tile
+                        .terrain_features
+                        .iter()
+                        .all(|feature| !feature.is_empty() && feature.chars().count() <= 128)
+                    && tile
+                        .terrain_features
+                        .windows(2)
+                        .all(|pair| pair[0] < pair[1])
+                    && tile
+                        .natural_wonder_name
+                        .as_ref()
+                        .is_none_or(|name| !name.is_empty() && name.chars().count() <= 128)
+                    && tile
+                        .resource_name
+                        .as_ref()
+                        .is_none_or(|name| !name.is_empty() && name.chars().count() <= 128)
+                    && (tile.resource_name.is_some() == tile.resource_amount.is_some())
+                    && tile.resource_amount.is_none_or(|amount| amount >= 0)
+                    && (tile.improvement_name.is_some() == tile.improvement_pillaged.is_some())
+                    && (tile.road_status.is_some() == tile.road_pillaged.is_some())
+                    && (tile.visible
+                        || (tile.improvement_name.is_none()
+                            && tile.improvement_pillaged.is_none()
+                            && tile.road_status.is_none()
+                            && tile.road_pillaged.is_none()))
+            })
+    }
+
     pub fn unit_actions_are_consistent(&self) -> bool {
         let valid_project_name = |name: &Option<String>| {
             name.as_ref()

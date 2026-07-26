@@ -5473,6 +5473,61 @@ The fresh disposable container was removed and verified absent.
   47 lines). The largest Rust source is 789 lines, below the 800-line
   guardrail.
 
+## Projection-only authoritative world foundation
+
+Implemented on 2026-07-26:
+
+- Projection v54 adds bounded base terrain, sorted terrain features, natural
+  wonders, and resource identity/amount to explored tiles. Kotlin derives these
+  fields from canonical state and omits a resource unless the actor can reveal
+  it. Rust independently rejects inconsistent ordering, bounds, resource
+  name/amount pairs, and mutable tile details disclosed through fog.
+- `AuthoritativeWorldController` owns only a validated
+  `ApiV3GameProjection`. It rejects backward revisions and same-revision hash
+  changes, selects only projected actor units, accepts only move destinations
+  advertised by the server, and gates end turn on projected authority and
+  blockers. Accepted commands and refreshes replace the complete projection;
+  retryable responses never mutate it optimistically.
+- An available player membership now opens `AuthoritativeWorldScreen` directly
+  from the synchronized projection. The screen has no canonical `GameInfo`,
+  local-save, `GameStarter`, or legacy `WorldScreen` dependency. It renders a
+  bounded terrain/fog/city/unit/status view, submits the first movement and
+  end-turn routes through the authenticated command bus, and reconciles through
+  manual refresh plus a five-second authoritative poll.
+- The full projection-only world remains intentionally open: the production
+  screen does not yet expose the other authoritative command families or the
+  interaction surfaces needed to resolve every projected end-turn blocker.
+  Spectators still use the bounded public-summary surface.
+
+Verification on 2026-07-26:
+
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1011 JVM/server cases: 998 executed, 13 intentional skips, zero
+  failures, and zero errors. Focused tests prove resource reveal gating,
+  projection-v54 fixture parity, advertised-only movement, projected end-turn
+  gating, retry-without-mutation, and fail-closed revision/hash refresh.
+- `cargo test --lib` passes 116 active tests with 21 database tests explicitly
+  ignored in that lane. `cargo test --bin unciv-authoritative-server` passes all
+  10 HTTP/OpenAPI tests, including checked-in schema parity.
+- All 21 serialized PostgreSQL tests pass in 7.16 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The disposable `unciv-v3-projection-v54-test` container was removed and
+  verified absent.
+- `cargo fmt --all`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
+  parity, and `git diff --check` pass.
+- The first broad Cargo command named a nonexistent integration-test target;
+  the correct binary target passed all 10 tests. An initial source-size command
+  used paths relative to the wrong working directory; the corrected audit
+  found no oversized source. These command issues were corrected immediately
+  and no compile, test, formatting, Clippy, OpenAPI, database, or cleanup error
+  remains deferred.
+- `main.rs` remains 6 lines and `lib.rs` is a 49-line facade. Projection test
+  helpers were split into focused modules before `projection.rs` crossed the
+  guardrail; every Rust source remains below 800 lines (largest:
+  `worker/protocol.rs`, 796 lines). The new Kotlin controller and screen are
+  132 and 248 lines respectively.
+
 ## Retry-idempotent revision-zero creation
 
 Implemented on 2026-07-26:

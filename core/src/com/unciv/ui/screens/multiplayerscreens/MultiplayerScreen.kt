@@ -230,13 +230,19 @@ class MultiplayerScreen : PickerScreen() {
                     when (opened) {
                         is OpenedAuthoritativeGame.Player -> {
                             val projection = opened.projection
-                            popup.addGoodSizedLabel("Server game [${projection.gameId}]").row()
-                            popup.addGoodSizedLabel(
-                                "Revision [${projection.committedRevision}] - Turn [${projection.projection.turn}]",
-                            ).row()
-                            popup.addGoodSizedLabel(
-                                "Playing as [${projection.projection.civilizationId}]",
-                            ).row()
+                            popup.close()
+                            val session = requireNotNull(
+                                game.onlineMultiplayer.authoritativeSession,
+                            )
+                            game.pushScreen(
+                                AuthoritativeWorldScreen(
+                                    summary,
+                                    directory,
+                                    projection,
+                                    session,
+                                ),
+                            )
+                            return@launchOnGLThread
                         }
                         is OpenedAuthoritativeGame.Spectator -> {
                             val projection = opened.projection

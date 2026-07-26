@@ -13192,9 +13192,14 @@
         "required": [
           "x",
           "y",
-          "visible"
+          "visible",
+          "baseTerrain",
+          "terrainFeatures"
         ],
         "properties": {
+          "baseTerrain": {
+            "type": "string"
+          },
           "improvementName": {
             "type": [
               "string",
@@ -13204,6 +13209,25 @@
           "improvementPillaged": {
             "type": [
               "boolean",
+              "null"
+            ]
+          },
+          "naturalWonderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceAmount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "resourceName": {
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -13218,6 +13242,12 @@
               "string",
               "null"
             ]
+          },
+          "terrainFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "visible": {
             "type": "boolean"

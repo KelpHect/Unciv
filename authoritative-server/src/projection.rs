@@ -8,25 +8,9 @@ use crate::{
 
 pub use crate::projection_city_economy::*;
 pub use crate::projection_combat::*;
+pub use crate::projection_spectator::*;
+pub use crate::projection_tiles::*;
 pub use crate::projection_wonder_events::*;
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SpectatorProjection {
-    pub protocol_version: u16,
-    pub turn: i32,
-    pub current_player_civilization_id: String,
-    pub major_civilizations: Vec<SpectatorCivilization>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SpectatorCivilization {
-    pub civilization_id: String,
-    pub display_name: String,
-    pub human_controlled: bool,
-    pub defeated: bool,
-}
 
 /// Player-scoped state returned by the authoritative worker. This deliberately
 /// is not a redacted canonical game: fields absent here cannot cross the public
@@ -494,25 +478,13 @@ pub struct ProjectedRoadPathTile {
     pub y: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProjectedTileVisibility {
-    pub x: i32,
-    pub y: i32,
-    pub visible: bool,
-    pub improvement_name: Option<String>,
-    pub improvement_pillaged: Option<bool>,
-    pub road_status: Option<String>,
-    pub road_pillaged: Option<bool>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v53.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -527,6 +499,13 @@ mod tests {
         assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
         assert_eq!(projection.research.appendable_targets, ["Archery"]);
         assert_eq!(projection.research.queue_entries[0].stored_science, 14);
+        assert!(projection.tiles_are_consistent());
+        assert_eq!(projection.explored_tiles[0].base_terrain, "Grassland");
+        assert_eq!(projection.explored_tiles[0].terrain_features, ["Forest"]);
+        assert_eq!(
+            projection.explored_tiles[0].resource_name.as_deref(),
+            Some("Wheat")
+        );
         assert!(
             projection.research.queue_entries[0]
                 .available_actions
@@ -720,7 +699,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v53.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -733,8 +712,28 @@ mod tests {
     }
 
     #[test]
+    fn tile_metadata_rejects_hidden_mutations_and_incoherent_resources() {
+        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
+        let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
+
+        let mut hidden_improvement = projection.clone();
+        hidden_improvement.explored_tiles[2].improvement_name = Some("Secret Mine".into());
+        hidden_improvement.explored_tiles[2].improvement_pillaged = Some(false);
+        assert!(!hidden_improvement.tiles_are_consistent());
+
+        let mut resource_amount_without_identity = projection.clone();
+        resource_amount_without_identity.explored_tiles[1].resource_amount = Some(4);
+        assert!(!resource_amount_without_identity.tiles_are_consistent());
+
+        let mut reordered_features = projection;
+        reordered_features.explored_tiles[0].terrain_features =
+            vec!["Marsh".into(), "Forest".into()];
+        assert!(!reordered_features.tiles_are_consistent());
+    }
+
+    #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v53.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

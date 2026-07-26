@@ -161,11 +161,22 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save. Membership discovery and projection
   reopening now work without local saves; invitation acceptance/player setup
-  UI and transition from the synchronized projection into the projection-only
-  lobby/world remain.
+  UI remains, while an available player membership now transitions from the
+  synchronized projection into the projection-only world.
+- [x] Add the projection-only world foundation. Projection v54 carries bounded
+  explored terrain, terrain features, natural wonders, and only resources the
+  actor can reveal. Opening an available player membership now constructs a
+  world screen from `ApiV3GameProjection` without `GameInfo`, local saves, or
+  `WorldScreen`; it renders a bounded map/status view, submits only
+  server-advertised movement and eligible end-turn commands, and replaces state
+  only from validated manual or periodic authoritative refreshes.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
-  must have no gameplay effect.
+  must have no gameplay effect. The projection-only foundation and first
+  movement/end-turn routes are complete; production still needs the remaining
+  projected city, unit, diplomacy, research, policy, religion, trade, combat,
+  popup/choice, history/event, and end-turn-blocker interaction surfaces before
+  this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -447,15 +458,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-parallel` passes (1004 JVM/server tests,
-  13 intentional skips).
-- Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 20 serialized
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes (1011 JVM/server tests, 13 intentional skips).
+- Rust passes 116 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 47-line facade, and the largest Rust source
-  is 789 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 6 lines, `lib.rs` is a 49-line facade, and the largest Rust source
+  is 796 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

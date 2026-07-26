@@ -5074,6 +5074,43 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Packaged-worker fresh-process parity
+
+Implemented on 2026-07-26:
+
+- The server build now produces a dedicated self-contained
+  `UncivAuthoritativeWorker.jar` whose entry point is the private loopback
+  worker, separate from the legacy public server entry point.
+- The deterministic protocol fixture launches that exact packaged artifact in
+  four independent JVMs. Two workers create the same seeded tiny game with two
+  major civilizations and two city-states; two more replay the same
+  `AssignPlayer` operation from the resulting canonical snapshot.
+- Creation and replay must independently match the complete serialized
+  snapshot, canonical SHA-256 state hash, and worker-selected civilization.
+  This catches process-global initialization, packaged-classpath, collection
+  ordering, and city-state placement drift that same-JVM tests cannot detect.
+- The harness uses a bounded startup loop, bounded socket timeouts, a five-minute
+  JUnit deadline, loopback-only sockets, and terminates every child process.
+
+Verification on 2026-07-26:
+
+- The focused packaged-worker parity test passes after building
+  `:server:authoritativeWorkerDist`.
+- `./gradlew :tests:test :server:test --no-parallel` passes all 984 JVM/server
+  tests: 977 core/game tests and 7 server tests, with 13 intentional skips and
+  no failures or errors.
+- The first harness run exposed Windows retaining a redirected temporary log
+  handle after child termination. The harness was changed to inherit diagnostic
+  output without a temporary file. The next run reached exact snapshot/hash
+  equality and then exposed a test-only attempt to read an uninitialized
+  transient nation field from deserialized canonical state; the assertion now
+  classifies civilizations through the loaded pinned ruleset. The exact focused
+  test and both broad suites were rerun cleanly, so neither issue is deferred.
+- This is representative recovery evidence, not full qualification. Every
+  supported setup, command family, random combat/event path, authoritative AI
+  turn, controlled process fault, and release digest/compatibility bundle remain
+  explicitly unchecked in `missing_multiplayer.md`.
+
 ## Bounded journal recovery and immutable publication
 
 Implemented on 2026-07-26:

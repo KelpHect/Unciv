@@ -91,6 +91,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   region generation, start normalization, and luxury/strategic placement now
   use stable ordering and explicit state-based RNG instead of ambient shuffles;
   the worker test compares both the complete snapshot and SHA-256 hash.
+- [x] Build a dedicated self-contained `UncivAuthoritativeWorker.jar` and prove
+  process-boundary parity through that packaged artifact. Independent fresh
+  JVMs produce byte-identical snapshots and hashes for seeded creation with
+  city-states and for replayable player assignment from that snapshot.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -249,13 +253,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: recovery and canonical-history guarantees
 
-- [ ] Complete recovery qualification with a real packaged Kotlin worker in a
-  fresh process for city-state placement and every supported setup. The bounded
-  replay and immutable recovery-publication path is implemented and PostgreSQL
-  integration-tested, but production recovery remains gated on those
-  fresh-process determinism fixtures and controlled worker/process fault tests.
-  Pre-migration rows without exact replay context fail closed and require
-  operator-supplied recovery evidence.
+- [ ] Complete recovery qualification across every supported setup and
+  controlled worker/process fault mode. The real packaged Kotlin worker now has
+  fresh-process byte/hash parity coverage for seeded city-state placement and a
+  replayable player-assignment mutation. The bounded replay and immutable
+  recovery-publication path is PostgreSQL integration-tested, but those
+  representative fixtures do not yet prove all setups, commands, AI turns, or
+  process failures. Pre-migration rows without exact replay context fail closed
+  and require operator-supplied recovery evidence.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
@@ -306,8 +311,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   policy, atomic staging, semantic validation, and no client-selected URL fetch.
 - [ ] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
+  Packaged-worker coverage currently proves seeded creation with city-states
+  and replayable player assignment.
 - [ ] Package and pin the exact Kotlin worker build together with compatible
   Rust protocol, client capability, ruleset manifests, and database migrations.
+  A self-contained executable worker JAR now exists and is exercised by tests;
+  release-level digest pinning and compatibility-bundle enforcement remain.
 
 ## P1: authentication, accounts, social features, and clients
 

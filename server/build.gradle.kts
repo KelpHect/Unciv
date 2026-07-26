@@ -23,10 +23,6 @@ val authoritativeWorkerMainClassName = "com.unciv.app.server.authoritative.Engin
 val assetsDir = file("../android/assets")
 val deployFolder = file("../deploy")
 
-tasks.test {
-    workingDir = assetsDir
-}
-
 // See https://github.com/libgdx/libgdx/wiki/Starter-classes-and-configuration#common-issues
 // and https://github.com/yairm210/Unciv/issues/5679
 val jvmArgsForMac = listOf("-XstartOnFirstThread", "-Djava.awt.headless=true")
@@ -63,6 +59,41 @@ tasks.register<JavaExec>("runAuthoritativeWorker") {
     classpath = sourceSets.main.get().runtimeClasspath
     workingDir = assetsDir
     standardInput = System.`in`
+}
+
+val authoritativeWorkerDist = tasks.register<Jar>("authoritativeWorkerDist") {
+    dependsOn(tasks.getByName("classes"))
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveFileName.set("UncivAuthoritativeWorker.jar")
+    from(sourceSets.main.get().output)
+    from({
+        configurations.runtimeClasspath.get()
+            .filter { it.isFile && it.extension == "jar" }
+            .map(::zipTree)
+    })
+    exclude(
+        "META-INF/*.DSA",
+        "META-INF/*.EC",
+        "META-INF/*.RSA",
+        "META-INF/*.SF",
+    )
+    manifest {
+        attributes(
+            "Main-Class" to authoritativeWorkerMainClassName,
+            "Specification-Version" to BuildConfig.appVersion,
+        )
+    }
+}
+
+tasks.test {
+    dependsOn(authoritativeWorkerDist)
+    workingDir = assetsDir
+    doFirst {
+        systemProperty(
+            "unciv.authoritativeWorkerJar",
+            authoritativeWorkerDist.get().archiveFile.get().asFile.absolutePath,
+        )
+    }
 }
 
 tasks.register<Jar>("dist") { // Compiles the jar file

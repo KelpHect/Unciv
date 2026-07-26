@@ -25,8 +25,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   reads, and revision-aware command submission.
 - [x] Implement server-created revision-zero games, owner membership, invited
   joins with server-owned civilization assignment, and retry-safe backend
-  administration for kick, ownership transfer, close, and archive. Production
-  UI migration for these backend capabilities remains listed below.
+  administration for kick, server-derived force-resignation, ownership
+  transfer, close, and archive, with production lifecycle controls.
 - [x] Implement player-scoped full-projection reconciliation plus durable
   revision WebSocket notifications, with HTTP projection refresh as the
   authoritative recovery path.
@@ -253,7 +253,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
-  legacy/API-v2 games.
+  legacy/API-v2 games. Production creation, directory selection, world entry,
+  end turn, self-resignation, force-resignation, and administration now have
+  explicit projection/session routes with source-level regression tests. The
+  remaining work is removal or hard classification of historical
+  legacy-shaped screen interceptors that key API-v3 behavior to an open
+  command bus.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or
@@ -364,10 +369,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   close, and archive, including confirmation, retry with the same operation ID,
   status display, and clear handling when ownership changes remotely. The API,
   persistence, client transport/session, command gating, and metadata are done.
-  The production screen now gates confirmed administration to an active,
-  available owner membership; revisioned kick opens/reuses the command bus,
-  lifecycle operations retain exact-meaning IDs across ambiguous retries, and
-  stale/rejected authority refreshes and closes the invalid owner popup.
+  The production screen gates kick, server-derived force-resignation,
+  ownership transfer, and close to an active available owner membership, then
+  exposes archive only for a closed available owner membership. Revisioned
+  commands open/reuse the command bus, lifecycle operations retain
+  exact-meaning IDs across ambiguous retries, and stale/rejected authority
+  refreshes without falling through to legacy save mutation.
 - [ ] Add a richer game administration/history projection if the product needs
   more than the current lifecycle status and durable audit/outbox records.
 - [ ] Decide whether spectator invitations can be revoked by the owner and, if

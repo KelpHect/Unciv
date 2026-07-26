@@ -1,5 +1,54 @@
 # Authoritative multiplayer v3 status
 
+## Production authority routing and lifecycle separation
+
+Implemented on 2026-07-26:
+
+- The production route audit now proves that installed-session online creation
+  returns through server `CreateGame` before any `GameStarter` call; account
+  directory selection branches to `AuthoritativeWorldScreen` before legacy
+  preview loading; and that projection screen has no canonical game, whole-save
+  upload/download, local load, or local turn-advance dependency.
+- Removed the legacy preview resignation function's hybrid behavior that used
+  API v3 only when a command bus happened to be open and otherwise fell through
+  to whole-save download/mutation/upload. Explicit legacy selection now remains
+  legacy, while authoritative selection has a distinct server-only resignation
+  control.
+- `AuthoritativeResignationCoordinator` opens an absent command bus once and
+  delegates to the session's retry-stable typed resignation. Uncertain retries
+  reuse the pending command identity; accepted resignation removes the local
+  membership session and refreshes account-scoped discovery.
+- Production owner administration now exposes active-only kick,
+  server-derived force-resignation, ownership transfer, and close actions, plus
+  closed-only archive. This fixes the prior unreachable Archive control, whose
+  popup could only be opened for active games even though the server correctly
+  requires a closed lifecycle.
+- Source-level regression tests lock the authoritative creation/selection/world
+  routing order, forbid canonical/legacy state operations from the projection
+  world, forbid conditional API-v3 fallback inside legacy resignation, and
+  enforce active-versus-closed administration actions.
+
+Verification on 2026-07-26:
+
+- The first focused routing run exposed an overbroad assertion that matched
+  boundary documentation containing the words `GameInfo` and `WorldScreen`.
+  It was corrected to check forbidden imports and executable operation calls.
+- Focused resignation, administration, session, production-routing, and
+  desktop compilation gates pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1063 JVM/server cases: 1050 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `MultiplayerScreen.kt` remains below the project file guardrail at 695 lines;
+  the new resignation coordinator is 27 lines and the administration
+  coordinator/popup remain focused at 115 and 187 lines.
+- No Rust or OpenAPI source changed. No known compile, test, routing,
+  lifecycle-state, or formatting error from this milestone is deferred.
+- The broader source-level mutation audit remains open because historical
+  legacy-shaped screens still contain API-v3 interceptors keyed to an open
+  command bus. Current production v3 entry paths do not reach those screens,
+  but they must be removed or explicitly reclassified before the broader
+  checklist item can be checked.
+
 ## Projection-only status and history completion
 
 Implemented on 2026-07-26:

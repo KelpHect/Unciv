@@ -26,15 +26,25 @@ class AuthoritativeAdministrationPopup(
 ) : Popup(screen) {
     private val memberUsername = UncivTextField("Member account username")
     private val kickButton = "Kick player".toTextButton()
+    private val forceResignButton = "Force current player to resign".toTextButton()
     private val transferButton = "Transfer ownership".toTextButton()
     private val closeGameButton = "Close game".toTextButton()
     private val archiveGameButton = "Archive game".toTextButton()
     private val actionButtons =
-        listOf(kickButton, transferButton, closeGameButton, archiveGameButton)
+        listOf(
+            kickButton,
+            forceResignButton,
+            transferButton,
+            closeGameButton,
+            archiveGameButton,
+        )
 
     init {
-        require(gameSummary.role == "owner" && gameSummary.lifecycleStatus == "active") {
-            "Only the active authoritative game owner can administer this game"
+        require(
+            gameSummary.role == "owner" &&
+                gameSummary.lifecycleStatus in setOf("active", "closed"),
+        ) {
+            "Only an active or closed authoritative game owner can administer this game"
         }
         addGoodSizedLabel("Server game administration").row()
         addGoodSizedLabel(
@@ -47,6 +57,13 @@ class AuthoritativeAdministrationPopup(
                 "Kick [${memberUsername.text.trim()}] from this game?",
                 "Kick",
             ) { kick() }
+        }
+        forceResignButton.onClick {
+            confirm(
+                "Force the canonical current player to resign? " +
+                    "The server will reject this until its timeout has elapsed.",
+                "Force resign",
+            ) { forceResign() }
         }
         transferButton.onClick {
             confirm(
@@ -67,7 +84,15 @@ class AuthoritativeAdministrationPopup(
             ) { archiveGame() }
         }
 
-        for (button in actionButtons) add(button).growX().row()
+        val active = gameSummary.lifecycleStatus == "active"
+        kickButton.isVisible = active
+        forceResignButton.isVisible = active
+        transferButton.isVisible = active
+        closeGameButton.isVisible = active
+        archiveGameButton.isVisible = !active
+        for (button in actionButtons) {
+            if (button.isVisible) add(button).growX().row()
+        }
         addCloseButton()
     }
 
@@ -92,6 +117,21 @@ class AuthoritativeAdministrationPopup(
     private fun transfer() = runAction("Transfer authoritative ownership") {
         coordinator.transfer(gameSummary.gameId, memberUsername.text)
         ActionResult()
+    }
+
+    private fun forceResign() = runAction("Force authoritative resignation") {
+        when (val outcome = coordinator.forceResign(gameSummary.gameId)) {
+            is AuthoritativeCommandOutcome.Accepted -> ActionResult()
+            AuthoritativeCommandOutcome.RetryRequired ->
+                ActionResult(
+                    "Force-resignation status is uncertain - retry to confirm",
+                    closePopup = false,
+                )
+            is AuthoritativeCommandOutcome.StaleRefreshed ->
+                ActionResult("Game changed on the server - refreshed", closePopup = false)
+            is AuthoritativeCommandOutcome.Rejected ->
+                ActionResult(outcome.code, closePopup = false)
+        }
     }
 
     private fun closeGame() = runAction("Close authoritative game") {

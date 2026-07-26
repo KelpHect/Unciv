@@ -11,6 +11,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinator
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinator
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeResignationCoordinator
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.RulesetCache
@@ -47,9 +48,12 @@ class MultiplayerScreen : PickerScreen() {
         ?.let(::AuthoritativeInvitationCoordinator)
     private val authoritativeAdministration = game.onlineMultiplayer.authoritativeSession
         ?.let(::AuthoritativeAdministrationCoordinator)
+    private val authoritativeResignation = game.onlineMultiplayer.authoritativeSession
+        ?.let(::AuthoritativeResignationCoordinator)
 
     private val copyGameIdButton = createCopyGameIdButton()
     private val resignButton = createResignButton()
+    private val authoritativeResignButton = createAuthoritativeResignButton()
     private val forceResignButton = createForceResignButton()
     private val skipTurnButton = createSkipTurnButton()
     private val deleteButton = createDeleteButton()
@@ -61,6 +65,7 @@ class MultiplayerScreen : PickerScreen() {
         listOf(
             copyGameIdButton,
             resignButton,
+            authoritativeResignButton,
             deleteButton,
             renameButton,
             invitePlayerButton,
@@ -144,6 +149,7 @@ class MultiplayerScreen : PickerScreen() {
         gameSpecificActions.add(renameButton).row()
         gameSpecificActions.add(skipTurnButton).row()
         gameSpecificActions.add(resignButton).row()
+        gameSpecificActions.add(authoritativeResignButton).row()
         gameSpecificActions.add(forceResignButton).row()
         gameSpecificActions.add(deleteButton).row()
         return gameSpecificActions
@@ -289,6 +295,57 @@ class MultiplayerScreen : PickerScreen() {
         }
         return resignButton
     }
+
+    private fun createAuthoritativeResignButton(): TextButton {
+        val negativeButtonStyle = skin.get("negative", TextButton.TextButtonStyle::class.java)
+        val button = "Resign from server game".toTextButton(negativeButtonStyle).apply {
+            disable()
+        }
+        button.onClick {
+            val summary = selectedAuthoritativeGame ?: return@onClick
+            ConfirmPopup(
+                this,
+                "Resign from authoritative game [${summary.gameId}]? " +
+                    "Your civilization will become server-controlled AI.",
+                "Resign",
+            ) {
+                resignAuthoritativeGame(summary)
+            }.open()
+        }
+        return button
+    }
+
+    private fun resignAuthoritativeGame(summary: ApiV3GameSummary) {
+        val coordinator = authoritativeResignation ?: return
+        val popup = Popup(this)
+        popup.addGoodSizedLabel(Constants.working).row()
+        popup.open()
+        Concurrency.runOnNonDaemonThreadPool("Resign authoritative game") {
+            try {
+                val outcome = coordinator.resign(summary.gameId)
+                val message = when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> null
+                    AuthoritativeCommandOutcome.RetryRequired ->
+                        "Resignation status is uncertain - retry to confirm"
+                    is AuthoritativeCommandOutcome.StaleRefreshed ->
+                        "Game was out of sync with server - refreshed"
+                    is AuthoritativeCommandOutcome.Rejected -> outcome.code
+                }
+                launchOnGLThread {
+                    if (message == null) {
+                        popup.close()
+                        unselectGame()
+                        refreshGameLists()
+                    } else {
+                        popup.reuseWith(message, true)
+                    }
+                }
+            } catch (ex: Exception) {
+                val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
+                launchOnGLThread { popup.reuseWith(message, true) }
+            }
+        }
+    }
     
     private fun getOurCivNameOrPlayerId(): String {
         val ourId = game.settings.multiplayer.getUserId()
@@ -344,28 +401,6 @@ class MultiplayerScreen : PickerScreen() {
 
         Concurrency.runOnNonDaemonThreadPool("Resign") {
             try {
-                val authoritativeGameId = multiplayerGamePreview.preview?.gameId
-                val authoritative = authoritativeGameId?.let { gameId ->
-                    game.onlineMultiplayer.authoritativeSession?.takeIf { it.isGameOpen(gameId) }
-                }
-                if (authoritative != null) {
-                    val isSelfResignation = responsibleCivNameOrPlayerId.isEmpty() ||
-                        responsibleCivNameOrPlayerId == playerCiv
-                    val outcome = if (isSelfResignation)
-                        authoritative.resignIfOpen(requireNotNull(authoritativeGameId))
-                    else authoritative.forceResignIfOpen(requireNotNull(authoritativeGameId))
-                    val message = when (outcome) {
-                        AuthoritativeCommandOutcome.RetryRequired -> "Resignation status is uncertain - retry to confirm"
-                        is AuthoritativeCommandOutcome.StaleRefreshed -> "Game was out of sync with server - updated"
-                        is AuthoritativeCommandOutcome.Rejected -> outcome.code
-                        is AuthoritativeCommandOutcome.Accepted -> ""
-                        null -> "The authoritative game is not open"
-                    }
-                    launchOnGLThread {
-                        if (message.isEmpty()) popup.close() else popup.reuseWith(message, true)
-                    }
-                    return@runOnNonDaemonThreadPool
-                }
                 val errorMessage = game.onlineMultiplayer.resignPlayer(
                     multiplayerGamePreview,
                     playerCiv,
@@ -596,6 +631,7 @@ class MultiplayerScreen : PickerScreen() {
         for (button in gameSpecificButtons) button.enable()
         invitePlayerButton.disable()
         administrationButton.disable()
+        authoritativeResignButton.disable()
 
         val preview = multiplayerGame.preview
         
@@ -629,14 +665,21 @@ class MultiplayerScreen : PickerScreen() {
         selectedGame = null
         selectedAuthoritativeGame = summary
         for (button in gameSpecificButtons) button.disable()
+        if (summary.role == "owner" && summary.lifecycleStatus == "active" && summary.available) {
+            invitePlayerButton.enable()
+        }
         if (
             summary.role == "owner" &&
-            summary.lifecycleStatus == "active" &&
+            summary.lifecycleStatus in setOf("active", "closed") &&
             summary.available
         ) {
-            invitePlayerButton.enable()
             administrationButton.enable()
         }
+        if (
+            summary.role in setOf("owner", "player") &&
+            summary.lifecycleStatus == "active" &&
+            summary.available
+        ) authoritativeResignButton.enable()
         skipTurnButton.isVisible = false
         forceResignButton.isVisible = false
         rightSideButton.setText("Open server projection".tr())

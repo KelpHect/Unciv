@@ -13,6 +13,7 @@ import java.util.UUID
  */
 class AuthoritativeAdministrationCoordinator(
     private val kickMember: suspend (String, String) -> AuthoritativeCommandOutcome?,
+    private val forceResignPlayer: suspend (String) -> AuthoritativeCommandOutcome?,
     private val transferOwnership: suspend (String, String, String) -> Unit,
     private val closeGame: suspend (String, String) -> Unit,
     private val archiveGame: suspend (String, String) -> Unit,
@@ -22,6 +23,10 @@ class AuthoritativeAdministrationCoordinator(
         { gameId, username ->
             if (!session.isGameOpen(gameId)) session.openGame(gameId)
             session.kickMemberIfOpen(gameId, username)
+        },
+        { gameId ->
+            if (!session.isGameOpen(gameId)) session.openGame(gameId)
+            session.forceResignIfOpen(gameId)
         },
         session::transferOwnership,
         session::closeAuthoritativeGame,
@@ -44,6 +49,13 @@ class AuthoritativeAdministrationCoordinator(
         val target = validateUsername(username)
         perform(AdministrationMeaning(gameId, Operation.Transfer, target)) {
             transferOwnership(gameId, target, it)
+        }
+    }
+
+    suspend fun forceResign(gameId: String): AuthoritativeCommandOutcome {
+        validateGameId(gameId)
+        return requireNotNull(forceResignPlayer(gameId)) {
+            "Open the authoritative projection before force-resigning"
         }
     }
 

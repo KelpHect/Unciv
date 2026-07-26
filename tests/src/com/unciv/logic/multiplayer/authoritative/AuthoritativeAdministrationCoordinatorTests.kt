@@ -89,15 +89,32 @@ class AuthoritativeAdministrationCoordinatorTests {
         assertTrue(error.message.orEmpty().contains("Open the authoritative projection"))
     }
 
+    @Test
+    fun forceResignationUsesOnlyTheGameIdentityAndRevisionedCommandBoundary() = runBlocking {
+        val calls = mutableListOf<String>()
+        val expected = AuthoritativeCommandOutcome.Rejected("force_resign_too_early")
+        val coordinator = coordinator(forceResign = {
+            calls += it
+            expected
+        })
+
+        assertEquals(expected, coordinator.forceResign("game-a"))
+        assertEquals(listOf("game-a"), calls)
+    }
+
     private fun coordinator(
         kick: suspend (String, String) -> AuthoritativeCommandOutcome? =
             { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        forceResign: suspend (String) -> AuthoritativeCommandOutcome? =
+            { AuthoritativeCommandOutcome.Rejected("test") },
         transfer: suspend (String, String, String) -> Unit = { _, _, _ -> },
         close: suspend (String, String) -> Unit = { _, _ -> },
         archive: suspend (String, String) -> Unit = { _, _ -> },
     ): AuthoritativeAdministrationCoordinator {
         var id = 0
-        return AuthoritativeAdministrationCoordinator(kick, transfer, close, archive) {
+        return AuthoritativeAdministrationCoordinator(
+            kick, forceResign, transfer, close, archive,
+        ) {
             "operation-${++id}"
         }
     }

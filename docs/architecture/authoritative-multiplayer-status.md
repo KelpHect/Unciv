@@ -5074,6 +5074,55 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Projection-only research and policy decisions
+
+Implemented on 2026-07-26:
+
+- The API-v3 world now renders the actor's current research, science progress,
+  queue, server-advertised queue actions, selectable and appendable research
+  targets, free-technology choices, completion prompts, culture progress, and
+  adoptable policies directly from `PlayerProjection`.
+- Every button submits one existing typed authenticated command through
+  `AuthoritativeMultiplayerSession`: set/append research, manage a queue entry,
+  choose a free technology, acknowledge completion, or adopt a policy. The
+  controller independently requires the exact identity/action to be present in
+  its current projection before transport is invoked.
+- Accepted and stale results replace the complete projection through the same
+  revision/hash validation used by movement and end turn. Ambiguous responses
+  leave the projection unchanged, and repeating the same input lets the session
+  reuse the pending idempotency key. No research prerequisite, cost, policy
+  legality, or outcome is calculated on the client.
+- UI construction lives in the focused
+  `AuthoritativeWorldDecisions.kt` module rather than expanding the world
+  screen into a mixed-concern file. The projection-only source assertion now
+  covers this module and continues to forbid canonical `GameInfo`,
+  `WorldScreen`, `GameStarter`, and local multiplayer-save dependencies.
+
+Verification on 2026-07-26:
+
+- Focused `AuthoritativeWorldControllerTests` pass. They prove exact projected
+  identities for research selection, queue removal, free technology, policy
+  adoption, and completion acknowledgement, plus prove invented research and
+  policy identities never call transport.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1014 JVM/server cases: 1001 executed, 13 intentional skips, zero
+  failures, and zero errors. Desktop compilation passes in the same run.
+- The first focused compile exposed that a method with an optional middle
+  argument cannot be used as a two-argument Kotlin function reference. The UI
+  now supplies an explicit lambda and both the focused and broad gates were
+  rerun cleanly. No compile or test error remains deferred.
+- `git diff --check` passes. The controller, world screen, decision renderer,
+  and controller tests are 206, 271, 109, and 335 lines respectively. Rust,
+  OpenAPI, persistence, and canonical engine execution were unchanged in this
+  client-only milestone; their previously passing PostgreSQL 19 Beta 2 and
+  warnings-as-errors gates remain recorded in the preceding milestone.
+
+Research and policy interaction no longer block projection-only play. City
+construction, diplomacy/votes, great-person and religious choices, espionage,
+combat, and the remaining projected action families still require production
+world surfaces before the full rendering and end-turn prerequisite items can
+be checked.
+
 ## Account-backed game discovery and projection reopening
 
 Implemented on 2026-07-26:

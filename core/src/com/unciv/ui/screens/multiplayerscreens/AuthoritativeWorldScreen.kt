@@ -47,6 +47,21 @@ class AuthoritativeWorldScreen(
         },
         moveUnit = { unitId, x, y -> session.moveUnitIfOpen(gameSummary.gameId, unitId, x, y) },
         endTurn = { session.endTurnIfOpen(gameSummary.gameId) },
+        setResearch = { technology, append ->
+            session.setResearchPathIfOpen(gameSummary.gameId, technology, append)
+        },
+        manageResearch = { technology, index, action ->
+            session.manageResearchQueueIfOpen(gameSummary.gameId, technology, index, action)
+        },
+        adoptPolicy = { policy ->
+            session.adoptPolicyIfOpen(gameSummary.gameId, policy)
+        },
+        chooseFreeTechnology = { technology ->
+            session.chooseFreeTechnologyIfOpen(gameSummary.gameId, technology)
+        },
+        acknowledgeResearchCompletion = { promptId ->
+            session.acknowledgeResearchCompletionIfOpen(gameSummary.gameId, promptId)
+        },
     )
 
     private var centerX = initialCenter().first
@@ -87,7 +102,15 @@ class AuthoritativeWorldScreen(
         topTable.add(ScrollPane(map).apply {
             setScrollingDisabled(false, false)
             setOverscroll(false, false)
-        }).colspan(3).grow().maxHeight(stage.height * 0.7f).row()
+        }).colspan(3).grow().maxHeight(stage.height * 0.55f).row()
+        topTable.add(ScrollPane(
+            AuthoritativeWorldDecisions(controller, busy) { taskName, operation ->
+                runOperation(taskName, operation = operation)
+            }.build(),
+        ).apply {
+            setScrollingDisabled(false, false)
+            setOverscroll(false, false)
+        }).colspan(3).growX().maxHeight(stage.height * 0.22f).row()
         val refresh = "Refresh server projection".toTextButton()
         refresh.onClick { refreshProjection(silent = false) }
         topTable.add(refresh).colspan(3).row()

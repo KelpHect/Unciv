@@ -13,6 +13,21 @@ class AuthoritativeWorldController(
     private val moveUnit:
         suspend (unitId: Int, x: Int, y: Int) -> AuthoritativeCommandOutcome?,
     private val endTurn: suspend () -> AuthoritativeCommandOutcome?,
+    private val setResearch:
+        suspend (technologyName: String, append: Boolean) -> AuthoritativeCommandOutcome? =
+        { _, _ -> null },
+    private val manageResearch:
+        suspend (
+            technologyName: String,
+            queueIndex: Int,
+            action: ResearchQueueAction,
+        ) -> AuthoritativeCommandOutcome? = { _, _, _ -> null },
+    private val adoptPolicy: suspend (policyName: String) -> AuthoritativeCommandOutcome? =
+        { null },
+    private val chooseFreeTechnology:
+        suspend (technologyName: String) -> AuthoritativeCommandOutcome? = { null },
+    private val acknowledgeResearchCompletion:
+        suspend (promptId: String) -> AuthoritativeCommandOutcome? = { null },
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -72,6 +87,65 @@ class AuthoritativeWorldController(
         }
         status = AuthoritativeWorldStatus.Submitting
         applyOutcome(requireNotNull(endTurn()) {
+            "The authoritative game is no longer open"
+        })
+    }
+
+    suspend fun selectResearch(technologyName: String, append: Boolean) {
+        val targets = if (append) projection.research.appendableTargets
+            else projection.research.selectableTargets
+        require(technologyName in targets) {
+            "Technology is absent from the current server projection"
+        }
+        submit {
+            setResearch(technologyName, append)
+        }
+    }
+
+    suspend fun manageResearchQueue(
+        technologyName: String,
+        queueIndex: Int,
+        action: ResearchQueueAction,
+    ) {
+        val entry = projection.research.queueEntries.getOrNull(queueIndex)
+        require(entry?.technologyName == technologyName && action in entry.availableActions) {
+            "Research queue action is absent from the current server projection"
+        }
+        submit {
+            manageResearch(technologyName, queueIndex, action)
+        }
+    }
+
+    suspend fun adoptProjectedPolicy(policyName: String) {
+        require(policyName in projection.policies.selectablePolicies) {
+            "Policy is absent from the current server projection"
+        }
+        submit {
+            adoptPolicy(policyName)
+        }
+    }
+
+    suspend fun chooseProjectedFreeTechnology(technologyName: String) {
+        require(technologyName in projection.research.freeTechnologyChoices) {
+            "Free technology is absent from the current server projection"
+        }
+        submit {
+            chooseFreeTechnology(technologyName)
+        }
+    }
+
+    suspend fun acknowledgeProjectedResearchCompletion(promptId: String) {
+        require(projection.research.completionPrompts.any { it.promptId == promptId }) {
+            "Research completion is absent from the current server projection"
+        }
+        submit {
+            acknowledgeResearchCompletion(promptId)
+        }
+    }
+
+    private suspend fun submit(operation: suspend () -> AuthoritativeCommandOutcome?) {
+        status = AuthoritativeWorldStatus.Submitting
+        applyOutcome(requireNotNull(operation()) {
             "The authoritative game is no longer open"
         })
     }

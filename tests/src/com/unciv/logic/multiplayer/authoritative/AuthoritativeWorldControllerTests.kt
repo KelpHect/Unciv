@@ -98,6 +98,130 @@ class AuthoritativeWorldControllerTests {
     }
 
     @Test
+    fun projectedResearchAndPolicyChoicesAreSubmittedWithoutLocalMutation() = runBlocking {
+        val initial = gameProjection(7)
+        val calls = mutableListOf<String>()
+        val controller = controller(
+            initial,
+            setResearch = { technology, append ->
+                calls += "research:$technology:$append"
+                accepted(initial, 8)
+            },
+            adoptPolicy = { policy ->
+                calls += "policy:$policy"
+                accepted(initial, 8)
+            },
+            acknowledgeResearch = { prompt ->
+                calls += "ack:$prompt"
+                accepted(initial, 8)
+            },
+        )
+
+        controller.selectResearch("Archery", append = false)
+        assertEquals(listOf("research:Archery:false"), calls)
+        assertEquals(8, controller.current.committedRevision)
+
+        val policyController = controller(
+            initial,
+            adoptPolicy = { policy ->
+                calls += "policy:$policy"
+                accepted(initial, 8)
+            },
+        )
+        policyController.adoptProjectedPolicy("Tradition")
+        assertEquals("policy:Tradition", calls.last())
+
+        val prompt = initial.projection.research.completionPrompts.single().promptId
+        val completionController = controller(
+            initial,
+            acknowledgeResearch = { promptId ->
+                calls += "ack:$promptId"
+                accepted(initial, 8)
+            },
+        )
+        completionController.acknowledgeProjectedResearchCompletion(prompt)
+        assertEquals("ack:$prompt", calls.last())
+    }
+
+    @Test
+    fun unadvertisedWorldDecisionNeverCallsTransport() = runBlocking {
+        var calls = 0
+        val controller = controller(
+            gameProjection(7),
+            setResearch = { _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+            adoptPolicy = {
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+        )
+
+        assertThrows<IllegalArgumentException> {
+            controller.selectResearch("Secret Future Tech", append = false)
+        }
+        assertThrows<IllegalArgumentException> {
+            controller.adoptProjectedPolicy("Secret Policy")
+        }
+        assertEquals(0, calls)
+    }
+
+    @Test
+    fun projectedQueueAndFreeTechnologyActionsUseExactAdvertisedIdentity() = runBlocking {
+        val base = gameProjection(7)
+        val initial = base.copy(
+            projection = base.projection.copy(
+                research = base.projection.research.copy(
+                    freeTechnologyChoices = listOf("Archery"),
+                ),
+            ),
+        )
+        val calls = mutableListOf<String>()
+        val queueController = AuthoritativeWorldController(
+            initial = initial,
+            refreshProjection = { initial },
+            moveUnit = { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+            endTurn = { AuthoritativeCommandOutcome.Rejected("test") },
+            manageResearch = { technology, index, action ->
+                calls += "queue:$technology:$index:$action"
+                accepted(initial, 8)
+            },
+            chooseFreeTechnology = { technology ->
+                calls += "free:$technology"
+                accepted(initial, 8)
+            },
+        )
+        val queueIndex = initial.projection.research.queueEntries.indexOfFirst {
+            ResearchQueueAction.Remove in it.availableActions
+        }
+        val queueEntry = initial.projection.research.queueEntries[queueIndex]
+
+        queueController.manageResearchQueue(
+            queueEntry.technologyName,
+            queueIndex,
+            ResearchQueueAction.Remove,
+        )
+        assertEquals(
+            "queue:${queueEntry.technologyName}:$queueIndex:${ResearchQueueAction.Remove}",
+            calls.single(),
+        )
+
+        val freeController = AuthoritativeWorldController(
+            initial = initial,
+            refreshProjection = { initial },
+            moveUnit = { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+            endTurn = { AuthoritativeCommandOutcome.Rejected("test") },
+            chooseFreeTechnology = { technology ->
+                calls += "free:$technology"
+                accepted(initial, 8)
+            },
+        )
+        freeController.chooseProjectedFreeTechnology("Archery")
+        assertEquals("free:Archery", calls.last())
+    }
+
+    @Test
     fun projectionWorldHasNoCanonicalOrLegacySaveDependency() {
         val sources = listOf(
             sourceFile(
@@ -107,6 +231,10 @@ class AuthoritativeWorldControllerTests {
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeWorldDecisions.kt",
             ),
         ).joinToString("\n") { it.readText() }
 
@@ -127,7 +255,42 @@ class AuthoritativeWorldControllerTests {
             { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
         endTurn: suspend () -> AuthoritativeCommandOutcome? =
             { AuthoritativeCommandOutcome.Rejected("test") },
-    ) = AuthoritativeWorldController(initial, refresh, move, endTurn)
+        setResearch: suspend (String, Boolean) -> AuthoritativeCommandOutcome? =
+            { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        adoptPolicy: suspend (String) -> AuthoritativeCommandOutcome? =
+            { AuthoritativeCommandOutcome.Rejected("test") },
+        acknowledgeResearch: suspend (String) -> AuthoritativeCommandOutcome? =
+            { AuthoritativeCommandOutcome.Rejected("test") },
+    ) = AuthoritativeWorldController(
+        initial = initial,
+        refreshProjection = refresh,
+        moveUnit = move,
+        endTurn = endTurn,
+        setResearch = setResearch,
+        adoptPolicy = adoptPolicy,
+        acknowledgeResearchCompletion = acknowledgeResearch,
+    )
+
+    private fun accepted(
+        current: ApiV3GameProjection,
+        revision: Long,
+    ): AuthoritativeCommandOutcome.Accepted {
+        val replacement = current.copy(
+            committedRevision = revision,
+            canonicalStateHash = "hash-$revision",
+            projectionHash = "projection-$revision",
+        )
+        return AuthoritativeCommandOutcome.Accepted(
+            ApiV3CommandAccepted(
+                current.gameId,
+                "command",
+                current.committedRevision,
+                revision,
+                replacement.canonicalStateHash,
+            ),
+            replacement,
+        )
+    }
 
     private fun gameProjection(revision: Long): ApiV3GameProjection {
         val projection = Json {

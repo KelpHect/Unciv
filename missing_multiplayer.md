@@ -170,12 +170,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `WorldScreen`; it renders a bounded map/status view, submits only
   server-advertised movement and eligible end-turn commands, and replaces state
   only from validated manual or periodic authoritative refreshes.
+- [x] Expose authoritative research and policy decisions in the projection-only
+  world. The client renders only projected research targets, append targets,
+  queue operations, free technologies, completion acknowledgements, and
+  adoptable policies; every selection uses the existing authenticated typed
+  command bus, preserves retry identity, and replaces the full projection only
+  after server acceptance or reconciliation.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected city, unit, diplomacy, research, policy, religion, trade, combat,
-  popup/choice, history/event, and end-turn-blocker interaction surfaces before
+  projected city, unit, diplomacy, religion, trade, combat, popup/choice,
+  history/event, and remaining end-turn-blocker interaction surfaces before
   this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
@@ -459,7 +465,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1011 JVM/server tests, 13 intentional skips).
+  passes (1014 JVM/server tests, 13 intentional skips).
 - Rust passes 116 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

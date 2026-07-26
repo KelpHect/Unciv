@@ -60,10 +60,14 @@ internal class PackagedWorkerScenarioFixture(
         )
     }
 
-    fun request(operation: WorkerOperation, serverTime: Long) = WorkerRequest(
+    fun request(
+        operation: WorkerOperation,
+        serverTime: Long,
+        authenticatedActorId: String = actorId,
+    ) = WorkerRequest(
         protocolVersion = EngineWorkerProtocol.VERSION,
         serverTimeMillis = serverTime,
-        actorId = actorId,
+        actorId = authenticatedActorId,
         rulesetManifest = manifest,
         operation = operation,
     )

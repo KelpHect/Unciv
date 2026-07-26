@@ -6794,6 +6794,45 @@ Focused verification on 2026-07-26:
 - The new test is a descriptive module under 160 lines and no production
   façade or gameplay module changed.
 
+## Packaged-worker multiplayer lifecycle parity batch
+
+Implemented on 2026-07-26:
+
+- Added independent two-fresh-JVM scenarios for authenticated self-resignation,
+  owner kick, and timer-qualified owner force-resignation. Each scenario creates
+  a canonical game and assigns the second authenticated account through the
+  packaged worker before exercising lifecycle authority.
+- Self-resignation and force-resignation of the current player prove that the
+  shared engine transfers the player to AI and performs canonical server-side
+  turn rotation. Kick proves the selected non-owner membership is converted to
+  AI without trusting a client-authored player identity.
+- Force-resignation uses an explicit canonical turn start, target allowance,
+  and worker request time. The worker returns the exact civilization it
+  force-resigned; the final snapshot proves cleared player identity and
+  restored control to the owner.
+- Every complete response and canonical snapshot/hash is byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 38 of 86 sealed
+  operations; 48 remain explicitly in-process-only.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerLifecycleParityTests
+  --no-parallel --console=plain` passes all five focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,126 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- The first compile exposed a test import using the wrong `PlayerType` package
+  and was corrected. The first kick run exposed a brittle assertion about
+  serialized notification presentation; canonical AI transfer, cleared player
+  identity, and complete response parity remain the asserted contract. No
+  failure was deferred.
+- The lifecycle test is a descriptive module under 160 lines. The shared
+  scenario fixture gained only an optional authenticated-actor parameter; no
+  production façade or gameplay module changed.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

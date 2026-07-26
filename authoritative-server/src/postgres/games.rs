@@ -1,6 +1,8 @@
 use super::*;
 
 impl PostgresGameRepository {
+    const MAX_PROJECTION_DELTA_REVISION_SPAN: u64 = 64;
+
     /// Returns a safe metadata projection. It deliberately excludes the
     /// canonical snapshot: callers must later use a player-scoped projection
     /// endpoint rather than receiving serialized `GameInfo`.
@@ -116,6 +118,100 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?
             .ok_or(CommitError::Unauthorized)?;
+        self.project_row(worker, actor_account_id, game_id, row)
+            .await
+    }
+
+    pub async fn game_projection_delta(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+        base_revision: u64,
+        base_canonical_state_hash: &str,
+        base_projection_hash: &str,
+    ) -> Result<GameProjectionDelta, CommitError> {
+        if !valid_projection_hash(base_canonical_state_hash)
+            || !valid_projection_hash(base_projection_hash)
+        {
+            return Err(CommitError::ProjectionDeltaUnavailable);
+        }
+        let base = self
+            .game_projection_at_revision(worker, actor_account_id, game_id, base_revision)
+            .await?;
+        if base.canonical_state_hash != base_canonical_state_hash
+            || base.projection_hash != base_projection_hash
+        {
+            return Err(CommitError::ProjectionDeltaUnavailable);
+        }
+        let target = self
+            .game_projection(worker, actor_account_id, game_id)
+            .await?;
+        let revision_span = target
+            .committed_revision
+            .checked_sub(base_revision)
+            .ok_or(CommitError::ProjectionDeltaUnavailable)?;
+        if revision_span > Self::MAX_PROJECTION_DELTA_REVISION_SPAN {
+            return Err(CommitError::ProjectionDeltaUnavailable);
+        }
+        let base_json = serde_json::to_value(&base.projection).map_err(|_| CommitError::Storage)?;
+        let target_json =
+            serde_json::to_value(&target.projection).map_err(|_| CommitError::Storage)?;
+        let operations =
+            crate::projection_delta::projection_delta_operations(&base_json, &target_json)
+                .ok_or(CommitError::ProjectionDeltaUnavailable)?;
+        let operation_bytes = serde_json::to_vec(&operations)
+            .map_err(|_| CommitError::Storage)?
+            .len();
+        let full_bytes = serde_json::to_vec(&target.projection)
+            .map_err(|_| CommitError::Storage)?
+            .len();
+        if !operations.is_empty() && operation_bytes >= full_bytes {
+            return Err(CommitError::ProjectionDeltaUnavailable);
+        }
+        Ok(GameProjectionDelta {
+            game_id,
+            projection_version: target.projection_version,
+            base_revision,
+            base_canonical_state_hash: base.canonical_state_hash,
+            base_projection_hash: base.projection_hash,
+            committed_revision: target.committed_revision,
+            canonical_state_hash: target.canonical_state_hash,
+            projection_hash: target.projection_hash,
+            operations,
+        })
+    }
+
+    async fn game_projection_at_revision(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+        revision: u64,
+    ) -> Result<GameProjection, CommitError> {
+        let revision =
+            i64::try_from(revision).map_err(|_| CommitError::ProjectionDeltaUnavailable)?;
+        let row = sqlx::query(
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.revision AS head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=$3 JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+        )
+        .bind(game_id)
+        .bind(actor_account_id)
+        .bind(revision)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::ProjectionDeltaUnavailable)?;
+        self.project_row(worker, actor_account_id, game_id, row)
+            .await
+    }
+
+    async fn project_row(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+        row: PgRow,
+    ) -> Result<GameProjection, CommitError> {
         if row.get::<String, _>("lifecycle_status") == "archived" {
             return Err(CommitError::InvalidCommand);
         }
@@ -157,5 +253,25 @@ impl PostgresGameRepository {
             ),
             projection: projected.projection,
         })
+    }
+}
+
+fn valid_projection_hash(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::valid_projection_hash;
+
+    #[test]
+    fn projection_hashes_are_exact_lowercase_sha256_values() {
+        assert!(valid_projection_hash(&"a5".repeat(32)));
+        assert!(!valid_projection_hash(&"A5".repeat(32)));
+        assert!(!valid_projection_hash(&"a5".repeat(31)));
+        assert!(!valid_projection_hash(&format!("{}g", "a".repeat(63))));
     }
 }

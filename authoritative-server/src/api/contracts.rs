@@ -13,6 +13,7 @@ pub(super) struct CapabilitiesResponse {
     pub(super) commands: Vec<&'static str>,
     pub(super) whole_state_upload: bool,
     pub(super) websocket_notifications: bool,
+    pub(super) projection_deltas: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -76,6 +77,15 @@ pub(super) struct GameMetadataResponse {
 pub(super) struct ListGamesQuery {
     pub(super) after: Option<String>,
     pub(super) limit: Option<u32>,
+}
+
+#[derive(Deserialize, utoipa::IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub(super) struct ProjectionDeltaQuery {
+    pub(super) base_revision: u64,
+    pub(super) base_canonical_state_hash: String,
+    pub(super) base_projection_hash: String,
 }
 
 #[derive(Deserialize, ToSchema)]

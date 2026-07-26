@@ -23,6 +23,7 @@ use super::*;
         close_game_admin,
         archive_game_admin,
         game_projection,
+        game_projection_delta,
         websocket_notifications,
         add_spectator,
         leave_spectator,
@@ -235,6 +236,8 @@ use super::*;
         unciv_authoritative_server::postgres::GameSummary,
         unciv_authoritative_server::postgres::GamePage,
         unciv_authoritative_server::postgres::GameProjection,
+        unciv_authoritative_server::GameProjectionDelta,
+        unciv_authoritative_server::ProjectionDeltaOperation,
         unciv_authoritative_server::notifications::RevisionNotification,
         unciv_authoritative_server::projection::PlayerProjection,
         unciv_authoritative_server::projection::ProjectedTradePartner,
@@ -373,6 +376,7 @@ pub(super) async fn capabilities() -> Json<CapabilitiesResponse> {
         ],
         whole_state_upload: false,
         websocket_notifications: true,
+        projection_deltas: true,
     })
 }
 

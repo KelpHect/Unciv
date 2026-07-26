@@ -40,6 +40,8 @@ pub enum CommitError {
     SnapshotTooLarge,
     #[error("game is unavailable pending operator recovery")]
     GameUnavailable,
+    #[error("a compact projection delta is unavailable; fetch the full projection")]
+    ProjectionDeltaUnavailable,
     #[error("bounded recovery evidence is missing or incomplete")]
     RecoveryEvidenceMissing,
     #[error("recovery journal tail exceeds the configured bound")]

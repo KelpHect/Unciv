@@ -32,8 +32,8 @@ use crate::worker::{
     UseGreatPersonUnitIntent, UseReligiousUnitIntent, WorkerManifest,
 };
 use crate::{
-    CommandAccepted, CommandEnvelope, CommitError, CommitProposal, MAX_SNAPSHOT_BYTES,
-    PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
+    CommandAccepted, CommandEnvelope, CommitError, CommitProposal, GameProjectionDelta,
+    MAX_SNAPSHOT_BYTES, PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};

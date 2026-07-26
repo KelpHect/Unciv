@@ -162,6 +162,12 @@ pub(super) fn game_error(error: CommitError) -> ApiError {
             current_revision: None,
             retry_after_seconds: None,
         },
+        CommitError::ProjectionDeltaUnavailable => ApiError {
+            status: StatusCode::CONFLICT,
+            code: "projection_delta_unavailable",
+            current_revision: None,
+            retry_after_seconds: None,
+        },
         CommitError::RecoveryEvidenceMissing
         | CommitError::RecoveryTailTooLong
         | CommitError::RecoveryDiverged

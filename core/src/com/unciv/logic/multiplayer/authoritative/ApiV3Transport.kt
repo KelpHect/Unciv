@@ -26,6 +26,13 @@ interface ApiV3Transport {
     ): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection
+    suspend fun projectionDelta(
+        gameId: String,
+        baseRevision: Long,
+        baseCanonicalStateHash: String,
+        baseProjectionHash: String,
+    ): ApiV3GameProjectionDelta =
+        error("Projection deltas are unsupported by this transport")
     suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection
     suspend fun addSpectator(gameId: String, username: String)
     suspend fun leaveSpectator(gameId: String)

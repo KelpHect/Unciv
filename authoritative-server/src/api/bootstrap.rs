@@ -77,6 +77,10 @@ pub(crate) async fn run() {
         .route("/api/v3/games/{game_id}/archive", post(archive_game_admin))
         .route("/api/v3/games/{game_id}/projection", get(game_projection))
         .route(
+            "/api/v3/games/{game_id}/projection/delta",
+            get(game_projection_delta),
+        )
+        .route(
             "/api/v3/games/{game_id}/spectator-projection",
             get(spectator_projection),
         )

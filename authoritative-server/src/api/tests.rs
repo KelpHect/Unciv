@@ -55,6 +55,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/close",
         "/api/v3/games/{game_id}/archive",
         "/api/v3/games/{game_id}/projection",
+        "/api/v3/games/{game_id}/projection/delta",
         "/api/v3/games/{game_id}/spectator-projection",
         "/api/v3/games/{game_id}/spectators",
         "/api/v3/games/{game_id}/join",

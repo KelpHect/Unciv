@@ -2,6 +2,7 @@ package com.unciv.logic.multiplayer.authoritative
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class ApiV3Capabilities(
@@ -10,6 +11,7 @@ data class ApiV3Capabilities(
     val commands: List<String>,
     @SerialName("whole_state_upload") val wholeStateUpload: Boolean,
     @SerialName("websocket_notifications") val websocketNotifications: Boolean,
+    @SerialName("projection_deltas") val projectionDeltas: Boolean = false,
 )
 
 @Serializable
@@ -103,6 +105,25 @@ data class ApiV3GameProjection(
     @SerialName("canonical_state_hash") val canonicalStateHash: String,
     @SerialName("projection_hash") val projectionHash: String,
     val projection: PlayerProjection,
+)
+
+@Serializable
+data class ApiV3ProjectionDeltaOperation(
+    val path: String,
+    val value: JsonElement,
+)
+
+@Serializable
+data class ApiV3GameProjectionDelta(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("projection_version") val projectionVersion: Int,
+    @SerialName("base_revision") val baseRevision: Long,
+    @SerialName("base_canonical_state_hash") val baseCanonicalStateHash: String,
+    @SerialName("base_projection_hash") val baseProjectionHash: String,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    @SerialName("projection_hash") val projectionHash: String,
+    val operations: List<ApiV3ProjectionDeltaOperation>,
 )
 
 @Serializable

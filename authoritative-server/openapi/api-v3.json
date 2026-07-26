@@ -9189,6 +9189,106 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/projection/delta": {
+      "get": {
+        "tags": [],
+        "operationId": "game_projection_delta",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "base_revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "base_canonical_state_hash",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "base_projection_hash",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameProjectionDelta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/spectator-projection": {
       "get": {
         "tags": [],
@@ -9938,7 +10038,8 @@
           "projection_version",
           "commands",
           "whole_state_upload",
-          "websocket_notifications"
+          "websocket_notifications",
+          "projection_deltas"
         ],
         "properties": {
           "commands": {
@@ -9946,6 +10047,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "projection_deltas": {
+            "type": "boolean"
           },
           "projection_version": {
             "type": "integer",
@@ -11024,6 +11128,59 @@
           },
           "projection": {
             "$ref": "#/components/schemas/PlayerProjection"
+          },
+          "projection_hash": {
+            "type": "string"
+          },
+          "projection_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "GameProjectionDelta": {
+        "type": "object",
+        "required": [
+          "game_id",
+          "projection_version",
+          "base_revision",
+          "base_canonical_state_hash",
+          "base_projection_hash",
+          "committed_revision",
+          "canonical_state_hash",
+          "projection_hash",
+          "operations"
+        ],
+        "properties": {
+          "base_canonical_state_hash": {
+            "type": "string"
+          },
+          "base_projection_hash": {
+            "type": "string"
+          },
+          "base_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "canonical_state_hash": {
+            "type": "string"
+          },
+          "committed_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "game_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectionDeltaOperation"
+            }
           },
           "projection_hash": {
             "type": "string"
@@ -13804,6 +13961,19 @@
           }
         },
         "additionalProperties": false
+      },
+      "ProjectionDeltaOperation": {
+        "type": "object",
+        "required": [
+          "path",
+          "value"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "value": {}
+        }
       },
       "PromoteUnitRequest": {
         "type": "object",

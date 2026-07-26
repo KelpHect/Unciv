@@ -1,5 +1,51 @@
 # Authoritative multiplayer v3 status
 
+## Compact authenticated projection deltas
+
+Implemented on 2026-07-26:
+
+- Added authenticated `GET /api/v3/games/{game_id}/projection/delta` and
+  advertised it through capabilities and the generated OpenAPI contract. The
+  request identifies the client's exact base revision, canonical-state hash,
+  and player-projection hash; it contains no canonical state or client patch.
+- PostgreSQL resolves an immutable snapshot for the authenticated player's
+  exact base revision and independently reprojects it through the private
+  Kotlin worker. The service rejects wrong hashes, missing snapshots, backward
+  revisions, spans above 64 revisions, more than 4096 operations, paths above
+  1024 bytes, and deltas that are not smaller than the full target projection.
+- Deltas are deterministic JSON-pointer replacement operations over the closed
+  player projection. Same-shape objects and arrays are traversed; collection
+  shape changes replace only that collection. The response binds base and
+  target revision, canonical-state hash, projection version, and projection
+  hash.
+- The Kotlin client accepts only sorted, unique, non-overlapping existing
+  paths, canonical pointer escaping, bounded array indices, the current closed
+  projection schema, and an exact SHA-256 result. A revision WebSocket hint
+  attempts the delta path, but any unavailable or invalid delta falls back to
+  the authenticated full projection. `resync_required` always performs a full
+  projection fetch.
+
+Verification on 2026-07-26:
+
+- Focused delta/applier and command-bus tests cover deterministic
+  reconstruction, collection replacement, escaped paths, stale base
+  identities, unknown paths, duplicate operations, tampered hashes, successful
+  delta reconciliation, malformed-delta fallback, duplicate/old hints, and
+  forced full resynchronization.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1097 JVM/server cases: 1084
+  executed, 13 intentional skips, zero failures, and zero errors. The existing
+  Android SDK was connected through ignored `local.properties`; lint and the
+  debug APK both passed.
+- Rust passes 124 active library tests, all 10 HTTP/OpenAPI tests, checked-in
+  OpenAPI parity, formatting, and warnings-as-errors Clippy. All 21 serialized
+  PostgreSQL integration and replica-fault tests pass in 7.67 seconds against
+  only the pinned PostgreSQL 19 Beta 2 digest. The disposable database was
+  removed.
+- `main.rs` remains 6 lines and `lib.rs` remains a declaration/re-export
+  facade. The delta implementation is isolated in `projection_delta.rs`, and
+  the PostgreSQL projection module remains 277 lines.
+
 ## Canonical secret-sentinel projection matrix
 
 Implemented on 2026-07-26:

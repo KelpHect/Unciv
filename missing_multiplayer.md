@@ -468,8 +468,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   sentinels through own, known, unknown, city-state, and barbarian state; all
   diplomatic statuses; never-explored, stale, and visible fog; and player plus
   public spectator serialization.
-- [ ] Add compact projection deltas with revision/hash validation, while keeping
-  full authenticated HTTP projection as the recovery path.
+- [x] Add compact projection deltas with revision/hash validation, while keeping
+  full authenticated HTTP projection as the recovery path. Authenticated
+  clients request a bounded deterministic replacement delta from their exact
+  revision, canonical-state hash, and player-projection hash. The server
+  reprojects the immutable base snapshot for that player, refuses stale,
+  oversized, non-beneficial, or unavailable deltas, and binds the result to the
+  current canonical revision and both target hashes. The client applies only
+  sorted, unique, existing JSON-pointer paths through the closed projection
+  schema and verifies the resulting projection hash; any unavailable,
+  malformed, stale, gapped, duplicate, or hash-mismatched delta falls back to
+  the existing authenticated full HTTP projection. WebSockets remain hints,
+  and `resync_required` always takes the full recovery path.
 - [ ] Prove canonical snapshots and hidden fields never occur in public HTTP,
   WebSocket frames, normal logs, traces, metrics, audit payloads, or errors.
 - [ ] Add property/fuzz tests for command envelopes, unknown fields/enums,

@@ -148,3 +148,38 @@ pub(super) async fn game_projection(
         .map_err(game_error)?;
     Ok(Json(projection))
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/v3/games/{game_id}/projection/delta",
+    params(("game_id" = uuid::Uuid, Path), ProjectionDeltaQuery),
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, body = unciv_authoritative_server::GameProjectionDelta),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn game_projection_delta(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Query(query): Query<ProjectionDeltaQuery>,
+) -> Result<Json<unciv_authoritative_server::GameProjectionDelta>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let delta = state
+        .repository
+        .game_projection_delta(
+            &state.worker,
+            actor.id,
+            game_id,
+            query.base_revision,
+            &query.base_canonical_state_hash,
+            &query.base_projection_hash,
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(delta))
+}

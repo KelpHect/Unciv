@@ -1,5 +1,6 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -1699,7 +1700,7 @@ class AuthoritativeGameCommandBus(
                         && notifiedRevision == current.committedRevision
                         && notification.canonicalStateHash == current.canonicalStateHash
                     ) return@withLock null
-                    refreshLocked(current)
+                    if (current == null) refreshLocked(null) else deltaOrRefreshLocked(current)
                 }
                 else -> null
             }
@@ -2263,6 +2264,27 @@ class AuthoritativeGameCommandBus(
         }
         state = AuthoritativeSyncState.Synchronized(refreshed)
         return refreshed
+    }
+
+    private suspend fun deltaOrRefreshLocked(current: ApiV3GameProjection): ApiV3GameProjection {
+        state = AuthoritativeSyncState.Refreshing(current)
+        val reconciled = try {
+            PlayerProjectionDeltaApplier.apply(
+                current,
+                transport.projectionDelta(
+                    gameId = gameId,
+                    baseRevision = current.committedRevision,
+                    baseCanonicalStateHash = current.canonicalStateHash,
+                    baseProjectionHash = current.projectionHash,
+                ),
+            )
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            return refreshLocked(current)
+        }
+        state = AuthoritativeSyncState.Synchronized(reconciled)
+        return reconciled
     }
 
     private fun requireSynchronized() =

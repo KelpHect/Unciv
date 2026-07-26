@@ -180,6 +180,19 @@ class ApiV3Client(
     override suspend fun projection(gameId: String): ApiV3GameProjection =
         decode(client.get("api/v3/games/$gameId/projection") { authenticate() })
 
+    override suspend fun projectionDelta(
+        gameId: String,
+        baseRevision: Long,
+        baseCanonicalStateHash: String,
+        baseProjectionHash: String,
+    ): ApiV3GameProjectionDelta =
+        decode(client.get("api/v3/games/$gameId/projection/delta") {
+            authenticate()
+            parameter("base_revision", baseRevision)
+            parameter("base_canonical_state_hash", baseCanonicalStateHash)
+            parameter("base_projection_hash", baseProjectionHash)
+        })
+
     override suspend fun moveUnit(
         gameId: String,
         request: ApiV3MoveUnitRequest,

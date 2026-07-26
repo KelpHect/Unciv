@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -1917,6 +1918,83 @@ class AuthoritativeGameCommandBusTests {
         assertEquals(revision6, (bus.state as AuthoritativeSyncState.Synchronized).current)
     }
 
+    @Test
+    fun revisionNotificationUsesValidatedDeltaWithoutFullProjectionFetch() = runBlocking {
+        val initial = projection(5, "a".repeat(64))
+        val targetProjection = initial.projection.copy(turn = 1)
+        val targetHash = PlayerProjectionDeltaApplier.projectionHash(targetProjection)
+        val transport = FakeTransport(initial).apply {
+            onProjectionDelta = { baseRevision, baseCanonicalHash, baseProjectionHash ->
+                ApiV3GameProjectionDelta(
+                    gameId,
+                    PlayerProjection.CURRENT_PROJECTION_VERSION,
+                    baseRevision,
+                    baseCanonicalHash,
+                    baseProjectionHash,
+                    6,
+                    "b".repeat(64),
+                    targetHash,
+                    listOf(ApiV3ProjectionDeltaOperation("/turn", JsonPrimitive(1))),
+                )
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+
+        val reconciled = bus.reconcile(notification(6, "b".repeat(64)))
+
+        assertEquals(1, transport.projectionCalls)
+        assertEquals(1, transport.projectionDeltaCalls)
+        assertEquals(targetProjection, reconciled?.projection)
+    }
+
+    @Test
+    fun invalidDeltaFallsBackToFullAuthenticatedProjection() = runBlocking {
+        val initial = projection(5, "a".repeat(64))
+        val refreshed = projection(6, "b".repeat(64))
+        val transport = FakeTransport(initial).apply {
+            onProjectionDelta = { baseRevision, baseCanonicalHash, baseProjectionHash ->
+                ApiV3GameProjectionDelta(
+                    gameId,
+                    PlayerProjection.CURRENT_PROJECTION_VERSION,
+                    baseRevision,
+                    baseCanonicalHash,
+                    baseProjectionHash,
+                    6,
+                    "b".repeat(64),
+                    "0".repeat(64),
+                    listOf(ApiV3ProjectionDeltaOperation("/turn", JsonPrimitive(1))),
+                )
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+        transport.current = refreshed
+
+        assertEquals(refreshed, bus.reconcile(notification(6, "b".repeat(64))))
+        assertEquals(2, transport.projectionCalls)
+        assertEquals(1, transport.projectionDeltaCalls)
+    }
+
+    @Test
+    fun resyncRequiredAlwaysUsesFullProjectionRecoveryPath() = runBlocking {
+        val initial = projection(5, "a".repeat(64))
+        val refreshed = projection(7, "c".repeat(64))
+        val transport = FakeTransport(initial)
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+        transport.current = refreshed
+
+        val reconciled = bus.reconcile(ApiV3RevisionNotification(
+            type = "resync_required",
+            protocolVersion = 3,
+        ))
+
+        assertEquals(refreshed, reconciled)
+        assertEquals(2, transport.projectionCalls)
+        assertEquals(0, transport.projectionDeltaCalls)
+    }
+
     private fun projection(
         revision: Long,
         hash: String,
@@ -2052,6 +2130,11 @@ class AuthoritativeGameCommandBusTests {
 
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         var projectionCalls = 0
+        var projectionDeltaCalls = 0
+        var onProjectionDelta:
+            suspend (Long, String, String) -> ApiV3GameProjectionDelta = { _, _, _ ->
+                error("Projection deltas are unsupported by this fake")
+            }
         val resignRequests = mutableListOf<ApiV3ResignRequest>()
         val forceResignRequests = mutableListOf<ApiV3ForceResignRequest>()
         val kickRequests = mutableListOf<ApiV3KickMemberRequest>()
@@ -2286,6 +2369,19 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun projection(gameId: String): ApiV3GameProjection {
             projectionCalls++
             return current
+        }
+        override suspend fun projectionDelta(
+            gameId: String,
+            baseRevision: Long,
+            baseCanonicalStateHash: String,
+            baseProjectionHash: String,
+        ): ApiV3GameProjectionDelta {
+            projectionDeltaCalls++
+            return onProjectionDelta(
+                baseRevision,
+                baseCanonicalStateHash,
+                baseProjectionHash,
+            )
         }
         override suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection =
             error("not used by command-bus tests")

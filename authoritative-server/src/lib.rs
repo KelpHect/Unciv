@@ -9,6 +9,7 @@ mod projection_city_economy_tests;
 mod projection_combat;
 #[cfg(test)]
 mod projection_combat_tests;
+mod projection_delta;
 #[cfg(test)]
 mod projection_escort_tests;
 #[cfg(test)]
@@ -42,6 +43,7 @@ pub use command::{
     ReligiousBeliefType, ReligiousUnitAction, ResearchQueueAction, UnitPosture,
 };
 pub use hashing::state_hash;
+pub use projection_delta::*;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;

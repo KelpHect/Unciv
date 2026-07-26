@@ -1,6 +1,6 @@
 use super::*;
 
-const SPECTATOR_PROJECTION_VERSION: u16 = 1;
+use crate::SPECTATOR_PROJECTION_VERSION;
 
 impl PostgresGameRepository {
     pub async fn add_spectator(

@@ -6610,6 +6610,66 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Content-addressed authoritative release bundle
+
+Implemented on 2026-07-26:
+
+- Added a closed compatibility contract that pins public protocol 3, player
+  projection 59, spectator projection 1, private worker protocol 2, migration
+  head 20, and the sole PostgreSQL 19 Beta 2 image digest. Rust and Kotlin tests
+  independently compare their compiled constants to that same checked-in
+  contract.
+- The core Gradle build embeds the compatibility contract into both the desktop
+  client artifact and self-contained worker JAR. The new `unciv-v3-bundle`
+  operator tool refuses either artifact unless the embedded contract parses
+  exactly and matches the Rust-compiled release contract.
+- Bundle creation copies the exact Rust server, worker JAR, client artifact,
+  OpenAPI contract, compatibility contract, approved ruleset manifest, and
+  contiguous migrations `0001` through `0020` into a same-filesystem staging
+  directory. It accepts only bounded regular source files, validates the closed
+  ruleset identity, hashes every artifact, derives the bundle ID from the
+  canonical closed manifest, self-verifies, and atomically publishes only to a
+  previously absent destination.
+- Verification rejects missing, changed, extra, linked, special, oversized,
+  reordered, noncanonical, or unknown artifacts and recomputes every digest and
+  the bundle identity. Deterministic tests corrupt a client artifact and add an
+  unexpected file to prove both cases fail closed.
+- Packaged production startup is now mandatory by default. Rust verifies the
+  whole bundle, its own canonical executable path, the configured bundled
+  worker JAR path, compiled compatibility constants, and approved ruleset
+  identity before database or public-listener startup. The worker requires the
+  same bundle ID and returns it in the authenticated handshake; Rust rejects a
+  bundle-ID, engine-build, or required component mismatch before binding.
+  Only explicit `UNCIV_V3_UNPACKAGED_DEV=1` test/development runs bypass bundle
+  enforcement.
+- The systemd worker executes the JAR under
+  `/opt/unciv-authoritative/releases/current` and receives the exact bundle ID
+  through its protected environment. The release runbook covers build,
+  creation, transfer verification, atomic activation, environment wiring, and
+  coordinated bundle/ruleset rollback.
+
+Verification on 2026-07-26:
+
+- A real local bundle was built from the compiled Rust server, packaged worker
+  JAR, desktop `Unciv.jar`, exact vanilla ruleset manifest, checked-in OpenAPI,
+  and all 20 migrations. Creation and an independent verification both passed
+  with 26 artifacts and the same recomputed bundle ID; the test-owned directory
+  was removed and verified absent.
+- Focused Rust tests pass for compatibility constants, atomic bundle creation,
+  exact verification, tamper/extra-file rejection, authenticated worker bundle
+  identity, and the updated systemd contract. Focused Kotlin tests pass for the
+  shared compatibility contract and fresh-process worker protocol behavior.
+- An initial fresh-worker test run correctly failed because its subprocess had
+  not opted into unpackaged development mode; the fixture was corrected and
+  the complete focused worker lane passed. The first real bundle rerun used a
+  stale debug bundler binary and returned a redacted I/O failure; rebuilding
+  the exact binary made creation and verification pass. The systemd packaging
+  test also exposed its old worker path and was updated before rerun. No found
+  compile, test, packaging, process, or cleanup error remains deferred.
+- Rust entry façades remain logic-free: `unciv-v3-bundle.rs` contains only
+  argument delegation and exit handling. Release implementation is split into
+  focused 275-line packaging and 325-line manifest/verification modules.
+
 ## Worker-bound immutable ruleset identity
 
 Implemented on 2026-07-26:

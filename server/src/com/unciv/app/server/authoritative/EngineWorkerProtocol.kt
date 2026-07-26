@@ -657,6 +657,7 @@ sealed interface WorkerOperation {
 @Serializable
 data class WorkerResponse(
     val protocolVersion: Int = EngineWorkerProtocol.VERSION,
+    val releaseBundleId: String? = null,
     val serverTimeMillis: Long? = null,
     val engineBuild: String? = null,
     val installedRulesets: List<WorkerRuleset>? = null,
@@ -671,10 +672,16 @@ data class WorkerResponse(
 @Serializable
 data class WorkerError(val code: String, val message: String)
 
-class AuthoritativeEngineWorker {
+class AuthoritativeEngineWorker(
+    private val releaseBundleId: String = "dev-unpackaged",
+) {
     fun execute(request: WorkerRequest): WorkerResponse = try {
         require(request.protocolVersion == EngineWorkerProtocol.VERSION) { "Unsupported protocol version" }
+        require(releaseBundleId == "dev-unpackaged" || releaseBundleId.matches(Regex("[0-9a-f]{64}"))) {
+            "Invalid release bundle identity"
+        }
         if (request.operation is WorkerOperation.Handshake) return WorkerResponse(
+            releaseBundleId = releaseBundleId,
             engineBuild = InstalledRulesetCatalog.engineBuild,
             installedRulesets = InstalledRulesetCatalog.all(),
         )

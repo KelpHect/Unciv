@@ -11,7 +11,7 @@ User=unciv-worker
 Group=unciv-authoritative
 WorkingDirectory=/opt/unciv-authoritative/rulesets/active
 EnvironmentFile=/etc/unciv-authoritative/worker.env
-ExecStart=/usr/bin/java -Djava.awt.headless=true -Xms64m -Xmx384m -XX:MaxMetaspaceSize=96m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError -jar /opt/unciv-authoritative/worker/UncivAuthoritativeWorker.jar
+ExecStart=/usr/bin/java -Djava.awt.headless=true -Xms64m -Xmx384m -XX:MaxMetaspaceSize=96m -XX:MaxDirectMemorySize=32m -XX:+ExitOnOutOfMemoryError -jar /opt/unciv-authoritative/releases/current/worker/UncivAuthoritativeWorker.jar
 
 # The worker processes one connection synchronously. These cgroup/JVM limits
 # therefore bound the only command executing in this process.

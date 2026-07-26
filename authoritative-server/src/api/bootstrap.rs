@@ -19,6 +19,8 @@ pub(crate) async fn run() {
         eprintln!("wrote {}", target.display());
         return;
     }
+    let release_bundle = unciv_authoritative_server::release_bundle::verify_runtime_environment()
+        .expect("authoritative API release bundle must be exact and complete");
     let address = std::env::var("UNCIV_V3_BIND")
         .unwrap_or_else(|_| "127.0.0.1:3000".to_owned())
         .parse::<SocketAddr>()
@@ -58,6 +60,19 @@ pub(crate) async fn run() {
         .handshake()
         .await
         .expect("authoritative engine worker handshake failed");
+    if worker_capabilities.release_bundle_id != release_bundle.bundle_id {
+        panic!("authoritative engine worker release bundle identity mismatch");
+    }
+    let bundled_rulesets = std::iter::once(&release_bundle.ruleset_manifest.base_ruleset)
+        .chain(release_bundle.ruleset_manifest.mods.iter());
+    if release_bundle.bundle_id != "dev-unpackaged"
+        && (worker_capabilities.engine_build != release_bundle.ruleset_manifest.engine_build
+            || bundled_rulesets
+                .into_iter()
+                .any(|expected| !worker_capabilities.installed_rulesets.contains(expected)))
+    {
+        panic!("authoritative engine worker ruleset catalog does not match the release bundle");
+    }
     eprintln!(
         "authoritative engine worker ready: protocol={}, engine_build={}, rulesets={}",
         unciv_authoritative_server::worker::WORKER_PROTOCOL_VERSION,

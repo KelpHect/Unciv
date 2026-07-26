@@ -35,6 +35,7 @@ pub mod notifications;
 pub mod operations;
 pub mod postgres;
 pub mod projection;
+pub mod release_bundle;
 pub mod ruleset_acquisition;
 pub mod worker;
 
@@ -49,6 +50,7 @@ pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
 pub const PROJECTION_VERSION: u16 = 59;
+pub const SPECTATOR_PROJECTION_VERSION: u16 = 1;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

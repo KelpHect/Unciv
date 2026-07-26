@@ -306,6 +306,7 @@ fn spawn_api(
             .env("UNCIV_V3_DATABASE_URL", database_url)
             .env("UNCIV_ENGINE_WORKER_ADDR", worker_address.to_string())
             .env("UNCIV_ENGINE_WORKER_SECRET", WORKER_SECRET_HEX)
+            .env("UNCIV_V3_UNPACKAGED_DEV", "1")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -437,6 +438,7 @@ async fn run_worker(listener: TcpListener, command_executions: Arc<AtomicUsize>)
         nonce,
         json!({
             "protocolVersion": WORKER_PROTOCOL_VERSION,
+            "releaseBundleId": "dev-unpackaged",
             "engineBuild": "test-engine",
             "installedRulesets": [{
                 "name": "Base",

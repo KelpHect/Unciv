@@ -25,6 +25,7 @@ async fn handshake_uses_the_versioned_actorless_contract() {
             nonce,
             serde_json::json!({
                 "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "releaseBundleId": "dev-unpackaged",
                 "engineBuild": "4.21.1",
                 "installedRulesets": [{
                     "name": "Civ V - Vanilla",
@@ -43,6 +44,7 @@ async fn handshake_uses_the_versioned_actorless_contract() {
     .handshake()
     .await
     .unwrap();
+    assert_eq!(capabilities.release_bundle_id, "dev-unpackaged");
     assert_eq!(capabilities.engine_build, "4.21.1");
     assert_eq!(capabilities.installed_rulesets.len(), 1);
     server.await.unwrap();

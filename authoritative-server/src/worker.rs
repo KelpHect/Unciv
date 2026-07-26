@@ -442,11 +442,15 @@ impl EngineWorkerClient {
                 operation: WorkerOperation::Handshake,
             })
             .await?;
+        let release_bundle_id = response
+            .release_bundle_id
+            .ok_or(WorkerClientError::Incomplete)?;
         let engine_build = response.engine_build.ok_or(WorkerClientError::Incomplete)?;
         let installed_rulesets = response
             .installed_rulesets
             .ok_or(WorkerClientError::Incomplete)?;
-        if engine_build.is_empty()
+        if !valid_release_bundle_id(&release_bundle_id)
+            || engine_build.is_empty()
             || engine_build.len() > 128
             || engine_build.chars().any(char::is_control)
             || installed_rulesets.len() > 1_024
@@ -455,6 +459,7 @@ impl EngineWorkerClient {
             return Err(WorkerClientError::Protocol);
         }
         Ok(WorkerCapabilities {
+            release_bundle_id,
             engine_build,
             installed_rulesets,
         })
@@ -573,6 +578,14 @@ impl EngineWorkerClient {
             owner_civilization_id,
         })
     }
+}
+
+fn valid_release_bundle_id(value: &str) -> bool {
+    value == "dev-unpackaged"
+        || (value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
 }
 
 #[cfg(test)]

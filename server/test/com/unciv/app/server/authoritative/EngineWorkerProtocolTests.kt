@@ -537,6 +537,7 @@ class EngineWorkerProtocolTests {
                 .apply {
                     environment()["UNCIV_ENGINE_WORKER_PORT"] = port.toString()
                     environment()["UNCIV_ENGINE_WORKER_SECRET"] = TEST_WORKER_SECRET
+                    environment()["UNCIV_V3_UNPACKAGED_DEV"] = "1"
                 }
                 .start()
             try {

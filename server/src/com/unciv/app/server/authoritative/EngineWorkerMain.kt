@@ -59,7 +59,11 @@ object EngineWorkerMain {
             ?.let(EngineWorkerAuthentication::fromHex)
             ?: error("UNCIV_ENGINE_WORKER_SECRET is required")
         val runtimeLimits = EngineWorkerRuntimeLimits.fromEnvironment()
+        val releaseBundleId = System.getenv("UNCIV_V3_RELEASE_BUNDLE_ID")
+            ?: if (System.getenv("UNCIV_V3_UNPACKAGED_DEV") == "1") "dev-unpackaged"
+            else error("UNCIV_V3_RELEASE_BUNDLE_ID is required")
         LoopbackEngineWorkerServer(
+            worker = AuthoritativeEngineWorker(releaseBundleId),
             authentication = authentication,
             runtimeLimits = runtimeLimits,
         ).serve(port)

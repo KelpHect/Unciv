@@ -601,10 +601,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   plus replayable player assignment, typed research selection, and a complete
   human-to-two-AI-to-human turn. Forged actor and changed-clock controls prove
   that authenticated identity and server time remain replay-critical.
-- [ ] Package and pin the exact Kotlin worker build together with compatible
-  Rust protocol, client capability, ruleset manifests, and database migrations.
-  A self-contained executable worker JAR now exists and is exercised by tests;
-  release-level digest pinning and compatibility-bundle enforcement remain.
+- [x] Package and pin the exact Kotlin worker build together with the Rust
+  server, supported client artifact, OpenAPI/client capability contract,
+  approved ruleset manifest, complete ordered database migration set, and sole
+  PostgreSQL 19 Beta 2 digest. The atomic bundle builder/verifier rejects
+  missing, changed, extra, linked, special, oversized, or incompatible
+  artifacts. Production Rust verifies its own and the worker's bundled paths,
+  all hashes, compatibility constants, ruleset catalog, and the worker-reported
+  bundle ID before accepting traffic; only explicit test/development mode can
+  run unpackaged.
 
 ## P1: authentication, accounts, social features, and clients
 
@@ -717,17 +722,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :android:assembleDebug :tests:test :server:test
-  :desktop:compileKotlin --no-parallel` passes (1,112 JVM/server cases: 1,098
-  executed, 14 intentional skips), and `:android:lintDebug` passes.
-- Rust passes 157 active library tests and 16 HTTP/OpenAPI tests; all 24
+- `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
+  --no-parallel` passes (1,114 JVM/server cases: 1,100 executed, 14 intentional
+  skips), and `:android:lint` passes.
+- Rust passes 163 active library tests and 16 HTTP/OpenAPI tests; all 26
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
   lanes also pass.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 53-line facade, and the largest Rust source
+- `main.rs` is 6 lines, `lib.rs` is a 62-line facade, and the largest Rust source
   is 796 lines. New work must split by concern before crossing the 800-line
   guardrail.
 

@@ -34,15 +34,12 @@ breaker during repeated failures.
 
 ## Install
 
-Build and stage immutable artifacts:
+Build and stage the bootstrap assets:
 
 ```text
-./gradlew :server:authoritativeWorkerDist
-install -d -o root -g root -m 0755 /opt/unciv-authoritative/worker
 install -d -o root -g root -m 0755 /opt/unciv-authoritative/bootstrap-assets
 install -d -o root -g root -m 0755 /opt/unciv-authoritative/rulesets
 install -d -o root -g root -m 0755 /opt/unciv-authoritative/docs
-install -o root -g root -m 0444 server/build/libs/UncivAuthoritativeWorker.jar /opt/unciv-authoritative/worker/
 install -o root -g root -m 0444 docs/operations/authoritative-worker-systemd.md /opt/unciv-authoritative/docs/
 cp -a android/assets/. /opt/unciv-authoritative/bootstrap-assets/
 find /opt/unciv-authoritative/bootstrap-assets -type d -exec chmod 0555 {} +
@@ -54,6 +51,11 @@ Create and activate the first immutable version using
 refuses to start until `/opt/unciv-authoritative/rulesets/active` is an atomic
 link to a validated version.
 
+Create and install the matching release bundle using
+`docs/operations/authoritative-release-bundle.md`. The worker JAR is executed
+only from `/opt/unciv-authoritative/releases/current`, and its environment must
+contain the exact bundle ID reported by the verified manifest.
+
 Create identities and the deployment secret without placing it in shell
 history:
 
@@ -64,6 +66,7 @@ install -d -o root -g unciv-authoritative -m 0750 /etc/unciv-authoritative
 install -o root -g unciv-authoritative -m 0640 /dev/null /etc/unciv-authoritative/worker.env
 openssl rand -hex 32 | sed 's/^/UNCIV_ENGINE_WORKER_SECRET=/' > /etc/unciv-authoritative/worker.env
 printf '%s\n' 'UNCIV_ENGINE_WORKER_PORT=43170' >> /etc/unciv-authoritative/worker.env
+printf '%s\n' 'UNCIV_V3_RELEASE_BUNDLE_ID=<verified-bundle-id>' >> /etc/unciv-authoritative/worker.env
 chown root:unciv-authoritative /etc/unciv-authoritative/worker.env
 chmod 0640 /etc/unciv-authoritative/worker.env
 ```
@@ -79,8 +82,9 @@ systemctl show unciv-authoritative-worker.service -p ActiveState -p MainPID -p M
 ```
 
 The Rust service must use `127.0.0.1:43170`, possess the same 256-bit secret
-through its separate protected configuration, and pass its authenticated
-capability handshake before accepting traffic.
+through its separate protected configuration, load the same release bundle,
+and pass its authenticated capability handshake. The worker returns its bundle
+ID in that signed handshake; Rust rejects a mismatch before accepting traffic.
 
 ## Ruleset asset integrity
 

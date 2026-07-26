@@ -739,6 +739,7 @@ pub(super) enum WorkerOperation<'a> {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct WorkerResponse {
     pub(super) protocol_version: u16,
+    pub(super) release_bundle_id: Option<String>,
     pub(super) server_time_millis: Option<i64>,
     pub(super) engine_build: Option<String>,
     pub(super) installed_rulesets: Option<Vec<WorkerRuleset>>,
@@ -773,6 +774,7 @@ pub struct ProjectedSpectatorState {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkerCapabilities {
+    pub release_bundle_id: String,
     pub engine_build: String,
     pub installed_rulesets: Vec<WorkerRuleset>,
 }

@@ -7,7 +7,18 @@ plugins {
 sourceSets {
     main {
         java.srcDir("src/")
+        resources.srcDir(layout.buildDirectory.dir("generated/authoritativeV3Compatibility"))
     }
+}
+
+val generateAuthoritativeV3Compatibility by tasks.registering(Copy::class) {
+    from(rootProject.file("authoritative-server/release/compatibility.json"))
+    into(layout.buildDirectory.dir("generated/authoritativeV3Compatibility"))
+    rename { "authoritative-v3-compatibility.json" }
+}
+
+tasks.named("processResources") {
+    dependsOn(generateAuthoritativeV3Compatibility)
 }
 
 

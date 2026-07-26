@@ -35,7 +35,7 @@ fn worker_service_enforces_recycling_isolation_and_resource_caps() {
         "-XX:MaxMetaspaceSize=96m",
         "-XX:MaxDirectMemorySize=32m",
         "-XX:+ExitOnOutOfMemoryError",
-        "/opt/unciv-authoritative/worker/UncivAuthoritativeWorker.jar",
+        "/opt/unciv-authoritative/releases/current/worker/UncivAuthoritativeWorker.jar",
     ] {
         assert!(
             command.contains(argument),
@@ -43,6 +43,7 @@ fn worker_service_enforces_recycling_isolation_and_resource_caps() {
         );
     }
     assert!(!SERVICE.contains("UNCIV_ENGINE_WORKER_SECRET="));
+    assert!(!SERVICE.contains("UNCIV_V3_UNPACKAGED_DEV"));
     assert_eq!(
         directives["EnvironmentFile"],
         "/etc/unciv-authoritative/worker.env",
@@ -51,10 +52,18 @@ fn worker_service_enforces_recycling_isolation_and_resource_caps() {
 
 #[test]
 fn environment_template_contains_no_usable_secret() {
+    assert!(!ENVIRONMENT_EXAMPLE.contains("UNCIV_V3_UNPACKAGED_DEV"));
     let values = directives(ENVIRONMENT_EXAMPLE);
     assert_eq!(values["UNCIV_ENGINE_WORKER_PORT"], "43170");
     assert_eq!(values["UNCIV_ENGINE_WORKER_SOCKET_TIMEOUT_MS"], "5000");
     assert_eq!(values["UNCIV_ENGINE_WORKER_COMMAND_TIMEOUT_MS"], "30000");
+    let bundle_id = &values["UNCIV_V3_RELEASE_BUNDLE_ID"];
+    assert_ne!(bundle_id.len(), 64);
+    assert!(
+        !bundle_id
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    );
     let secret = &values["UNCIV_ENGINE_WORKER_SECRET"];
     assert_ne!(secret.len(), 64);
     assert!(

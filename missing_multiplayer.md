@@ -312,7 +312,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: partial gameplay and projection families
 
-- [ ] Persistent unit orders: inventory and add any remaining order controls not
+- [x] Persistent unit orders: inventory and add any remaining order controls not
   covered by exploration, automation, posture, improvement, road, movement, and
   cancellation commands. Siege setup now uses the closed `setup` posture in
   projection v42 and is worker-owned. Exact current-turn escort movement now
@@ -330,10 +330,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   paradrop destinations, affordable upgrade targets, and rename input.
   Projection v58 adds exact long-route destinations, tile
   improvement/repair/cancellation choices, and road destinations/cancellation
-  to that production UI. Only any retained autoplay controls still need
-  explicit projected inputs and UI.
-  Whole-turn, military, civilian, and economy autoplay remains fail-closed for
-  opened v3 games; if retained, implement it as explicit server-owned AI.
+  to that production UI. Whole-turn, military, civilian, and economy autoplay
+  is deliberately not retained for API v3 because the legacy implementation
+  executes AI from `WorldScreen` using client settings and UI globals.
+  Source-level regression coverage forbids autoplay/`TurnManager`/
+  `NextTurnAutomation` from the projection-only world and forbids an autoplay
+  command in the public schema or Rust command union. Local, hotseat, and
+  legacy games retain the convenience feature; authoritative AI civilizations
+  and persistent automated unit orders execute only inside the private worker.
 - [x] Migrate capital-project unit consumption (`AddInCapital`) to the
   authoritative worker. Projection v52 advertises only the server-derived
   project name for an owned current-turn unit at its own capital; the client
@@ -597,7 +601,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :android:assembleDebug :tests:test :server:test
-  :desktop:compileKotlin --no-parallel` passes (1082 JVM/server cases: 1069
+  :desktop:compileKotlin --no-parallel` passes (1083 JVM/server cases: 1070
   executed, 13 intentional skips), and `:android:lintDebug` passes.
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

@@ -250,6 +250,40 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun apiV3NeverExposesClientSideWholeTurnAutoplay() {
+        val projectionWorld = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeWorldScreen.kt",
+        ).readText()
+        val legacyAutoplay = sourceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/status/AutoPlayMenu.kt",
+        ).readText()
+        val commandSchema = sourceFile(
+            "protocol/command-envelope-v3.schema.json",
+        ).readText()
+        val rustCommands = sourceFile(
+            "authoritative-server/src/command.rs",
+        ).readText()
+
+        for (forbidden in listOf(
+            "AutoPlay",
+            "TurnManager",
+            "NextTurnAutomation",
+            "automateTurn(",
+            "settings.autoPlay",
+        )) {
+            assertFalse(
+                "Projection-only world must not execute client AI through $forbidden",
+                projectionWorld.contains(forbidden),
+            )
+        }
+        assertFalse(legacyAutoplay.contains("authoritativeSession"))
+        assertFalse(legacyAutoplay.contains("IfOpen("))
+        assertFalse(commandSchema.contains("autoplay", ignoreCase = true))
+        assertFalse(rustCommands.contains("autoplay", ignoreCase = true))
+    }
+
+    @Test
     fun apiV3DecisionsExistOnlyInProjectionWorldRouting() {
         for (legacyScreen in listOf(
             "pickerscreens/TechPickerScreen.kt",

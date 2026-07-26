@@ -1,5 +1,36 @@
 # Authoritative multiplayer v3 status
 
+## Closed persistent-order inventory and no client-side autoplay
+
+Implemented on 2026-07-26:
+
+- Closed the remaining persistent-unit-order inventory. Exact exploration,
+  automation, posture/setup, improvement/repair, road, movement/escort,
+  cancellation, promotion, upgrade, swap, disband, pillage, founding,
+  paradrop, and rename inputs are projection-bound typed commands whose effects
+  run in the private Kotlin worker.
+- API v3 deliberately does not retain the legacy whole-turn/military/civilian/
+  economy autoplay feature. That code invokes AI from `WorldScreen` using
+  client settings and UI globals, which is incompatible with a disposable
+  presentation client.
+- Actual AI civilizations, turn rotation, and pending automated unit orders
+  remain worker-owned. Local, hotseat, saved, and explicit legacy games retain
+  their existing client autoplay convenience without crossing into v3.
+- Regression coverage forbids `AutoPlay`, `TurnManager`,
+  `NextTurnAutomation`, local autoplay settings, or `automateTurn()` in the
+  projection-only world; it also forbids an autoplay operation in the public
+  command schema and Rust command union.
+
+Verification on 2026-07-26:
+
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1083 JVM/server cases: 1070
+  executed, 13 intentional skips, zero failures, and zero errors.
+- Focused execution-context coverage proves the private worker runs the
+  automated-order phase before authoritative end turn. `git diff --check`
+  passes; no production source or protocol was changed because the forbidden
+  v3 autoplay surface was already absent.
+
 ## Projection-only owner and invited-player lobby transitions
 
 Implemented on 2026-07-26:

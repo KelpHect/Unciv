@@ -1,0 +1,147 @@
+package com.unciv.ui.screens.multiplayerscreens
+
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinator
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.ApiV3Exception
+import com.unciv.ui.components.extensions.disable
+import com.unciv.ui.components.extensions.enable
+import com.unciv.ui.components.extensions.toTextButton
+import com.unciv.ui.components.input.onClick
+import com.unciv.ui.components.widgets.UncivTextField
+import com.unciv.ui.popups.ConfirmPopup
+import com.unciv.ui.popups.Popup
+import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.basescreen.BaseScreen
+import com.unciv.ui.screens.savescreens.LoadGameScreen
+import com.unciv.utils.Concurrency
+import com.unciv.utils.launchOnGLThread
+
+class AuthoritativeAdministrationPopup(
+    private val screen: BaseScreen,
+    private val gameSummary: ApiV3GameSummary,
+    private val coordinator: AuthoritativeAdministrationCoordinator,
+    private val onChanged: () -> Unit,
+) : Popup(screen) {
+    private val memberUsername = UncivTextField("Member account username")
+    private val kickButton = "Kick player".toTextButton()
+    private val transferButton = "Transfer ownership".toTextButton()
+    private val closeGameButton = "Close game".toTextButton()
+    private val archiveGameButton = "Archive game".toTextButton()
+    private val actionButtons =
+        listOf(kickButton, transferButton, closeGameButton, archiveGameButton)
+
+    init {
+        require(gameSummary.role == "owner" && gameSummary.lifecycleStatus == "active") {
+            "Only the active authoritative game owner can administer this game"
+        }
+        addGoodSizedLabel("Server game administration").row()
+        addGoodSizedLabel(
+            "Game [${gameSummary.gameId}] - revision [${gameSummary.committedRevision}]",
+        ).row()
+        add(memberUsername).width(screen.stage.width / 2).row()
+
+        kickButton.onClick {
+            confirm(
+                "Kick [${memberUsername.text.trim()}] from this game?",
+                "Kick",
+            ) { kick() }
+        }
+        transferButton.onClick {
+            confirm(
+                "Transfer ownership to [${memberUsername.text.trim()}]?",
+                "Transfer",
+            ) { transfer() }
+        }
+        closeGameButton.onClick {
+            confirm(
+                "Close this game? No further gameplay commands will be accepted.",
+                "Close game",
+            ) { closeGame() }
+        }
+        archiveGameButton.onClick {
+            confirm(
+                "Archive this game and close its local server session?",
+                "Archive game",
+            ) { archiveGame() }
+        }
+
+        for (button in actionButtons) add(button).growX().row()
+        addCloseButton()
+    }
+
+    private fun confirm(message: String, confirmText: String, action: () -> Unit) {
+        ConfirmPopup(screen, message, confirmText, action = action).open()
+    }
+
+    private fun kick() = runAction("Kick authoritative member") {
+        when (val outcome = coordinator.kick(gameSummary.gameId, memberUsername.text)) {
+            is AuthoritativeCommandOutcome.Accepted -> ActionResult()
+            AuthoritativeCommandOutcome.RetryRequired ->
+                ActionResult(
+                    "Kick status is uncertain - retry the same action to confirm",
+                    closePopup = false,
+                )
+            is AuthoritativeCommandOutcome.StaleRefreshed ->
+                ActionResult("Game ownership or membership changed - refreshed")
+            is AuthoritativeCommandOutcome.Rejected -> ActionResult(outcome.code)
+        }
+    }
+
+    private fun transfer() = runAction("Transfer authoritative ownership") {
+        coordinator.transfer(gameSummary.gameId, memberUsername.text)
+        ActionResult()
+    }
+
+    private fun closeGame() = runAction("Close authoritative game") {
+        coordinator.close(gameSummary.gameId)
+        ActionResult()
+    }
+
+    private fun archiveGame() = runAction("Archive authoritative game") {
+        coordinator.archive(gameSummary.gameId)
+        ActionResult()
+    }
+
+    private fun runAction(
+        taskName: String,
+        action: suspend () -> ActionResult,
+    ) {
+        setButtonsEnabled(false)
+        Concurrency.runOnNonDaemonThreadPool(taskName) {
+            try {
+                val result = action()
+                launchOnGLThread {
+                    setButtonsEnabled(true)
+                    onChanged()
+                    if (result.message == null) {
+                        ToastPopup("Server game administration updated", screen)
+                    } else {
+                        ToastPopup(result.message, screen)
+                    }
+                    if (result.closePopup) close()
+                }
+            } catch (ex: Exception) {
+                val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
+                launchOnGLThread {
+                    setButtonsEnabled(true)
+                    onChanged()
+                    ToastPopup(message, screen)
+                    if (ex is ApiV3Exception) close()
+                }
+            }
+        }
+    }
+
+    private fun setButtonsEnabled(enabled: Boolean) {
+        for (button: TextButton in actionButtons) {
+            if (enabled) button.enable() else button.disable()
+        }
+    }
+
+    private data class ActionResult(
+        val message: String? = null,
+        val closePopup: Boolean = true,
+    )
+}

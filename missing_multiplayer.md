@@ -267,10 +267,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   action, binds retry IDs to exact request meaning, rotates acceptance identity
   after a refreshed revision/hash, refreshes membership after joining, and
   labels the old game-ID add action as legacy-only whenever v3 is installed.
-- [ ] Wire production administration UI for owner kick, ownership transfer,
+- [x] Wire production administration UI for owner kick, ownership transfer,
   close, and archive, including confirmation, retry with the same operation ID,
   status display, and clear handling when ownership changes remotely. The API,
   persistence, client transport/session, command gating, and metadata are done.
+  The production screen now gates confirmed administration to an active,
+  available owner membership; revisioned kick opens/reuses the command bus,
+  lifecycle operations retain exact-meaning IDs across ambiguous retries, and
+  stale/rejected authority refreshes and closes the invalid owner popup.
 - [ ] Add a richer game administration/history projection if the product needs
   more than the current lifecycle status and durable audit/outbox records.
 - [ ] Decide whether spectator invitations can be revoked by the owner and, if
@@ -443,7 +447,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-parallel` passes (999 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-parallel` passes (1004 JVM/server tests,
   13 intentional skips).
 - Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 20 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

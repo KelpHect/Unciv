@@ -5160,6 +5160,48 @@ Verification on 2026-07-26:
   unclaimed because the SDK-gated Android Gradle project is absent from this
   checkout, as recorded in the preceding discovery milestone.
 
+## Production owner administration UI
+
+Implemented on 2026-07-26:
+
+- Active, available owner memberships now expose a dedicated server-game
+  administration popup. Player, spectator, admin, closed, archived,
+  unavailable, and legacy selections cannot enable it.
+- Kick is kept on the revisioned typed-command boundary. The coordinator opens
+  the authenticated player projection when needed, then delegates to the
+  command bus so stale refresh and ambiguous-response idempotency retain their
+  existing command semantics.
+- Ownership transfer, close, and archive retain caller-stable operation UUIDs
+  bound to one exact game, operation, and target username. Exact network retries
+  reuse the ID; changing a transfer target produces a different identity;
+  confirmed success releases the retry state.
+- Every destructive action requires confirmation and displays the selected
+  server game and revision. A retryable ambiguous kick keeps the popup open;
+  stale or rejected authority and API authorization errors refresh membership
+  metadata and close the invalid owner surface. Successful transfer, close, or
+  archive also refreshes lifecycle/role metadata.
+- The UI remains isolated from legacy rename/delete/resign controls and never
+  edits, uploads, or saves a canonical `GameInfo`.
+
+Verification on 2026-07-26:
+
+- Focused
+  `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinatorTests" --no-parallel`
+  passes all 5 tests. They prove exact transfer retries retain their operation
+  ID, changed transfer targets rotate it, close/archive identities remain
+  distinct, kick trims and uses the revisioned command boundary, and a missing
+  opened projection fails closed.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes. The reports contain 1004 JVM/server cases: 991 executed,
+  13 intentional skips, zero failures, and zero errors; desktop compilation
+  passes in the same run.
+- `git diff --check` passes. `MultiplayerScreen.kt` is 646 lines; the
+  administration coordinator and popup are 103 and 147 lines, keeping each
+  concern in a focused shallow module.
+- No source, compile, test, or formatting failure is deferred. Android remains
+  unclaimed because this checkout has no configured SDK and therefore excludes
+  its conditional Gradle project.
+
 ## Packaged-worker fresh-process parity
 
 Implemented on 2026-07-26:

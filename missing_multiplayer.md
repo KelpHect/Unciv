@@ -465,10 +465,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   the real API blocked there after authenticated worker execution, terminates
   the process, and verifies zero commit artifacts. A restarted API safely
   re-executes the same command ID and commits exactly one revision.
-- [ ] Complete controlled whole-process fault tests for packaged Kotlin worker
-  termination and outbox-dispatch boundaries. Forced database-connection
-  termination while blocked at the canonical commit lock is covered: it leaves
-  no phantom rows and the same command retries safely.
+- [x] Prove forced packaged Kotlin worker termination is retry-safe. A private
+  proxy forwards a complete authenticated `create_game` frame to the real
+  packaged JVM, then the JVM is forcibly terminated before any response reaches
+  Rust. No game or creation-operation artifact survives; restarting both sides
+  and retrying the exact operation ID creates revision zero once, and a further
+  duplicate returns that same game.
+- [ ] Complete controlled whole-process fault tests at outbox-dispatch
+  boundaries. Forced database-connection termination while blocked at the
+  canonical commit lock is covered: it leaves no phantom rows and the same
+  command retries safely.
 - [ ] Test actual PostgreSQL/service failover and reconnection under load. The
   independent-replica CAS race is covered: two valid commands at one expected
   revision produce exactly one complete head and one stale conflict.

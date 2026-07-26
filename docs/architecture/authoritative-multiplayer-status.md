@@ -1,5 +1,49 @@
 # Authoritative multiplayer v3 status
 
+## Forced packaged Kotlin worker termination
+
+Implemented on 2026-07-26:
+
+- Added a process-level fixture for the actual 37 MB
+  `UncivAuthoritativeWorker.jar`, launched headlessly from the production game
+  assets with protocol-v2 mutual service identity.
+- A private test proxy relays the API startup handshake, then forwards one
+  complete authenticated `create_game` frame to the packaged JVM. The JVM is
+  forcibly terminated and the proxy drops the private connection before any
+  response can reach the real Rust API process.
+- The failed request returns the stable worker failure response and PostgreSQL
+  contains no game, creation operation, genesis revision, snapshot, or member.
+  Thus a worker that dies after receiving canonical setup intent cannot create a
+  phantom game or poison the operation's idempotency key.
+- A fresh packaged JVM and Rust API accept the exact same authenticated account,
+  operation ID, manifest, and setup. The worker runs real `GameStarter`, creates
+  revision zero once, and a further identical creation request returns the same
+  game without creating another artifact.
+- The harness discovers the engine build and exact vanilla ruleset content hash
+  from the packaged worker handshake. It does not substitute a fake manifest,
+  rules engine, save, or production fault hook.
+
+Verification on 2026-07-26:
+
+- `./gradlew :server:authoritativeWorkerDist --console=plain` passes and provides
+  the packaged worker used by the fault test.
+- The focused
+  `packaged_worker_death_during_creation_leaves_no_game_and_retry_succeeds`
+  process test passes in 2.59 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- All 24 in-crate PostgreSQL integration/fault tests pass in 8.03 seconds, both
+  Rust API process tests pass in 4.38 seconds, and the packaged-JVM death test
+  passes in 2.46 seconds in the same serialized run. The disposable PostgreSQL
+  container was removed and cleanup was verified.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 24 database tests and three process tests are
+  intentionally ignored without their explicit database/worker prerequisites.
+  `cargo fmt --all -- --check` and warnings-as-errors `cargo clippy
+  --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+
 ## Forced Rust process death at the commit boundary
 
 Implemented on 2026-07-26:

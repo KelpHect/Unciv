@@ -256,9 +256,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   legacy/API-v2 games. Production creation, directory selection, world entry,
   end turn, self-resignation, force-resignation, and administration now have
   explicit projection/session routes with source-level regression tests. The
+  legacy `WorldScreen` prompt/end-turn interceptor has also been removed, so
+  local clone/advance/upload behavior is now explicitly legacy-only. The
   remaining work is removal or hard classification of historical
-  legacy-shaped screen interceptors that key API-v3 behavior to an open
-  command bus.
+  legacy-shaped city, unit, diplomacy, religion, espionage, and alert
+  interceptors that key API-v3 behavior to an open command bus.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or

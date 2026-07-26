@@ -82,6 +82,23 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun apiV3EndTurnExistsOnlyInProjectionWorldRouting() {
+        val legacyWorld = sourceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/WorldScreen.kt",
+        ).readText()
+        val projectionWorld = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeWorldScreen.kt",
+        ).readText()
+
+        assertFalse(legacyWorld.contains("authoritativeSession"))
+        assertFalse(legacyWorld.contains("endTurnIfOpen"))
+        assertFalse(legacyWorld.contains("PendingEndTurnAction"))
+        assertTrue(projectionWorld.contains("session.endTurnIfOpen"))
+        assertTrue(projectionWorld.contains("controller.submitEndTurn()"))
+    }
+
+    @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +

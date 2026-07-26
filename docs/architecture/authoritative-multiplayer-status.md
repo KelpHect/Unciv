@@ -1,5 +1,39 @@
 # Authoritative multiplayer v3 status
 
+## Legacy WorldScreen authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed the historical API-v3 prompt and end-turn interceptors from
+  `WorldScreen`. That canonical-`GameInfo` screen is now explicitly responsible
+  only for offline, saved, hotseat, and legacy/API-v2 behavior; it can no
+  longer switch between server `EndTurn` and local clone/advance/upload based
+  on whether a command bus happens to be open.
+- API-v3 end turn remains exclusively in `AuthoritativeWorldScreen`, where the
+  immutable player projection supplies mandatory blockers and the focused
+  controller refuses submission until the server advertises readiness.
+- The existing local/legacy path is behaviorally preserved: it still clones
+  `GameInfo`, runs local `nextTurn`, and uploads only for explicit legacy online
+  games. Server-authoritative games never construct or enter that screen.
+- Source-level routing tests now require the legacy world to contain no
+  authoritative session, end-turn, or pending-action reference and require the
+  projection world to retain both typed session submission and controller
+  gating.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/world-controller tests and desktop compilation
+  pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1064 JVM/server cases: 1051 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed, and no known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped city, unit,
+  diplomacy, religion, espionage, and alert surfaces; the broad mutation audit
+  remains correctly unchecked until those are removed or explicitly
+  classified.
+
 ## Production authority routing and lifecycle separation
 
 Implemented on 2026-07-26:

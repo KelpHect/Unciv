@@ -6610,6 +6610,56 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## PostgreSQL 19 Beta 2 promotion under live command load
+
+Implemented and verified on 2026-07-26:
+
+- A self-contained ignored Rust integration harness now creates a disposable
+  primary and physical streaming standby from only the pinned
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  image. It requires streaming state, synchronous standby selection, and
+  `synchronous_commit=remote_apply` before accepting the workload.
+- A focused Tokio TCP routing endpoint gives SQLx one stable database address.
+  Four independent game journals each commit four revisions, synchronize at a
+  barrier, and continue while the harness forcibly kills the primary, promotes
+  the standby, and reroutes only new connections. Caller-stable command IDs
+  retry storage failures without changing command meaning.
+- The test requires evidence that at least one operation encountered the dead
+  primary. It then proves that all 64 intended commands committed exactly once:
+  each game has head revision 16, a contiguous revision 0-16 chain, 16 command
+  rows, 17 immutable snapshots including genesis, 16 outbox events, and no
+  reconciliation findings.
+- The harness is split by responsibility into a three-line integration façade,
+  disposable Docker-cluster lifecycle, stable TCP proxy, and canonical-history
+  scenario. Test-owned containers, network, and volumes have unique names and
+  are removed on both success and panic.
+
+Verification:
+
+- `cargo test --test postgres_failover -- --ignored --nocapture` passes the
+  complete failover scenario in 8.40 seconds. Two earlier full live runs also
+  passed in 8.32 and 8.37 seconds after the initial readiness race was fixed.
+- `cargo test --all-targets` passes 143 active library tests and all 16
+  HTTP/OpenAPI tests; the 24 database tests and five explicitly provisioned
+  process/failover tests remain intentionally ignored in this default lane.
+- Against a separate exact-digest PostgreSQL 19 Beta 2 instance,
+  `cargo test --lib -- --ignored --test-threads=1` passes all 24 database tests
+  in 8.21 seconds. `cargo test --test http_response_loss -- --ignored
+  --test-threads=1` passes both Rust API-process cases in 4.43 seconds, and
+  `cargo test --test packaged_worker_death -- --ignored --test-threads=1`
+  passes both packaged JVM/outbox process cases in 3.88 seconds.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+  `./gradlew.bat :android:lintDebug :android:assembleDebug :tests:test
+  :server:test :desktop:compileKotlin --no-parallel --console=plain` passes 63
+  tasks (3 executed, 60 up-to-date).
+- The first live harness run found that `pg_isready` can report the temporary
+  initialization server before the requested database exists. Readiness now
+  requires a successful SQL query against the exact database. That failure was
+  corrected and all gates rerun; no error remains deferred.
+- `main.rs` remains 6 lines and `lib.rs` remains a thin façade. Every Rust
+  source remains below 800 lines; the largest is `projection.rs` at 796 lines.
+
 ## Projection v56 and authoritative city controls
 
 Implemented on 2026-07-26:

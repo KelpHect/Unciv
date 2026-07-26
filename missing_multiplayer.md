@@ -67,8 +67,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and server-side player rotation.
 - [x] Implement bounded snapshot compression, corruption quarantine, read-only
   reconciliation tooling, multi-replica commit-race proof, and database
-  connection-loss retry proof. Broader process/failover coverage remains
-  unresolved below.
+  connection-loss retry proof. Controlled Rust/JVM/outbox process death and
+  actual PostgreSQL promotion with Rust-pool reconnection are also qualified;
+  exhaustive setup/command recovery fixtures remain unresolved below.
 - [x] Persist the executing civilization as immutable command-journal replay
   identity. New normal, join, resignation, and kick commits retain the actor
   even after membership deletion; reconciliation reports older or
@@ -477,9 +478,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   backend are terminated, leaving attempt one leased but undelivered. After
   lease expiry, a restarted API reclaims attempt two, clears the claim,
   acknowledges delivery, and leaves canonical history unchanged.
-- [ ] Test actual PostgreSQL/service failover and reconnection under load. The
-  independent-replica CAS race is covered: two valid commands at one expected
-  revision produce exactly one complete head and one stale conflict.
+- [x] Test actual PostgreSQL/service failover and reconnection under load. A
+  disposable exact-digest PostgreSQL 19 Beta 2 primary and physical streaming
+  standby run with synchronous remote-apply durability. The primary is killed
+  while four game journals are advancing through one stable endpoint; the
+  standby is promoted and existing Rust SQLx pools encounter the dead-primary
+  window, discard failed connections, reconnect, and finish all 64
+  caller-stable commands. Each game retains one contiguous 0-16 revision
+  chain, 16 unique commands/snapshots/outbox events, the expected canonical
+  head, and zero reconciliation findings. The independent-service replica CAS
+  race separately proves that two valid commands at one expected revision
+  produce exactly one complete head and one stale conflict.
 
 ## P0: projection confidentiality and protocol hardening
 

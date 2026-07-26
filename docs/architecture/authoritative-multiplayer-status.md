@@ -7142,6 +7142,30 @@ Focused verification on 2026-07-27:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker city-state tribute parity
+
+Implemented on 2026-07-27:
+
+- Added a deterministic Vanilla scenario that creates the city-state's capital
+  and a canonical intimidating military presence. The player submits only the
+  city-state ID and gold-versus-worker choice advertised by the projection.
+- The worker derives tribute willingness and amount, then applies the gold
+  transfer, influence penalty, and recent-bullying cooldown. All three complete
+  responses and state hashes are byte-identical across independent packaged
+  JVMs. Fresh-process evidence now covers 75 of 86 sealed operations; 11
+  remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityStateTributeParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,137 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

@@ -1,5 +1,49 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only direct unit special actions
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now exposes the closed direct unit
+  action families already derived by the private worker: founding/enhancing/
+  spreading religion and removing heresy; direct great-person uses; gifting;
+  capital-project consumption; instant improvements; transformations; and
+  opaque triggered uniques.
+- A focused `AuthoritativeUnitActionController` rechecks the selected owned
+  unit and exact enum or opaque action ID against the latest projection before
+  typed submission. The client does not reconstruct availability from unit
+  names, uniques, rulesets, tile state, costs, or effects.
+- A focused `AuthoritativeUnitActionPanel` renders only those advertised
+  actions. Display labels and transformation/project names are projected
+  presentation data; canonical legality, costs, yields, diplomacy effects,
+  transformation results, and unit consumption remain worker-owned.
+- The authenticated session already preserves one pending command identity and
+  meaning for every action family. The production adapter now connects those
+  exact operations without local mutation or a legacy `WorldScreen` fallback.
+- Deterministic controller tests cover exact routing across all seven action
+  groups, invented/unadvertised identity rejection before transport, and
+  response-uncertain retry without revision mutation. The structural boundary
+  test includes both new source files.
+
+Verification on 2026-07-26:
+
+- The first focused run exposed one test-only exception-class mismatch:
+  unadvertised identities use Kotlin `require` and therefore throw
+  `IllegalArgumentException`. The assertion was corrected and the complete
+  focused gate reran cleanly; production behavior did not change.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1030 JVM/server cases: 1017 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The controller, panel, session adapter, and world
+  screen are 96, 65, 125, and 275 lines. This milestone changes no Rust,
+  protocol schema, OpenAPI, persistence, or PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The projection-only world now exposes combat and direct special actions from
+server-authored allowlists. Unit orders/promotions and the remaining diplomacy,
+trade, choice, religion-selection, and history surfaces stay tracked.
+
 ## Projection-only authoritative combat controls
 
 Implemented on 2026-07-26:

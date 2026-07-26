@@ -202,13 +202,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Canonical strength/health previews are display-only, hidden nuclear and
   interceptor effects remain undisclosed until commit, invented coordinates
   never reach transport, and ambiguous retries preserve the current revision.
+- [x] Expose authoritative direct unit special actions in the projection-only
+  world. The selected-unit panel renders only worker-advertised religious and
+  great-person actions, gifting, capital-project consumption, instant
+  improvements, transformations, and opaque triggered uniques. Exact action
+  identities are rechecked against the latest projection before typed
+  submission; canonical costs, effects, and unit consumption stay private.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected non-combat unit, diplomacy, religion, trade, popup/choice,
-  history/event, and remaining end-turn-blocker interaction surfaces before
-  this item can be checked.
+  projected unit orders/promotions, diplomacy, belief/religion choices, trade,
+  popup/choice, history/event, and remaining end-turn-blocker interaction
+  surfaces before this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -491,7 +497,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1027 JVM/server tests, 13 intentional skips).
+  passes (1030 JVM/server tests, 13 intentional skips).
 - Rust passes 118 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

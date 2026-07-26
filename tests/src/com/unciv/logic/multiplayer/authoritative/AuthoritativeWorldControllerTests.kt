@@ -457,6 +457,10 @@ class AuthoritativeWorldControllerTests {
                     "AuthoritativeCombatController.kt",
             ),
             sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "AuthoritativeUnitActionController.kt",
+            ),
+            sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
             ),
@@ -475,6 +479,10 @@ class AuthoritativeWorldControllerTests {
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeCombatPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeUnitActionPanel.kt",
             ),
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +

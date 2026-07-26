@@ -4,6 +4,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityControlActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityEconomyActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCombatActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -95,5 +96,30 @@ internal fun authoritativeCombatActions(
     },
     bombard = { cityId, x, y ->
         session.bombardWithCityIfOpen(gameId, cityId, x, y)
+    },
+)
+
+internal fun authoritativeUnitActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeUnitActions(
+    useReligiousAction = { unitId, action ->
+        session.useReligiousUnitIfOpen(gameId, unitId, action)
+    },
+    useGreatPersonAction = { unitId, action ->
+        session.useGreatPersonUnitIfOpen(gameId, unitId, action)
+    },
+    gift = { unitId -> session.giftUnitIfOpen(gameId, unitId) },
+    addToCapitalProject = { unitId ->
+        session.addUnitToCapitalProjectIfOpen(gameId, unitId)
+    },
+    transform = { unitId, actionId ->
+        session.transformUnitIfOpen(gameId, unitId, actionId)
+    },
+    triggerUnique = { unitId, actionId ->
+        session.triggerUnitUniqueIfOpen(gameId, unitId, actionId)
+    },
+    createInstantImprovement = { unitId, actionId ->
+        session.createInstantImprovementIfOpen(gameId, unitId, actionId)
     },
 )

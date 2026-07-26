@@ -12785,6 +12785,24 @@
         },
         "additionalProperties": false
       },
+      "ProjectedImprovementOrderChoice": {
+        "type": "object",
+        "properties": {
+          "improvementName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queuedImprovementName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedImprovementOrderEntry": {
         "type": "object",
         "required": [
@@ -13401,6 +13419,9 @@
           "canRename",
           "paradropDestinations",
           "availableUpgradeTargets",
+          "moveTowardDestinations",
+          "availableImprovementOrders",
+          "availableRoadDestinations",
           "improvementOrder",
           "roadConnectionPath",
           "availableReligiousActions",
@@ -13437,6 +13458,12 @@
               "$ref": "#/components/schemas/GreatPersonUnitAction"
             }
           },
+          "availableImprovementOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedImprovementOrderChoice"
+            }
+          },
           "availableInstantImprovementActions": {
             "type": "array",
             "items": {
@@ -13459,6 +13486,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ReligiousUnitAction"
+            }
+          },
+          "availableRoadDestinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedMovementDestination"
             }
           },
           "availableTransformActions": {
@@ -13531,6 +13564,12 @@
             ]
           },
           "moveDestinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedMovementDestination"
+            }
+          },
+          "moveTowardDestinations": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedMovementDestination"

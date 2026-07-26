@@ -3,6 +3,7 @@ package com.unciv.ui.screens.multiplayerscreens
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldController
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitTargetMode
 import com.unciv.logic.multiplayer.authoritative.ResearchQueueAction
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toLabel
@@ -17,6 +18,7 @@ import com.unciv.ui.components.input.onClick
 internal class AuthoritativeWorldDecisions(
     private val controller: AuthoritativeWorldController,
     private val busy: Boolean,
+    private val selectUnitTarget: (AuthoritativeUnitTargetMode) -> Unit,
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
 ) {
     fun build(): Table = Table().apply {
@@ -61,6 +63,7 @@ internal class AuthoritativeWorldDecisions(
                 controller.selectedUnitId,
                 controller.unitOrders,
                 busy,
+                selectUnitTarget,
                 submit,
             ).build(),
         ).left().row()

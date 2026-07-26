@@ -126,6 +126,16 @@ class PlayerProjectionContractTests {
             projection.ownUnits.single().paradropDestinations)
         assertEquals(listOf(ProjectedUnitUpgradeTarget("Rifleman", 120)),
             projection.ownUnits.single().availableUpgradeTargets)
+        assertEquals(
+            listOf(ProjectedMovementDestination(2, -1), ProjectedMovementDestination(5, -1)),
+            projection.ownUnits.single().moveTowardDestinations,
+        )
+        assertEquals(
+            ProjectedImprovementOrderChoice(null, null),
+            projection.ownUnits.single().availableImprovementOrders.first(),
+        )
+        assertEquals(listOf(ProjectedMovementDestination(2, -1)),
+            projection.ownUnits.single().availableRoadDestinations)
         assertEquals(listOf(ReligiousUnitAction.SpreadReligion),
             projection.ownUnits.single().availableReligiousActions)
         assertEquals(listOf("Remove Forest", "Farm"),
@@ -151,6 +161,12 @@ class PlayerProjectionContractTests {
             projection.visibleForeignUnits.single().paradropDestinations)
         assertEquals(emptyList<ProjectedUnitUpgradeTarget>(),
             projection.visibleForeignUnits.single().availableUpgradeTargets)
+        assertEquals(emptyList<ProjectedMovementDestination>(),
+            projection.visibleForeignUnits.single().moveTowardDestinations)
+        assertEquals(emptyList<ProjectedImprovementOrderChoice>(),
+            projection.visibleForeignUnits.single().availableImprovementOrders)
+        assertEquals(emptyList<ProjectedMovementDestination>(),
+            projection.visibleForeignUnits.single().availableRoadDestinations)
         assertEquals(emptyList<ProjectedImprovementOrderEntry>(),
             projection.visibleForeignUnits.single().improvementOrder)
         assertEquals(null, projection.visibleForeignUnits.single().roadConnectionDestinationX)
@@ -204,6 +220,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v58.fixture.json") }
         .first { it.isFile }
 }

@@ -53,6 +53,38 @@ class AuthoritativeWorldControllerTests {
     }
 
     @Test
+    fun projectedMultiTurnTargetModeRejectsInventedTilesAndClearsAfterCommit() = runBlocking {
+        val initial = gameProjection(7)
+        val calls = mutableListOf<Triple<Int, Int, Int>>()
+        val controller = AuthoritativeWorldController(
+            initial = initial,
+            refreshProjection = { initial },
+            moveUnit = { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+            endTurn = { AuthoritativeCommandOutcome.Rejected("test") },
+            unitOrderActions = AuthoritativeUnitOrderActions.Unavailable.copy(
+                moveToward = { unitId, x, y ->
+                    calls += Triple(unitId, x, y)
+                    accepted(initial, 8)
+                },
+            ),
+        )
+        val unit = initial.projection.ownUnits.single()
+        val destination = unit.moveTowardDestinations.first()
+        controller.selectUnit(unit.id)
+
+        controller.beginUnitTargetSelection(AuthoritativeUnitTargetMode.MoveToward)
+        assertFalse(controller.canSubmitUnitTarget(99, 99))
+        assertThrows<IllegalArgumentException> { controller.submitUnitTarget(99, 99) }
+        assertTrue(calls.isEmpty())
+
+        controller.submitUnitTarget(destination.x, destination.y)
+
+        assertEquals(listOf(Triple(unit.id, destination.x, destination.y)), calls)
+        assertEquals(null, controller.unitTargetMode)
+        assertEquals(8, controller.current.committedRevision)
+    }
+
+    @Test
     fun ambiguousMoveRemainsRetryableWithoutLocalPrediction() = runBlocking {
         var calls = 0
         val initial = gameProjection(7)
@@ -668,7 +700,7 @@ class AuthoritativeWorldControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v58.fixture.json") }
         .first { it.isFile }
 
     private fun sourceFile(path: String): File = generateSequence(

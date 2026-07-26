@@ -24,6 +24,20 @@ internal object MovementTargetProjection {
             .toList()
     }
 
+    fun towardDestinations(unit: MapUnit, enabled: Boolean): List<ProjectedMovementDestination> {
+        if (!enabled || !unit.hasMovement()) return emptyList()
+        return unit.civ.gameInfo.tileMap.values.asSequence()
+            .filter { tile ->
+                tile != unit.getTile() && unit.civ.hasExplored(tile) &&
+                    unit.movement.canReach(tile)
+            }
+            .map { ProjectedMovementDestination(it.position.x, it.position.y) }
+            .distinct()
+            .sortedWith(coordinateOrder)
+            .take(MAX_TOWARD_DESTINATIONS)
+            .toList()
+    }
+
     private fun ordinaryExactDestinations(unit: MapUnit) =
         unit.movement.getDistanceToTiles().keys.asSequence()
             .filter { tile ->
@@ -40,4 +54,6 @@ internal object MovementTargetProjection {
 
     private val coordinateOrder =
         compareBy<ProjectedMovementDestination> { it.x }.thenBy { it.y }
+
+    private const val MAX_TOWARD_DESTINATIONS = 10_000
 }

@@ -3,6 +3,7 @@ package com.unciv.ui.screens.multiplayerscreens
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderController
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitTargetMode
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toTextButton
@@ -15,6 +16,7 @@ internal class AuthoritativeUnitOrderPanel(
     private val selectedUnitId: Int?,
     private val controller: AuthoritativeUnitOrderController,
     private val busy: Boolean,
+    private val selectTarget: (AuthoritativeUnitTargetMode) -> Unit,
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
 ) {
     fun build(): Table = Table().apply {
@@ -26,6 +28,11 @@ internal class AuthoritativeUnitOrderPanel(
             add(actionButton("Cancel movement to " +
                 "${unit.movementDestinationX},${unit.movementDestinationY}") {
                 controller.cancelMovement(unit.id)
+            }).left().row()
+        }
+        if (unit.moveTowardDestinations.isNotEmpty()) {
+            add(targetButton("Choose multi-turn destination") {
+                selectTarget(AuthoritativeUnitTargetMode.MoveToward)
             }).left().row()
         }
         add(actionButton(if (unit.exploring) "Stop exploring" else "Explore") {
@@ -69,6 +76,26 @@ internal class AuthoritativeUnitOrderPanel(
                 controller.upgrade(unit.id, upgrade.targetUnitName)
             }).left().row()
         }
+        for (choice in unit.availableImprovementOrders) {
+            add(actionButton(choice.title()) {
+                controller.setImprovementOrder(unit.id, choice)
+            }).left().row()
+        }
+        if (unit.roadConnectionDestinationX != null &&
+            unit.roadConnectionDestinationY != null
+        ) {
+            add(actionButton(
+                "Cancel road to ${unit.roadConnectionDestinationX}," +
+                    "${unit.roadConnectionDestinationY}",
+            ) {
+                controller.cancelRoadOrder(unit.id)
+            }).left().row()
+        }
+        if (unit.availableRoadDestinations.isNotEmpty()) {
+            add(targetButton("Choose road destination") {
+                selectTarget(AuthoritativeUnitTargetMode.RoadConnection)
+            }).left().row()
+        }
         if (unit.canRename) add(renameControl(unit.id, unit.instanceName)).left().row()
         if (unit.canDisband)
             add(actionButton("Disband unit") {
@@ -90,5 +117,18 @@ internal class AuthoritativeUnitOrderPanel(
     ): TextButton = title.toTextButton().apply {
         if (busy) disable()
         onClick { submit("Submit authoritative unit order", operation) }
+    }
+
+    private fun targetButton(title: String, operation: () -> Unit): TextButton =
+        title.toTextButton().apply {
+            if (busy) disable()
+            onClick(operation)
+        }
+
+    private fun com.unciv.logic.multiplayer.authoritative.ProjectedImprovementOrderChoice
+        .title(): String = when {
+        improvementName == null -> "Cancel tile improvement"
+        queuedImprovementName == null -> "Build $improvementName"
+        else -> "Build $improvementName, then $queuedImprovementName"
     }
 }

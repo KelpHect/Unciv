@@ -137,21 +137,29 @@ impl PlayerProjection {
                     })
             };
         let valid_direct_controls = |unit: &crate::projection::ProjectedUnit| {
+            let valid_destination_list =
+                |destinations: &[crate::projection::ProjectedMovementDestination],
+                 visible_only: bool| {
+                    destinations.len() <= MAX_PROJECTED_CHOICES
+                        && destinations
+                            .windows(2)
+                            .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+                        && destinations.iter().all(|destination| {
+                            self.explored_tiles.iter().any(|tile| {
+                                (!visible_only || tile.visible)
+                                    && tile.x == destination.x
+                                    && tile.y == destination.y
+                            })
+                        })
+                };
             unit.available_postures.len() <= 6
                 && unit
                     .available_postures
                     .windows(2)
                     .all(|pair| pair[0] < pair[1])
-                && unit.paradrop_destinations.len() <= MAX_PROJECTED_CHOICES
-                && unit
-                    .paradrop_destinations
-                    .windows(2)
-                    .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
-                && unit.paradrop_destinations.iter().all(|destination| {
-                    self.explored_tiles.iter().any(|tile| {
-                        tile.visible && tile.x == destination.x && tile.y == destination.y
-                    })
-                })
+                && valid_destination_list(&unit.paradrop_destinations, true)
+                && valid_destination_list(&unit.move_toward_destinations, false)
+                && valid_destination_list(&unit.available_road_destinations, false)
                 && unit.available_upgrade_targets.len() <= 32
                 && unit
                     .available_upgrade_targets
@@ -161,6 +169,21 @@ impl PlayerProjection {
                     !target.target_unit_name.is_empty()
                         && target.target_unit_name.chars().count() <= 200
                         && target.gold_cost >= 0
+                })
+                && unit.available_improvement_orders.len() <= MAX_UNIT_ACTION_CHOICES
+                && unit.available_improvement_orders.windows(2).all(|pair| {
+                    (&pair[0].improvement_name, &pair[0].queued_improvement_name)
+                        < (&pair[1].improvement_name, &pair[1].queued_improvement_name)
+                })
+                && unit.available_improvement_orders.iter().all(|choice| {
+                    let valid_name = |name: &Option<String>| {
+                        name.as_ref()
+                            .is_none_or(|value| !value.is_empty() && value.chars().count() <= 200)
+                    };
+                    valid_name(&choice.improvement_name)
+                        && valid_name(&choice.queued_improvement_name)
+                        && (choice.improvement_name.is_some()
+                            || choice.queued_improvement_name.is_none())
                 })
         };
         self.own_units.iter().all(|unit| {
@@ -177,6 +200,9 @@ impl PlayerProjection {
                 && unit.available_postures.is_empty()
                 && unit.paradrop_destinations.is_empty()
                 && unit.available_upgrade_targets.is_empty()
+                && unit.move_toward_destinations.is_empty()
+                && unit.available_improvement_orders.is_empty()
+                && unit.available_road_destinations.is_empty()
                 && unit.available_instant_improvement_actions.is_empty()
                 && unit.available_religious_actions.is_empty()
                 && unit.available_great_person_actions.is_empty()
@@ -193,6 +219,9 @@ impl PlayerProjection {
                     && unit.available_postures.is_empty()
                     && unit.paradrop_destinations.is_empty()
                     && unit.available_upgrade_targets.is_empty()
+                    && unit.move_toward_destinations.is_empty()
+                    && unit.available_improvement_orders.is_empty()
+                    && unit.available_road_destinations.is_empty()
                     && unit.available_instant_improvement_actions.is_empty()
                     && unit.available_religious_actions.is_empty()
                     && unit.available_great_person_actions.is_empty()

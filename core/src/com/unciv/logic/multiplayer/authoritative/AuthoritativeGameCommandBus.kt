@@ -632,10 +632,10 @@ class AuthoritativeGameCommandBus(
         require(current.projection.isCurrentTurn && unit.currentMovement > 0f) {
             "Unit cannot receive a movement order in the current projection"
         }
-        require(current.projection.exploredTiles.any {
+        require(unit.moveTowardDestinations.any {
             it.x == destinationX && it.y == destinationY
         }) {
-            "Destination is absent from the current player projection"
+            "Long-route destination is absent from the unit's player projection"
         }
         if (escortUnitId != null) {
             require(escortUnitId != unitId) { "Escort unit must differ from the moving unit" }
@@ -832,9 +832,8 @@ class AuthoritativeGameCommandBus(
         saveAsCityDefault: Boolean = false,
     ) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
-        }
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
         require(promotionNames.isNotEmpty() && promotionNames.size <= 10 &&
             promotionNames.distinct().size == promotionNames.size) {
             "Promotion path must contain between 1 and 10 distinct promotions"
@@ -887,9 +886,8 @@ class AuthoritativeGameCommandBus(
         queuedImprovementName: String?,
     ) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
-        }
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
         require(improvementName == null ||
             (improvementName.isNotBlank() && improvementName.length <= 200)) {
             "Improvement name is invalid"
@@ -900,6 +898,11 @@ class AuthoritativeGameCommandBus(
         }
         require(improvementName != null || queuedImprovementName == null) {
             "A cancelled order cannot include a queued improvement"
+        }
+        require(ProjectedImprovementOrderChoice(
+            improvementName, queuedImprovementName,
+        ) in unit.availableImprovementOrders) {
+            "Improvement order is absent from the unit's player projection"
         }
         submitLocked(PendingAuthoritativeCommand.SetTileImprovementOrder(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -913,16 +916,21 @@ class AuthoritativeGameCommandBus(
         destinationY: Int?,
     ) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
-        }
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
         require((destinationX == null) == (destinationY == null)) {
             "Road destination coordinates must both be present or absent"
         }
-        if (destinationX != null && destinationY != null)
-            require(current.projection.exploredTiles.any {
+        if (destinationX != null && destinationY != null) {
+            require(unit.availableRoadDestinations.any {
                 it.x == destinationX && it.y == destinationY
-            }) { "Road destination is absent from the current player projection" }
+            }) { "Road destination is absent from the unit's player projection" }
+        } else require(
+            unit.roadConnectionDestinationX != null &&
+                unit.roadConnectionDestinationY != null,
+        ) {
+            "Unit has no projected road order to cancel"
+        }
         submitLocked(PendingAuthoritativeCommand.SetRoadConnectionOrder(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, destinationX, destinationY,

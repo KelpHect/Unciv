@@ -724,7 +724,12 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun tileImprovementOrderContainsNoClientTileCostTurnsOrActor() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Worker", 2, -1, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Worker", 2, -1, 100, 2f,
+            availableImprovementOrders = listOf(
+                ProjectedImprovementOrderChoice("Remove Forest", "Farm"),
+            ),
+        )
         val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
             onImprovementOrder = { request ->
                 current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")
@@ -747,7 +752,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun roadConnectionOrderContainsNoClientPathTierMovementOrActor() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Worker", 2, -1, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Worker", 2, -1, 100, 2f,
+            availableRoadDestinations = listOf(ProjectedMovementDestination(7, -2)),
+        )
         val initial = projection(
             7, "hash-7",
             ownUnits = listOf(unit),
@@ -779,7 +787,10 @@ class AuthoritativeGameCommandBusTests {
             7, "hash-7",
             exploredTiles = listOf(ProjectedTileVisibility(7, 2, visible = false)),
             ownUnits = listOf(
-                ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f),
+                ProjectedUnit(
+                    42, "Rome", "Warrior", 0, 0, 100, 2f,
+                    moveTowardDestinations = listOf(ProjectedMovementDestination(7, 2)),
+                ),
                 ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f),
             ),
         )

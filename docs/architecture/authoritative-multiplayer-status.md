@@ -1,5 +1,48 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only route and worker orders
+
+Implemented on 2026-07-26:
+
+- Projection v58 adds sorted, bounded, exact per-unit multi-turn movement
+  destinations, tile improvement/repair/cancellation choices, optional
+  remove-then-build follow-ups, and reachable road destinations. These private
+  choices are empty for foreign and out-of-turn units.
+- Focused Kotlin `MovementTargetProjection` and `UnitOrderProjection` modules
+  derive choices from the shared game engine. The private worker requires the
+  submitted choice to remain canonical and then independently revalidates and
+  executes movement, improvement, and road rules; Rust remains a control plane
+  and contains no second rules engine.
+- The production projection-only unit panel can enter an exact map-target mode
+  for long routes and roads, render exact improvement choices, and cancel
+  active road orders. Invalid map clicks cannot fall through into a different
+  command while target mode is active, and every controller/command-bus layer
+  rejects invented or stale choices before transport.
+- Rust validates projection v58 bounds, coordinate ordering/uniqueness,
+  exploration, improvement-name shape and ordering, cancellation coherence,
+  and complete absence of these controls from foreign or out-of-turn units.
+  The shared fixture and generated OpenAPI contract are updated to v58.
+
+Verification on 2026-07-26:
+
+- The first focused Kotlin run found five older tests whose synthetic
+  projections omitted the newly required exact choices. Their fixtures were
+  updated without weakening authorization; the focused command-bus, session,
+  controller, projection-contract, and desktop compile gate then passed all
+  134 tests.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1052 JVM/server cases: 1039 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `cargo test --all-targets --all-features` passes 120 active library tests and
+  10 HTTP/OpenAPI tests; 21 PostgreSQL tests are intentionally ignored without
+  `UNCIV_V3_DATABASE_URL`. Warnings-as-errors Clippy, `cargo fmt --check`, and
+  generated OpenAPI parity pass.
+- `main.rs` remains 6 lines and `lib.rs` a 53-line facade. The largest touched
+  Rust implementation file is `projection.rs` at 788 lines; the new focused
+  Kotlin order and movement modules are 112 and 59 lines.
+- No known compile, test, format, projection-contract, or OpenAPI error from
+  this milestone is deferred.
+
 ## Projection-only direct unit controls
 
 Implemented on 2026-07-26:

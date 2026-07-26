@@ -163,6 +163,17 @@ internal fun authoritativeUnitOrderActions(
     rename = { unitId, name ->
         session.renameUnitIfOpen(gameId, unitId, name)
     },
+    moveToward = { unitId, x, y ->
+        session.moveUnitTowardIfOpen(gameId, unitId, x, y)
+    },
+    setImprovementOrder = { unitId, improvement, queued ->
+        session.setTileImprovementOrderIfOpen(
+            gameId, unitId, improvement, queued,
+        )
+    },
+    setRoadOrder = { unitId, x, y ->
+        session.setRoadConnectionOrderIfOpen(gameId, unitId, x, y)
+    },
 )
 
 internal fun authoritativePromptActions(

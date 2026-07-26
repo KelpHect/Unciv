@@ -118,7 +118,14 @@ class AuthoritativeWorldScreen(
             setOverscroll(false, false)
         }).colspan(3).grow().maxHeight(stage.height * 0.55f).row()
         topTable.add(ScrollPane(
-            AuthoritativeWorldDecisions(controller, busy) { taskName, operation ->
+            AuthoritativeWorldDecisions(
+                controller,
+                busy,
+                selectUnitTarget = { mode ->
+                    controller.beginUnitTargetSelection(mode)
+                    rebuild()
+                },
+            ) { taskName, operation ->
                 runOperation(taskName, operation = operation)
             }.build(),
         ).apply {
@@ -187,6 +194,14 @@ class AuthoritativeWorldScreen(
 
     private fun tileClicked(x: Int, y: Int, units: List<ProjectedUnit>) {
         if (busy) return
+        if (controller.unitTargetMode != null) {
+            if (controller.canSubmitUnitTarget(x, y)) {
+                runOperation("Submit authoritative unit target") {
+                    controller.submitUnitTarget(x, y)
+                }
+            }
+            return
+        }
         val ownUnit = units.firstOrNull()
         if (ownUnit != null) {
             controller.selectUnit(ownUnit.id)
@@ -255,7 +270,10 @@ class AuthoritativeWorldScreen(
         val blockers = controller.projection.pendingTurnActions
             .joinToString { it.name }
             .ifEmpty { "none" }
-        return "$selection\nEnd-turn requirements: $blockers\nStatus: ${statusText()}"
+        val targetMode = controller.unitTargetMode?.let {
+            "\nTarget selection: ${it.name}"
+        }.orEmpty()
+        return "$selection$targetMode\nEnd-turn requirements: $blockers\nStatus: ${statusText()}"
     }
 
     private fun statusText(): String = when (val status = controller.status) {

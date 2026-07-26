@@ -56,6 +56,8 @@ class AuthoritativeWorldController(
         private set
     var selectedUnitId: Int? = null
         private set
+    var unitTargetMode: AuthoritativeUnitTargetMode? = null
+        private set
     var status: AuthoritativeWorldStatus = AuthoritativeWorldStatus.Synchronized
         private set
 
@@ -122,6 +124,7 @@ class AuthoritativeWorldController(
             "Unit is absent from the current server projection"
         }
         selectedUnitId = unitId
+        unitTargetMode = null
         status = AuthoritativeWorldStatus.Synchronized
     }
 
@@ -133,6 +136,47 @@ class AuthoritativeWorldController(
 
     fun canEndTurn(): Boolean =
         projection.isCurrentTurn && projection.pendingTurnActions.isEmpty()
+
+    fun beginUnitTargetSelection(mode: AuthoritativeUnitTargetMode) {
+        val unit = requireNotNull(selectedUnit()) { "Select a projected unit first" }
+        val available = when (mode) {
+            AuthoritativeUnitTargetMode.MoveToward -> unit.moveTowardDestinations
+            AuthoritativeUnitTargetMode.RoadConnection -> unit.availableRoadDestinations
+        }
+        require(available.isNotEmpty()) {
+            "Target mode has no choices in the current server projection"
+        }
+        unitTargetMode = mode
+        status = AuthoritativeWorldStatus.Synchronized
+    }
+
+    fun cancelUnitTargetSelection() {
+        unitTargetMode = null
+    }
+
+    fun canSubmitUnitTarget(x: Int, y: Int): Boolean {
+        val unit = selectedUnit() ?: return false
+        val choices = when (unitTargetMode) {
+            AuthoritativeUnitTargetMode.MoveToward -> unit.moveTowardDestinations
+            AuthoritativeUnitTargetMode.RoadConnection -> unit.availableRoadDestinations
+            null -> return false
+        }
+        return choices.any { it.x == x && it.y == y }
+    }
+
+    suspend fun submitUnitTarget(x: Int, y: Int) {
+        require(canSubmitUnitTarget(x, y)) {
+            "Target is absent from the selected unit's server projection"
+        }
+        val unitId = requireNotNull(selectedUnitId)
+        when (requireNotNull(unitTargetMode)) {
+            AuthoritativeUnitTargetMode.MoveToward ->
+                unitOrders.moveToward(unitId, x, y)
+            AuthoritativeUnitTargetMode.RoadConnection ->
+                unitOrders.setRoadOrder(unitId, x, y)
+        }
+        unitTargetMode = null
+    }
 
     suspend fun refresh() {
         status = AuthoritativeWorldStatus.Refreshing
@@ -254,6 +298,7 @@ class AuthoritativeWorldController(
         }
         current = replacement
         if (selectedUnit() == null) selectedUnitId = null
+        unitTargetMode = null
         status = AuthoritativeWorldStatus.Synchronized
     }
 
@@ -268,6 +313,11 @@ class AuthoritativeWorldController(
         }
         require(value.projectionHash.isNotBlank()) { "Projection hash must not be blank" }
     }
+}
+
+enum class AuthoritativeUnitTargetMode {
+    MoveToward,
+    RoadConnection,
 }
 
 sealed interface AuthoritativeWorldStatus {

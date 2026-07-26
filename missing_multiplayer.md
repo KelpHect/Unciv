@@ -246,9 +246,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
-  movement/end-turn routes are complete; production still needs long-route
-  selection, improvement/road choices, history/events, and remaining
-  non-blocking interaction surfaces before this item can be checked.
+  movement/end-turn routes are complete; production now also has exact
+  projection-only long-route selection plus improvement and road choices.
+  History/events and remaining non-blocking interaction surfaces still prevent
+  this item from being checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -281,8 +282,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   world now expose exact posture choices, movement cancellation,
   exploration/automation state flips, disband/pillage/found capability,
   paradrop destinations, affordable upgrade targets, and rename input.
-  Long-route destinations, improvement/road choices, and any retained autoplay
-  controls still need explicit projected inputs and UI.
+  Projection v58 adds exact long-route destinations, tile
+  improvement/repair/cancellation choices, and road destinations/cancellation
+  to that production UI. Only any retained autoplay controls still need
+  explicit projected inputs and UI.
   Whole-turn, military, civilian, and economy autoplay remains fail-closed for
   opened v3 games; if retained, implement it as explicit server-owned AI.
 - [x] Migrate capital-project unit consumption (`AddInCapital`) to the

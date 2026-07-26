@@ -60,6 +60,18 @@ class AuthoritativeUnitOrderControllerTests {
                 calls += "rename:$unit:$name"
                 AuthoritativeCommandOutcome.RetryRequired
             },
+            moveToward = { unit, x, y ->
+                calls += "toward:$unit:$x:$y"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            setImprovementOrder = { unit, improvement, queued ->
+                calls += "improvement:$unit:$improvement:$queued"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            setRoadOrder = { unit, x, y ->
+                calls += "road:$unit:$x:$y"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
         )
         val orders = controller(initial, actions).unitOrders
 
@@ -73,6 +85,12 @@ class AuthoritativeUnitOrderControllerTests {
         orders.paradrop(17, 2, -1)
         orders.upgrade(17, "Rifleman")
         orders.rename(17, "Second Mission")
+        orders.moveToward(17, 5, -1)
+        orders.setImprovementOrder(
+            17, ProjectedImprovementOrderChoice("Remove Forest", "Farm"),
+        )
+        orders.setRoadOrder(17, 2, -1)
+        orders.cancelRoadOrder(17)
         orders.disband(17)
 
         assertEquals(listOf(
@@ -86,6 +104,10 @@ class AuthoritativeUnitOrderControllerTests {
             "paradrop:17:2:-1",
             "upgrade:17:Rifleman",
             "rename:17:Second Mission",
+            "toward:17:5:-1",
+            "improvement:17:Remove Forest:Farm",
+            "road:17:2:-1",
+            "road:17:null:null",
             "disband:17",
         ), calls)
     }
@@ -113,6 +135,13 @@ class AuthoritativeUnitOrderControllerTests {
         assertThrows<IllegalArgumentException> { orders.upgrade(17, "Invented") }
         assertThrows<IllegalArgumentException> { orders.rename(17, "\u0000") }
         assertThrows<IllegalArgumentException> { orders.foundCity(17) }
+        assertThrows<IllegalArgumentException> { orders.moveToward(17, 99, 99) }
+        assertThrows<IllegalArgumentException> {
+            orders.setImprovementOrder(
+                17, ProjectedImprovementOrderChoice("Invented", null),
+            )
+        }
+        assertThrows<IllegalArgumentException> { orders.setRoadOrder(17, 99, 99) }
         assertThrows<IllegalStateException> { orders.cancelMovement(999) }
 
         val outOfTurn = initial.copy(
@@ -178,7 +207,7 @@ class AuthoritativeUnitOrderControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v58.fixture.json") }
         .first { it.isFile }
 
     private suspend inline fun <reified T : Throwable> assertThrows(

@@ -30,6 +30,9 @@ data class ProjectedUnit(
     val canRename: Boolean = false,
     val paradropDestinations: List<ProjectedMovementDestination> = emptyList(),
     val availableUpgradeTargets: List<ProjectedUnitUpgradeTarget> = emptyList(),
+    val moveTowardDestinations: List<ProjectedMovementDestination> = emptyList(),
+    val availableImprovementOrders: List<ProjectedImprovementOrderChoice> = emptyList(),
+    val availableRoadDestinations: List<ProjectedMovementDestination> = emptyList(),
     val improvementOrder: List<ProjectedImprovementOrderEntry> = emptyList(),
     val roadConnectionDestinationX: Int? = null,
     val roadConnectionDestinationY: Int? = null,
@@ -55,6 +58,12 @@ data class ProjectedMovementDestination(val x: Int, val y: Int)
 data class ProjectedUnitUpgradeTarget(
     val targetUnitName: String,
     val goldCost: Int,
+)
+
+@Serializable
+data class ProjectedImprovementOrderChoice(
+    val improvementName: String?,
+    val queuedImprovementName: String?,
 )
 
 @Serializable

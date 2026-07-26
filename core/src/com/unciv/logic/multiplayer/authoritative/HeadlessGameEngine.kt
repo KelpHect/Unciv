@@ -533,6 +533,12 @@ class HeadlessGameEngine(
         require(!tile.isMarkedForCreatesOneImprovement()) {
             "This tile's improvement is controlled by a one-time creation action"
         }
+        require(
+            ProjectedImprovementOrderChoice(improvementName, queuedImprovementName) in
+                UnitOrderProjection.improvementChoices(unit),
+        ) {
+            "Requested improvement order is unavailable in canonical state"
+        }
 
         if (improvementName == null) {
             require(queuedImprovementName == null) { "A cancelled order cannot include a queued improvement" }
@@ -641,24 +647,13 @@ class HeadlessGameEngine(
             return result(game)
         }
 
-        val bestRoad = actorCivilization.tech.getBestRoadAvailable()
-        require(bestRoad != com.unciv.logic.map.tile.RoadStatus.None) {
-            "Civilization has no available road technology"
+        require(UnitOrderProjection.canBuildRoad(unit)) {
+            "Unit cannot build the available road"
         }
-        val canBuildRoad = unit.getMatchingUniques(UniqueType.BuildImprovements).any {
-            it.params[0] == "Land" || it.params[0] in Constants.all ||
-                (it.params[0] == "Road" && bestRoad in setOf(
-                    com.unciv.logic.map.tile.RoadStatus.Road,
-                    com.unciv.logic.map.tile.RoadStatus.Railroad,
-                )) ||
-                (it.params[0] == "Railroad" &&
-                    bestRoad == com.unciv.logic.map.tile.RoadStatus.Railroad)
-        }
-        require(canBuildRoad && !unit.isEmbarked()) { "Unit cannot build the available road" }
         require(destination in game.tileMap) { "Road destination is outside the canonical map" }
         val destinationTile = game.tileMap[destination]
-        require(destinationTile != unit.currentTile) { "Road destination equals the unit's current tile" }
-        require(MapPathing.isValidRoadPathTile(actorCivilization, destinationTile)) {
+        require(ProjectedMovementDestination(destinationTile.position.x, destinationTile.position.y) in
+            UnitOrderProjection.roadDestinations(unit)) {
             "Road destination is not canonically reachable or buildable"
         }
         val path = MapPathing.getRoadPath(actorCivilization, unit.currentTile, destinationTile)

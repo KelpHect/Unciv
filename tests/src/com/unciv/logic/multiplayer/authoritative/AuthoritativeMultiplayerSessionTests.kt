@@ -442,7 +442,10 @@ class AuthoritativeMultiplayerSessionTests {
     @Test
     fun multiTurnMovementOrderRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val units = listOf(
-            ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f),
+            ProjectedUnit(
+                42, "Rome", "Warrior", 0, 0, 100, 2f,
+                moveTowardDestinations = listOf(ProjectedMovementDestination(7, 2)),
+            ),
             ProjectedUnit(43, "Rome", "Settler", 0, 0, 100, 2f),
         )
         val transport = FakeTransport().apply {
@@ -808,7 +811,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun roadConnectionOrderRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Worker", 1, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Worker", 1, 0, 100, 2f,
+            availableRoadDestinations = listOf(ProjectedMovementDestination(4, -1)),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(

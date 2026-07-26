@@ -108,6 +108,47 @@ class AuthoritativeUnitOrderController internal constructor(
         submit { actions.rename(unitId, instanceName) }
     }
 
+    suspend fun moveToward(unitId: Int, x: Int, y: Int) {
+        require(requireCurrentTurnUnit(unitId).moveTowardDestinations.any {
+            it.x == x && it.y == y
+        }) {
+            "Long-route destination is absent from the current server projection"
+        }
+        submit { actions.moveToward(unitId, x, y) }
+    }
+
+    suspend fun setImprovementOrder(
+        unitId: Int,
+        choice: ProjectedImprovementOrderChoice,
+    ) {
+        require(choice in requireCurrentTurnUnit(unitId).availableImprovementOrders) {
+            "Improvement order is absent from the current server projection"
+        }
+        submit {
+            actions.setImprovementOrder(
+                unitId, choice.improvementName, choice.queuedImprovementName,
+            )
+        }
+    }
+
+    suspend fun setRoadOrder(unitId: Int, x: Int, y: Int) {
+        require(requireCurrentTurnUnit(unitId).availableRoadDestinations.any {
+            it.x == x && it.y == y
+        }) {
+            "Road destination is absent from the current server projection"
+        }
+        submit { actions.setRoadOrder(unitId, x, y) }
+    }
+
+    suspend fun cancelRoadOrder(unitId: Int) {
+        val unit = requireCurrentTurnUnit(unitId)
+        require(unit.roadConnectionDestinationX != null &&
+            unit.roadConnectionDestinationY != null) {
+            "Road order is absent from the current server projection"
+        }
+        submit { actions.setRoadOrder(unitId, null, null) }
+    }
+
     private fun requireCurrentTurnUnit(unitId: Int): ProjectedUnit {
         require(projection().isCurrentTurn) {
             "Unit orders are unavailable outside the current turn"
@@ -130,6 +171,10 @@ data class AuthoritativeUnitOrderActions(
     val paradrop: suspend (Int, Int, Int) -> AuthoritativeCommandOutcome?,
     val upgrade: suspend (List<Int>, String) -> AuthoritativeCommandOutcome?,
     val rename: suspend (Int, String?) -> AuthoritativeCommandOutcome?,
+    val moveToward: suspend (Int, Int, Int) -> AuthoritativeCommandOutcome?,
+    val setImprovementOrder:
+        suspend (Int, String?, String?) -> AuthoritativeCommandOutcome?,
+    val setRoadOrder: suspend (Int, Int?, Int?) -> AuthoritativeCommandOutcome?,
 ) {
     companion object {
         val Unavailable = AuthoritativeUnitOrderActions(
@@ -145,6 +190,9 @@ data class AuthoritativeUnitOrderActions(
             paradrop = { _, _, _ -> null },
             upgrade = { _, _ -> null },
             rename = { _, _ -> null },
+            moveToward = { _, _, _ -> null },
+            setImprovementOrder = { _, _, _ -> null },
+            setRoadOrder = { _, _, _ -> null },
         )
     }
 }

@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 57
+        const val CURRENT_PROJECTION_VERSION = 58
     }
 }
 
@@ -528,6 +528,12 @@ object PlayerProjectionBuilder {
             UnitControlProjection.paradropDestinations(unit) else emptyList(),
         availableUpgradeTargets = if (includePrivateOrders && canIssueTurnCommands)
             UnitControlProjection.upgradeTargets(unit) else emptyList(),
+        moveTowardDestinations =
+            MovementTargetProjection.towardDestinations(unit, movementEnabled),
+        availableImprovementOrders = if (includePrivateOrders && canIssueTurnCommands)
+            UnitOrderProjection.improvementChoices(unit) else emptyList(),
+        availableRoadDestinations = if (includePrivateOrders && canIssueTurnCommands)
+            UnitOrderProjection.roadDestinations(unit) else emptyList(),
         improvementOrder = if (includePrivateOrders)
             unit.currentTile.getImprovementQueueSnapshot().map {
                 ProjectedImprovementOrderEntry(it.first, it.second)

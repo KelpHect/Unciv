@@ -6614,7 +6614,7 @@ Verification on 2026-07-26:
 
 Implemented on 2026-07-26:
 
-- Added an executable registry for all 86 sealed `WorkerOperation` wire
+- Added an executable registry for all 84 classified `WorkerOperation` wire
   variants. The test derives the live sealed subtype names from the serializer
   descriptor and fails if a protocol operation is added, removed, or renamed
   without an explicit fresh-process evidence classification.
@@ -6626,7 +6626,7 @@ Implemented on 2026-07-26:
   exact move, rename, worker-derived legal posture, and disband. Both
   independent packaged JVMs produce byte-identical responses after every
   operation and the final canonical state is asserted.
-- Fresh-process evidence now covers 11 of 86 operations. The remaining 75 are
+- Fresh-process evidence now covers 11 of 84 operations. The remaining 73 are
   deliberately classified as in-process-only debt; the exhaustive checklist
   remains unchecked in `missing_multiplayer.md`.
 
@@ -6665,7 +6665,7 @@ Implemented on 2026-07-26:
   projection boundary. Complete serialized worker responses are compared after
   every step, including both projection types and every intermediate canonical
   snapshot/hash.
-- Fresh-process evidence now covers 18 of 86 sealed worker operations. The
+- Fresh-process evidence now covers 18 of 84 classified worker operations. The
   remaining 68 retain their explicit `InProcessOnly` classification and remain
   unchecked in `missing_multiplayer.md`.
 
@@ -6705,7 +6705,7 @@ Implemented on 2026-07-26:
 - The seeded scenario helper now owns snapshot encoding as well as decoding, so
   specialized fixture preparation remains centralized without exposing mutable
   state to production code.
-- Fresh-process evidence now covers 22 of 86 sealed worker operations. The
+- Fresh-process evidence now covers 22 of 84 classified worker operations. The
   remaining 64 keep their explicit `InProcessOnly` classification.
 
 Focused verification on 2026-07-26:
@@ -6741,7 +6741,7 @@ Implemented on 2026-07-26:
   worker derives costs, ownership, and treasury changes from canonical state.
 - Every complete response, intermediate snapshot/hash, and player projection is
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 31 of 86 sealed operations; 55 remain explicitly in-process-only.
+  covers 31 of 84 classified operations; 53 remain explicitly in-process-only.
 
 Focused verification on 2026-07-26:
 
@@ -6775,7 +6775,7 @@ Implemented on 2026-07-26:
   and the acknowledged completion prompt was removed. Every full response and
   intermediate canonical snapshot/hash is byte-identical across independent
   packaged JVMs.
-- Fresh-process evidence now covers 35 of 86 sealed worker operations; the
+- Fresh-process evidence now covers 35 of 84 classified worker operations; the
   remaining 51 retain explicit `InProcessOnly` classifications.
 
 Focused verification on 2026-07-26:
@@ -6811,7 +6811,7 @@ Implemented on 2026-07-26:
   force-resigned; the final snapshot proves cleared player identity and
   restored control to the owner.
 - Every complete response and canonical snapshot/hash is byte-identical across
-  independent packaged JVMs. Fresh-process evidence now covers 38 of 86 sealed
+  independent packaged JVMs. Fresh-process evidence now covers 38 of 84 classified
   operations; 48 remain explicitly in-process-only.
 
 Focused verification on 2026-07-26:
@@ -6849,7 +6849,7 @@ Implemented on 2026-07-26:
   projected target. Canonical gold cost, target equivalence, placement, and
   resulting unit type remain worker-derived.
 - Every complete response and intermediate snapshot/hash is byte-identical
-  across independent packaged JVMs. Fresh-process evidence now covers 41 of 86
+  across independent packaged JVMs. Fresh-process evidence now covers 41 of 84
   sealed operations; 45 remain explicitly in-process-only.
 
 Focused verification on 2026-07-26:
@@ -6882,7 +6882,7 @@ Implemented on 2026-07-26:
   both stable unit IDs exchanged their exact coordinates. Every one of the ten
   complete responses and intermediate snapshots/hashes is byte-identical
   across independent packaged JVMs.
-- Fresh-process evidence now covers 44 of 86 sealed operations; 42 remain
+- Fresh-process evidence now covers 44 of 84 classified operations; 40 remain
   explicitly classified as in-process-only debt.
 
 Focused verification on 2026-07-26:
@@ -6916,7 +6916,7 @@ Implemented on 2026-07-26:
   pending alert, and the projected governance action took effect.
 - All ten complete responses and intermediate snapshots/hashes are
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 48 of 86 sealed operations; 38 remain in-process-only debt.
+  covers 48 of 84 classified operations; 36 remain in-process-only debt.
 - Tile-targeted construction queue/purchase operations remain classified as
   debt because the pinned Vanilla ruleset exposes no building with a
   create-one-improvement placement contract; they were not marked complete
@@ -6952,7 +6952,7 @@ Implemented on 2026-07-26:
   authoritative replay deterministic from canonical state.
 - All seven complete responses and intermediate snapshots/hashes are now
   byte-identical across independent packaged JVMs. Fresh-process evidence
-  covers 51 of 86 sealed operations; 35 remain in-process-only debt.
+  covers 51 of 84 classified operations; 33 remain in-process-only debt.
 
 Focused verification on 2026-07-26:
 
@@ -6984,7 +6984,7 @@ Implemented on 2026-07-26:
   and the nuclear unit was consumed.
 - All twelve complete responses and intermediate snapshots/hashes are
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 56 of 86 sealed operations; 30 remain in-process-only debt.
+  covers 56 of 84 classified operations; 28 remain in-process-only debt.
 
 Focused verification on 2026-07-26:
 
@@ -7017,7 +7017,7 @@ Implemented on 2026-07-26:
   amount and creates matching canonical trades for both civilizations.
 - All fifteen complete responses and intermediate snapshots/hashes are
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 61 of 86 sealed operations; 25 remain in-process-only debt.
+  covers 61 of 84 classified operations; 23 remain in-process-only debt.
 
 Focused verification on 2026-07-26:
 
@@ -7046,7 +7046,7 @@ Implemented on 2026-07-26:
   flag, the accepted demand flag, and the final war state.
 - All fourteen complete responses and intermediate snapshots/hashes are
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 66 of 86 sealed operations; 20 remain in-process-only debt.
+  covers 66 of 84 classified operations; 18 remain in-process-only debt.
 
 Focused verification on 2026-07-26:
 
@@ -7072,7 +7072,7 @@ Implemented on 2026-07-26:
 - The fixture asserts the canonical moving, coup, and counter-intelligence
   states after each command. All nine complete responses and intermediate
   snapshots/hashes are byte-identical across independent packaged JVMs.
-  Fresh-process evidence now covers 68 of 86 sealed operations; 18 remain
+  Fresh-process evidence now covers 68 of 84 classified operations; 16 remain
   in-process-only debt.
 
 Focused verification on 2026-07-26:
@@ -7100,7 +7100,7 @@ Implemented on 2026-07-27:
   then the gifted unit was removed from the actor, added to the city state, and
   granted the canonical five influence. All five complete responses and
   intermediate snapshots/hashes are byte-identical across independent packaged
-  JVMs. Fresh-process evidence now covers 70 of 86 sealed operations; 16 remain
+  JVMs. Fresh-process evidence now covers 70 of 84 classified operations; 14 remain
   in-process-only debt.
 
 Focused verification on 2026-07-27:
@@ -7129,7 +7129,7 @@ Implemented on 2026-07-27:
   modifier, and alert removal after each worker-owned transition.
 - All nine complete responses and intermediate snapshots/hashes are
   byte-identical across independent packaged JVMs. Fresh-process evidence now
-  covers 74 of 86 sealed operations; 12 remain in-process-only debt.
+  covers 74 of 84 classified operations; 10 remain in-process-only debt.
 
 Focused verification on 2026-07-27:
 
@@ -7152,7 +7152,7 @@ Implemented on 2026-07-27:
 - The worker derives tribute willingness and amount, then applies the gold
   transfer, influence penalty, and recent-bullying cooldown. All three complete
   responses and state hashes are byte-identical across independent packaged
-  JVMs. Fresh-process evidence now covers 75 of 86 sealed operations; 11
+  JVMs. Fresh-process evidence now covers 75 of 84 classified operations; 9
   remain in-process-only debt.
 
 Focused verification on 2026-07-27:

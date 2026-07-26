@@ -597,9 +597,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   systemd/Linux failure qualification remains separately unchecked above.
 - [ ] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
-  An executable registry now classifies all 86 sealed worker operations and
+  An executable registry now classifies all 84 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 75 operations: handshake, game creation,
+  Fresh packaged-JVM evidence covers 75 of 84 classified operations: handshake, game creation,
   player assignment, self/force resignation, owner kick, research selection,
   end turn with all AI, unit movement,
   durable movement-toward and cancellation, exploration/automation transitions,
@@ -624,9 +624,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Stateful unit and city scenarios compare every full response across two
   independent JVMs. Changed canonical combat state, forged actor, and
   changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. The other 11 operations plus additional random
-  setup/combat/event/AI branches still need fresh-process fixtures, so this item
-  remains unchecked.
+  time remain replay-critical. The remaining nine operations are
+  `queue_construction_at_tile`, `purchase_construction_at_tile`,
+  `use_religious_unit`, `gift_city_state_improvement`, `marry_city_state`,
+  `add_unit_to_capital_project`, `transform_unit`, `trigger_unit_unique`, and
+  `create_instant_improvement`; each still needs a fresh-process fixture using
+  an approved packaged ruleset. Additional random setup/combat/event/AI
+  branches also need fresh-process fixtures, so this item remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

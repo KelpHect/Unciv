@@ -1,5 +1,44 @@
 # Authoritative multiplayer v3 status
 
+## Legacy unit, combat, movement, and alert authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed the complete historical API-v3 overlay from the canonical
+  `WorldScreen` unit, combat, movement, action, turn-status, and alert paths.
+  These legacy surfaces now contain only local, saved, hotseat, and explicit
+  API-v2 behavior.
+- Deleted the legacy-only `AuthoritativeCombatUi` and
+  `AuthoritativeMovementUi` adapters and their obsolete three-test
+  `UnitActionsTable` API-v3 routing suite.
+- Production API v3 continues to expose projected combat, direct unit actions,
+  and persistent unit orders only through `AuthoritativeCombatPanel`,
+  `AuthoritativeUnitActionPanel`, `AuthoritativeUnitOrderPanel`, and their
+  focused controllers.
+- Retained `associatedUnique` on the shared instant-improvement action. The
+  first full gate caught that this metadata is also consumed by the private
+  headless worker; restoring it preserved server-side rule derivation without
+  restoring any legacy client command route.
+- Source-level routing coverage rejects authoritative session, command,
+  outcome, movement, and combat adapters throughout the affected legacy files,
+  proves the deleted adapters remain absent, and proves representative
+  projection-only production controls remain wired.
+
+Verification on 2026-07-26:
+
+- Focused routing/controller tests, the exact instant-improvement worker
+  regression test, and desktop compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1062 JVM/server cases: 1049 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- A source scan finds no API-v3 session, command-outcome, submission, movement
+  adapter, or combat-adapter reference in the affected legacy world, picker,
+  and popup surfaces.
+- No Rust or OpenAPI source changed. No known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- The broader repository-wide mutation and fallback audit remains unchecked
+  until every remaining multiplayer call site is classified.
+
 ## Legacy city-screen authority-boundary removal
 
 Implemented on 2026-07-26:

@@ -119,6 +119,22 @@ class AuthoritativeProductionRoutingTests {
             "cityscreen/CityScreenTileTable.kt",
             "cityscreen/ConstructionInfoTable.kt",
             "cityscreen/SpecialistAllocationTable.kt",
+            "worldscreen/AlertPopup.kt",
+            "worldscreen/bottombar/BattleTable.kt",
+            "worldscreen/status/AutoPlayMenu.kt",
+            "worldscreen/status/NextTurnAction.kt",
+            "worldscreen/status/NextTurnButton.kt",
+            "worldscreen/unit/UnitTable.kt",
+            "worldscreen/unit/actions/UnitActions.kt",
+            "worldscreen/unit/actions/UnitActionsFromUniques.kt",
+            "worldscreen/unit/actions/UnitActionsPillage.kt",
+            "worldscreen/unit/actions/UnitActionsTable.kt",
+            "worldscreen/worldmap/OverlayButtonData.kt",
+            "worldscreen/worldmap/WorldMapHolder.kt",
+            "worldscreen/worldmap/WorldMapTileUpdater.kt",
+            "pickerscreens/ImprovementPickerScreen.kt",
+            "pickerscreens/PromotionPickerScreen.kt",
+            "pickerscreens/UnitRenamePopup.kt",
         )) {
             val source = sourceFile(
                 "core/src/com/unciv/ui/screens/$legacyScreen",
@@ -133,6 +149,17 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
         assertFalse(legacyCityMenu.contains("ConstructionQueueAction"))
         assertFalse(legacyCityMenu.contains("Authoritative"))
+        val legacyUpgradeMenu = sourceFile(
+            "core/src/com/unciv/ui/popups/UnitUpgradeMenu.kt",
+        ).readText()
+        assertFalse(legacyUpgradeMenu.contains("authoritative"))
+        assertFalse(legacyUpgradeMenu.contains("Authoritative"))
+        assertFalse(workspaceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/worldmap/AuthoritativeCombatUi.kt",
+        ).exists())
+        assertFalse(workspaceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/worldmap/AuthoritativeMovementUi.kt",
+        ).exists())
 
         val decisions = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +
@@ -189,6 +216,27 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(cityEconomy.contains("controller.selectConstruction("))
         assertTrue(cityEconomy.contains("controller.manageQueues("))
         assertTrue(cityEconomy.contains("controller.purchase("))
+        val combat = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCombatPanel.kt",
+        ).readText()
+        val unitActions = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeUnitActionPanel.kt",
+        ).readText()
+        val unitOrders = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeUnitOrderPanel.kt",
+        ).readText()
+        assertTrue(combat.contains("controller.attack("))
+        assertTrue(combat.contains("controller.launchNuclearStrike("))
+        assertTrue(combat.contains("controller.bombard("))
+        assertTrue(unitActions.contains("controller.useReligiousAction("))
+        assertTrue(unitActions.contains("controller.createInstantImprovement("))
+        assertTrue(unitActions.contains("controller.triggerUnique("))
+        assertTrue(unitOrders.contains("controller.cancelMovement("))
+        assertTrue(unitOrders.contains("controller.setImprovementOrder("))
+        assertTrue(unitOrders.contains("controller.disband("))
     }
 
     @Test
@@ -205,9 +253,11 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(source.contains("coordinator.forceResign(gameSummary.gameId)"))
     }
 
-    private fun sourceFile(path: String): File = generateSequence(
+    private fun workspaceFile(path: String): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, path) }.firstOrNull(File::isFile)
+    ).map { File(it, path) }.first { it.parentFile?.exists() == true }
+
+    private fun sourceFile(path: String): File = workspaceFile(path).takeIf(File::isFile)
         ?: error("Could not locate $path")
 }

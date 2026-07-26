@@ -75,7 +75,9 @@ class PromotionPickerScreen private constructor(
         if (canPromoteNow) {
             rightSideButton.setText("Pick promotion".tr())
             rightSideButton.onClick(UncivSound.Silent) {
-                if (!acceptPromotion(selectedPromotion)) checkSaveUnitPromotion()
+                acceptPromotion(selectedPromotion)
+
+                checkSaveUnitPromotion()
             }
         } else {
             rightSideButton.isVisible = false
@@ -109,18 +111,15 @@ class PromotionPickerScreen private constructor(
 
     override fun getCivilopediaRuleset() = unit.civ.gameInfo.ruleset
 
-    /** @return true when the mutation was submitted to an authoritative server. */
-    private fun acceptPromotion(button: PromotionButton?): Boolean {
+    private fun acceptPromotion(button: PromotionButton?) {
         // if user managed to click disabled button, still do nothing
-        if (button == null || !button.isPickable) return false
+        if (button == null || !button.isPickable) return
 
         val path = tree.getPathTo(button.node.promotion)
         SoundPlayer.playRepeated(UncivSound.Promote, path.size.coerceAtMost(2))
 
-        if (GUI.getMap().promoteUnit(unit, path.map { it.name }, saveUnitPromotion)) {
-            game.popScreen()
-            return true
-        }
+        for (promotion in path)
+            unit.promotions.addPromotion(promotion.name)
 
         onChange?.invoke()
 
@@ -128,7 +127,6 @@ class PromotionPickerScreen private constructor(
             game.replaceCurrentScreen(recreate(false))
         else
             game.popScreen()
-        return false
     }
 
     private fun fillTable() {
@@ -249,7 +247,8 @@ class PromotionPickerScreen private constructor(
 
         if (isPickable)
             button.onDoubleClick(UncivSound.Silent) {
-                if (!acceptPromotion(button)) checkSaveUnitPromotion()
+                acceptPromotion(button)
+                checkSaveUnitPromotion()
             }
 
         return button

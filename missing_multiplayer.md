@@ -110,6 +110,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
+- [x] Remove API-v3 interception from canonical `WorldScreen` unit, combat,
+  movement, action, turn-status, and alert paths. Production combat, direct
+  unit actions, and persistent unit orders now exist only in focused
+  projection-world panels/controllers; legacy-only movement/combat adapters
+  and their obsolete routing tests are deleted.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -274,11 +279,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   local clone/advance/upload behavior is now explicitly legacy-only. The
   historical API-v3 research, policy, and diplomatic-vote branches have also
   been removed from their canonical-`GameInfo` picker screens; production v3
-  uses only projection-world controllers for those decisions. The remaining
-  work is removal or hard classification of historical legacy-shaped unit and
-  alert interceptors that key API-v3 behavior to an open command bus.
-  Great-person, religion, espionage, diplomacy, trade, and city
-  picker/overview/screen interceptors have also been removed.
+  uses only projection-world controllers for those decisions. Historical
+  unit, combat, movement, action, turn-status, alert, great-person, religion,
+  espionage, diplomacy, trade, and city picker/overview/screen interceptors
+  have also been removed. The item remains open pending the final
+  repository-wide classification of every multiplayer fallback and mutation
+  call site.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or
@@ -569,7 +575,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1065 JVM/server cases: 1052 executed, 13 intentional skips).
+  passes (1062 JVM/server cases: 1049 executed, 13 intentional skips).
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

@@ -31,11 +31,7 @@ interface OverlayButtonData{
 const val buttonSize = 60f
 const val smallerCircleSizes = 25f
 
-class MoveHereOverlayButtonData(
-    val unitToTurnsToDestination: HashMap<MapUnit, Int>,
-    val tile: Tile,
-    private val showTurns: Boolean = true,
-) :
+class MoveHereOverlayButtonData(val unitToTurnsToDestination: HashMap<MapUnit, Int>, val tile: Tile) :
     OverlayButtonData {
     override fun createButton(worldMapHolder: WorldMapHolder): Actor {
         return getMoveHereButton(worldMapHolder)
@@ -51,7 +47,7 @@ class MoveHereOverlayButtonData(
             .surroundWithCircle(buttonSize - 2, false)
             .surroundWithCircle(buttonSize, false, ImageGetter.CHARCOAL)
 
-        if (!isParadrop && showTurns) {
+        if (!isParadrop) {
             val numberCircle = unitToTurnsToDestination.values.maxOrNull()!!.tr().toLabel(fontSize = 14)
                 .apply { setAlignment(Align.center) }
                 .surroundWithCircle(smallerCircleSizes - 2, color = BaseScreen.skinStrings.skinConfig.baseColor.darken(0.3f))
@@ -137,13 +133,11 @@ class ConnectRoadOverlayButtonData(val unit: MapUnit, val tile: Tile) : OverlayB
     }
 
     private fun connectRoadToTargetTile(worldMapHolder: WorldMapHolder, selectedUnit: MapUnit, targetTile: Tile) {
-        if (!worldMapHolder.setRoadConnectionOrder(selectedUnit, targetTile)) {
-            selectedUnit.automatedRoadConnectionDestination = targetTile.position
-            selectedUnit.automatedRoadConnectionPath = null
-            selectedUnit.action = UnitActionType.ConnectRoad.value
-            selectedUnit.automated = true
-            UnitAutomation.automateUnitMoves(selectedUnit)
-        }
+        selectedUnit.automatedRoadConnectionDestination = targetTile.position
+        selectedUnit.automatedRoadConnectionPath = null
+        selectedUnit.action = UnitActionType.ConnectRoad.value
+        selectedUnit.automated = true
+        UnitAutomation.automateUnitMoves(selectedUnit)
 
         SoundPlayer.play(UncivSound("wagon"))
 

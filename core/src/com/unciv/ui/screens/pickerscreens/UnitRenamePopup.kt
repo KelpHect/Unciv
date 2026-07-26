@@ -1,6 +1,5 @@
 package com.unciv.ui.screens.pickerscreens
 
-import com.unciv.GUI
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.surroundWithCircle
@@ -18,8 +17,8 @@ class UnitRenamePopup(val screen: BaseScreen, val unit: MapUnit, val actionOnClo
             validate = { it != unit.name },
             actionOnOk = { userInput ->
                 //If the user inputs an empty string, clear the unit instanceName so the base name is used
-                val instanceName = if (userInput == "") null else userInput
-                if (!GUI.getMap().renameUnit(unit, instanceName)) actionOnClose()
+                unit.instanceName = if (userInput == "") null else userInput
+                actionOnClose()
             }
         ).open()
     }

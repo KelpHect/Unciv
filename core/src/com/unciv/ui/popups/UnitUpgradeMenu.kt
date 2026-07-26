@@ -5,7 +5,6 @@ import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.logic.civilization.Civilization
-import com.unciv.GUI
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.Counter
 import com.unciv.models.UpgradeUnitAction
@@ -14,6 +13,7 @@ import com.unciv.ui.audio.SoundPlayer
 import com.unciv.ui.components.input.KeyboardBinding
 import com.unciv.ui.components.widgets.ColorMarkupLabel
 import com.unciv.ui.objectdescriptions.BaseUnitDescriptions
+import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsUpgrade
 
 /**
  *  A popup menu showing info about an Unit upgrade, with buttons to upgrade "this" unit or _all_
@@ -106,11 +106,16 @@ class UnitUpgradeMenu(
 
     private fun doUpgrade() {
         SoundPlayer.play(unitAction.uncivSound)
-        GUI.getMap().upgradeUnits(listOf(unit), unitToUpgradeTo.name)
+        unitAction.action!!()
     }
 
     private fun doAllUpgrade() {
         SoundPlayer.playRepeated(unitAction.uncivSound)
-        GUI.getMap().upgradeUnits(allUpgradableUnits.toList(), unitToUpgradeTo.name)
+        for (unit in allUpgradableUnits) {
+            val otherAction = UnitActionsUpgrade.getUpgradeActions(unit)
+                .firstOrNull{ (it as UpgradeUnitAction).unitToUpgradeTo == unitToUpgradeTo &&
+                    it.action != null }
+            otherAction?.action?.invoke()
+        }
     }
 }

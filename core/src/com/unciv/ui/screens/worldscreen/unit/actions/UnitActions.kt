@@ -2,10 +2,10 @@ package com.unciv.ui.screens.worldscreen.unit.actions
 
 import com.unciv.GUI
 import com.unciv.UncivGame
+import com.unciv.logic.automation.unit.UnitAutomation
 import com.unciv.logic.civilization.diplomacy.DiplomaticModifiers
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.Tile
-import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.UnitAction
 import com.unciv.models.UnitActionType
 import com.unciv.models.ruleset.unique.UniqueType
@@ -13,7 +13,6 @@ import com.unciv.models.translations.tr
 import com.unciv.ui.popups.ConfirmPopup
 import com.unciv.ui.popups.hasOpenPopups
 import com.unciv.ui.screens.pickerscreens.PromotionPickerScreen
-import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeMovementUi
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getActionDefaultPage
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getPagingActions
 import com.unciv.ui.screens.worldscreen.unit.actions.UnitActions.getUnitActions
@@ -140,16 +139,13 @@ object UnitActions {
         // General actions
         addAutomateActions(unit)
         if (unit.isMoving())
-            yield(UnitAction(UnitActionType.StopMovement, 20f) {
-                GUI.getMap().cancelUnitMovementOrder(unit)
-            })
+            yield(UnitAction(UnitActionType.StopMovement, 20f) { unit.action = null })
         if (unit.isExploring())
-            yield(UnitAction(UnitActionType.StopExploration, 20f) {
-                GUI.getMap().setUnitExploration(unit, enabled = false)
-            })
+            yield(UnitAction(UnitActionType.StopExploration, 20f) { unit.action = null })
         if (unit.isAutomated())
             yield(UnitAction(UnitActionType.StopAutomation, 10f) {
-                GUI.getMap().setUnitAutomation(unit, enabled = false)
+                unit.action = null
+                unit.automated = false
             })
 
         addPromoteActions(unit)
@@ -219,13 +215,7 @@ object UnitActions {
         val worldScreen = GUI.getWorldScreen()
         if (worldScreen.bottomUnitTable.selectedUnits.size > 1) return
         // Only show the swap action if there is at least one possible swap movement
-        val hasSwap = if (AuthoritativeMovementUi.isOpen(worldScreen))
-            AuthoritativeMovementUi.projection(worldScreen)?.ownUnits
-                ?.singleOrNull { it.id == unit.id }
-                ?.swapDestinations
-                ?.isNotEmpty() == true
-        else unit.movement.getUnitSwappableTiles().any()
-        if (!hasSwap) return
+        if (unit.movement.getUnitSwappableTiles().none()) return
         yield(UnitAction(
             type = UnitActionType.SwapUnits,
             isCurrentAction = worldScreen.bottomUnitTable.selectedUnitIsSwapping,
@@ -248,7 +238,11 @@ object UnitActions {
                         "Disband this unit for [${unit.baseUnit.getDisbandGold(unit.civ)}] gold?".tr()
                     else "Do you really want to disband this unit?".tr()
                     ConfirmPopup(worldScreen, disbandText, "Disband unit") {
-                        GUI.getMap().disbandUnit(unit)
+                        unit.disband()
+                        unit.civ.updateStatsForNextTurn() // less upkeep!
+                        GUI.setUpdateWorldOnNextRender()
+                        if (GUI.getSettings().autoUnitCycle)
+                            worldScreen.switchToNextUnit()
                     }.open()
                 }
             }.takeIf { unit.hasMovement() }
@@ -270,7 +264,8 @@ object UnitActions {
         if (unit.baseUnit.movesLikeAirUnits) return
         if (unit.isExploring()) return
         yield(UnitAction(UnitActionType.Explore, 5f) {
-            GUI.getMap().setUnitExploration(unit, enabled = true)
+            unit.action = UnitActionType.Explore.value
+            if (unit.hasMovement()) UnitAutomation.automatedExplore(unit)
         })
     }
 
@@ -290,14 +285,13 @@ object UnitActions {
         if (!unit.canFortify() || !unit.hasMovement()) return
 
         yield(UnitAction(UnitActionType.Fortify,
-            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.Fortify) }
-                .takeIf { !unit.isFortified() || unit.isFortifyingUntilHealed() },
+            action = { unit.fortify() }.takeIf { !unit.isFortified() || unit.isFortifyingUntilHealed() },
             useFrequency = 30f
         ))
 
         if (unit.health == 100) return
         yield(UnitAction(UnitActionType.FortifyUntilHealed,
-            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.FortifyUntilHealed) }
+            action = { unit.fortifyUntilHealed() }
                 .takeIf { !unit.isFortifyingUntilHealed() && unit.canHealInCurrentTile() },
             useFrequency = 45f
         ))
@@ -309,14 +303,13 @@ object UnitActions {
 
         yield(UnitAction(UnitActionType.Sleep,
             useFrequency = if (!unit.isSleeping()) 29f else 21f,
-            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.Sleep) }
-                .takeIf { !unit.isSleeping() || unit.isSleepingUntilHealed() }
+            action = { unit.action = UnitActionType.Sleep.value }.takeIf { !unit.isSleeping() || unit.isSleepingUntilHealed() }
         ))
 
         if (unit.health == 100) return
         yield(UnitAction(UnitActionType.SleepUntilHealed,
             useFrequency = if (!unit.isSleepingUntilHealed()) 44f else 20f,
-            action = { GUI.getMap().setUnitPosture(unit, UnitPosture.SleepUntilHealed) }
+            action = { unit.action = UnitActionType.SleepUntilHealed.value }
                 .takeIf { !unit.isSleepingUntilHealed() && unit.canHealInCurrentTile() }
         ))
     }
@@ -380,7 +373,8 @@ object UnitActions {
             isCurrentAction = unit.isAutomated(),
             useFrequency = 25f,
             action = {
-                GUI.getMap().setUnitAutomation(unit, enabled = true)
+                unit.automated = true
+                UnitAutomation.automateUnitMoves(unit)
             }.takeIf { unit.hasMovement() }
         ))
     }

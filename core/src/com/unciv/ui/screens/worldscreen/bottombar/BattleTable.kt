@@ -18,10 +18,6 @@ import com.unciv.logic.battle.MapUnitCombatant
 import com.unciv.logic.battle.Nuke
 import com.unciv.logic.battle.TargetHelper
 import com.unciv.logic.map.tile.Tile
-import com.unciv.logic.multiplayer.authoritative.ProjectedCombatOutcome
-import com.unciv.logic.multiplayer.authoritative.ProjectedCombatPreview
-import com.unciv.logic.multiplayer.authoritative.ProjectedAirSweepTarget
-import com.unciv.logic.multiplayer.authoritative.ProjectedNuclearTarget
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.translations.tr
@@ -43,8 +39,6 @@ import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.clearUndoCheckpoin
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.getHealthBar
-import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeCombatUi
-import com.unciv.ui.screens.worldscreen.worldmap.AuthoritativeCombatAction
 import com.unciv.utils.DebugUtils
 import yairm210.purity.annotations.Readonly
 import kotlin.math.max
@@ -72,13 +66,7 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
     }
 
     fun update() {
-        val authoritative = AuthoritativeCombatUi.isOpen(worldScreen)
-        val attacker = if (authoritative) selectedCombatant() else tryGetAttacker()
-        if (authoritative) {
-            updateAuthoritative(attacker)
-            return
-        }
-        when (attacker) {
+        when (val attacker = tryGetAttacker()) {
             null -> return hide()
             is MapUnitCombatant if attacker.unit.isNuclearWeapon() -> {
                 val selectedTile = worldScreen.mapHolder.selectedTile
@@ -122,166 +110,6 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
         }
 
         setPosition(stage.width / 2 - width / 2, 5f)
-    }
-
-    /** API-v3 intentionally does not calculate combat legality or damage from
-     * the disposable local rules model. It renders only server-projected
-     * target availability and submits the selected typed intent. */
-    private fun updateAuthoritative(attacker: ICombatant?) {
-        if (attacker == null) return hide()
-        val target = worldScreen.mapHolder.selectedTile ?: return hide()
-        val action = when (attacker) {
-            is CityCombatant -> if (AuthoritativeCombatUi.canBombard(worldScreen, attacker.city, target))
-                "Bombard" to null else null
-            is MapUnitCombatant -> AuthoritativeCombatUi.unitAction(worldScreen, attacker.unit, target)
-                ?.let { combatAction -> when (combatAction) {
-                    AuthoritativeCombatAction.Attack -> "Attack"
-                    AuthoritativeCombatAction.NuclearStrike -> "NUKE"
-                    AuthoritativeCombatAction.AirSweep -> "Air Sweep"
-                } to combatAction }
-            else -> null
-        } ?: return hide()
-
-        clear()
-        add("${action.first} ${target.position.x},${target.position.y}".toLabel()).colspan(2).row()
-        val preview = when (attacker) {
-            is CityCombatant -> AuthoritativeCombatUi.bombardPreview(worldScreen, attacker.city, target)
-            is MapUnitCombatant -> if (action.second == AuthoritativeCombatAction.Attack)
-                AuthoritativeCombatUi.unitPreview(worldScreen, attacker.unit, target) else null
-            else -> null
-        }
-        if (preview != null) addAuthoritativePreview(preview)
-        if (attacker is MapUnitCombatant) when (action.second) {
-            AuthoritativeCombatAction.NuclearStrike -> AuthoritativeCombatUi
-                .nuclearTarget(worldScreen, attacker.unit, target)
-                ?.let(::addAuthoritativeNuclearPreview)
-            AuthoritativeCombatAction.AirSweep -> AuthoritativeCombatUi
-                .airSweepTarget(worldScreen, attacker.unit, target)
-                ?.let(::addAuthoritativeAirSweepPreview)
-            else -> Unit
-        }
-        val actionButton = action.first.toTextButton().apply { color = Color.RED }
-        if (!worldScreen.isPlayersTurn) {
-            actionButton.disable()
-            actionButton.label.color = Color.GRAY
-        } else actionButton.onClick(UncivSound.Silent) {
-            when (attacker) {
-                is CityCombatant -> worldScreen.mapHolder
-                    .submitAuthoritativeCityBombardIfOpen(attacker.city.id, target)
-                is MapUnitCombatant -> when (action.second) {
-                    AuthoritativeCombatAction.NuclearStrike -> worldScreen.mapHolder
-                        .submitAuthoritativeNuclearStrikeIfOpen(attacker.unit, target)
-                    AuthoritativeCombatAction.AirSweep -> worldScreen.mapHolder
-                        .submitAuthoritativeAirSweepIfOpen(attacker.unit, target)
-                    AuthoritativeCombatAction.Attack -> worldScreen.mapHolder
-                        .submitAuthoritativeUnitAttackIfOpen(attacker.unit, target)
-                    null -> Unit
-                }
-            }
-            worldScreen.mapHolder.removeUnitActionOverlay()
-            worldScreen.shouldUpdate = true
-            hide()
-        }
-        add(actionButton).colspan(2)
-        isVisible = true
-        pack()
-        addBorderAllowOpacity(2f, Color.WHITE)
-        addRoundCloseButton(this) { hide() }
-        setPosition(stage.width / 2 - width / 2, 5f)
-    }
-
-    /** Renders canonical estimates already present in the player projection.
-     * No local combat rule or hidden defender state is consulted here. */
-    private fun addAuthoritativePreview(preview: ProjectedCombatPreview) {
-        add("${preview.attackerBaseStrength}${Fonts.strength}".toLabel())
-        add("${preview.defenderBaseStrength}${Fonts.strength}".toLabel()).row()
-
-        val attackerModifiers = preview.attackerModifiers.map { getModifierTable(it.label, it.percent) }
-        val defenderModifiers = preview.defenderModifiers.map { getModifierTable(it.label, it.percent) }
-        if (attackerModifiers.isNotEmpty() || defenderModifiers.isNotEmpty()) {
-            add(createModifiersScroll(attackerModifiers)).pad(0f).uniformX().fillY()
-            add(createModifiersScroll(defenderModifiers)).pad(0f).uniformX().fillY().row()
-            add("${preview.attackerEffectiveStrength}${Fonts.strength}".toLabel())
-            add("${preview.defenderEffectiveStrength}${Fonts.strength}".toLabel()).row()
-        }
-
-        when (preview.outcome) {
-            ProjectedCombatOutcome.Captured -> add("Captured!".toLabel()).colspan(2).row()
-            ProjectedCombatOutcome.Occupied -> add("Occupied!".toLabel()).colspan(2).row()
-            ProjectedCombatOutcome.NoEstimate -> Unit
-            null -> {
-                val attackerMinimum = requireNotNull(preview.attackerMinRemainingHealth)
-                val attackerMaximum = requireNotNull(preview.attackerMaxRemainingHealth)
-                val defenderMinimum = requireNotNull(preview.defenderMinRemainingHealth)
-                val defenderMaximum = requireNotNull(preview.defenderMaxRemainingHealth)
-                add(getHealthBar(
-                    preview.attackerMaxHealth,
-                    preview.attackerHealth,
-                    attackerMaximum,
-                    attackerMinimum,
-                ))
-                add(getHealthBar(
-                    preview.defenderMaxHealth,
-                    preview.defenderHealth,
-                    defenderMaximum,
-                    defenderMinimum,
-                    true,
-                )).row()
-                add(healthEstimate(
-                    preview.attackerHealth,
-                    attackerMinimum,
-                    attackerMaximum,
-                ).toLabel())
-                add(healthEstimate(
-                    preview.defenderHealth,
-                    defenderMinimum,
-                    defenderMaximum,
-                ).toLabel()).row()
-            }
-        }
-    }
-
-    private fun addAuthoritativeNuclearPreview(target: ProjectedNuclearTarget) {
-        add("Blast radius: ${target.blastRadius} tiles".toLabel()).colspan(2).row()
-        add("Affected units, cities, diplomacy, and outcomes remain hidden until the server commits the strike."
-            .toLabel(fontSize = 14).apply { wrap = true })
-            .width(quarterScreen * 2)
-            .colspan(2)
-            .row()
-    }
-
-    private fun addAuthoritativeAirSweepPreview(target: ProjectedAirSweepTarget) {
-        add("${target.attackerBaseStrength}${Fonts.rangedStrength}".toLabel()).colspan(2).row()
-        if (target.attackerModifiers.isNotEmpty()) {
-            add(createModifiersScroll(target.attackerModifiers.map {
-                getModifierTable(it.label, it.percent)
-            })).pad(0f).colspan(2).fillY().row()
-        }
-        add(getHealthBar(
-            target.attackerMaxHealth,
-            target.attackerHealth,
-            target.attackerHealth,
-            target.attackerHealth,
-        )).colspan(2).row()
-        add("An eligible interceptor may engage; its identity and outcome remain hidden until the server commits the sweep."
-            .toLabel(fontSize = 14).apply { wrap = true })
-            .width(quarterScreen * 2)
-            .colspan(2)
-            .row()
-    }
-
-    private fun healthEstimate(health: Int, minimum: Int, maximum: Int): String = when {
-        minimum == health -> health.toString()
-        minimum == maximum -> "$health → $minimum (${health - minimum})"
-        else -> "$health → $minimum-$maximum (~${
-            listOf(health - minimum, health - maximum).average().roundToInt()
-        })"
-    }
-
-    private fun selectedCombatant(): ICombatant? {
-        val unitTable = worldScreen.bottomUnitTable
-        return unitTable.selectedUnit?.let(::MapUnitCombatant)
-            ?: unitTable.selectedCity?.let(::CityCombatant)
     }
 
     @Readonly
@@ -502,22 +330,6 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
         defender: ICombatant,
         attackableTile: AttackableTile
     ) {
-        if (attacker is MapUnitCombatant &&
-            worldScreen.mapHolder.submitAuthoritativeUnitAttackIfOpen(attacker.unit, defender.getTile())
-        ) {
-            worldScreen.mapHolder.removeUnitActionOverlay()
-            worldScreen.shouldUpdate = true
-            hide()
-            return
-        }
-        if (attacker is CityCombatant &&
-            worldScreen.mapHolder.submitAuthoritativeCityBombardIfOpen(attacker.city.id, defender.getTile())
-        ) {
-            worldScreen.mapHolder.removeUnitActionOverlay()
-            worldScreen.shouldUpdate = true
-            hide()
-            return
-        }
         val canStillAttack = Battle.movePreparingAttack(attacker, attackableTile)
         worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
         // There was a direct worldScreen.update() call here, removing its 'private' but not the comment justifying the modifier.
@@ -565,38 +377,31 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         val attackButton = "NUKE".toTextButton().apply { color = Color.RED }
 
-        val canSubmitAuthoritativeIntent = worldScreen.mapHolder.usesAuthoritativeCommands()
-        if (!worldScreen.isPlayersTurn ||
-            (!canSubmitAuthoritativeIntent && (!attacker.canAttack() || !canNuke))
-        ) {
+        if (!worldScreen.isPlayersTurn || !attacker.canAttack() || !canNuke) {
             attackButton.disable()
             attackButton.label.color = Color.GRAY
         } else {
             attackButton.onClick(attacker.getAttackSound()) {
-                val submitted = worldScreen.mapHolder
-                    .submitAuthoritativeNuclearStrikeIfOpen(attacker.unit, targetTile)
-                if (!submitted) {
-                    Nuke.NUKE(attacker, targetTile)
+                Nuke.NUKE(attacker, targetTile)
 
-                    val nukeCircle = ImageGetter.getCircle()
-                    nukeCircle.setSize(10f)
-                    nukeCircle.setOrigin(Align.center)
-                    nukeCircle.addAction(Actions.sequence(
-                        Actions.fadeOut(0f),
-                        Actions.parallel(
-                            Actions.fadeIn(1f, Interpolation.pow2In),
-                            Actions.scaleTo(200f, 200f, 1f, Interpolation.linear),
-                        ),
-                        Actions.delay(1f),
-                        Actions.fadeOut(1f, Interpolation.pow2Out),
-                        Actions.removeActor()
-                        )
+                val nukeCircle = ImageGetter.getCircle()
+                nukeCircle.setSize(10f)
+                nukeCircle.setOrigin(Align.center)
+                nukeCircle.addAction(Actions.sequence(
+                    Actions.fadeOut(0f),
+                    Actions.parallel(
+                        Actions.fadeIn(1f, Interpolation.pow2In),
+                        Actions.scaleTo(200f, 200f, 1f, Interpolation.linear),
+                    ),
+                    Actions.delay(1f),
+                    Actions.fadeOut(1f, Interpolation.pow2Out),
+                    Actions.removeActor()
                     )
-                    val targetTileGroup = worldScreen.mapHolder.tileGroups[targetTile]!!
-                    nukeCircle.x = targetTileGroup.x
-                    nukeCircle.y = targetTileGroup.y
-                    worldScreen.mapHolder.addActorToTileGroupMap(nukeCircle)
-                }
+                )
+                val targetTileGroup = worldScreen.mapHolder.tileGroups[targetTile]!!
+                nukeCircle.x = targetTileGroup.x
+                nukeCircle.y = targetTileGroup.y
+                worldScreen.mapHolder.addActorToTileGroupMap(nukeCircle)
 
                 worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
                 worldScreen.shouldUpdate = true
@@ -642,18 +447,13 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         val canReach = attacker.unit.currentTile.getTilesInDistance(attacker.unit.getRange()).contains(targetTile)
 
-        val canSubmitAuthoritativeIntent = worldScreen.mapHolder.usesAuthoritativeCommands()
-        if (!worldScreen.isPlayersTurn ||
-            (!canSubmitAuthoritativeIntent && (!attacker.canAttack() || !canReach || !canAttack))
-        ) {
+        if (!worldScreen.isPlayersTurn || !attacker.canAttack() || !canReach || !canAttack) {
             attackButton.disable()
             attackButton.label.color = Color.GRAY
         }
         else {
             attackButton.onClick(attacker.getAttackSound()) {
-                val submitted = worldScreen.mapHolder
-                    .submitAuthoritativeAirSweepIfOpen(attacker.unit, targetTile)
-                if (!submitted) AirInterception.airSweep(attacker, targetTile)
+                AirInterception.airSweep(attacker, targetTile)
                 worldScreen.mapHolder.removeUnitActionOverlay() // the overlay was one of attacking
                 worldScreen.shouldUpdate = true
             }

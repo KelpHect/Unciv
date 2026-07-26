@@ -8,13 +8,9 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.map.mapunit.MapUnit
-import com.unciv.logic.multiplayer.authoritative.CapitalProjectUnitExecutor
-import com.unciv.logic.map.mapunit.actions.UnitParadrop
-import com.unciv.logic.map.mapunit.actions.UnitCityFounding
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
 import com.unciv.logic.map.tile.RoadStatus
 import com.unciv.logic.map.tile.Tile
-import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Counter
 import com.unciv.models.UncivSound
 import com.unciv.models.UnitAction
@@ -67,12 +63,16 @@ object UnitActionsFromUniques {
         val foundAction = {
             if (unit.civ.playerType != PlayerType.AI)
                 UncivGame.Current.settings.addCompletedTutorialTask("Found city")
-            if (!GUI.isWorldLoaded() || !GUI.getMap().foundCity(unit)) {
-                check(UnitCityFounding.foundCity(unit) != null) {
-                    "Found-city action became invalid before execution"
-                }
-            }
+            // Get the city to be able to change it into puppet, for modding.
+            val city = unit.civ.addCity(tile.position, unit)
+
+            if (hasActionModifiers) UnitActionModifiers.activateSideEffects(unit, unique)
+            else unit.destroy()
             GUI.setUpdateWorldOnNextRender() // Set manually, since this could be triggered from the ConfirmPopup and not from the UnitActionsTable
+            // If unit has FoundPuppetCity make it into a puppet city.
+            if (unique.type == UniqueType.FoundPuppetCity) {
+                city.isPuppet = true
+            }
         }
 
         if (unit.civ.playerType == PlayerType.AI)
@@ -139,20 +139,30 @@ object UnitActionsFromUniques {
             isCurrentAction = isSetUp,
             useFrequency = 85f,
             action = {
-                GUI.getMap().setUnitPosture(unit, UnitPosture.Setup)
+                unit.action = UnitActionType.SetUp.value
+                unit.useMovementPoints(1f)
             }.takeIf { unit.hasMovement() && !isSetUp })
         )
     }
 
     internal fun getParadropActions(unit: MapUnit, tile: Tile): Sequence<UnitAction> {
+        unit.cache.paradropDestinationTileFilters.clear()
+
         // Retrieve all parardrop uniques, considering the state of the unit
         val paradropUniques = unit.getMatchingUniques(UniqueType.MayParadrop, unit.cache.state)
         var useFrequency = 0f
 
         // Construct the list of possible destination tile filters, keeping the largest distance
-        for (unique in paradropUniques)
-            useFrequency = getUseFrequency(unit, unique, 60f)
-        if (!UnitParadrop.rebuildDestinationFilters(unit)) return emptySequence()
+        for (unique in paradropUniques) {
+            val tileFilter = unique.params[0]
+            val distance = unique.params[1].toInt()
+            val existingDistance = unit.cache.paradropDestinationTileFilters[tileFilter]
+            if (existingDistance == null || distance > existingDistance) {
+                unit.cache.paradropDestinationTileFilters[tileFilter] = distance
+                useFrequency = getUseFrequency(unit, unique, 60f)
+            }
+        }
+        if (unit.cache.paradropDestinationTileFilters.isEmpty()) return emptySequence()
 
         return sequenceOf(UnitAction(UnitActionType.Paradrop,
             isCurrentAction = unit.isPreparingParadrop(),
@@ -202,7 +212,7 @@ object UnitActionsFromUniques {
         return sequenceOf(UnitAction(UnitActionType.Guard,
             useFrequency = useFrequency,
             action = {
-                GUI.getMap().setUnitPosture(unit, UnitPosture.Guard)
+                unit.action = UnitActionType.Guard.value
             }.takeIf { !unit.isGuarding() })
         )
     }
@@ -281,7 +291,8 @@ object UnitActionsFromUniques {
             title = "Add to [${unique.params[0]}]",
             useFrequency = useFrequency,
             action = {
-                CapitalProjectUnitExecutor.execute(unit)
+                unit.civ.victoryManager.currentsSpaceshipParts.add(unit.name, 1)
+                unit.destroy()
             }.takeIf {
                 tile.isCityCenter() && tile.getCity()!!
                     .isCapital() && tile.getCity()!!.civ == unit.civ
@@ -530,12 +541,8 @@ object UnitActionsFromUniques {
         return UnitAction(UnitActionType.Repair, useFrequency,
             title = "${UnitActionType.Repair} [${unit.currentTile.getImprovementToRepair()!!.name}] - [${turnsToBuild}${Fonts.turn}]",
             action = {
-                val submitted = UncivGame.isCurrentInitialized() && GUI.isWorldLoaded() &&
-                    GUI.getMap().setTileImprovementOrder(unit, Constants.repair)
-                if (!submitted) {
-                    tile.queueImprovement(Constants.repair, turnsToBuild)
-                    unit.action = null
-                }
+                tile.queueImprovement(Constants.repair, turnsToBuild)
+                unit.action = null
             }.takeIf { couldConstruct }
         )
     }

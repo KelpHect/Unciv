@@ -8,11 +8,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.UncivGame
 import com.unciv.logic.map.mapunit.MapUnit
-import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
-import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
-import com.unciv.logic.multiplayer.authoritative.InstantImprovementCommandExecutor
-import com.unciv.logic.multiplayer.authoritative.UnitTransformCommandExecutor
-import com.unciv.logic.multiplayer.authoritative.UnitTriggerCommandExecutor
 import com.unciv.models.UnitAction
 import com.unciv.models.UnitActionType
 import com.unciv.models.UpgradeUnitAction
@@ -24,7 +19,6 @@ import com.unciv.ui.images.IconTextButton
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.UnitUpgradeMenu
 import com.unciv.ui.screens.worldscreen.WorldScreen
-import org.jetbrains.annotations.VisibleForTesting
 import yairm210.purity.annotations.Readonly
 
 class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
@@ -50,29 +44,6 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         private const val maxSinglePageButtons = 5
         /** Padding between and to the left of the Buttons */
         private const val padBetweenButtons = 2f
-
-        private val authoritativeOpaqueActionTypes = setOf(
-            UnitActionType.CreateImprovement,
-            UnitActionType.Transform,
-            UnitActionType.TriggerUnique,
-        )
-
-        /**
-         * Returns true for every opened-v3 opaque action, including an action
-         * that cannot map to its cached projection. That fail-closed result is
-         * what prevents the caller from invoking the legacy local callback.
-         */
-        @VisibleForTesting
-        fun routeAuthoritativeOpaqueUnitAction(
-            type: UnitActionType,
-            usesAuthoritativeCommands: Boolean,
-            actionIdFor: (UnitActionType) -> String?,
-            submit: (UnitActionType, String) -> Unit,
-        ): Boolean {
-            if (!usesAuthoritativeCommands || type !in authoritativeOpaqueActionTypes) return false
-            actionIdFor(type)?.let { submit(type, it) }
-            return true
-        }
     }
 
     init {
@@ -223,55 +194,6 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
     }
 
     private fun activateAction(unitAction: UnitAction, unit: MapUnit) {
-        val authoritativeReligiousAction = when (unitAction.type) {
-            UnitActionType.FoundReligion -> ReligiousUnitAction.FoundReligion
-            UnitActionType.EnhanceReligion -> ReligiousUnitAction.EnhanceReligion
-            UnitActionType.SpreadReligion -> ReligiousUnitAction.SpreadReligion
-            UnitActionType.RemoveHeresy -> ReligiousUnitAction.RemoveHeresy
-            else -> null
-        }
-        if (authoritativeReligiousAction != null &&
-            worldScreen.mapHolder.useReligiousUnit(unit, authoritativeReligiousAction)) return
-        val authoritativeGreatPersonAction = when (unitAction.type) {
-            UnitActionType.HurryResearch -> GreatPersonUnitAction.HurryResearch
-            UnitActionType.HurryPolicy -> GreatPersonUnitAction.HurryPolicy
-            UnitActionType.HurryWonder -> GreatPersonUnitAction.HurryWonder
-            UnitActionType.HurryBuilding -> GreatPersonUnitAction.HurryBuilding
-            UnitActionType.ConductTradeMission -> GreatPersonUnitAction.ConductTradeMission
-            else -> null
-        }
-        if (authoritativeGreatPersonAction != null &&
-            worldScreen.mapHolder.useGreatPersonUnit(unit, authoritativeGreatPersonAction)) return
-        if (unitAction.type == UnitActionType.GiftUnit && worldScreen.mapHolder.giftUnit(unit)) return
-        if (unitAction.type == UnitActionType.AddInCapital &&
-            worldScreen.mapHolder.addUnitToCapitalProject(unit)) return
-        if (routeAuthoritativeOpaqueUnitAction(
-                unitAction.type,
-                worldScreen.mapHolder.usesAuthoritativeCommands(),
-                actionIdFor = { type ->
-                    when (type) {
-                        UnitActionType.CreateImprovement ->
-                            InstantImprovementCommandExecutor.actionIdFor(unit, unitAction)
-                        UnitActionType.Transform ->
-                            UnitTransformCommandExecutor.actionIdFor(unit, unitAction)
-                        UnitActionType.TriggerUnique ->
-                            UnitTriggerCommandExecutor.actionIdFor(unit, unitAction)
-                        else -> error("Unsupported authoritative opaque unit action")
-                    }
-                },
-                submit = { type, actionId ->
-                    when (type) {
-                        UnitActionType.CreateImprovement ->
-                            worldScreen.mapHolder.createInstantImprovement(unit, actionId)
-                        UnitActionType.Transform ->
-                            worldScreen.mapHolder.transformUnit(unit, actionId)
-                        UnitActionType.TriggerUnique ->
-                            worldScreen.mapHolder.triggerUnitUnique(unit, actionId)
-                        else -> error("Unsupported authoritative opaque unit action")
-                    }
-                },
-            )
-        ) return
         unitAction.action!!.invoke()
         worldScreen.shouldUpdate = true
         // We keep the unit action/selection overlay from the previous unit open even when already selecting another unit

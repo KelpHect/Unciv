@@ -11,7 +11,6 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.*
 import com.unciv.UncivGame
-import com.unciv.GUI
 import com.unciv.logic.battle.Battle
 import com.unciv.logic.battle.MapUnitCombatant
 import com.unciv.logic.battle.TargetHelper
@@ -21,14 +20,8 @@ import com.unciv.logic.map.*
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.mapunit.movement.UnitMovement
 import com.unciv.logic.map.tile.Tile
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
-import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
-import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.models.Spy
-import com.unciv.models.UnitActionType
 import com.unciv.models.UncivSound
-import com.unciv.models.UpgradeUnitAction
 import com.unciv.ui.audio.SoundPlayer
 import com.unciv.ui.components.MapArrowType
 import com.unciv.ui.components.MiscArrowTypes
@@ -46,13 +39,10 @@ import com.unciv.ui.components.widgets.ZoomableScrollPane
 import com.unciv.ui.screens.basescreen.UncivStage
 import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.recordUndoCheckpoint
 import com.unciv.ui.screens.worldscreen.WorldScreen
-import com.unciv.ui.screens.worldscreen.unit.actions.UnitActionsUpgrade
-import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
 import com.unciv.utils.launchOnGLThread
-import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import java.lang.Float.max
 
@@ -198,19 +188,13 @@ class WorldMapHolder(
 
             // Todo: valid tiles for actions should be handled internally, not here.
             val canPerformActionsOnTile = if (previousSelectedUnitIsSwapping) {
-                AuthoritativeMovementUi.canSwap(worldScreen, previousSelectedUnits.first(), tile)
-                    ?: previousSelectedUnits.first().movement.canUnitSwapTo(tile)
+                previousSelectedUnits.first().movement.canUnitSwapTo(tile)
             } else if(previousSelectedUnitIsConnectingRoad) {
                 true
             } else {
                 previousSelectedUnits.any {
-                    val authoritativeIntent = if (it.isPreparingParadrop()) null
-                        else AuthoritativeMovementUi.movementIntent(worldScreen, it, tile)
-                    authoritativeIntent?.let { intent ->
-                        intent != AuthoritativeMovementIntent.Unavailable
-                    } ?: (it.movement.canMoveTo(tile) ||
+                    it.movement.canMoveTo(tile) ||
                         (it.movement.isUnknownTileWeShouldAssumeToBePassable(tile) && !it.baseUnit.movesLikeAirUnits)
-                    )
                 }
             }
 
@@ -229,18 +213,12 @@ class WorldMapHolder(
 
         if (newSelectedUnit == null || newSelectedUnit.isCivilian()) {
             val unitsInTile = selectedTile!!.getUnits()
-            val canBombardSelectedTile = when {
-                previousSelectedCity == null -> false
-                AuthoritativeCombatUi.isOpen(worldScreen) ->
-                    AuthoritativeCombatUi.canBombard(worldScreen, previousSelectedCity, selectedTile!!)
-                else -> previousSelectedCity.canBombard() &&
-                    selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile()) &&
-                    unitsInTile.any() &&
-                    unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)
-            }
-            if (canBombardSelectedTile) {
+            if (previousSelectedCity != null && previousSelectedCity.canBombard()
+                    && selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile())
+                    && unitsInTile.any()
+                    && unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)) {
                 // try to select the closest city to bombard this guy
-                unitTable.citySelected(checkNotNull(previousSelectedCity))
+                unitTable.citySelected(previousSelectedCity)
             }
         }
         worldScreen.shouldUpdate = true
@@ -266,43 +244,18 @@ class WorldMapHolder(
 
         if (worldScreen.bottomUnitTable.selectedUnitIsSwapping) {
             /** ****** Right-click Swap ****** */
-            if (AuthoritativeMovementUi.canSwap(worldScreen, unit, tile)
-                    ?: unit.movement.canUnitSwapTo(tile)) {
+            if (unit.movement.canUnitSwapTo(tile)) {
                 swapMoveUnitToTargetTile(unit, tile)
                 localShouldUpdate = true
             }
             /** If we are in unit-swapping mode and didn't find a swap partner, we don't want to move or attack */
         } else {
-            if (AuthoritativeCombatUi.isOpen(worldScreen)) {
-                val combatAction = AuthoritativeCombatUi.unitAction(worldScreen, unit, tile)
-                if (combatAction != null) {
-                    when (combatAction) {
-                        AuthoritativeCombatAction.Attack -> submitAuthoritativeUnitAttackIfOpen(unit, tile)
-                        AuthoritativeCombatAction.NuclearStrike ->
-                            submitAuthoritativeNuclearStrikeIfOpen(unit, tile)
-                        AuthoritativeCombatAction.AirSweep -> submitAuthoritativeAirSweepIfOpen(unit, tile)
-                    }
-                    localShouldUpdate = true
-                } else if (AuthoritativeMovementUi.movementIntent(worldScreen, unit, tile)?.let {
-                        it != AuthoritativeMovementIntent.Unavailable
-                    } == true) {
-                    moveUnitToTargetTile(listOf(unit), tile)
-                    localShouldUpdate = true
-                }
-                worldScreen.shouldUpdate = localShouldUpdate
-                return
-            }
             // This seems inefficient as the tileToAttack is already known - but the method also calculates tileToAttackFrom
             val attackableTile = TargetHelper
                     .getAttackableEnemies(unit, unit.movement.getDistanceToTiles())
                     .firstOrNull { it.tileToAttack == tile }
             if (unit.canAttack() && attackableTile != null) {
                 /** ****** Right-click Attack ****** */
-                if (submitAuthoritativeUnitAttackIfOpen(unit, tile)) {
-                    localShouldUpdate = true
-                    worldScreen.shouldUpdate = localShouldUpdate
-                    return
-                }
                 val attacker = MapUnitCombatant(unit)
                 if (!Battle.movePreparingAttack(attacker, attackableTile)) return
                 if (!SoundPlayer.play(UncivSound(attacker.getName())))
@@ -311,9 +264,7 @@ class WorldMapHolder(
                 if (attackableTile.combatant != null)
                     worldScreen.battleAnimationDeferred(attacker, damageToAttacker, attackableTile.combatant, damageToDefender)
                 localShouldUpdate = true
-            } else if (AuthoritativeMovementUi.movementIntent(worldScreen, unit, tile)?.let {
-                    it != AuthoritativeMovementIntent.Unavailable
-                } ?: unit.movement.canReach(tile)) {
+            } else if (unit.movement.canReach(tile)) {
                 /** ****** Right-click Move ****** */
                 moveUnitToTargetTile(listOf(unit), tile)
                 localShouldUpdate = true
@@ -339,11 +290,6 @@ class WorldMapHolder(
         val selectedUnit = selectedUnits.first()
         markUnitMoveTutorialComplete(selectedUnit) // not too expensive to have it repeat too often
 
-        if (isAuthoritativeGame() && !selectedUnit.isPreparingParadrop()) {
-            submitAuthoritativeUnitMove(selectedUnits, targetTile, destinationThisTurn = null)
-            return
-        }
-
         Concurrency.run("TileToMoveTo") {
             // these are the heavy parts, finding where we want to go
             // Since this runs in a different thread, even if we check movement.canReach()
@@ -366,10 +312,6 @@ class WorldMapHolder(
                 return@run // can't move here
             }
 
-            if (isAuthoritativeGame()) {
-                submitAuthoritativeUnitMove(selectedUnits, targetTile, tileToMoveTo)
-                return@run
-            }
 
             worldScreen.recordUndoCheckpoint()
 
@@ -420,158 +362,6 @@ class WorldMapHolder(
         }
     }
 
-    @Readonly
-    private fun isAuthoritativeGame() = worldScreen.gameInfo.gameParameters.isOnlineMultiplayer &&
-        worldScreen.game.onlineMultiplayer.authoritativeSession
-            ?.isGameOpen(worldScreen.gameInfo.gameId) == true
-
-    @Readonly
-    fun usesAuthoritativeCommands(): Boolean = isAuthoritativeGame()
-
-    internal fun submitAuthoritativeUnitAttackIfOpen(unit: MapUnit, target: Tile): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("unit attack", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession?.attackWithUnitIfOpen(
-                worldScreen.gameInfo.gameId,
-                unit.id,
-                target.position.x,
-                target.position.y,
-            )
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    internal fun submitAuthoritativeCityBombardIfOpen(cityId: String, target: Tile): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("city bombardment", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession?.bombardWithCityIfOpen(
-                worldScreen.gameInfo.gameId,
-                cityId,
-                target.position.x,
-                target.position.y,
-            )
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    internal fun submitAuthoritativeNuclearStrikeIfOpen(unit: MapUnit, target: Tile): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("nuclear strike", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession?.launchNuclearStrikeIfOpen(
-                worldScreen.gameInfo.gameId,
-                unit.id,
-                target.position.x,
-                target.position.y,
-            )
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    internal fun submitAuthoritativeAirSweepIfOpen(unit: MapUnit, target: Tile): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("air sweep", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession?.airSweepIfOpen(
-                worldScreen.gameInfo.gameId,
-                unit.id,
-                target.position.x,
-                target.position.y,
-            )
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    private fun submitAuthoritativeUnitMove(
-        selectedUnits: List<MapUnit>,
-        requestedTarget: Tile,
-        destinationThisTurn: Tile?,
-    ) {
-        val selectedUnit = selectedUnits.first()
-        val isParadrop = selectedUnit.isPreparingParadrop()
-        val escortUnit = selectedUnit.getOtherEscortUnit().takeIf { selectedUnit.isEscorting() }
-        val movementIntent = AuthoritativeMovementUi.movementIntent(
-            worldScreen, selectedUnit, requestedTarget,
-        )
-        val isMultiTurnOrder = !isParadrop && movementIntent == AuthoritativeMovementIntent.MoveToward
-        val description = when {
-            isParadrop -> "unit paradrop"
-            isMultiTurnOrder -> "unit movement order"
-            else -> "unit move"
-        }
-        submitAuthoritativeUnitCommand(description, submit = {
-            if (isParadrop) {
-                val paradropDestination = checkNotNull(destinationThisTurn)
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.paradropUnitIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    selectedUnit.id,
-                    paradropDestination.position.x,
-                    paradropDestination.position.y,
-                )
-            } else if (isMultiTurnOrder)
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitTowardIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    selectedUnit.id,
-                    requestedTarget.position.x,
-                    requestedTarget.position.y,
-                    escortUnit?.id,
-                )
-            else worldScreen.game.onlineMultiplayer.authoritativeSession?.moveUnitIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    selectedUnit.id,
-                    requestedTarget.position.x,
-                    requestedTarget.position.y,
-                    escortUnit?.id,
-                )
-        }) {
-            val remainingUnits = selectedUnits.drop(1).filter { it.id != escortUnit?.id }
-            if (remainingUnits.isNotEmpty())
-                moveUnitToTargetTile(remainingUnits, requestedTarget)
-            else removeUnitActionOverlay()
-        }
-    }
-
-    private fun submitAuthoritativeUnitCommand(
-        description: String,
-        submit: suspend () -> AuthoritativeCommandOutcome?,
-        onAccepted: () -> Unit,
-    ) {
-        Concurrency.runOnNonDaemonThreadPool("Submit authoritative $description") {
-            val outcome = try { submit() }
-            catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                launchOnGLThread {
-                    removeUnitActionOverlay()
-                    ToastPopup("Could not submit authoritative $description: [${ex.message ?: "Unknown"}]", worldScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            launchOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        worldScreen.gameInfo.isUpToDate = false
-                        onAccepted()
-                        ToastPopup("${description.replaceFirstChar { it.uppercase() }} committed by the authoritative server", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        worldScreen.gameInfo.isUpToDate = false
-                        removeUnitActionOverlay()
-                        ToastPopup("Game changed on the server - $description was not committed", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        removeUnitActionOverlay()
-                        ToastPopup("Server rejected $description: [${outcome.code}]", worldScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired ->
-                        ToastPopup("Server response was lost - retry will use the same command", worldScreen)
-                    null -> {
-                        removeUnitActionOverlay()
-                        ToastPopup("Authoritative game was closed before $description", worldScreen)
-                    }
-                }
-                worldScreen.shouldUpdate = true
-            }
-        }
-    }
-
     private fun animateMovement(
         previousTile: Tile,
         selectedUnit: MapUnit,
@@ -617,17 +407,6 @@ class WorldMapHolder(
     }
 
     internal fun swapMoveUnitToTargetTile(selectedUnit: MapUnit, targetTile: Tile) {
-        if (isAuthoritativeGame()) {
-            submitAuthoritativeUnitCommand("unit swap", submit = {
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.swapUnitsIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    selectedUnit.id,
-                    targetTile.position.x,
-                    targetTile.position.y,
-                )
-            }) { removeUnitActionOverlay() }
-            return
-        }
         markUnitMoveTutorialComplete(selectedUnit)
         selectedUnit.movement.swapMoveToTile(targetTile, keepEscorting = true)
 
@@ -643,327 +422,7 @@ class WorldMapHolder(
         removeUnitActionOverlay()
     }
 
-    internal fun cancelUnitMovementOrder(unit: MapUnit) {
-        if (!isAuthoritativeGame()) {
-            unit.action = null
-            worldScreen.shouldUpdate = true
-            return
-        }
-        submitAuthoritativeUnitCommand("movement-order cancellation", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.cancelUnitMovementOrderIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    internal fun setUnitExploration(unit: MapUnit, enabled: Boolean) {
-        if (!isAuthoritativeGame()) {
-            if (enabled) {
-                unit.action = com.unciv.models.UnitActionType.Explore.value
-                if (unit.hasMovement())
-                    com.unciv.logic.automation.unit.UnitAutomation.automatedExplore(unit)
-            } else unit.action = null
-            worldScreen.shouldUpdate = true
-            return
-        }
-        submitAuthoritativeUnitCommand("exploration order", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.setUnitExplorationIfOpen(worldScreen.gameInfo.gameId, unit.id, enabled)
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    internal fun setUnitAutomation(unit: MapUnit, enabled: Boolean) {
-        if (!isAuthoritativeGame()) {
-            if (enabled) {
-                unit.automated = true
-                com.unciv.logic.automation.unit.UnitAutomation.automateUnitMoves(unit)
-            } else {
-                unit.action = null
-                unit.automated = false
-            }
-            worldScreen.shouldUpdate = true
-            return
-        }
-        if (!enabled && unit.isAutomatingRoadConnection()) {
-            submitAuthoritativeUnitCommand("road connection cancellation", submit = {
-                worldScreen.game.onlineMultiplayer.authoritativeSession
-                    ?.setRoadConnectionOrderIfOpen(worldScreen.gameInfo.gameId, unit.id, null, null)
-            }) { removeUnitActionOverlay() }
-            return
-        }
-        submitAuthoritativeUnitCommand("unit automation", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.setUnitAutomationIfOpen(worldScreen.gameInfo.gameId, unit.id, enabled)
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    internal fun setUnitPosture(unit: MapUnit, posture: UnitPosture) {
-        if (!isAuthoritativeGame()) {
-            when (posture) {
-                UnitPosture.Sleep -> unit.action = UnitActionType.Sleep.value
-                UnitPosture.SleepUntilHealed -> unit.action = UnitActionType.SleepUntilHealed.value
-                UnitPosture.Fortify -> unit.fortify()
-                UnitPosture.FortifyUntilHealed -> unit.fortifyUntilHealed()
-                UnitPosture.Guard -> unit.action = UnitActionType.Guard.value
-                UnitPosture.Setup -> {
-                    unit.action = UnitActionType.SetUp.value
-                    unit.useMovementPoints(1f)
-                }
-            }
-            worldScreen.shouldUpdate = true
-            return
-        }
-        submitAuthoritativeUnitCommand("unit posture", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.setUnitPostureIfOpen(worldScreen.gameInfo.gameId, unit.id, posture)
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    internal fun disbandUnit(unit: MapUnit) {
-        if (!isAuthoritativeGame()) {
-            unit.disband()
-            unit.civ.updateStatsForNextTurn()
-            GUI.setUpdateWorldOnNextRender()
-            if (GUI.getSettings().autoUnitCycle)
-                worldScreen.switchToNextUnit()
-            return
-        }
-        submitAuthoritativeUnitCommand("unit disband", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.disbandUnitIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    /** Returns true when pillaging was submitted to the authoritative server. */
-    fun pillageTile(unit: MapUnit): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("tile pillage", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.pillageTileIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when a closed religious action was submitted to API v3. */
-    fun useReligiousUnit(unit: MapUnit, action: ReligiousUnitAction): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("religious unit action", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.useReligiousUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, action)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when a closed direct great-person action was submitted to API v3. */
-    fun useGreatPersonUnit(unit: MapUnit, action: GreatPersonUnitAction): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("great-person unit action", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.useGreatPersonUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, action)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when gifting was submitted to the authoritative server. */
-    fun giftUnit(unit: MapUnit): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("unit gift", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.giftUnitIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when adding the unit to its capital project was submitted to API v3. */
-    fun addUnitToCapitalProject(unit: MapUnit): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("capital project unit", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.addUnitToCapitalProjectIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when an instant improvement was submitted to API v3. */
-    fun createInstantImprovement(unit: MapUnit, actionId: String): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("instant improvement", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.createInstantImprovementIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when a mod-defined transformation was submitted to the authoritative server. */
-    fun transformUnit(unit: MapUnit, actionId: String): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("unit transformation", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.transformUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when a mod-defined trigger action was submitted to the authoritative server. */
-    fun triggerUnitUnique(unit: MapUnit, actionId: String): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("unit trigger", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.triggerUnitUniqueIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    /** Returns true when founding was submitted to the authoritative server. */
-    fun foundCity(unit: MapUnit): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("found city", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.foundCityIfOpen(worldScreen.gameInfo.gameId, unit.id)
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
-    fun upgradeUnits(units: List<MapUnit>, targetUnitName: String) {
-        if (units.isEmpty()) return
-        if (!isAuthoritativeGame()) {
-            for (unit in units) {
-                val action = UnitActionsUpgrade.getUpgradeActions(unit)
-                    .filterIsInstance<UpgradeUnitAction>()
-                    .firstOrNull { it.unitToUpgradeTo.name == targetUnitName && it.action != null }
-                action?.action?.invoke()
-            }
-            worldScreen.shouldUpdate = true
-            return
-        }
-        submitAuthoritativeUnitCommand("unit upgrade", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.upgradeUnitsIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    units.map { it.id },
-                    targetUnitName,
-                )
-        }) {
-            removeUnitActionOverlay()
-        }
-    }
-
-    /** Returns true when promotion was submitted to an authoritative game;
-     * local modes apply the same selected path synchronously. */
-    fun promoteUnit(
-        unit: MapUnit,
-        promotionNames: List<String>,
-        saveAsCityDefault: Boolean,
-    ): Boolean {
-        if (!isAuthoritativeGame()) {
-            for (promotionName in promotionNames)
-                unit.promotions.addPromotion(promotionName)
-            worldScreen.shouldUpdate = true
-            return false
-        }
-        submitAuthoritativeUnitCommand("unit promotion", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.promoteUnitIfOpen(
-                    worldScreen.gameInfo.gameId, unit.id, promotionNames, saveAsCityDefault,
-                )
-        }) {
-            removeUnitActionOverlay()
-        }
-        return true
-    }
-
-    /** Returns true when the rename was submitted to the authoritative server. */
-    fun renameUnit(unit: MapUnit, instanceName: String?): Boolean {
-        if (!isAuthoritativeGame()) {
-            unit.instanceName = instanceName
-            worldScreen.shouldUpdate = true
-            return false
-        }
-        submitAuthoritativeUnitCommand("unit rename", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.renameUnitIfOpen(worldScreen.gameInfo.gameId, unit.id, instanceName)
-        }) {
-            removeUnitActionOverlay()
-        }
-        return true
-    }
-
-    /** Returns true when the tile order was submitted to the authoritative server. */
-    fun setTileImprovementOrder(
-        unit: MapUnit,
-        improvementName: String?,
-        queuedImprovementName: String? = null,
-    ): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("tile improvement order", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.setTileImprovementOrderIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    unit.id,
-                    improvementName,
-                    queuedImprovementName,
-                )
-        }) {
-            removeUnitActionOverlay()
-        }
-        return true
-    }
-
-    /** Returns true when the destination was submitted to an authoritative server. */
-    fun setRoadConnectionOrder(unit: MapUnit, destination: Tile): Boolean {
-        if (!isAuthoritativeGame()) return false
-        submitAuthoritativeUnitCommand("road connection order", submit = {
-            worldScreen.game.onlineMultiplayer.authoritativeSession
-                ?.setRoadConnectionOrderIfOpen(
-                    worldScreen.gameInfo.gameId,
-                    unit.id,
-                    destination.position.x,
-                    destination.position.y,
-                )
-        }) { removeUnitActionOverlay() }
-        return true
-    }
-
     private fun addTileOverlaysWithUnitMovement(selectedUnits: List<MapUnit>, tile: Tile) {
-        val authoritativeUnits = selectedUnits.filter {
-            !it.isPreparingParadrop() &&
-                AuthoritativeMovementUi.movementIntent(worldScreen, it, tile)?.let { intent ->
-                    intent != AuthoritativeMovementIntent.Unavailable
-                } == true
-        }
-        if (AuthoritativeMovementUi.isOpen(worldScreen) &&
-            selectedUnits.none { it.isPreparingParadrop() }) {
-            if (authoritativeUnits.isEmpty()) {
-                addTileOverlays(tile)
-                worldScreen.shouldUpdate = true
-                return
-            }
-            val exactMove = authoritativeUnits.all {
-                AuthoritativeMovementUi.movementIntent(worldScreen, it, tile) ==
-                    AuthoritativeMovementIntent.ExactMove
-            }
-            if (UncivGame.Current.settings.singleTapMove && exactMove)
-                moveUnitToTargetTile(authoritativeUnits, tile)
-            else addTileOverlays(
-                tile,
-                MoveHereOverlayButtonData(
-                    HashMap(authoritativeUnits.associateWith { 1 }),
-                    tile,
-                    showTurns = false,
-                ),
-            )
-            worldScreen.shouldUpdate = true
-            return
-        }
         Concurrency.run("TurnsToGetThere") {
             /** LibGdx sometimes has these weird errors when you try to edit the UI layout from 2 separate threads.
              * And so, all UI editing will be done on the main thread.
@@ -1002,14 +461,10 @@ class WorldMapHolder(
                 if (UncivGame.Current.settings.singleTapMove && turnsToGetThere == 1) {
                     // single turn instant move
                     val selectedUnit = unitsWhoCanMoveThere.keys.first()
-                    if (isAuthoritativeGame())
-                        moveUnitToTargetTile(unitsWhoCanMoveThere.keys.toList(), tile)
-                    else {
-                        for (unit in unitsWhoCanMoveThere.keys) {
-                            unit.movement.headTowards(tile)
-                        }
-                        worldScreen.bottomUnitTable.selectUnit(selectedUnit) // keep moved unit selected
+                    for (unit in unitsWhoCanMoveThere.keys) {
+                        unit.movement.headTowards(tile)
                     }
+                    worldScreen.bottomUnitTable.selectUnit(selectedUnit) // keep moved unit selected
                 } else {
                     // add "move to" button if there is a path to tileInfo
                     val moveHereButtonDto = MoveHereOverlayButtonData(unitsWhoCanMoveThere, tile)
@@ -1021,8 +476,7 @@ class WorldMapHolder(
     }
 
     private fun addTileOverlaysWithUnitSwapping(selectedUnit: MapUnit, tile: Tile) {
-        if (!(AuthoritativeMovementUi.canSwap(worldScreen, selectedUnit, tile)
-                ?: selectedUnit.movement.canUnitSwapTo(tile))) { // give the regular tile overlays with no unit swapping
+        if (!selectedUnit.movement.canUnitSwapTo(tile)) { // give the regular tile overlays with no unit swapping
             addTileOverlays(tile)
             worldScreen.shouldUpdate = true
             return
@@ -1046,7 +500,7 @@ class WorldMapHolder(
 
             if (validTile) {
                 val roadPath: List<Tile>? =
-                    if (UncivGame.Current.settings.useAStarPathfinding) selectedUnit.movement.getRoadPath(tile)
+                    if (UncivGame.Current.settings.useAStarPathfinding) selectedUnit.movement.getRoadPath(selectedUnit.getTile())
                     else MapPathing.getRoadPath(selectedUnit.civ, selectedUnit.getTile(), tile)
                 launchOnGLThread {
                     if (roadPath == null) { // give the regular tile overlays with no road connection

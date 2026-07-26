@@ -16,17 +16,9 @@ import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.NotificationIcon
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.civilization.diplomacy.*
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.CityDispositionAction
-import com.unciv.logic.multiplayer.authoritative.CityDispositionExecutor
-import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
-import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
-import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
-import com.unciv.logic.multiplayer.authoritative.EventChoiceCommandExecutor
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.models.ruleset.unique.UniqueType
-import com.unciv.models.ruleset.unique.GameContext
 import com.unciv.models.translations.fillPlaceholders
 import com.unciv.models.translations.tr
 import com.unciv.ui.audio.MusicMood
@@ -40,11 +32,8 @@ import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.Popup
-import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.diplomacyscreen.LeaderIntroTable
 import com.unciv.ui.screens.victoryscreen.VictoryScreen
-import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import java.util.EnumSet
 import kotlin.text.ifEmpty
@@ -74,9 +63,6 @@ class AlertPopup(
     private val worldScreen: WorldScreen,
     private val popupAlert: PopupAlert
 ): Popup(worldScreen) {
-    private var authoritativeDispositionSubmissionInProgress = false
-    private var authoritativeEventSubmissionInProgress = false
-    private var authoritativeResearchAcknowledgmentInProgress = false
     
     companion object {
         private const val SEPARATOR_LINE_TO_TEXT_PADDING = 25f
@@ -193,10 +179,6 @@ class AlertPopup(
         
         if (!player.isAtWarWith(bullyOrAttacker)) {
             addCloseButton("THIS MEANS WAR!", KeyboardBinding.Confirm) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.DeclareWar)
-                return@addCloseButton
-            }
             player.getDiplomacyManager(bullyOrAttacker)!!.sideWithCityState()
             val warReason = if (popupAlert.type == AlertType.AttackedAllyMinor) WarType.AlliedCityStateWar else WarType.ProtectedCityStateWar
             player.getDiplomacyManager(bullyOrAttacker)!!.declareWar(DeclareWarReason(warReason, cityState))
@@ -204,18 +186,10 @@ class AlertPopup(
         }.row()}
 
         addCloseButton("You'll pay for this!", KeyboardBinding.Confirm) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.Condemn)
-                return@addCloseButton
-            }
             player.getDiplomacyManager(bullyOrAttacker)!!.sideWithCityState()
         }.row()
 
         addCloseButton("Very well.", KeyboardBinding.Cancel) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeCityStateProtectionPrompt(bullyOrAttacker, cityState, CityStateProtectionResponse.WithdrawProtection)
-                return@addCloseButton
-            }
             player.addNotification("You have broken your Pledge to Protect [${cityState.civName}]!",
                 cityState.cityStateFunctions.getNotificationActions(), NotificationCategory.Diplomacy, cityState.civName)
             cityState.cityStateFunctions.removeProtectorCiv(player, forced = true)
@@ -224,34 +198,10 @@ class AlertPopup(
         return true
     }
 
-    private fun submitAuthoritativeCityStateProtectionPrompt(
-        attacker: Civilization,
-        cityState: Civilization,
-        response: CityStateProtectionResponse,
-    ) {
-        val type = when (popupAlert.type) {
-            AlertType.BulliedProtectedMinor -> DiplomacyPromptType.BulliedProtectedMinor
-            AlertType.AttackedProtectedMinor -> DiplomacyPromptType.AttackedProtectedMinor
-            AlertType.AttackedAllyMinor -> DiplomacyPromptType.AttackedAllyMinor
-            else -> error("Not a city-state protection prompt")
-        }
-        submitAuthoritativeDiplomacy("respond to city-state protection prompt") { session ->
-            val prompt = session.projectionIfOpen(gameInfo.gameId)?.diplomacyPrompts?.singleOrNull {
-                it.requestingCivilizationId == attacker.civID && it.cityStateCivilizationId == cityState.civID && it.type == type
-            } ?: error("Projected city-state protection prompt no longer matches this popup")
-            session.respondToCityStateProtectionPromptIfOpen(gameInfo.gameId, prompt.promptId, response)
-        }
-    }
-
     private fun addCityConquered() {
         val city = getCity(popupAlert.value)
         addQuestionAboutTheCity(city.name)
         val conqueringCiv = gameInfo.getCurrentPlayerCivilization()
-
-        if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-            addAuthoritativeCityDisposition(city, conqueringCiv)
-            return
-        }
 
         if (city.foundingCivObject != null
                 && city.civ != city.foundingCivObject // can't liberate if the city actually belongs to those guys
@@ -278,71 +228,6 @@ class AlertPopup(
             addSeparator()
 
             addRazeOption(city, mayAnnex = mayAnnex, conqueringCiv)
-        }
-    }
-
-    private fun addAuthoritativeCityDisposition(city: City, conqueringCiv: Civilization) {
-        val labels = mapOf(
-            CityDispositionAction.Liberate to "Liberate (city returns to [originalOwner])"
-                .fillPlaceholders(city.foundingCivObject?.civName ?: "original owner"),
-            CityDispositionAction.Annex to "Annex",
-            CityDispositionAction.Puppet to "Puppet",
-            CityDispositionAction.Raze to "Raze",
-            CityDispositionAction.Destroy to "Destroy",
-        )
-        for (action in CityDispositionExecutor.availableActions(city, conqueringCiv)) {
-            val button = labels.getValue(action).toTextButton()
-            button.onActivation {
-                if (authoritativeDispositionSubmissionInProgress) return@onActivation
-                authoritativeDispositionSubmissionInProgress = true
-                submitAuthoritativeCityDisposition(city.id, action)
-            }
-            add(button).row()
-        }
-    }
-
-    private fun submitAuthoritativeCityDisposition(cityId: String, action: CityDispositionAction) {
-        Concurrency.runOnNonDaemonThreadPool("Resolve authoritative city disposition") {
-            val outcome = try {
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.resolveCityDispositionIfOpen(
-                    gameInfo.gameId,
-                    cityId,
-                    action,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeDispositionSubmissionInProgress = false
-                    ToastPopup("Could not submit city disposition: [${ex.message ?: "Unknown"}]", worldScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        gameInfo.isUpToDate = false
-                        close()
-                        ToastPopup("City disposition committed by the authoritative server", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        gameInfo.isUpToDate = false
-                        close()
-                        ToastPopup("Game changed on the server - city disposition was not changed", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeDispositionSubmissionInProgress = false
-                        ToastPopup("Server rejected city disposition: [${outcome.code}]", worldScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeDispositionSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", worldScreen)
-                    }
-                    null -> {
-                        authoritativeDispositionSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before city disposition", worldScreen)
-                    }
-                }
-            }
         }
     }
 
@@ -377,17 +262,9 @@ class AlertPopup(
                 if (otherciv.nation.declaringFriendship.isNotEmpty()) otherciv.nation.declaringFriendship else "My friend, shall we declare our friendship to the world?"
         ).row()
         addCloseButton("Declare Friendship ([30] turns)", KeyboardBinding.Confirm) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Friendship, null, true)
-                return@addCloseButton
-            }
             playerDiploManager.signDeclarationOfFriendship()
         }.row()
         addCloseButton("We are not interested.", KeyboardBinding.Cancel) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Friendship, null, false)
-                return@addCloseButton
-            }
             playerDiploManager.otherCivDiplomacy().setFlag(DiplomacyFlags.DeclinedDeclarationOfFriendship, 20)
         }.row()
         val music = UncivGame.Current.musicController
@@ -413,10 +290,6 @@ class AlertPopup(
         val diplomacy = viewingCiv.getDiplomacyManager(denouncer)!!
         if (diplomacy.canDeclareWar()) {
             addCloseButton("THIS MEANS WAR! (Declare war)") {
-                if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                    submitAuthoritativeWar(denouncer)
-                    return@addCloseButton
-                }
                 diplomacy.declareWar()
             }.row()
         }
@@ -441,65 +314,14 @@ class AlertPopup(
         addLeaderName(otherciv)
         addGoodSizedLabel(demand.demandText).row()
         addCloseButton(demand.acceptDemandText, KeyboardBinding.Confirm) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Demand, DiplomaticDemand.valueOf(demand.name), true)
-                return@addCloseButton
-            }
             playerDiploManager.agreeToDemand(demand)
         }.row()
         addCloseButton(demand.refuseDemandText, KeyboardBinding.Cancel) {
-            if (worldScreen.mapHolder.usesAuthoritativeCommands()) {
-                submitAuthoritativeDiplomaticPrompt(otherciv, DiplomacyPromptType.Demand, DiplomaticDemand.valueOf(demand.name), false)
-                return@addCloseButton
-            }
             playerDiploManager.refuseDemand(demand)
             if (demand == Demand.DoNotAttackUs)
                 viewingCiv.getDiplomacyManager(otherciv)!!.declareWar()
         }
         return true
-    }
-
-    private fun submitAuthoritativeWar(other: Civilization) {
-        submitAuthoritativeDiplomacy("declare war") {
-            it.declareWarIfOpen(gameInfo.gameId, other.civID)
-        }
-    }
-
-    private fun submitAuthoritativeDiplomaticPrompt(
-        other: Civilization,
-        type: DiplomacyPromptType,
-        demand: DiplomaticDemand?,
-        accept: Boolean,
-    ) {
-        submitAuthoritativeDiplomacy("respond to diplomatic prompt") { session ->
-            val prompt = session.projectionIfOpen(gameInfo.gameId)?.diplomacyPrompts?.singleOrNull {
-                it.requestingCivilizationId == other.civID && it.type == type && it.demand == demand
-            } ?: error("Projected diplomatic prompt no longer matches this popup")
-            session.respondToDiplomaticPromptIfOpen(gameInfo.gameId, prompt.promptId, accept)
-        }
-    }
-
-    private fun submitAuthoritativeDiplomacy(
-        label: String,
-        submit: suspend (com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession) -> AuthoritativeCommandOutcome?,
-    ) {
-        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
-            val outcome = try {
-                val session = worldScreen.game.onlineMultiplayer.authoritativeSession ?: return@runOnNonDaemonThreadPool
-                submit(session)
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread { ToastPopup("Could not $label: [${ex.message ?: "Unknown"}]", worldScreen) }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                gameInfo.isUpToDate = false
-                close()
-                val message = if (outcome is AuthoritativeCommandOutcome.Accepted) "$label committed by the authoritative server"
-                    else "$label synchronized with the authoritative server"
-                ToastPopup(message, worldScreen)
-            }
-        }
     }
 
     private fun addAcceptingDemand(): Boolean {
@@ -844,126 +666,15 @@ class AlertPopup(
         
         
         val event = gameInfo.ruleset.events[eventName] ?: return false
-        val authoritative = worldScreen.mapHolder.usesAuthoritativeCommands()
-        val prompt = if (authoritative) EventChoiceCommandExecutor.prompts(viewingCiv)
-            .firstOrNull { it.eventName == eventName && it.unitId == unit?.id }
-            ?: return false
-        else null
-        val matchingChoices = event.getMatchingChoices(GameContext(viewingCiv, unit = unit))?.toList()
-            ?: return false
-        val render = RenderEvent(event, worldScreen, unit, executeChoiceLocally = !authoritative) { choice ->
-            if (!authoritative) close()
-            else {
-                val choiceIndex = matchingChoices.indexOf(choice)
-                val authoritativePrompt = prompt ?: return@RenderEvent
-                val projectedChoice = authoritativePrompt.choices.getOrNull(choiceIndex) ?: return@RenderEvent
-                submitAuthoritativeEventChoice(authoritativePrompt.promptId, projectedChoice.choiceId)
-            }
-        }
+        val render = RenderEvent(event, worldScreen, unit) { close() }
         if (!render.isValid) return false
         add(render).pad(0f).row()
         return true
     }
 
-    private fun submitAuthoritativeEventChoice(promptId: String, choiceId: String) {
-        if (authoritativeEventSubmissionInProgress) return
-        authoritativeEventSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Resolve authoritative event choice") {
-            val outcome = try {
-                worldScreen.game.onlineMultiplayer.authoritativeSession
-                    ?.resolveEventChoiceIfOpen(gameInfo.gameId, promptId, choiceId)
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeEventSubmissionInProgress = false
-                    ToastPopup("Could not submit event choice: [${ex.message ?: "Unknown"}]", worldScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        gameInfo.isUpToDate = false
-                        close()
-                        ToastPopup("Event choice committed by the authoritative server", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        gameInfo.isUpToDate = false
-                        close()
-                        ToastPopup("Game changed on the server - event choice was not applied", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeEventSubmissionInProgress = false
-                        ToastPopup("Server rejected event choice: [${outcome.code}]", worldScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeEventSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same event choice", worldScreen)
-                    }
-                    null -> {
-                        authoritativeEventSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before the event choice", worldScreen)
-                    }
-                }
-            }
-        }
-    }
-
     //endregion
 
     override fun close() {
-        if (popupAlert.type == AlertType.TechResearched &&
-            worldScreen.mapHolder.usesAuthoritativeCommands()
-        ) {
-            acknowledgeAuthoritativeResearchCompletion()
-            return
-        }
-        closeLocally()
-    }
-
-    private fun acknowledgeAuthoritativeResearchCompletion() {
-        if (authoritativeResearchAcknowledgmentInProgress) return
-        authoritativeResearchAcknowledgmentInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Acknowledge authoritative research completion") {
-            val outcome = try {
-                val session = worldScreen.game.onlineMultiplayer.authoritativeSession
-                    ?: error("Authoritative session is unavailable")
-                val projection = session.projectionIfOpen(gameInfo.gameId)
-                    ?: error("Authoritative projection is unavailable")
-                val prompt = projection.research.completionPrompts
-                    .firstOrNull { it.technologyName == popupAlert.value }
-                if (prompt == null) null
-                else session.acknowledgeResearchCompletionIfOpen(gameInfo.gameId, prompt.promptId)
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeResearchAcknowledgmentInProgress = false
-                    ToastPopup("Could not acknowledge research completion: [${ex.message ?: "Unknown"}]", worldScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted,
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        gameInfo.isUpToDate = false
-                        closeLocally()
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeResearchAcknowledgmentInProgress = false
-                        ToastPopup("Server rejected research acknowledgment: [${outcome.code}]", worldScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeResearchAcknowledgmentInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same acknowledgment", worldScreen)
-                    }
-                    null -> closeLocally()
-                }
-            }
-        }
-    }
-
-    private fun closeLocally() {
         viewingCiv.popupAlerts.remove(popupAlert)
         worldScreen.shouldUpdate = true
         super.close()

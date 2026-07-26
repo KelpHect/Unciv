@@ -5095,6 +5095,26 @@ generation. That audit, fresh-process byte-identical fixtures, bounded tail
 execution, and publication of a recovery revision remain explicitly unchecked
 in `missing_multiplayer.md`.
 
+## Repeatable server-created map baseline
+
+The first repeated-creation failure is now fixed for a representative generated
+two-major-civilization map. `GameStarter` uses its state-based RNG for nation,
+city-state, player-order, and starting-location ordering. Start normalization,
+luxury placement, strategic/bonus placement, continent traversal, and region
+traversal likewise use explicit RNG streams and stable coordinate/name ordering
+rather than ambient Kotlin collection shuffles or hash iteration.
+
+`EngineWorkerProtocolTests.createGameDerivesSetupFromPinnedManifestAndServerSeed`
+now executes the same typed creation request twice with the same canonical UUID,
+server seed, server time, manifest, and zero-city-state setup. It asserts exact
+snapshot bytes and canonical SHA-256 equality. The complete server suite passes
+normally and with `--rerun-tasks`; the core test suite also passes.
+
+This is a deterministic baseline, not completion of the recovery requirement.
+City-state placement across fresh processes and the broader setup matrix still
+need parity fixtures. Bounded journal-tail execution and immutable recovery
+revision publication remain unchecked.
+
 ## Immutable command replay actor identity
 
 Implemented on 2026-07-26:

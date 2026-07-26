@@ -18,9 +18,15 @@ object MinorCivPlacer {
      *  forget about the discarded city states entirely. */
     fun placeMinorCivs(regions: List<Region>, tileMap: TileMap, civs: List<Civilization>, tileData: TileDataMap, ruleset: Ruleset) {
         if (civs.isEmpty()) return
+        val orderedRegions = regions.sortedWith(
+            compareBy<Region> { it.startPosition?.x ?: Int.MIN_VALUE }
+                .thenBy { it.startPosition?.y ?: Int.MIN_VALUE }
+                .thenBy { it.rect.x }
+                .thenBy { it.rect.y }
+        )
 
         // Some but not all city states are assigned to regions directly. Determine the CS density.
-        val unassignedCivs = assignMinorCivsDirectlyToRegions(civs, regions)
+        val unassignedCivs = assignMinorCivsDirectlyToRegions(civs, orderedRegions, tileMap)
 
         // Some city states are assigned to "uninhabited" continents - unless it's an archipelago type map
         // (Because then every continent will have been assigned to a region anyway)
@@ -30,7 +36,7 @@ object MinorCivPlacer {
         if (!tileMap.usingArchipelagoRegions()) {
             spreadCityStatesBetweenHabitedAndUninhabited(
                 tileMap,
-                regions,
+                orderedRegions,
                 tileData,
                 uninhabitedCoastal,
                 uninhabitedHinterland,
@@ -40,9 +46,9 @@ object MinorCivPlacer {
             )
         }
 
-        assignCityStatesToRegionsWithCommonLuxuries(regions, unassignedCivs)
-        spreadCityStatesEvenlyBetweenRegions(unassignedCivs, regions)
-        assignRemainingCityStatesToWorstFertileRegions(regions, unassignedCivs)
+        assignCityStatesToRegionsWithCommonLuxuries(orderedRegions, unassignedCivs)
+        spreadCityStatesEvenlyBetweenRegions(unassignedCivs, orderedRegions)
+        assignRemainingCityStatesToWorstFertileRegions(orderedRegions, unassignedCivs)
 
         // After we've finished assigning, NOW we actually place them
         placeAssignedMinorCivs(
@@ -52,7 +58,7 @@ object MinorCivPlacer {
             tileData,
             ruleset,
             uninhabitedHinterland,
-            regions
+            orderedRegions
         )
     }
 
@@ -175,15 +181,19 @@ object MinorCivPlacer {
 
         // Now place the ones assigned to specific regions.
         for (region in regions) {
+            val orderedRegionTiles = region.tiles
+                .sortedWith(compareBy<Tile> { it.position.x }.thenBy { it.position.y })
+                .toMutableList()
             tryPlaceMinorCivsInTiles(
-                region.assignedMinorCivs, tileMap, region.tiles.toMutableList(), tileData, ruleset
+                region.assignedMinorCivs, tileMap, orderedRegionTiles, tileData, ruleset
             )
         }
     }
 
     private fun assignMinorCivsDirectlyToRegions(
         civs: List<Civilization>,
-        regions: List<Region>
+        regions: List<Region>,
+        tileMap: TileMap,
     ): MutableList<Civilization> {
         val minorCivRatio = civs.size.toFloat() / regions.size
         val minorCivPerRegion = when {
@@ -196,7 +206,9 @@ object MinorCivPlacer {
             minorCivRatio > 1.35f -> 1
             else -> 0
         }
-        val unassignedCivs = civs.shuffled().toMutableList()
+        val rng = GameContext(gameInfo = tileMap.gameInfo)
+            .stateBasedRandom("MinorCivPlacer.assignMinorCivsDirectlyToRegions")
+        val unassignedCivs = civs.shuffled(rng).toMutableList()
         if (minorCivPerRegion > 0) {
             regions.forEach {
                 val civsToAssign = unassignedCivs.take(minorCivPerRegion)
@@ -211,15 +223,15 @@ object MinorCivPlacer {
      *  [tileList] is pre-vetted and only contains habitable land tiles.
      *  Will modify both [civsToPlace] and [tileList] as it goes! */
     private fun tryPlaceMinorCivsInTiles(civsToPlace: MutableList<Civilization>, tileMap: TileMap, tileList: MutableList<Tile>, tileData: TileDataMap, ruleset: Ruleset) {
+        tileList.sortWith(compareBy<Tile> { it.position.x }.thenBy { it.position.y })
         while (tileList.isNotEmpty() && civsToPlace.isNotEmpty()) {
-            val rng = GameContext(gameInfo = tileMap.gameInfo).stateBasedRandom("MinorCivPlcer.tryPlaceMinorCivsInTiles")
+            val rng = GameContext(gameInfo = tileMap.gameInfo)
+                .stateBasedRandom("MinorCivPlacer.tryPlaceMinorCivsInTiles")
             val chosenTile = tileList.random(rng)
             tileList.remove(chosenTile)
             val data = tileData[chosenTile.position]!!
-            // If the randomly chosen tile is too close to a player or a city state, discard it
             if (data.impacts.containsKey(MapRegions.ImpactType.MinorCiv))
                 continue
-            // Otherwise, go ahead and place the minor civ
             val civToAdd = civsToPlace.first()
             civsToPlace.remove(civToAdd)
             placeMinorCiv(civToAdd, tileMap, chosenTile, tileData, ruleset)

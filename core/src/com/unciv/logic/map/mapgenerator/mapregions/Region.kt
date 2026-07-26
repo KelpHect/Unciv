@@ -10,8 +10,8 @@ import kotlin.math.max
 import kotlin.math.min
 
 class Region (val tileMap: TileMap, val rect: Rectangle, val continentID: Int = -1) {
-    val tiles = HashSet<Tile>()
-    val terrainCounts = HashMap<String, Int>()
+    val tiles = LinkedHashSet<Tile>()
+    val terrainCounts = LinkedHashMap<String, Int>()
     var totalFertility = 0
     var type = "Hybrid" // being an undefined or indeterminate type
     var luxury: String? = null

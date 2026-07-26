@@ -78,6 +78,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   creation operation retains its OS-backed seed, execution time, and canonical
   game UUID. The worker must echo the control-plane time and cannot replace it.
   Reconciliation reports legacy or damaged rows missing these inputs.
+- [x] Make representative generated-map creation byte-repeatable for identical
+  canonical UUID, server seed, server time, manifest, and setup. `GameStarter`,
+  region generation, start normalization, and luxury/strategic placement now
+  use stable ordering and explicit state-based RNG instead of ambient shuffles;
+  the worker test compares both the complete snapshot and SHA-256 hash.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -242,9 +247,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authenticated account, immutable executing civilization, and server
   execution time needed for safe replay; revision-zero operations retain their
   seed, time, and canonical UUID. Pre-migration rows without that context fail
-  reconciliation and require operator-supplied recovery evidence. Finish
-  replacing ambient Kotlin randomness in map/game creation, then add
-  byte-identical fresh-process replay and publish recovery as a new immutable
+  reconciliation and require operator-supplied recovery evidence. Add
+  fresh-process coverage for city-state placement and every supported setup,
+  then execute the bounded tail and publish recovery as a new immutable
   revision.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.

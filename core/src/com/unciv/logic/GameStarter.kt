@@ -348,7 +348,7 @@ class GameStarter private constructor(
                 it.value.isCityState &&
                     !it.value.hasUnique(UniqueType.WillNotBeChosenForNewGames)
             }.map { it.value }
-            .shuffled()
+            .shuffled(rng)
             .sortedByDescending { it.name in civNamesWithStartingLocations }  // please those with location first
             .take(numberOfCityStates)
             .map { Player(it) }
@@ -572,7 +572,7 @@ class GameStarter private constructor(
 
     @Readonly
     private fun getCivsOrderedByAvailableLocations(civs: List<Civilization>): List<Civilization> {
-        return civs.shuffled()   // Order should be random since it determines who gets best start
+        return civs.shuffled(rng)   // Order should be random since it determines who gets best start
             .sortedBy { civ ->
                 when {
                     civ.civID in tileMap.startingLocationsByNation -> 1 // harshest requirements

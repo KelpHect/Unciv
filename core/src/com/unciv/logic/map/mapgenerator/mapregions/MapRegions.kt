@@ -110,7 +110,7 @@ class MapRegions (val ruleset: Ruleset) {
             return
         }
         // Continents type - distribute civs according to total fertility, then split as needed
-        val continents = tileMap.continentSizes.keys.toMutableList()
+        val continents = tileMap.continentSizes.keys.sorted()
         val civsAddedToContinent = HashMap<Int, Int>() // Continent ID, civs added
         val continentFertility = HashMap<Int, Int>() // Continent ID, total fertility
         // Keep track of the even-q columns each continent is at, to figure out if they wrap
@@ -138,7 +138,7 @@ class MapRegions (val ruleset: Ruleset) {
         }
 
         // Split up the continents
-        for (continent in civsAddedToContinent.keys) {
+        for (continent in civsAddedToContinent.keys.sorted()) {
             val continentRegion = Region(tileMap, Rectangle(mapRect), continent)
             val cols = continentToColumnsItsIn[continent]!!
             // Set origin at the rightmost column which does not have a neighbor on the left
@@ -231,6 +231,13 @@ class MapRegions (val ruleset: Ruleset) {
 
     fun assignRegions(tileMap: TileMap, civilizations: List<Civilization>, gameParameters: GameParameters) {
         if (civilizations.isEmpty()) return
+        regions.sortWith(
+            compareBy<Region> { it.continentID }
+                .thenBy { it.rect.x }
+                .thenBy { it.rect.y }
+                .thenBy { it.rect.width }
+                .thenBy { it.rect.height }
+        )
 
         assignRegionTypes()
 

@@ -104,7 +104,7 @@ class EngineWorkerProtocolTests {
                     987654321L,
                     defaultSetup(baseRuleset.name).copy(
                         majorCivilizations = 2,
-                        cityStates = 1,
+                        cityStates = 0,
                         mapShape = GeneratedMapShape.Rectangular,
                         mapSize = GeneratedMapSize.Tiny,
                         barbarians = BarbarianMode.Disabled,
@@ -121,7 +121,7 @@ class EngineWorkerProtocolTests {
         assertEquals(1_700_000_000_000L, game.currentTurnStartTime)
         assertEquals(baseRuleset.name, game.gameParameters.baseRuleset)
         assertEquals(2, game.gameParameters.players.size)
-        assertEquals(1, game.gameParameters.numberOfCityStates)
+        assertEquals(0, game.gameParameters.numberOfCityStates)
         assertTrue(game.gameParameters.noBarbarians)
         assertTrue(game.tileMap.mapParameters.noRuins)
         assertEquals("Rectangular", game.tileMap.mapParameters.shape)
@@ -134,6 +134,29 @@ class EngineWorkerProtocolTests {
             }.playerId,
         )
         assertEquals("00000000-0000-4000-8000-000000000001", game.gameId)
+        val replay = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
+                actorId = "account-1",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000001",
+                    987654321L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 2,
+                        cityStates = 0,
+                        mapShape = GeneratedMapShape.Rectangular,
+                        mapSize = GeneratedMapSize.Tiny,
+                        barbarians = BarbarianMode.Disabled,
+                        noRuins = true,
+                    ),
+                ),
+            ),
+        )
+        assertNull(replay.error)
+        assertEquals(response.canonicalStateHash, replay.canonicalStateHash)
+        assertEquals(response.snapshot, replay.snapshot)
     }
 
     @Test

@@ -78,7 +78,13 @@ object LuxuryResourcePlacementLogic {
             globalRng
         )
 
-        val randomLuxuries = getLuxuriesForRandomPlacement(assignableLuxuries, amountRegionsWithLuxury, tileData, ruleset)
+        val randomLuxuries = getLuxuriesForRandomPlacement(
+            assignableLuxuries,
+            amountRegionsWithLuxury,
+            tileData,
+            ruleset,
+            globalRng,
+        )
 
         return Pair(cityStateLuxuries, randomLuxuries)
     }
@@ -88,11 +94,12 @@ object LuxuryResourcePlacementLogic {
         assignableLuxuries: List<TileResource>,
         amountRegionsWithLuxury: HashMap<String, Int>,
         tileData: TileDataMap,
-        ruleset: Ruleset
+        ruleset: Ruleset,
+        rng: Random,
     ): List<String> {
         val remainingLuxuries = assignableLuxuries.filter {
             amountRegionsWithLuxury[it.name] == 0
-        }.map { it.name }.shuffled()
+        }.map { it.name }.shuffled(rng)
 
         val disabledPercent =
             100 - min(tileData.size.toFloat().pow(0.2f) * 16, 100f).toInt() // Approximately
@@ -217,11 +224,13 @@ object LuxuryResourcePlacementLogic {
         placedSpecials: HashMap<String, Int>,
         tileData: TileDataMap
     ) {
+        val rng = GameContext(gameInfo = tileMap.gameInfo)
+            .stateBasedRandom("LuxuryResourcePlacementLogic.fillSpecialLuxuries")
         for (special in specialLuxuries) {
             val targetNumber = (regions.size * tileMap.mapParameters.getMapResources().specialLuxuriesTargetFactor).toInt()
             val numberToPlace = max(2, targetNumber - placedSpecials[special.name]!!)
             MapRegionResources.tryAddingResourceToTiles(
-                tileData, special, numberToPlace, tileMap.values.asSequence().shuffled(), 1f,
+                tileData, special, numberToPlace, tileMap.values.asSequence().shuffled(rng), 1f,
                 true, 6, 0
             )
         }
@@ -238,14 +247,16 @@ object LuxuryResourcePlacementLogic {
         placedSpecials: HashMap<String, Int>
     ) {
         if (tileMap.mapParameters.mapResources == MapResourceSetting.sparse.label) return
+        val rng = GameContext(gameInfo = tileMap.gameInfo)
+            .stateBasedRandom("LuxuryResourcePlacementLogic.addExtraLuxuryToStarts")
         for (region in regions) {
             val tilesToCheck = tileMap[region.startPosition!!].getTilesInDistanceRange(1..2)
-            val candidateLuxuries = randomLuxuries.shuffled().toMutableList()
+            val candidateLuxuries = randomLuxuries.shuffled(rng).toMutableList()
             if (!tileMap.mapParameters.getStrategicBalance())
-                candidateLuxuries += specialLuxuries.shuffled()
+                candidateLuxuries += specialLuxuries.shuffled(rng)
                     .map { it.name } // Include marble!
-            candidateLuxuries += cityStateLuxuries.shuffled()
-            candidateLuxuries += regions.mapNotNull { it.luxury }.shuffled()
+            candidateLuxuries += cityStateLuxuries.shuffled(rng)
+            candidateLuxuries += regions.mapNotNull { it.luxury }.shuffled(rng)
             for (luxury in candidateLuxuries) {
                 if (MapRegionResources.tryAddingResourceToTiles(
                         tileData,
@@ -276,8 +287,8 @@ object LuxuryResourcePlacementLogic {
         targetRandomLuxuries /= 100
         targetRandomLuxuries += rng.nextInt(regions.size) // Add random number based on number of civs
         val minimumRandomLuxuries = tileData.size.toFloat().pow(0.2f).toInt() // Approximately
-        val worldTiles = tileMap.values.asSequence().shuffled()
-        for ((index, luxury) in randomLuxuries.shuffled().withIndex()) {
+        val worldTiles = tileMap.values.asSequence().shuffled(rng)
+        for ((index, luxury) in randomLuxuries.shuffled(rng).withIndex()) {
             val targetForThisLuxury = if (randomLuxuries.size > 8) targetRandomLuxuries / 10
             else {
                 val minimum = max(3, minimumRandomLuxuries - index)
@@ -305,6 +316,8 @@ object LuxuryResourcePlacementLogic {
         tileMap: TileMap,
         ruleset: Ruleset
     ) {
+        val rng = GameContext(gameInfo = tileMap.gameInfo)
+            .stateBasedRandom("LuxuryResourcePlacementLogic.addRegionalLuxuries")
         val idealCivsForMapSize = max(2, tileData.size / 500)
         var regionTargetNumber =
             (tileData.size / 600) - (0.3f * abs(regions.size - idealCivsForMapSize)).toInt()
@@ -323,7 +336,7 @@ object LuxuryResourcePlacementLogic {
                 tileData,
                 resource,
                 regionTargetNumber,
-                candidates.shuffled(),
+                candidates.shuffled(rng),
                 0.4f,
                 true,
                 4,
@@ -350,9 +363,9 @@ object LuxuryResourcePlacementLogic {
             val globalLuxuries =
                 if (region?.luxury != null) randomLuxuries + listOf(region.luxury) else randomLuxuries
             val candidateLuxuries = if (rng.nextInt(100) >= 25)
-                cityStateLuxuries.shuffled() + globalLuxuries.shuffled()
+                cityStateLuxuries.shuffled(rng) + globalLuxuries.shuffled(rng)
             else
-                globalLuxuries.shuffled() + cityStateLuxuries.shuffled()
+                globalLuxuries.shuffled(rng) + cityStateLuxuries.shuffled(rng)
             // Now try adding one until we are successful
             for (luxury in candidateLuxuries) {
                 if (MapRegionResources.tryAddingResourceToTiles(
@@ -373,6 +386,8 @@ object LuxuryResourcePlacementLogic {
         tileData: TileDataMap,
         randomLuxuries: List<String>
     ) {
+        val rng = GameContext(gameInfo = tileMap.gameInfo)
+            .stateBasedRandom("LuxuryResourcePlacementLogic.placeLuxuriesAtMajorCivStartLocations")
         val averageFertilityDensity =
             regions.sumOf { it.totalFertility } / regions.sumOf { it.tiles.size }.toFloat()
         for (region in regions) {
@@ -386,7 +401,7 @@ object LuxuryResourcePlacementLogic {
             val luxuryToPlace = ruleset.tileResources[region.luxury] ?: continue
             // First check 2 inner rings
             val firstPass = tileMap[region.startPosition!!].getTilesInDistanceRange(1..2)
-                .shuffled().sortedBy { it.getTileFertility(false) } // Check bad tiles first
+                .shuffled(rng).sortedBy { it.getTileFertility(false) } // Check bad tiles first
             targetLuxuries -= MapRegionResources.tryAddingResourceToTiles(
                 tileData,
                 luxuryToPlace,
@@ -397,7 +412,7 @@ object LuxuryResourcePlacementLogic {
 
             if (targetLuxuries > 0) {
                 val secondPass = firstPass + tileMap[region.startPosition!!].getTilesAtDistance(3)
-                    .shuffled().sortedBy { it.getTileFertility(false) } // Check bad tiles first
+                    .shuffled(rng).sortedBy { it.getTileFertility(false) } // Check bad tiles first
                 targetLuxuries -= MapRegionResources.tryAddingResourceToTiles(
                     tileData,
                     luxuryToPlace,

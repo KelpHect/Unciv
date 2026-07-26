@@ -5,19 +5,7 @@ use crate::{
     projection::{PlayerProjection, ProjectedTrade, SpectatorProjection},
 };
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkerManifest {
-    pub engine_build: String,
-    pub base_ruleset: WorkerRuleset,
-    pub mods: Vec<WorkerRuleset>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct WorkerRuleset {
-    pub name: String,
-    pub sha256: String,
-}
+use super::{WorkerManifest, WorkerRuleset};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -748,7 +736,7 @@ pub(super) enum WorkerOperation<'a> {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct WorkerResponse {
     pub(super) protocol_version: u16,
     pub(super) server_time_millis: Option<i64>,
@@ -790,6 +778,7 @@ pub struct WorkerCapabilities {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct WorkerError {
     pub(super) code: String,
     pub(super) message: String,

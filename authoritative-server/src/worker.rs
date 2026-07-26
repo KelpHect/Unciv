@@ -26,6 +26,7 @@ mod instant_improvements;
 mod intents;
 mod lifecycle;
 mod major_diplomacy;
+mod manifest;
 mod protocol;
 mod religion;
 mod research;
@@ -68,9 +69,10 @@ pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
     DiplomaticPromptIntent,
 };
+pub use manifest::{WorkerManifest, WorkerRuleset};
 pub use protocol::{
     AssignedPlayer, CreatedGame, ForcedResignation, ProjectedSpectatorState, ProjectedState,
-    WorkerCapabilities, WorkerManifest, WorkerRuleset,
+    WorkerCapabilities,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
@@ -344,11 +346,21 @@ impl EngineWorkerClient {
                 operation: WorkerOperation::Handshake,
             })
             .await?;
+        let engine_build = response.engine_build.ok_or(WorkerClientError::Incomplete)?;
+        let installed_rulesets = response
+            .installed_rulesets
+            .ok_or(WorkerClientError::Incomplete)?;
+        if engine_build.is_empty()
+            || engine_build.len() > 128
+            || engine_build.chars().any(char::is_control)
+            || installed_rulesets.len() > 1_024
+            || installed_rulesets.iter().any(|ruleset| !ruleset.is_valid())
+        {
+            return Err(WorkerClientError::Protocol);
+        }
         Ok(WorkerCapabilities {
-            engine_build: response.engine_build.ok_or(WorkerClientError::Incomplete)?,
-            installed_rulesets: response
-                .installed_rulesets
-                .ok_or(WorkerClientError::Incomplete)?,
+            engine_build,
+            installed_rulesets,
         })
     }
 

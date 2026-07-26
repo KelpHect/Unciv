@@ -39,6 +39,12 @@ object EngineWorkerProtocol {
     const val VERSION = 1
     const val maxFrameBytes = 16 * 1024 * 1024
     val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
+
+    fun decodeRequest(frameSize: Int, payload: ByteArray): WorkerRequest {
+        require(frameSize in 1..maxFrameBytes) { "Invalid frame length" }
+        require(payload.size == frameSize) { "Incomplete worker frame" }
+        return json.decodeFromString(payload.decodeToString())
+    }
 }
 
 @Serializable
@@ -1430,7 +1436,7 @@ class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker =
         val output = DataOutputStream(socket.getOutputStream())
         val frameSize = input.readInt()
         require(frameSize in 1..EngineWorkerProtocol.maxFrameBytes) { "Invalid frame length" }
-        val request = EngineWorkerProtocol.json.decodeFromString<WorkerRequest>(input.readNBytes(frameSize).decodeToString())
+        val request = EngineWorkerProtocol.decodeRequest(frameSize, input.readNBytes(frameSize))
         val response = EngineWorkerProtocol.json.encodeToString(WorkerResponse.serializer(), worker.execute(request)).encodeToByteArray()
         output.writeInt(response.size)
         output.write(response)

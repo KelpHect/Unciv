@@ -704,7 +704,7 @@ impl PostgresGameRepository {
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        if !matches!(&envelope.command, crate::GameCommand::JoinGame) {
+        if !matches!(&envelope.command, crate::GameCommand::JoinGame {}) {
             return Err(CommitError::InvalidCommand);
         }
         if let Some(accepted) = self

@@ -445,7 +445,7 @@ impl PostgresGameRepository {
 
         let mut consumed_invitation_id: Option<Uuid> = None;
         if let Some(assignment) = new_member {
-            if !matches!(&envelope.command, crate::GameCommand::JoinGame) {
+            if !matches!(&envelope.command, crate::GameCommand::JoinGame {}) {
                 return Err(CommitError::InvalidCommand);
             }
             consumed_invitation_id = sqlx::query_scalar(

@@ -21,4 +21,5 @@ utoipa = { version = "=5.5.0", features = ["uuid"] }
 zstd = "0.13.3"
 
 [dev-dependencies]
+proptest = "1.11.0"
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "sync"] }

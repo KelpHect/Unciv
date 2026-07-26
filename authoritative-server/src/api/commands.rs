@@ -34,7 +34,7 @@ pub(super) async fn join_game(
                 command_id: request.command_id,
                 expected_revision: request.expected_revision,
                 client_observed_state_hash: request.client_observed_state_hash,
-                command: GameCommand::JoinGame,
+                command: GameCommand::JoinGame {},
             },
         )
         .await
@@ -79,7 +79,7 @@ pub(super) async fn end_turn(
                 command_id: request.command_id,
                 expected_revision: request.expected_revision,
                 client_observed_state_hash: request.client_observed_state_hash,
-                command: GameCommand::EndTurn,
+                command: GameCommand::EndTurn {},
             },
         )
         .await

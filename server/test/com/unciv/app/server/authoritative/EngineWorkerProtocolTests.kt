@@ -26,9 +26,70 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.Random
 import java.util.concurrent.TimeUnit
 
 class EngineWorkerProtocolTests {
+    @Test
+    fun seededMalformedFramesRequestsSnapshotsAndManifestsFailClosed() {
+        val random = Random(0x554E434956L)
+        repeat(256) {
+            val payload = ByteArray(random.nextInt(4096)) { random.nextInt(256).toByte() }
+            val frameSize = when (random.nextInt(4)) {
+                0 -> 0
+                1 -> EngineWorkerProtocol.maxFrameBytes + 1
+                2 -> payload.size + 1
+                else -> payload.size
+            }
+            runCatching { EngineWorkerProtocol.decodeRequest(frameSize, payload) }
+                .onSuccess { request ->
+                    assertEquals(EngineWorkerProtocol.VERSION, request.protocolVersion)
+                }
+        }
+
+        val installed = InstalledRulesetCatalog.named("Civ V - Vanilla")
+        val validManifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = installed,
+        )
+        repeat(128) {
+            val malformedSnapshot = buildString {
+                repeat(random.nextInt(1024) + 1) {
+                    append((32 + random.nextInt(95)).toChar())
+                }
+            }
+            val response = AuthoritativeEngineWorker().execute(
+                WorkerRequest(
+                    protocolVersion = EngineWorkerProtocol.VERSION,
+                    serverTimeMillis = 1_700_000_000_000L,
+                    actorId = "account-1",
+                    rulesetManifest = validManifest,
+                    operation = WorkerOperation.EndTurn(malformedSnapshot, "Rome"),
+                ),
+            )
+            assertEquals("engine_rejected", response.error?.code)
+            assertNull(response.snapshot)
+
+            val invalidManifest = validManifest.copy(
+                mods = listOf(WorkerRuleset(
+                    name = "unknown-${random.nextLong()}",
+                    sha256 = random.nextLong().toString(16).padStart(64, '0').takeLast(64),
+                )),
+            )
+            val manifestResponse = AuthoritativeEngineWorker().execute(
+                WorkerRequest(
+                    protocolVersion = EngineWorkerProtocol.VERSION,
+                    serverTimeMillis = 1_700_000_000_000L,
+                    actorId = "account-1",
+                    rulesetManifest = invalidManifest,
+                    operation = WorkerOperation.EndTurn("not-a-save", "Rome"),
+                ),
+            )
+            assertEquals("engine_rejected", manifestResponse.error?.code)
+            assertNull(manifestResponse.snapshot)
+        }
+    }
+
     @Test
     fun handshakeNeedsNoActorOrManifest() {
         val response = AuthoritativeEngineWorker().execute(

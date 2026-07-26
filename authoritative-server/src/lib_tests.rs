@@ -25,7 +25,7 @@ fn command(game_id: Uuid, command_id: Uuid, expected_revision: u64) -> CommandEn
         command_id,
         expected_revision,
         client_observed_state_hash: None,
-        command: GameCommand::EndTurn,
+        command: GameCommand::EndTurn {},
     }
 }
 

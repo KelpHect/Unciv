@@ -88,8 +88,8 @@ pub enum ReligiousBeliefType {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum GameCommand {
-    JoinGame,
-    EndTurn,
+    JoinGame {},
+    EndTurn {},
     Resign {},
     ForceResign {},
     KickMember {},
@@ -426,6 +426,7 @@ pub enum ResearchQueueAction {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct CommandEnvelope {
     pub protocol_version: u16,
     pub game_id: Uuid,

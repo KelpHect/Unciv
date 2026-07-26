@@ -1,5 +1,45 @@
 # Authoritative multiplayer v3 status
 
+## Deterministic protocol and persistence property testing
+
+Implemented on 2026-07-26:
+
+- Added fixed-seed Proptest coverage for closed command-envelope parsing,
+  unknown command variants and fields, player-projection serialization,
+  revision transitions, stale commands, and idempotency-key reuse with changed
+  command content. The saved regression case remains checked in.
+- Closed a parser weakness discovered by the generated cases: internally
+  tagged unit command variants could accept unexpected payload fields.
+  Payload-free commands now use closed empty-object variants without changing
+  their JSON wire representation.
+- Added arbitrary snapshot round trips and adversarial declared-size/frame
+  combinations around zstd decompression. Successful decodes must remain
+  within the configured size limit and match the exact canonical hash.
+- Added arbitrary worker frame and length-prefix parsing, closed response
+  parsing, and generated ruleset-manifest validation. Engine/ruleset names,
+  lowercase SHA-256 hashes, count limits, and ruleset-name uniqueness are
+  enforced before execution and replay.
+- Added seeded Kotlin malformed-frame, snapshot, request, and ruleset-manifest
+  tests through the same bounded closed decoder used by the worker server.
+- Kept the Rust façades thin and moved manifest DTOs and validation into the
+  focused `worker/manifest.rs` module.
+
+Verification on 2026-07-26:
+
+- `cargo test --all-features` passes 137 active Rust library tests and all 12
+  HTTP/OpenAPI tests; 21 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- All 21 serialized PostgreSQL integration and replica-fault tests pass in
+  7.48 seconds against only the pinned PostgreSQL 19 Beta 2 digest. The
+  disposable database was removed.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1098 JVM/server cases: 1085 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Every substantive Rust source remains below the 800-line guardrail; the
+  largest is 796 lines, `worker.rs` is 794, and `worker/protocol.rs` is 785.
+
 ## Fail-closed public and observability disclosure boundaries
 
 Implemented on 2026-07-26:

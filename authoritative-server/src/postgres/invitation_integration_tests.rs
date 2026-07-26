@@ -20,7 +20,7 @@ fn join_envelope(game_id: Uuid, command_id: Uuid, revision: u64) -> CommandEnvel
         command_id,
         expected_revision: revision,
         client_observed_state_hash: None,
-        command: GameCommand::JoinGame,
+        command: GameCommand::JoinGame {},
     }
 }
 

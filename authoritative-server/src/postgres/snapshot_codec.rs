@@ -95,6 +95,8 @@ pub(super) fn decode_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
 
     #[test]
     fn zstd_round_trip_keeps_separate_payload_and_canonical_hashes() {
@@ -145,5 +147,51 @@ mod tests {
             ),
             Err(SnapshotCodecError::InvalidSize)
         );
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            rng_seed: RngSeed::Fixed(0x554E_4349_5650_3302),
+            ..ProptestConfig::default()
+        })]
+
+        #[test]
+        fn arbitrary_snapshots_round_trip_with_exact_hashes(
+            canonical in prop::collection::vec(any::<u8>(), 1..16_384),
+        ) {
+            let stored = encode_snapshot(&canonical).unwrap();
+            prop_assert_eq!(stored.canonical_state_hash, state_hash(&canonical));
+            prop_assert_eq!(stored.payload_hash, state_hash(&stored.payload));
+            prop_assert_eq!(
+                decode_snapshot(
+                    stored.codec,
+                    &stored.payload,
+                    stored.compressed_size,
+                    stored.uncompressed_size,
+                ),
+                Ok(canonical),
+            );
+        }
+
+        #[test]
+        fn declared_size_mismatches_and_arbitrary_frames_fail_bounded(
+            payload in prop::collection::vec(any::<u8>(), 1..8_192),
+            compressed_delta in -3_i64..=3,
+            uncompressed_size in -3_i64..32_768,
+        ) {
+            let declared_compressed = payload.len() as i64 + compressed_delta;
+            let result = decode_snapshot(
+                "zstd",
+                &payload,
+                declared_compressed,
+                uncompressed_size,
+            );
+            if let Ok(decoded) = result {
+                prop_assert!(decoded.len() <= MAX_SNAPSHOT_BYTES);
+                prop_assert_eq!(decoded.len() as i64, uncompressed_size);
+                prop_assert_eq!(declared_compressed, payload.len() as i64);
+            }
+        }
     }
 }

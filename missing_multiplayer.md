@@ -491,7 +491,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   constrains security-audit labels to closed enums while forcing the JSON
   details payload to remain empty. Credentials and identities remain absent or
   one-way hashed.
-- [ ] Add property/fuzz tests for command envelopes, unknown fields/enums,
+- [x] Add property/fuzz tests for command envelopes, unknown fields/enums,
   length-prefixed worker frames, projection serialization, revision transitions,
   idempotency-key reuse with changed content, decompression, and save/ruleset
   deserialization limits.

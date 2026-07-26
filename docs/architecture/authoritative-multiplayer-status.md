@@ -1,5 +1,54 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only religion choices and complete end-turn inputs
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now renders every pending religious
+  belief slot from `requiredBeliefTypes`, only worker-advertised compatible
+  beliefs, and—only while founding—one projected unused religion icon plus a
+  bounded display-name field. Selection state is presentation-only and has no
+  gameplay effect until the exact typed command is accepted.
+- `ReligionChoiceValidation` centralizes the public projection contract used by
+  both the focused controller and command bus: exact slot count, distinct
+  belief names, projected membership, required type multiset including wildcard
+  slots, icon membership, identity presence/absence, and a 1-128 printable
+  character name.
+- The command bus previously accepted any distinct projected belief names even
+  when their types did not fill the projected slots. It now rejects that
+  mismatch before transport. The private worker independently re-derives every
+  slot and belief from canonical rules and now also rejects control characters
+  in religion display names before checking reserved or duplicate identities.
+- `AuthoritativeReligionController` and `AuthoritativeReligionPanel` remain
+  projection-only. The client does not infer belief availability, religion
+  state, free-belief counts, uniqueness, holy city, costs, yields, or effects.
+- With this surface, all ten `PendingEndTurnAction` enum families now have
+  production projection-only input paths: construction, technology, policy,
+  spies, pantheon/founding/enhancement/reformation, diplomatic vote, and
+  great-person selection. End turn remains disabled until a refreshed
+  projection reports the pending list empty.
+- Deterministic tests cover exact religion submission, slot-type mismatch,
+  invented belief/icon, invalid identity, missing choice, and
+  response-uncertain retry without local revision mutation. A direct
+  command-bus test proves a projected belief with the wrong type never reaches
+  transport.
+
+Verification on 2026-07-26:
+
+- Focused religion/controller, canonical readiness, command-bus, session,
+  world-boundary, and desktop compilation gates pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1045 JVM/server cases: 1032 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The shared validation, controller, panel, and
+  production world screen are 64, 30, 93, and 283 lines. This milestone changes
+  no Rust, wire schema, OpenAPI, persistence, or PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The end-turn input-coverage gate is complete. The broader projection-only world
+still needs non-blocking unit, diplomacy, trade, and history/event surfaces.
+
 ## Projection-only spy controls
 
 Implemented on 2026-07-26:

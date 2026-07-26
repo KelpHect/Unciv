@@ -69,6 +69,11 @@ class AuthoritativeWorldScreen(
         unitOrderActions = authoritativeUnitOrderActions(session, gameSummary.gameId),
         promptActions = authoritativePromptActions(session, gameSummary.gameId),
         spyActions = authoritativeSpyActions(session, gameSummary.gameId),
+        religionAction = { beliefs, icon, name ->
+            session.chooseReligiousBeliefsIfOpen(
+                gameSummary.gameId, beliefs, icon, name,
+            )
+        },
     )
 
     private var centerX = initialCenter().first

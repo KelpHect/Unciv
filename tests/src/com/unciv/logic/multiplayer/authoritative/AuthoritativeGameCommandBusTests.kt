@@ -1604,6 +1604,38 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun religiousBeliefChoiceRejectsProjectedTypeMismatchBeforeTransport() = runBlocking {
+        val choice = ProjectedReligionChoice(
+            requiredBeliefTypes = listOf(
+                ReligiousBeliefType.Founder,
+                ReligiousBeliefType.Follower,
+            ),
+            availableBeliefs = listOf(
+                ProjectedReligiousBelief("Church Property", ReligiousBeliefType.Founder),
+                ProjectedReligiousBelief("Tithe", ReligiousBeliefType.Founder),
+                ProjectedReligiousBelief("Pagodas", ReligiousBeliefType.Follower),
+            ),
+            availableReligionIcons = listOf("Buddhism"),
+            requiresReligionIdentity = true,
+        )
+        val base = projection(3, "hash-3")
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(base.copy(
+                projection = base.projection.copy(religionChoice = choice),
+            )),
+        )
+        bus.refresh()
+
+        bus.chooseReligiousBeliefs(
+            listOf("Church Property", "Tithe"),
+            "Buddhism",
+            "The Middle Way",
+        )
+        Unit
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun queueMutationRejectsAnEntryThatDoesNotMatchTheProjection() = runBlocking {
         val bus = AuthoritativeGameCommandBus(
             gameId,

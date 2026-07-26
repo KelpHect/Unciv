@@ -114,7 +114,8 @@ internal object ReligionChoiceExecutor {
         religionIconName: String,
         displayName: String?,
     ) {
-        require(!displayName.isNullOrBlank() && displayName.length <= 128) {
+        require(!displayName.isNullOrBlank() && displayName.length <= 128 &&
+            displayName.none { it.isISOControl() }) {
             "Religion display name is invalid"
         }
         require(displayName != Constants.noReligionName) { "Religion display name is reserved" }

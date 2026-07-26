@@ -42,6 +42,11 @@ class AuthoritativeWorldController(
         AuthoritativePromptActions.Unavailable,
     spyActions: AuthoritativeSpyActions =
         AuthoritativeSpyActions.Unavailable,
+    religionAction: suspend (
+        beliefNames: List<String>,
+        religionIconName: String?,
+        religionDisplayName: String?,
+    ) -> AuthoritativeCommandOutcome? = { _, _, _ -> null },
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -91,6 +96,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         actions = spyActions,
+    )
+    val religion = AuthoritativeReligionController(
+        projection = { projection },
+        submit = ::submit,
+        action = religionAction,
     )
 
     fun selectUnit(unitId: Int) {

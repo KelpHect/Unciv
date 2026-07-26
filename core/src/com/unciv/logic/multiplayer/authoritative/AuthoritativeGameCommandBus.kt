@@ -1287,18 +1287,9 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val choice = current.projection.religionChoice
             ?: error("Religious choice is absent from the current player projection")
-        require(beliefNames.size == choice.requiredBeliefTypes.size &&
-            beliefNames.distinct().size == beliefNames.size &&
-            beliefNames.all { name -> choice.availableBeliefs.any { it.name == name } }) {
-            "Religious beliefs are absent from the current player projection"
-        }
-        if (choice.requiresReligionIdentity) {
-            require(religionIconName in choice.availableReligionIcons && !religionDisplayName.isNullOrBlank()) {
-                "Religion identity is absent from the current player projection"
-            }
-        } else require(religionIconName == null && religionDisplayName == null) {
-            "Religion identity is not accepted for this projected choice"
-        }
+        ReligionChoiceValidation.requireValid(
+            choice, beliefNames, religionIconName, religionDisplayName,
+        )
         submitLocked(PendingAuthoritativeCommand.ChooseReligiousBeliefs(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             beliefNames, religionIconName, religionDisplayName,

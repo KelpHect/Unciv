@@ -5073,3 +5073,49 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
+
+## Authenticated ruleset-manifest discovery
+
+The production creation path can now discover the server-approved ruleset
+manifests without accepting client content, URLs, raw setup JSON, or whole
+saves. Authenticated `GET /api/v3/ruleset-manifests` returns a hash-ordered,
+cursor-paginated public summary containing only the manifest hash, engine build,
+and base/mod names with their content hashes. Page sizes are bounded to 1-100.
+The repository revalidates the stored manifest hash, engine build, identities,
+mod count, and globally distinct ruleset names before disclosure; malformed
+persisted metadata fails closed.
+
+The Kotlin API-v3 transport and session page this resource and resolve the
+selected base-ruleset name and exact mod-name set to one manifest hash. Zero
+matches, multiple matches, invalid limits, and repeated pagination cursors are
+rejected rather than selecting an arbitrary content version. Raw manifest JSON
+and installed ruleset bytes remain private to the server/worker boundary.
+Bounded public game-setup choices and production `NewGameScreen` routing remain
+separate lifecycle gaps.
+
+Verification on 2026-07-26:
+
+- `./gradlew :tests:test :server:test --no-parallel` passes 981 JVM/server tests
+  with 13 intentional skips and no failures or errors. Focused session tests
+  cover authentication, pagination, exact matching, and ambiguity rejection.
+- Rust passes 112 active library tests and all 8 HTTP/OpenAPI tests.
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and generated
+  OpenAPI parity pass.
+- All 18 serialized PostgreSQL integration and controlled replica-fault tests
+  pass in 7.04 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The manifest test proves bounded ordering, cursor rejection, and fail-closed
+  behavior when stored SQL and JSON engine identities disagree or two ruleset
+  entries reuse one name. The disposable container was removed and verified
+  absent.
+- Initial HTTP tests correctly exposed the stale checked-in OpenAPI and route
+  inventory; both were regenerated/updated. The first database fixture used
+  snake-case private JSON instead of the actual camel-case worker contract and
+  was corrected before the complete database rerun. A later verification
+  command named a nonexistent Cargo integration target; the correct binary
+  target then passed all 8 tests. No compile, test, format, Clippy, OpenAPI,
+  database, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). The largest Rust source is 788 lines, below the 800-line
+  guardrail.

@@ -127,6 +127,23 @@ class ApiV3Client(
     override suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> =
         decode(client.get("api/v3/player-invitations") { authenticate() })
 
+    override suspend fun listRulesetManifests(
+        after: String?,
+        limit: Int,
+    ): ApiV3RulesetManifestPage {
+        require(limit in 1..100) { "API v3 manifest page limit must be between 1 and 100" }
+        require(after == null || after.length == 64 && after.all {
+            it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F'
+        }) {
+            "API v3 manifest page cursor must be a SHA-256 hash"
+        }
+        return decode(client.get("api/v3/ruleset-manifests") {
+            authenticate()
+            parameter("limit", limit)
+            after?.let { parameter("after", it) }
+        })
+    }
+
     override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {
         val response = client.put("api/v3/games/$gameId/player-invitations") {
             authenticate()

@@ -7,6 +7,8 @@ use crate::{GameCommand, state_hash};
 mod administration;
 #[path = "invitation_integration_tests.rs"]
 mod invitations;
+#[path = "manifest_integration_tests.rs"]
+mod manifests;
 #[path = "reconciliation_integration_tests.rs"]
 mod reconciliation;
 #[path = "replica_fault_integration_tests.rs"]

@@ -12,6 +12,10 @@ interface ApiV3Transport {
     suspend fun changePassword(currentPassword: String, newPassword: String)
     suspend fun disableAccount(password: String)
     suspend fun deleteAccount(password: String)
+    suspend fun listRulesetManifests(
+        after: String? = null,
+        limit: Int = 50,
+    ): ApiV3RulesetManifestPage = error("Ruleset manifest discovery is unsupported by this transport")
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
     suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)

@@ -114,6 +114,14 @@ class AuthoritativeMultiplayerSession(
         return transport.listGames(after, limit)
     }
 
+    suspend fun resolveRulesetManifest(
+        baseRulesetName: String,
+        modNames: Set<String>,
+    ): ApiV3RulesetManifestSummary {
+        requireAuthenticated()
+        return RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
+    }
+
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {
         requireAuthenticated()
         return transport.listPlayerInvitations()

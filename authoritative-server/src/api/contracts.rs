@@ -70,6 +70,7 @@ pub(super) struct GameMetadataResponse {
 
 #[derive(Deserialize, utoipa::IntoParams)]
 #[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
 pub(super) struct ListGamesQuery {
     pub(super) after: Option<String>,
     pub(super) limit: Option<u32>,

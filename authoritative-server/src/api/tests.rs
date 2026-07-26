@@ -46,6 +46,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/account/password",
         "/api/v3/account/disable",
         "/api/v3/account",
+        "/api/v3/ruleset-manifests",
         "/api/v3/games",
         "/api/v3/games/{game_id}",
         "/api/v3/games/{game_id}/owner",

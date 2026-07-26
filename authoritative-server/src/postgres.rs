@@ -153,6 +153,7 @@ mod instant_improvements;
 mod invitations;
 mod lifecycle;
 mod major_diplomacy;
+mod manifests;
 mod outbox;
 mod reconciliation;
 mod religion;
@@ -168,6 +169,7 @@ mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
 
+pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 
 impl PostgresGameRepository {

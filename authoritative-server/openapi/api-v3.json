@@ -425,24 +425,18 @@
         "parameters": [
           {
             "name": "after",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "limit",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": "integer",
               "format": "int32",
               "minimum": 0
             }
@@ -9496,6 +9490,79 @@
         ]
       }
     },
+    "/api/v3/ruleset-manifests": {
+      "get": {
+        "tags": [],
+        "operationId": "list_ruleset_manifests",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulesetManifestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "tags": [],
@@ -13447,6 +13514,21 @@
         },
         "additionalProperties": false
       },
+      "PublicRulesetIdentity": {
+        "type": "object",
+        "required": [
+          "name",
+          "sha256"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
       "PurchaseConstructionAtTileRequest": {
         "type": "object",
         "required": [
@@ -13905,6 +13987,52 @@
           },
           "type": {
             "type": "string"
+          }
+        }
+      },
+      "RulesetManifestPage": {
+        "type": "object",
+        "required": [
+          "manifests"
+        ],
+        "properties": {
+          "manifests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RulesetManifestSummary"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RulesetManifestSummary": {
+        "type": "object",
+        "required": [
+          "manifest_hash",
+          "engine_build",
+          "base_ruleset",
+          "mods"
+        ],
+        "properties": {
+          "base_ruleset": {
+            "$ref": "#/components/schemas/PublicRulesetIdentity"
+          },
+          "engine_build": {
+            "type": "string"
+          },
+          "manifest_hash": {
+            "type": "string"
+          },
+          "mods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicRulesetIdentity"
+            }
           }
         }
       },

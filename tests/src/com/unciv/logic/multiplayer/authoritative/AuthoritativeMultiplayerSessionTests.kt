@@ -109,6 +109,43 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun rulesetManifestResolutionPagesAndRequiresOneExactInstalledBundle() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            manifestPages[null] = ApiV3RulesetManifestPage(
+                listOf(manifest("a", "Civ V - Vanilla", emptyList())),
+                "b".repeat(64),
+            )
+            manifestPages["b".repeat(64)] = ApiV3RulesetManifestPage(
+                listOf(manifest("c", "Civ V - Gods & Kings", listOf("Server Mod"))),
+            )
+        }
+        val session = session(transport)
+        assertThrows<IllegalStateException> {
+            session.resolveRulesetManifest("Civ V - Gods & Kings", setOf("Server Mod"))
+        }
+        session.restore()
+
+        val resolved = session.resolveRulesetManifest(
+            "Civ V - Gods & Kings",
+            setOf("Server Mod"),
+        )
+
+        assertEquals("c".repeat(64), resolved.manifestHash)
+        assertEquals(listOf(null, "b".repeat(64)), transport.manifestListCalls)
+        transport.manifestPages[null] = ApiV3RulesetManifestPage(
+            listOf(
+                manifest("d", "Civ V - Gods & Kings", listOf("Server Mod")),
+                manifest("e", "Civ V - Gods & Kings", listOf("Server Mod")),
+            ),
+        )
+        assertThrows<IllegalStateException> {
+            session.resolveRulesetManifest("Civ V - Gods & Kings", setOf("Server Mod"))
+        }
+        session.close()
+    }
+
+    @Test
     fun playerInvitationsPreserveServerRevisionAndCallerStableIds() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -1282,6 +1319,14 @@ class AuthoritativeMultiplayerSessionTests {
         )),
     )
 
+    private fun manifest(hash: String, base: String, mods: List<String>) =
+        ApiV3RulesetManifestSummary(
+            hash.repeat(64),
+            "engine-1",
+            ApiV3PublicRulesetIdentity(base, "f".repeat(64)),
+            mods.map { ApiV3PublicRulesetIdentity(it, "1".repeat(64)) },
+        )
+
     private inner class FakeTransport : ApiV3Transport {
         var capabilities = ApiV3Capabilities(
             3,
@@ -1349,6 +1394,8 @@ class AuthoritativeMultiplayerSessionTests {
         var manageQueueFailuresRemaining = 0
         var logoutCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
+        val manifestListCalls = mutableListOf<String?>()
+        val manifestPages = mutableMapOf<String?, ApiV3RulesetManifestPage>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
@@ -1392,6 +1439,13 @@ class AuthoritativeMultiplayerSessionTests {
                 listOf(ApiV3GameSummary(GAME_ID, 7, "hash-7", "owner", "Rome", true)),
                 NEXT_GAME_ID,
             )
+        }
+        override suspend fun listRulesetManifests(
+            after: String?,
+            limit: Int,
+        ): ApiV3RulesetManifestPage {
+            manifestListCalls += after
+            return manifestPages[after] ?: ApiV3RulesetManifestPage(emptyList())
         }
         override suspend fun listPlayerInvitations() = playerInvitations.toList()
         override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {

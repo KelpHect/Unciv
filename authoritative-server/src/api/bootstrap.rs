@@ -64,6 +64,7 @@ pub(crate) async fn run() {
         .route("/api/v3/account/password", post(change_password))
         .route("/api/v3/account/disable", post(disable_account))
         .route("/api/v3/account", delete(delete_account))
+        .route("/api/v3/ruleset-manifests", get(list_ruleset_manifests))
         .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
         .route("/api/v3/games/{game_id}/owner", put(transfer_ownership))

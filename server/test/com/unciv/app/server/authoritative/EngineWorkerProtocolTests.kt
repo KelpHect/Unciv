@@ -361,6 +361,107 @@ class EngineWorkerProtocolTests {
         assertEquals(firstReplay.snapshot, secondReplay.snapshot)
     }
 
+    @Test(timeout = 300_000)
+    fun researchAndAllAiTurnsAreByteStableAcrossFreshWorkerProcesses() {
+        val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = baseRuleset,
+        )
+        val creation = executeInFreshWorker(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
+                actorId = "account-ai-parity",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000003",
+                    135792468L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 3,
+                        cityStates = 1,
+                        mapShape = GeneratedMapShape.Rectangular,
+                        mapSize = GeneratedMapSize.Tiny,
+                        barbarians = BarbarianMode.Disabled,
+                        noRuins = true,
+                    ),
+                ),
+            ),
+        )
+        assertNull(creation.error)
+        val actorCivilizationId = requireNotNull(creation.actorCivilizationId)
+        val createdGame = json().fromJson(GameInfo::class.java, requireNotNull(creation.snapshot))
+        createdGame.setTransients()
+        val actor = createdGame.getCivilization(actorCivilizationId)
+        val technology = createdGame.ruleset.technologies.values
+            .filter { actor.tech.canBeResearched(it.name) }
+            .minBy { it.name }
+            .name
+        val researchRequest = WorkerRequest(
+            protocolVersion = EngineWorkerProtocol.VERSION,
+            serverTimeMillis = 1_700_000_010_000L,
+            actorId = "account-ai-parity",
+            rulesetManifest = manifest,
+            operation = WorkerOperation.SetResearchPath(
+                requireNotNull(creation.snapshot),
+                actorCivilizationId,
+                technology,
+                append = false,
+            ),
+        )
+
+        val firstResearch = executeInFreshWorker(researchRequest)
+        val secondResearch = executeInFreshWorker(researchRequest)
+        assertNull(firstResearch.error)
+        assertNull(secondResearch.error)
+        assertEquals(firstResearch.canonicalStateHash, secondResearch.canonicalStateHash)
+        assertEquals(firstResearch.snapshot, secondResearch.snapshot)
+
+        val endTurnRequest = WorkerRequest(
+            protocolVersion = EngineWorkerProtocol.VERSION,
+            serverTimeMillis = 1_700_000_060_000L,
+            actorId = "account-ai-parity",
+            rulesetManifest = manifest,
+            operation = WorkerOperation.EndTurn(
+                requireNotNull(firstResearch.snapshot),
+                actorCivilizationId,
+            ),
+        )
+        val firstTurn = executeInFreshWorker(endTurnRequest)
+        val secondTurn = executeInFreshWorker(endTurnRequest)
+        assertNull(firstTurn.error)
+        assertNull(secondTurn.error)
+        assertEquals(firstTurn.canonicalStateHash, secondTurn.canonicalStateHash)
+        assertEquals(firstTurn.snapshot, secondTurn.snapshot)
+        assertNotEquals(firstResearch.canonicalStateHash, firstTurn.canonicalStateHash)
+
+        val advanced = json().fromJson(GameInfo::class.java, requireNotNull(firstTurn.snapshot))
+        assertEquals(1, advanced.turns)
+        assertEquals(actorCivilizationId, advanced.currentPlayer)
+        assertEquals(1_700_000_060_000L, advanced.currentTurnStartTime)
+        val ruleset = requireNotNull(RulesetCache[baseRuleset.name])
+        assertEquals(
+            2,
+            advanced.civilizations.count {
+                ruleset.nations[it.civName]?.isMajorCiv == true && it.isAI()
+            },
+        )
+
+        val forgedActor = executeInFreshWorker(
+            endTurnRequest.copy(actorId = "forged-account"),
+        )
+        assertEquals("engine_rejected", forgedActor.error?.code)
+        assertNull(forgedActor.snapshot)
+        assertNull(forgedActor.canonicalStateHash)
+
+        val changedClock = executeInFreshWorker(
+            endTurnRequest.copy(serverTimeMillis = 1_700_000_060_001L),
+        )
+        assertNull(changedClock.error)
+        assertNotEquals(firstTurn.canonicalStateHash, changedClock.canonicalStateHash)
+        assertNotEquals(firstTurn.snapshot, changedClock.snapshot)
+    }
+
     @Test
     fun createGameRejectsSetupChoicesOutsidePinnedRuleset() {
         val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")

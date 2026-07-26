@@ -6610,6 +6610,50 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Packaged-worker research and all-AI-turn parity
+
+Implemented on 2026-07-26:
+
+- Added a deterministic seven-process fixture against the exact packaged
+  `UncivAuthoritativeWorker.jar`. It creates a tiny rectangular Civ V Vanilla
+  game with one authenticated human, two major AI civilizations, one
+  city-state, no barbarians, and no ruins.
+- Two independent fresh JVMs apply the same typed research selection to the
+  same canonical snapshot and produce byte-identical snapshots and canonical
+  hashes.
+- Two more independent fresh JVMs end the human turn from that research
+  snapshot. Both execute the complete two-AI rotation, return control to the
+  human at turn one, persist the exact server turn-start time, and produce
+  byte-identical snapshots and hashes.
+- A forged account is rejected without a snapshot or hash. Replaying with a
+  server clock one millisecond later succeeds but deliberately produces
+  different canonical bytes and hash, proving that authenticated actor identity
+  and server time are replay-critical inputs.
+- The broad recovery and every-command parity checklist entries remain open.
+  This fixture does not yet qualify every setup, command family, random
+  combat/event path, modded ruleset, or controlled process-fault combination.
+
+Verification on 2026-07-26:
+
+- The focused fresh-process fixture passes twice, including the strengthened
+  forged-actor and changed-clock controls; the final focused run completes in
+  11 seconds.
+- `cargo test --all-targets` passes 143 active Rust library tests and 16
+  HTTP/OpenAPI tests; 24 explicitly provisioned database tests and five
+  process/failover tests remain ignored by default.
+- All 24 serialized PostgreSQL library tests pass in 8.25 seconds, both lost
+  HTTP-response process tests pass in 4.37 seconds, and both packaged-worker
+  death tests pass in 3.92 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: four executed and 59 up-to-date.
+- The Kotlin worker protocol test file is 697 lines, within the 300-800-line
+  source guardrail. No compile, test, lint, formatting, database, process-test,
+  or Android error remains deferred.
+
 ## PostgreSQL 19 Beta 2 promotion under live command load
 
 Implemented and verified on 2026-07-26:

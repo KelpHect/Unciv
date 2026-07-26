@@ -222,6 +222,87 @@ class AuthoritativeWorldControllerTests {
     }
 
     @Test
+    fun projectedConstructionKindRoutesOrdinaryPerpetualAndPlacedCommands() = runBlocking {
+        val initial = gameProjection(7)
+        val calls = mutableListOf<String>()
+        val ordinaryController = controller(
+            initial,
+            queueConstruction = { cityId, construction ->
+                calls += "queue:$cityId:$construction"
+                accepted(initial, 8)
+            },
+        )
+
+        ordinaryController.selectConstruction("city-rome", "Archer")
+        assertEquals("queue:city-rome:Archer", calls.single())
+
+        val perpetualController = controller(
+            initial,
+            perpetualConstruction = { cityId, construction ->
+                calls += "perpetual:$cityId:$construction"
+                accepted(initial, 8)
+            },
+        )
+        perpetualController.selectConstruction("city-rome", "Nothing")
+        assertEquals("perpetual:city-rome:Nothing", calls.last())
+
+        val target = ProjectedTargetCoordinate(3, -1)
+        val city = initial.projection.ownCities.single()
+        val placed = initial.copy(
+            projection = initial.projection.copy(
+                ownCities = listOf(city.copy(
+                    constructionOptions = city.constructionOptions.map { option ->
+                        if (option.name == "Archer") option.copy(
+                            placementTargets = listOf(target),
+                        ) else option
+                    },
+                )),
+            ),
+        )
+        val placedController = controller(
+            placed,
+            queueConstructionAtTile = { cityId, construction, x, y ->
+                calls += "placed:$cityId:$construction:$x:$y"
+                accepted(placed, 8)
+            },
+        )
+        placedController.selectConstruction("city-rome", "Archer", target)
+        assertEquals("placed:city-rome:Archer:3:-1", calls.last())
+    }
+
+    @Test
+    fun inventedConstructionOrPlacementNeverCallsTransport() = runBlocking {
+        var calls = 0
+        val controller = controller(
+            gameProjection(7),
+            queueConstruction = { _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+            queueConstructionAtTile = { _, _, _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+            perpetualConstruction = { _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+        )
+
+        assertThrows<IllegalStateException> {
+            controller.selectConstruction("city-rome", "Secret Wonder")
+        }
+        assertThrows<IllegalArgumentException> {
+            controller.selectConstruction(
+                "city-rome",
+                "Archer",
+                ProjectedTargetCoordinate(99, 99),
+            )
+        }
+        assertEquals(0, calls)
+    }
+
+    @Test
     fun projectionWorldHasNoCanonicalOrLegacySaveDependency() {
         val sources = listOf(
             sourceFile(
@@ -261,6 +342,13 @@ class AuthoritativeWorldControllerTests {
             { AuthoritativeCommandOutcome.Rejected("test") },
         acknowledgeResearch: suspend (String) -> AuthoritativeCommandOutcome? =
             { AuthoritativeCommandOutcome.Rejected("test") },
+        queueConstruction: suspend (String, String) -> AuthoritativeCommandOutcome? =
+            { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        queueConstructionAtTile:
+            suspend (String, String, Int, Int) -> AuthoritativeCommandOutcome? =
+            { _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        perpetualConstruction: suspend (String, String) -> AuthoritativeCommandOutcome? =
+            { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
     ) = AuthoritativeWorldController(
         initial = initial,
         refreshProjection = refresh,
@@ -269,6 +357,9 @@ class AuthoritativeWorldControllerTests {
         setResearch = setResearch,
         adoptPolicy = adoptPolicy,
         acknowledgeResearchCompletion = acknowledgeResearch,
+        queueConstruction = queueConstruction,
+        queueConstructionAtTile = queueConstructionAtTile,
+        setPerpetualConstruction = perpetualConstruction,
     )
 
     private fun accepted(
@@ -313,7 +404,7 @@ class AuthoritativeWorldControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v54.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v55.fixture.json") }
         .first { it.isFile }
 
     private fun sourceFile(path: String): File = generateSequence(

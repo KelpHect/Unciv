@@ -65,8 +65,10 @@ class PlayerProjectionContractTests {
         assertEquals(12, projection.ownCities.single().constructionQueueEntries.single().storedProduction)
         assertEquals(160, projection.ownCities.single().constructionQueueEntries.single()
             .purchases.single().cost)
-        assertEquals(listOf("Archer", "Granary"), projection.ownCities.single()
+        assertEquals(listOf("Archer", "Granary", "Nothing"), projection.ownCities.single()
             .constructionOptions.map { it.name })
+        assertEquals(ProjectedConstructionKind.Perpetual, projection.ownCities.single()
+            .constructionOptions.last().kind)
         assertEquals(listOf(ConstructionQueueAction.AddToTop), projection.ownCities.single()
             .constructionOptions.first().availableActions)
         assertEquals(75, projection.ownCities.single().tilePurchases.single().goldCost)
@@ -181,6 +183,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v54.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v55.fixture.json") }
         .first { it.isFile }
 }

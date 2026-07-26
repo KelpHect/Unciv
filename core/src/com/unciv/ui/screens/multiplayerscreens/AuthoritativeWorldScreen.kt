@@ -62,6 +62,21 @@ class AuthoritativeWorldScreen(
         acknowledgeResearchCompletion = { promptId ->
             session.acknowledgeResearchCompletionIfOpen(gameSummary.gameId, promptId)
         },
+        queueConstruction = { cityId, construction ->
+            session.queueConstructionIfOpen(gameSummary.gameId, cityId, construction)
+        },
+        queueConstructionAtTile = { cityId, construction, x, y ->
+            session.queueConstructionAtTileIfOpen(
+                gameSummary.gameId,
+                cityId,
+                construction,
+                x,
+                y,
+            )
+        },
+        setPerpetualConstruction = { cityId, construction ->
+            session.setPerpetualConstructionIfOpen(gameSummary.gameId, cityId, construction)
+        },
     )
 
     private var centerX = initialCenter().first

@@ -20,6 +20,12 @@ enum class ConstructionQueueAction {
 }
 
 @Serializable
+enum class ProjectedConstructionKind {
+    @SerialName("ordinary") Ordinary,
+    @SerialName("perpetual") Perpetual,
+}
+
+@Serializable
 data class ProjectedConstructionQueueEntry(
     val name: String,
     val storedProduction: Int,
@@ -39,6 +45,7 @@ data class ProjectedConstructionOption(
     val placementTargets: List<ProjectedTargetCoordinate>,
     val purchases: List<ProjectedConstructionPurchase>,
     val availableActions: List<ConstructionQueueAction> = emptyList(),
+    val kind: ProjectedConstructionKind = ProjectedConstructionKind.Ordinary,
 )
 
 @Serializable
@@ -110,6 +117,7 @@ internal object CityEconomyProjection {
                     !city.cityConstructions.isBeingConstructedOrEnqueued(construction.name)
                 ProjectedConstructionOption(
                     construction.name,
+                    kind = ProjectedConstructionKind.Ordinary,
                     queueable = mayChangeProduction && city.cityConstructions.canAddToQueue(construction),
                     storedProduction = if (useStoredProduction)
                         city.cityConstructions.getWorkDone(construction.name) else 0,
@@ -127,6 +135,7 @@ internal object CityEconomyProjection {
             .map { construction ->
                 ProjectedConstructionOption(
                     construction.name,
+                    kind = ProjectedConstructionKind.Perpetual,
                     queueable = mayChangeProduction && city.cityConstructions.canAddToQueue(construction) &&
                         !city.cityConstructions.isBeingConstructedOrEnqueued(construction.name),
                     storedProduction = 0,

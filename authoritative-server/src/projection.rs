@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v55.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -699,7 +699,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v55.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn tile_metadata_rejects_hidden_mutations_and_incoherent_resources() {
-        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v55.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden_improvement = projection.clone();
@@ -733,7 +733,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v54.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v55.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

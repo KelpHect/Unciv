@@ -176,13 +176,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   adoptable policies; every selection uses the existing authenticated typed
   command bus, preserves retry identity, and replaces the full projection only
   after server acceptance or reconciliation.
+- [x] Expose authoritative city construction selection in the projection-only
+  world. Projection v55 explicitly distinguishes ordinary from perpetual
+  construction so the client never infers command type from ruleset names or
+  costs. The world submits only server-advertised ordinary, tile-placed, or
+  perpetual choices and rejects invented city, construction, and placement
+  identities before transport.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected city, unit, diplomacy, religion, trade, combat, popup/choice,
-  history/event, and remaining end-turn-blocker interaction surfaces before
-  this item can be checked.
+  projected city queue management/economy/citizens, unit, diplomacy, religion,
+  trade, combat, popup/choice, history/event, and remaining end-turn-blocker
+  interaction surfaces before this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -465,8 +471,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1014 JVM/server tests, 13 intentional skips).
-- Rust passes 116 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
+  passes (1016 JVM/server tests, 13 intentional skips).
+- Rust passes 117 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI

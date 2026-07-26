@@ -5074,6 +5074,64 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Projection v55 and authoritative construction selection
+
+Implemented on 2026-07-26:
+
+- `ProjectedConstructionOption` now carries the closed `ordinary` or
+  `perpetual` kind derived by the Kotlin worker from the canonical construction
+  type. This removes the need for a disposable client to infer which typed
+  command to send from a name, nullable cost, or local ruleset.
+- Rust independently validates the v55 shape. A perpetual option must have zero
+  stored production, no production cost or estimated turns, no placement
+  targets, and no purchases. The shared v55 fixture includes ordinary and
+  perpetual options and round-trips semantically through Kotlin and Rust.
+- The projection-only world renders every queueable choice per owned city.
+  Ordinary choices without placement submit `QueueConstruction`; ordinary
+  choices with a selected server-advertised coordinate submit
+  `QueueConstructionAtTile`; perpetual choices submit
+  `SetPerpetualConstruction`. The client controller requires the exact city,
+  construction kind, queueability, and placement identity from its current
+  projection before invoking transport.
+- Accepted/stale/retry/rejected outcomes use the existing projection replacement
+  boundary. No client production cost, prerequisite, uniqueness, placement, or
+  result claim is accepted, and canonical mutation remains inside the private
+  Kotlin worker.
+
+Verification on 2026-07-26:
+
+- Focused controller tests prove ordinary, perpetual, and tile-placed dispatch
+  and prove invented construction/placement identities never invoke transport.
+  Projection contract and end-turn-readiness tests pass against v55.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1016 JVM/server cases: 1003 executed, 13 intentional skips, zero
+  failures, and zero errors. Desktop compilation passes in the same run.
+- `cargo test --lib` passes 117 active tests with 21 database tests explicitly
+  gated. The new semantic test rejects perpetual options carrying ordinary
+  production state. `cargo test --bin unciv-authoritative-server` passes all 10
+  HTTP/OpenAPI tests after explicit schema regeneration.
+- All 21 serialized PostgreSQL integration/fault tests pass in 11.85 seconds
+  against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The disposable `unciv-v3-projection-v55-test` container was removed and
+  verified absent.
+- `cargo fmt --all`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, OpenAPI parity,
+  and `git diff --check` pass.
+- The first focused compile exposed use of Kotlin's `isNotEmpty` extension on a
+  LibGDX `SnapshotArray`. The renderer now checks its explicit size and every
+  focused and broad gate was rerun cleanly. No compile, test, formatting,
+  Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust façades remain thin (`main.rs` 6 lines, `lib.rs` 49 lines), and every
+  Rust source remains below 800 lines (largest: `worker/protocol.rs`, 796).
+  Projection-only concerns remain split across the 259-line controller,
+  286-line world screen, and 152-line decision renderer.
+
+`PickConstruction` is now resolvable from a fresh projection-only client
+without canonical state. Construction queue reordering/removal, purchases,
+city tiles/citizens/governance, and other gameplay surfaces remain tracked
+separately and are not claimed complete.
+
 ## Projection-only research and policy decisions
 
 Implemented on 2026-07-26:

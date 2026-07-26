@@ -18,6 +18,7 @@ pub struct ProjectedConstructionQueueEntry {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectedConstructionOption {
     pub name: String,
+    pub kind: ProjectedConstructionKind,
     pub queueable: bool,
     pub stored_production: i32,
     pub production_cost: Option<i32>,
@@ -25,6 +26,13 @@ pub struct ProjectedConstructionOption {
     pub placement_targets: Vec<ProjectedTargetCoordinate>,
     pub purchases: Vec<ProjectedConstructionPurchase>,
     pub available_actions: Vec<ConstructionQueueAction>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectedConstructionKind {
+    Ordinary,
+    Perpetual,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

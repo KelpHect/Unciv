@@ -12498,10 +12498,18 @@
         },
         "additionalProperties": false
       },
+      "ProjectedConstructionKind": {
+        "type": "string",
+        "enum": [
+          "ordinary",
+          "perpetual"
+        ]
+      },
       "ProjectedConstructionOption": {
         "type": "object",
         "required": [
           "name",
+          "kind",
           "queueable",
           "storedProduction",
           "placementTargets",
@@ -12521,6 +12529,9 @@
               "null"
             ],
             "format": "int32"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProjectedConstructionKind"
           },
           "name": {
             "type": "string"
@@ -13189,6 +13200,7 @@
       },
       "ProjectedTileVisibility": {
         "type": "object",
+        "description": "Explored, player-scoped map knowledge. Mutable infrastructure is present\nonly while currently visible; terrain and technology-revealed resources are\ndurable player knowledge.",
         "required": [
           "x",
           "y",

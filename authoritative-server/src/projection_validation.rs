@@ -286,8 +286,19 @@ impl PlayerProjection {
                     .windows(2)
                     .all(|pair| pair[0].name < pair[1].name);
             let options_valid = city.construction_options.iter().all(|option| {
+                let kind_is_consistent = match option.kind {
+                    crate::projection_city_economy::ProjectedConstructionKind::Ordinary => true,
+                    crate::projection_city_economy::ProjectedConstructionKind::Perpetual => {
+                        option.stored_production == 0
+                            && option.production_cost.is_none()
+                            && option.estimated_turns.is_none()
+                            && option.placement_targets.is_empty()
+                            && option.purchases.is_empty()
+                    }
+                };
                 !option.name.is_empty()
                     && option.name.chars().count() <= 128
+                    && kind_is_consistent
                     && option.stored_production >= 0
                     && option.production_cost.is_none_or(|cost| cost >= 0)
                     && option.estimated_turns.is_none_or(|turns| turns >= 0)

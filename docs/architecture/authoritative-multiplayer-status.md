@@ -6724,6 +6724,42 @@ Focused verification on 2026-07-26:
 - The new scenario is a descriptive module under 150 lines; the shared fixture
   remains under 80 lines. No production façade or gameplay module changed.
 
+## Packaged-worker city citizen and economy parity batch
+
+Implemented on 2026-07-26:
+
+- Added one projection-driven two-fresh-JVM city scenario. A deterministic
+  fixture supplies a founded city, canonical treasury, and one sellable
+  specialist-slot building; every submitted specialist, tile, focus, purchase,
+  and sale choice is then selected from worker-owned state or projection.
+- Covered specialist count, manual-specialist mode, exact city-tile locking,
+  citizen reset, avoid-growth, and citizen focus. The sequence verifies that
+  population is reassigned by the shared engine, locks are cleared, and final
+  policy state is canonical.
+- Covered server-priced single-tile acquisition, bounded ring acquisition, and
+  building sale. The client-side fixture supplies no price or refund; the
+  worker derives costs, ownership, and treasury changes from canonical state.
+- Every complete response, intermediate snapshot/hash, and player projection is
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 31 of 86 sealed operations; 55 remain explicitly in-process-only.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityCitizenParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,122 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- The scenario derives specialist capacity, worked tile, selectable focus,
+  affordable tile, and affordable ring from fresh worker projections. Its only
+  direct fixture preparation is deterministic prerequisite state that normal
+  gameplay would have produced earlier.
+- The new scenario remains under 250 lines and no production façade or gameplay
+  module changed.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

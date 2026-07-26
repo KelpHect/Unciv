@@ -75,6 +75,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: required before v3 can replace legacy online play
 
+- [x] Remove the opaque revision-zero worker setup blob and client-selectable
+  seed path. The control plane now generates an independent OS-backed secret
+  map seed that is not derivable from the public game UUID; the private
+  protocol carries only that typed seed, and Kotlin constructs default
+  `GameSetupInfo` from the pinned manifest before assigning the authenticated
+  owner. Bounded setup choices and production UI routing remain part of the
+  unchecked lifecycle items below.
 - [ ] Make v3 the complete production game lifecycle, not an explicitly opened
   opt-in path. New online games must be created by the v3 server and must never
   be created locally and uploaded.
@@ -346,15 +353,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (979 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-daemon` passes (980 JVM/server tests,
   13 intentional skips).
-- Rust passes 111 active library tests and 8 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 112 active library tests and 8 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
 - `main.rs` is 6 lines, `lib.rs` is a 47-line facade, and the largest Rust source
-  is 787 lines. New work must split by concern before crossing the 800-line
+  is 788 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

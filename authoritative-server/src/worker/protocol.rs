@@ -35,7 +35,8 @@ pub(super) struct WorkerRequest<'a> {
 pub(super) enum WorkerOperation<'a> {
     Handshake,
     CreateGame {
-        setup: &'a str,
+        #[serde(rename = "serverSeed")]
+        server_seed: i64,
     },
     AssignPlayer {
         snapshot: &'a str,

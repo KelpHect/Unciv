@@ -1,4 +1,5 @@
 use super::*;
+use rand_core::{OsRng, RngCore};
 
 impl PostgresGameRepository {
     /// Creates a new canonical game exclusively through the private Kotlin
@@ -20,10 +21,16 @@ impl PostgresGameRepository {
                 .ok_or(CommitError::NotFound)?;
         let manifest: WorkerManifest =
             serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        // Defaults are a deliberately minimal setup intent. The worker is the
-        // sole component that turns it into a GameInfo through GameStarter.
+        // Keep the seed independent from the public game UUID so a client
+        // cannot reproduce hidden map generation. OS entropy failure aborts
+        // creation before any canonical row is written.
+        let mut seed_bytes = [0_u8; 8];
+        OsRng
+            .try_fill_bytes(&mut seed_bytes)
+            .map_err(|_| CommitError::Storage)?;
+        let server_seed = i64::from_be_bytes(seed_bytes);
         let created = worker
-            .create_game(&owner_account_id.to_string(), &manifest, "{}")
+            .create_game(&owner_account_id.to_string(), &manifest, server_seed)
             .await
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let proposal = created.proposal;

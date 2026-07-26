@@ -1,6 +1,15 @@
 package com.unciv.app.server.authoritative
 
 import com.badlogic.gdx.files.FileHandle
+import com.badlogic.gdx.ApplicationListener
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.backends.headless.HeadlessApplication
+import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration
+import com.unciv.UncivGame
+import com.unciv.logic.GameInfo
+import com.unciv.logic.files.UncivFiles
+import com.unciv.json.json
+import com.unciv.models.metadata.GameSettings
 import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -55,13 +64,49 @@ class EngineWorkerProtocolTests {
                     engineBuild = "not-this-worker",
                     baseRuleset = WorkerRuleset("Civ V - Vanilla", "0".repeat(64)),
                 ),
-                operation = WorkerOperation.CreateGame("{}"),
+                operation = WorkerOperation.CreateGame(1234L),
             ),
         )
 
         assertEquals("engine_rejected", response.error?.code)
         assertTrue(response.error?.message?.contains("engine build") == true)
         assertNull(response.snapshot)
+    }
+
+    @Test
+    fun createGameDerivesSetupFromPinnedManifestAndServerSeed() {
+        val capabilities = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                operation = WorkerOperation.Handshake,
+            ),
+        )
+        val baseRuleset = capabilities.installedRulesets!!.first { it.name == "Civ V - Vanilla" }
+        val manifest = WorkerRulesetManifest(
+            engineBuild = requireNotNull(capabilities.engineBuild),
+            baseRuleset = baseRuleset,
+        )
+
+        val response = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                actorId = "account-1",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(987654321L),
+            ),
+        )
+
+        assertNull(response.error)
+        val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
+        assertEquals(987654321L, game.tileMap.mapParameters.seed)
+        assertEquals(baseRuleset.name, game.gameParameters.baseRuleset)
+        assertTrue(game.gameParameters.isOnlineMultiplayer)
+        assertEquals(
+            "account-1",
+            game.civilizations.single {
+                it.civID == requireNotNull(response.actorCivilizationId)
+            }.playerId,
+        )
     }
 
     @Test
@@ -93,6 +138,18 @@ class EngineWorkerProtocolTests {
         @JvmStatic
         @BeforeClass
         fun loadInstalledRulesets() {
+            HeadlessApplication(object : ApplicationListener {
+                override fun create() {}
+                override fun render() {}
+                override fun resize(width: Int, height: Int) {}
+                override fun pause() {}
+                override fun resume() {}
+                override fun dispose() {}
+            }, HeadlessApplicationConfiguration())
+            UncivGame.Current = UncivGame().apply {
+                files = UncivFiles(Gdx.files)
+                settings = GameSettings()
+            }
             RulesetCache.loadRulesets(consoleMode = true, noMods = true)
         }
     }

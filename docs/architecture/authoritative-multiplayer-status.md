@@ -5019,3 +5019,57 @@ Verification on 2026-07-26:
   deferred.
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines), and the largest Rust source remains 787 lines.
+
+## Typed server-seeded revision-zero creation
+
+The production-lifecycle audit found that the authenticated v3 create route
+selected a pinned ruleset manifest but still passed the private worker the
+opaque string `"{}"`. Kotlin deserialized that string into `GameSetupInfo`, so
+the default map seed came from the worker clock. No public save was accepted,
+but the boundary still carried an untyped setup blob and did not make the
+control plane explicitly own creation randomness.
+
+The Rust control plane now generates an independent signed 64-bit map seed from
+the operating system CSPRNG after authentication. It is not derived from the
+public game UUID, so knowing a game ID cannot reproduce hidden map generation;
+entropy failure aborts before any canonical game row is written.
+`WorkerOperation::CreateGame` contains only that typed `serverSeed`; it has no
+setup JSON, snapshot, `GameInfo`, actor, result, or client random value. The
+Kotlin worker constructs a fresh default `GameSetupInfo`, applies the exact
+pinned base ruleset and mod names to both game and map parameters, installs the
+server seed, forces online mode without a legacy server URL, assigns the
+authenticated account to the first human slot, and invokes the shared
+`GameStarter`.
+
+This closes the opaque/default-seed prerequisite but does not complete
+production creation. The public API still needs bounded server-validated setup
+choices and manifest discovery, and `NewGameScreen` still needs to create/open
+v3 games from the returned revision-zero projection instead of constructing
+and uploading a local save.
+
+Verification on 2026-07-26:
+
+- The Kotlin worker test creates an actual canonical game using an installed
+  content-addressed manifest and proves its serialized map seed equals the
+  typed server seed, the pinned base ruleset is retained, online mode is forced,
+  and only the authenticated owner receives the initial human civilization.
+- The Rust wire test proves `create_game` serializes only `type` and
+  `serverSeed`, with no legacy `setup` or `snapshot` field.
+- `./gradlew :tests:test :server:test --no-daemon` passes 980 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- Rust passes 112 active library tests and all 8 HTTP/OpenAPI tests.
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and regenerated
+  OpenAPI parity pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass in 6.86 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The fresh disposable container was removed by the test harness.
+- Focused verification first exposed nullable test-fixture fields and then the
+  worker runtime's required headless `UncivGame` bootstrap. The fixture now
+  mirrors the production headless bootstrap; the focused and complete suites
+  reran cleanly. No compile, test, format, Clippy, OpenAPI, database, or cleanup
+  error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). The largest Rust source is 788 lines, below the 800-line
+  guardrail.

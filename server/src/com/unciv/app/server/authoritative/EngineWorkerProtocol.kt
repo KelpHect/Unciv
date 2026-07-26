@@ -69,7 +69,7 @@ sealed interface WorkerOperation {
     /** A setup intent, never a client-created GameInfo. The worker invokes the
      * shared GameStarter to create canonical revision zero. */
     @Serializable @SerialName("create_game")
-    data class CreateGame(val setup: String) : WorkerOperation
+    data class CreateGame(val serverSeed: Long) : WorkerOperation
 
     @Serializable @SerialName("assign_player")
     data class AssignPlayer(val snapshot: String) : WorkerOperation
@@ -628,9 +628,14 @@ class AuthoritativeEngineWorker {
         when (val operation = request.operation) {
             WorkerOperation.Handshake -> error("Handshake was not handled")
             is WorkerOperation.CreateGame -> {
-                val setup = json().fromJson(GameSetupInfo::class.java, operation.setup)
+                val setup = GameSetupInfo()
+                setup.mapParameters.seed = operation.serverSeed
                 setup.gameParameters.isOnlineMultiplayer = true
                 setup.gameParameters.multiplayerServerUrl = null
+                setup.gameParameters.baseRuleset = manifest.baseRuleset.name
+                setup.gameParameters.mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
+                setup.mapParameters.baseRuleset = manifest.baseRuleset.name
+                setup.mapParameters.mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
                 val owner = setup.gameParameters.players.firstOrNull()
                     ?: error("Game setup requires at least one player")
                 owner.playerType = com.unciv.logic.civilization.PlayerType.Human

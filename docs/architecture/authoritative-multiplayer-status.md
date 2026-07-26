@@ -7114,6 +7114,34 @@ Focused verification on 2026-07-27:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker city-state diplomacy parity batch
+
+Implemented on 2026-07-27:
+
+- Added one deterministic city-state scenario covering gold gifts, protection
+  pledges, negotiated peace, and city-state protection-prompt responses.
+- The actor submits only an advertised gold amount, city-state partner, and
+  projected prompt ID/response. The worker derives affordability, influence,
+  protection eligibility, peace eligibility, prompt consequences, and all
+  diplomatic modifiers.
+- Prepared war state and the prompt are canonical snapshot inputs; the scenario
+  proves the gold/influence transfer, the cleared war state, the condemnation
+  modifier, and alert removal after each worker-owned transition.
+- All nine complete responses and intermediate snapshots/hashes are
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 74 of 86 sealed operations; 12 remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityStateParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,136 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

@@ -334,22 +334,34 @@ pub struct ProjectedResearchQueueEntry {
     pub stored_science: i32,
     pub cost: i32,
     pub estimated_turns: Option<i32>,
+    pub available_actions: Vec<crate::ResearchQueueAction>,
 }
 
 impl ProjectedResearch {
     pub(crate) fn is_consistent(&self) -> bool {
         self.current_technology.as_deref() == self.queue.first().map(String::as_str)
             && self.queue.len() == self.queue_entries.len()
-            && self
-                .queue
-                .iter()
-                .zip(&self.queue_entries)
-                .all(|(technology_name, entry)| {
+            && self.queue.iter().zip(&self.queue_entries).enumerate().all(
+                |(index, (technology_name, entry))| {
                     technology_name == &entry.technology_name
                         && entry.stored_science >= 0
                         && entry.cost >= 0
                         && entry.estimated_turns.is_none_or(|turns| turns >= 0)
-                })
+                        && entry
+                            .available_actions
+                            .windows(2)
+                            .all(|pair| pair[0] < pair[1])
+                        && entry.available_actions.iter().all(|action| match action {
+                            crate::ResearchQueueAction::MoveToTop
+                            | crate::ResearchQueueAction::MoveUp => index > 0,
+                            crate::ResearchQueueAction::MoveDown
+                            | crate::ResearchQueueAction::MoveToEnd => {
+                                index + 1 < self.queue_entries.len()
+                            }
+                            crate::ResearchQueueAction::Remove => true,
+                        })
+                },
+            )
             && self.overflow_science >= 0
             && self
                 .researched_technologies
@@ -489,7 +501,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v48.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v49.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -504,6 +516,15 @@ mod tests {
         assert_eq!(projection.diplomatic_vote_candidates, ["Greece"]);
         assert_eq!(projection.research.appendable_targets, ["Archery"]);
         assert_eq!(projection.research.queue_entries[0].stored_science, 14);
+        assert!(
+            projection.research.queue_entries[0]
+                .available_actions
+                .is_empty()
+        );
+        assert_eq!(
+            projection.research.queue_entries[1].available_actions,
+            [crate::ResearchQueueAction::Remove]
+        );
         assert_eq!(
             projection.research.queue_entries[0].estimated_turns,
             Some(4)
@@ -681,7 +702,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v48.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v49.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -695,7 +716,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v48.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v49.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

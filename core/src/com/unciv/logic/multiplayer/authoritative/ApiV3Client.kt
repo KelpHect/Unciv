@@ -662,6 +662,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun manageResearchQueue(
+        gameId: String,
+        request: ApiV3ManageResearchQueueRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/manage-research-queue") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun adoptPolicy(
         gameId: String,
         request: ApiV3AdoptPolicyRequest,

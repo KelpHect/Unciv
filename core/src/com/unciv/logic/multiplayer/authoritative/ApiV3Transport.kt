@@ -92,6 +92,10 @@ interface ApiV3Transport {
     suspend fun setAvoidGrowth(gameId: String, request: ApiV3SetAvoidGrowthRequest): ApiV3CommandAccepted
     suspend fun setCitizenFocus(gameId: String, request: ApiV3SetCitizenFocusRequest): ApiV3CommandAccepted
     suspend fun setResearchPath(gameId: String, request: ApiV3SetResearchPathRequest): ApiV3CommandAccepted
+    suspend fun manageResearchQueue(
+        gameId: String,
+        request: ApiV3ManageResearchQueueRequest,
+    ): ApiV3CommandAccepted = error("Research queue management is unsupported by this transport")
     suspend fun adoptPolicy(gameId: String, request: ApiV3AdoptPolicyRequest): ApiV3CommandAccepted
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted
     suspend fun acknowledgeResearchCompletion(gameId: String, request: ApiV3AcknowledgeResearchCompletionRequest): ApiV3CommandAccepted

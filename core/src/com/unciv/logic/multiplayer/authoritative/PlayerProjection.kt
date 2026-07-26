@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 48
+        const val CURRENT_PROJECTION_VERSION = 49
     }
 }
 
@@ -267,6 +267,7 @@ data class ProjectedResearchQueueEntry(
     val storedScience: Int,
     val cost: Int,
     val estimatedTurns: Int?,
+    val availableActions: List<ResearchQueueAction> = emptyList(),
 )
 
 @Serializable
@@ -640,12 +641,13 @@ object PlayerProjectionBuilder {
             currentTechnology = civilization.tech.currentTechnologyName(),
             researchedTechnologies = civilization.tech.techsResearched.sorted(),
             queue = civilization.tech.techsToResearch.toList(),
-            queueEntries = civilization.tech.techsToResearch.map { technologyName ->
+            queueEntries = civilization.tech.techsToResearch.mapIndexed { index, technologyName ->
                 ProjectedResearchQueueEntry(
                     technologyName = technologyName,
                     storedScience = civilization.tech.researchOfTech(technologyName),
                     cost = civilization.tech.costOfTech(technologyName),
                     estimatedTurns = civilization.tech.estimatedTurnsToTech(technologyName),
+                    availableActions = ResearchQueueOperations.availableActions(civilization, index),
                 )
             },
             overflowScience = civilization.tech.getOverflowScience(),

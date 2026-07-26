@@ -24,6 +24,7 @@ mod major_diplomacy;
 mod notifications;
 mod openapi;
 mod religion;
+mod research;
 mod spectators;
 mod state;
 mod trade;
@@ -56,6 +57,7 @@ use lifecycle_contracts::*;
 use major_diplomacy::*;
 pub(super) use notifications::*;
 use religion::*;
+use research::*;
 use spectators::*;
 use trade::*;
 use unit_actions::*;
@@ -82,7 +84,7 @@ pub(super) use futures_util::{SinkExt, StreamExt};
 pub(super) use serde::{Deserialize, Serialize};
 pub(super) use unciv_authoritative_server::{
     CityDispositionAction, CityGovernanceAction, CityTileAssignment, CommandEnvelope, CommitError,
-    GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION,
+    GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION, ResearchQueueAction,
     auth::{Account, AuthError},
     notifications::{NotificationHub, run_outbox_dispatcher},
     postgres::{GameMetadata, PostgresGameRepository},

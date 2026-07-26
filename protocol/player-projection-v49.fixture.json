@@ -14,13 +14,15 @@
         "technologyName": "Pottery",
         "storedScience": 14,
         "cost": 35,
-        "estimatedTurns": 4
+        "estimatedTurns": 4,
+        "availableActions": []
       },
       {
         "technologyName": "Writing",
         "storedScience": 0,
         "cost": 55,
-        "estimatedTurns": null
+        "estimatedTurns": null,
+        "availableActions": ["remove"]
       }
     ],
     "overflowScience": 3,

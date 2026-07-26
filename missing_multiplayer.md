@@ -69,15 +69,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   mutates several canonical tiles. Production context-menu batches no longer
   belong to this gap: all inventoried variants are authoritative in projection
   v47.
-- [ ] Research: implement bounded removal and reordering of queued technologies.
+- [x] Research: implement bounded removal and reordering of queued technologies.
   Replace/append/free selection, researched history, queue progress/cost/
   overflow, turn estimates, and opaque public completion prompts plus their
-  authoritative acknowledgment were completed in projection v39. The worker
-  derives prerequisites and completion identity without accepting a
-  client-authored queue or outcome. The current picker exposes no removal or
-  drag-reordering control; any future operation needs server semantics that
-  preserve prerequisite validity. Ordinary versus free-tech picker mode is now
-  selected from the cached authoritative projection.
+  authoritative acknowledgment were completed in projection v39. Projection
+  v49 adds closed move-to-top/up/down/end and remove actions to each exact queue
+  entry. The Kotlin worker derives and validates the complete prerequisite-safe
+  proposal; the client cannot submit a queue, actor, legality, or result. The
+  picker exposes only the actions advertised by the cached projection and
+  reconciles after the server commit. Ordinary versus free-tech picker mode is
+  also selected from the cached authoritative projection.
 - [ ] Policies and ideology: implement ideology selection, tenets, and any
   supported mod-defined multi-choice policy flow; project public ideology/event
   data required by the UI.

@@ -87,6 +87,13 @@ pub struct SetResearchPathIntent<'a> {
     pub append: bool,
 }
 
+pub struct ManageResearchQueueIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub technology_name: &'a str,
+    pub queue_index: u32,
+    pub action: crate::ResearchQueueAction,
+}
+
 pub struct AdoptPolicyIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub policy_name: &'a str,

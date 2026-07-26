@@ -37,6 +37,41 @@ fn set_research_path_contract_is_typed_and_closed() {
 }
 
 #[test]
+fn manage_research_queue_contract_is_typed_and_closed() {
+    let value = serde_json::json!({
+        "type": "manage_research_queue",
+        "technology_name": "Writing",
+        "queue_index": 1,
+        "action": "move_up"
+    });
+    let command: GameCommand = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(
+        command,
+        GameCommand::ManageResearchQueue {
+            technology_name: "Writing".into(),
+            queue_index: 1,
+            action: ResearchQueueAction::MoveUp,
+        }
+    );
+    assert_eq!(serde_json::to_value(command).unwrap(), value);
+
+    for forbidden in ["actor_civilization_id", "queue", "prerequisites", "result"] {
+        let mut malicious = value.clone();
+        malicious[forbidden] = serde_json::json!(["client-authored"]);
+        assert!(serde_json::from_value::<GameCommand>(malicious).is_err());
+    }
+    assert!(
+        serde_json::from_value::<GameCommand>(serde_json::json!({
+            "type": "manage_research_queue",
+            "technology_name": "Writing",
+            "queue_index": 1,
+            "action": "swap_arbitrary"
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn choose_free_technology_contract_is_typed_and_closed() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "choose_free_technology",

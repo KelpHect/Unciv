@@ -33,6 +33,39 @@ impl EngineWorkerClient {
         })
     }
 
+    pub async fn manage_research_queue(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+        intent: ManageResearchQueueIntent<'_>,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::ManageResearchQueue {
+                    snapshot,
+                    actor_civilization_id: intent.actor_civilization_id,
+                    technology_name: intent.technology_name,
+                    queue_index: intent.queue_index,
+                    action: intent.action,
+                },
+            )
+            .await?;
+        Ok(CommitProposal {
+            previous_revision,
+            snapshot: response
+                .snapshot
+                .ok_or(WorkerClientError::Incomplete)?
+                .into_bytes(),
+            canonical_state_hash: response
+                .canonical_state_hash
+                .ok_or(WorkerClientError::Incomplete)?,
+        })
+    }
+
     pub async fn adopt_policy(
         &self,
         actor_id: &str,
@@ -144,5 +177,24 @@ mod tests {
         assert_eq!(value["actorCivilizationId"], "Rome");
         assert_eq!(value["promptId"], "a-prompt");
         assert!(value.get("technologyName").is_none());
+    }
+
+    #[test]
+    fn research_queue_operation_matches_kotlin_wire_names() {
+        let value = serde_json::to_value(WorkerOperation::ManageResearchQueue {
+            snapshot: "snapshot",
+            actor_civilization_id: "Rome",
+            technology_name: "Writing",
+            queue_index: 1,
+            action: crate::ResearchQueueAction::Remove,
+        })
+        .unwrap();
+
+        assert_eq!(value["type"], "manage_research_queue");
+        assert_eq!(value["actorCivilizationId"], "Rome");
+        assert_eq!(value["technologyName"], "Writing");
+        assert_eq!(value["queueIndex"], 1);
+        assert_eq!(value["action"], "remove");
+        assert!(value.get("queue").is_none());
     }
 }

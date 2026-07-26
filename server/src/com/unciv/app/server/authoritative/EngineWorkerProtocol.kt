@@ -539,6 +539,15 @@ sealed interface WorkerOperation {
         val append: Boolean,
     ) : WorkerOperation
 
+    @Serializable @SerialName("manage_research_queue")
+    data class ManageResearchQueue(
+        val snapshot: String,
+        val actorCivilizationId: String,
+        val technologyName: String,
+        val queueIndex: Int,
+        val action: com.unciv.logic.multiplayer.authoritative.ResearchQueueAction,
+    ) : WorkerOperation
+
     @Serializable @SerialName("adopt_policy")
     data class AdoptPolicy(
         val snapshot: String,
@@ -1217,6 +1226,17 @@ class AuthoritativeEngineWorker {
                     operation.actorCivilizationId,
                     operation.technologyName,
                     operation.append,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.ManageResearchQueue -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.manageResearchQueue(
+                    game,
+                    operation.actorCivilizationId,
+                    operation.technologyName,
+                    operation.queueIndex,
+                    operation.action,
                 )
                 responseForGame(engine, result.game)
             }

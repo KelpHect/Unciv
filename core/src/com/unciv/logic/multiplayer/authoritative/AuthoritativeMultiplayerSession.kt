@@ -818,6 +818,32 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun manageResearchQueueIfOpen(
+        gameId: String,
+        technologyName: String,
+        queueIndex: Int,
+        action: ResearchQueueAction,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.ManageResearchQueue &&
+                    current.pending.technologyName == technologyName &&
+                    current.pending.queueIndex == queueIndex &&
+                    current.pending.action == action) {
+                    "Resolve the pending authoritative command before managing research"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.manageResearchQueue(technologyName, queueIndex, action)
+            else -> {
+                bus.refresh()
+                bus.manageResearchQueue(technologyName, queueIndex, action)
+            }
+        }
+    }
+
     suspend fun adoptPolicyIfOpen(
         gameId: String,
         policyName: String,

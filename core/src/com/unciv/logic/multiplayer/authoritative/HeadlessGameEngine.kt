@@ -1779,6 +1779,30 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun manageResearchQueue(
+        game: GameInfo,
+        actorCivilizationId: String,
+        technologyName: String,
+        queueIndex: Int,
+        action: ResearchQueueAction,
+    ): EngineResult {
+        val actorCivilization = game.civilizations.singleOrNull {
+            it.civID == actorCivilizationId && it.playerId == executionContext.actorId
+        } ?: error("Authenticated actor is not assigned to this civilization")
+        require(game.currentPlayer == actorCivilization.civID) {
+            "Authenticated actor cannot manage research outside their turn"
+        }
+        require(technologyName.isNotBlank() && technologyName.length <= 128) {
+            "Technology name is invalid"
+        }
+        require(queueIndex in 0 until 10_000) { "Research queue index is invalid" }
+        require(actorCivilization.tech.freeTechs == 0) {
+            "A free technology choice must be resolved before managing research"
+        }
+        ResearchQueueOperations.apply(actorCivilization, technologyName, queueIndex, action)
+        return result(game)
+    }
+
     fun adoptPolicy(
         game: GameInfo,
         actorCivilizationId: String,

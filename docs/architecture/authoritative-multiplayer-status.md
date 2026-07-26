@@ -4666,3 +4666,51 @@ Verification on 2026-07-26:
 - Rust façades remain declaration-only (`main.rs` 6 lines and `lib.rs` 41
   lines). Wonder DTOs and semantic validation live in a focused 44-line module;
   the largest Rust source remains 781 lines.
+
+## Bounded research-queue control and projection v49
+
+Projection v49 adds a sorted closed action allowlist to every exact research
+queue entry. The available operations are move to top, move up, move down, move
+to end, and remove. The opened-v3 technology picker renders only those
+projected context actions and submits the technology identity, exact current
+index, and closed action; it never mutates or uploads a queue.
+
+The private Kotlin worker derives the proposed queue from canonical state and
+rejects stale identity, wrong-turn or wrong-member requests, unknown
+technologies, and any move or removal that breaks prerequisite order. Repeatable
+technologies remain supported. The Rust control plane validates the bounded
+wire shape, persists through the focused `postgres/research.rs` path, and
+commits with the existing revision/hash CAS and idempotency guarantees. Local,
+hotseat, saved, legacy/API-v2, and server-owned AI behavior remains in the
+shared Kotlin engine.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests cover projected action availability, all bounded
+  mutation semantics, prerequisite-safe rejection, exact queue identity,
+  authorization, unchanged state after rejection, deterministic canonical
+  hashing, projection-only command preflight, and lost-response retry with the
+  same command ID. The shared Kotlin/Rust fixture moved from v48 to v49 and
+  round-trips semantically in both runtimes.
+- `./gradlew :tests:test :server:test --no-daemon` passes 959 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 101 active library tests and
+  all 7 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings`, and regenerated OpenAPI parity
+  pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55488. The disposable `--rm` container was stopped and verified
+  absent.
+- Early compilation caught and fixed the missing Rust schema derive path, a
+  displaced trade-intent import, and a LibGDX inherited-name collision.
+  Focused tests then exposed and corrected two invalid test-fixture
+  assumptions without weakening production validation. No compile, test,
+  format, Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  41 lines). New HTTP and persistence logic lives in focused `api/research.rs`
+  and `postgres/research.rs` modules; the largest changed Rust implementation
+  remains below the 800-line guardrail.

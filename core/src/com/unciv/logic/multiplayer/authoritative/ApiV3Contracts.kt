@@ -743,6 +743,16 @@ data class ApiV3SetResearchPathRequest(
 )
 
 @Serializable
+data class ApiV3ManageResearchQueueRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("technology_name") val technologyName: String,
+    @SerialName("queue_index") val queueIndex: Int,
+    val action: ResearchQueueAction,
+)
+
+@Serializable
 data class ApiV3AdoptPolicyRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

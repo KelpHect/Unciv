@@ -3629,6 +3629,120 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/manage-research-queue": {
+      "post": {
+        "tags": [],
+        "operationId": "manage_research_queue",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageResearchQueueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/marry-city-state": {
       "post": {
         "tags": [],
@@ -10567,6 +10681,45 @@
         },
         "additionalProperties": false
       },
+      "ManageResearchQueueRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "technology_name",
+          "queue_index",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ResearchQueueAction"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "queue_index": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "technology_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "MoveConstructionRequest": {
         "type": "object",
         "required": [
@@ -12148,9 +12301,16 @@
         "required": [
           "technologyName",
           "storedScience",
-          "cost"
+          "cost",
+          "availableActions"
         ],
         "properties": {
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchQueueAction"
+            }
+          },
           "cost": {
             "type": "integer",
             "format": "int32"
@@ -13073,6 +13233,16 @@
           }
         },
         "additionalProperties": false
+      },
+      "ResearchQueueAction": {
+        "type": "string",
+        "enum": [
+          "move_to_top",
+          "move_up",
+          "move_down",
+          "move_to_end",
+          "remove"
+        ]
       },
       "ResetCitizensRequest": {
         "type": "object",

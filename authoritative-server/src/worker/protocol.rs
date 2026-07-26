@@ -676,6 +676,16 @@ pub(super) enum WorkerOperation<'a> {
         technology_name: &'a str,
         append: bool,
     },
+    ManageResearchQueue {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "technologyName")]
+        technology_name: &'a str,
+        #[serde(rename = "queueIndex")]
+        queue_index: u32,
+        action: crate::ResearchQueueAction,
+    },
     AdoptPolicy {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

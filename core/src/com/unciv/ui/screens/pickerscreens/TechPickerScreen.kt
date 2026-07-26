@@ -13,6 +13,7 @@ import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.TechManager
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.ProjectedResearch
+import com.unciv.logic.multiplayer.authoritative.ResearchQueueAction
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.tech.Technology
 import com.unciv.models.ruleset.unique.UniqueType
@@ -29,6 +30,7 @@ import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.input.onRightClick
 import com.unciv.ui.components.input.onDoubleClick
 import com.unciv.ui.images.ImageGetter
+import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.utils.Concurrency
 import kotlinx.coroutines.CancellationException
@@ -157,7 +159,74 @@ class TechPickerScreen(
                 else
                     (projectedResearch.selectableTargets + projectedResearch.appendableTargets).toHashSet()
                 setButtonsInfo()
+                projectedResearch.queueEntries.forEachIndexed { index, entry ->
+                    val techButton = techNameToButton[entry.technologyName]
+                        ?: return@forEachIndexed
+                    techButton.addContextMenu {
+                        ResearchQueueMenu(stage, techButton, entry.availableActions) { action ->
+                            submitAuthoritativeResearchQueueAction(
+                                entry.technologyName,
+                                index,
+                                action,
+                            )
+                        }
+                    }
+                }
                 selectedTech?.let { selectTechnology(it, authoritativeAppendSelection, center = false) }
+            }
+        }
+    }
+
+    private fun submitAuthoritativeResearchQueueAction(
+        technologyName: String,
+        queueIndex: Int,
+        action: ResearchQueueAction,
+    ) {
+        rightSideButton.disable()
+        Concurrency.runOnNonDaemonThreadPool("Manage authoritative research queue") {
+            val outcome = try {
+                game.onlineMultiplayer.authoritativeSession?.manageResearchQueueIfOpen(
+                    civInfo.gameInfo.gameId,
+                    technologyName,
+                    queueIndex,
+                    action,
+                )
+            } catch (ex: Exception) {
+                if (ex is CancellationException) throw ex
+                Concurrency.runOnGLThread {
+                    rightSideButton.enable()
+                    ToastPopup(
+                        "Could not manage authoritative research: [${ex.message ?: "Unknown"}]",
+                        this@TechPickerScreen,
+                    )
+                }
+                return@runOnNonDaemonThreadPool
+            }
+            Concurrency.runOnGLThread {
+                when (outcome) {
+                    is AuthoritativeCommandOutcome.Accepted -> {
+                        civInfo.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Research queue committed by the authoritative server", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
+                        civInfo.gameInfo.isUpToDate = false
+                        game.popScreen()
+                        ToastPopup("Game changed on the server - research queue was not changed", GUI.getWorldScreen())
+                    }
+                    is AuthoritativeCommandOutcome.Rejected -> {
+                        rightSideButton.enable()
+                        ToastPopup("Server rejected research queue action: [${outcome.code}]", this@TechPickerScreen)
+                    }
+                    AuthoritativeCommandOutcome.RetryRequired -> {
+                        rightSideButton.enable()
+                        ToastPopup("Server response was lost - retry will use the same command", this@TechPickerScreen)
+                    }
+                    null -> {
+                        rightSideButton.enable()
+                        ToastPopup("Authoritative game was closed before research changed", this@TechPickerScreen)
+                    }
+                }
             }
         }
     }

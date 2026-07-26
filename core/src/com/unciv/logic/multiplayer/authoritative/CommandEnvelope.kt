@@ -357,11 +357,26 @@ sealed interface GameCommand {
         val append: Boolean = false,
     ) : GameCommand
 
+    data class ManageResearchQueue(
+        val technologyName: String,
+        val queueIndex: Int,
+        val action: ResearchQueueAction,
+    ) : GameCommand
+
     data class AdoptPolicy(val policyName: String) : GameCommand
 
     data class ChooseFreeTechnology(val technologyName: String) : GameCommand
 
     data class AcknowledgeResearchCompletion(val promptId: String) : GameCommand
+}
+
+@Serializable
+enum class ResearchQueueAction {
+    @SerialName("move_to_top") MoveToTop,
+    @SerialName("move_up") MoveUp,
+    @SerialName("move_down") MoveDown,
+    @SerialName("move_to_end") MoveToEnd,
+    @SerialName("remove") Remove,
 }
 
 @Serializable

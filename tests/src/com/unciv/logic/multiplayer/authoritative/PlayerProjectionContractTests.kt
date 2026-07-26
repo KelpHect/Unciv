@@ -43,6 +43,10 @@ class PlayerProjectionContractTests {
         assertEquals(listOf("Archery"), projection.research.appendableTargets)
         assertEquals(14, projection.research.queueEntries.first().storedScience)
         assertEquals(4, projection.research.queueEntries.first().estimatedTurns)
+        assertEquals(emptyList<ResearchQueueAction>(),
+            projection.research.queueEntries.first().availableActions)
+        assertEquals(listOf(ResearchQueueAction.Remove),
+            projection.research.queueEntries.last().availableActions)
         assertEquals(3, projection.research.overflowScience)
         assertEquals(listOf("Agriculture", "Mining"), projection.research.researchedTechnologies)
         assertEquals("Mining", projection.research.completionPrompts.single().technologyName)
@@ -169,6 +173,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v48.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v49.fixture.json") }
         .first { it.isFile }
 }

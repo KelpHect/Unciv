@@ -364,6 +364,10 @@ pub(crate) async fn run() {
             post(set_research_path),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/manage-research-queue",
+            post(manage_research_queue),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/adopt-policy",
             post(adopt_policy),
         )

@@ -2,7 +2,7 @@ use crate::projection::PlayerProjection;
 
 fn fixture() -> PlayerProjection {
     serde_json::from_str(include_str!(
-        "../../protocol/player-projection-v48.fixture.json"
+        "../../protocol/player-projection-v49.fixture.json"
     ))
     .unwrap()
 }

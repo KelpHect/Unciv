@@ -1424,6 +1424,60 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun researchQueueUsesOnlyAProjectedActionAndRetriesTheExactCommand() = runBlocking {
+        val queueEntry = ProjectedResearchQueueEntry(
+            technologyName = "Writing",
+            storedScience = 0,
+            cost = 35,
+            estimatedTurns = 4,
+            availableActions = listOf(ResearchQueueAction.Remove),
+        )
+        val initial = projection(3, "hash-3", researchQueueEntries = listOf(queueEntry))
+        val committed = projection(4, "hash-4")
+        var attempts = 0
+        val transport = FakeTransport(initial).apply {
+            onManageResearchQueue = { request ->
+                attempts++
+                if (attempts == 1) throw IOException("response lost")
+                current = committed
+                accepted(request.commandId, 3, 4, "hash-4")
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "research-queue-command" }
+        bus.refresh()
+
+        assertSame(
+            AuthoritativeCommandOutcome.RetryRequired,
+            bus.manageResearchQueue("Writing", 0, ResearchQueueAction.Remove),
+        )
+        assertTrue(bus.retryPending() is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.researchQueueRequests.size)
+        assertEquals(
+            listOf("research-queue-command", "research-queue-command"),
+            transport.researchQueueRequests.map { it.commandId },
+        )
+        val request = transport.researchQueueRequests.last()
+        assertEquals(0, request.queueIndex)
+        assertEquals(ResearchQueueAction.Remove, request.action)
+        val encoded = Json.encodeToString(ApiV3ManageResearchQueueRequest.serializer(), request)
+        for (forged in listOf("actor", "queue_entries", "result", "canonical_state"))
+            assertTrue(!encoded.contains(forged))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun researchQueueRejectsAnActionAbsentFromTheProjection() = runBlocking {
+        val entry = ProjectedResearchQueueEntry("Writing", 0, 35, 4)
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(projection(3, "hash-3", researchQueueEntries = listOf(entry))),
+        )
+        bus.refresh()
+        bus.manageResearchQueue("Writing", 0, ResearchQueueAction.Remove)
+        Unit
+    }
+
+    @Test
     fun policyAdoptionUsesOnlyAProjectedPolicyName() = runBlocking {
         val initial = projection(0, "hash-0")
         val committed = projection(1, "hash-1")
@@ -1584,6 +1638,7 @@ class AuthoritativeGameCommandBusTests {
         cityQueue: List<String>? = null,
         freeTechnologyChoices: List<String> = emptyList(),
         completionPrompts: List<ProjectedResearchCompletion> = emptyList(),
+        researchQueueEntries: List<ProjectedResearchQueueEntry> = emptyList(),
         availableConstructions: List<String> = listOf("Monument"),
         exploredTiles: List<ProjectedTileVisibility> = emptyList(),
         assignableTiles: List<ProjectedCityTile> = emptyList(),
@@ -1613,7 +1668,7 @@ class AuthoritativeGameCommandBusTests {
                 currentTechnology = null,
                 researchedTechnologies = emptyList(),
                 queue = emptyList(),
-                queueEntries = emptyList(),
+                queueEntries = researchQueueEntries,
                 overflowScience = 0,
                 selectableTargets = listOf("Writing"),
                 appendableTargets = listOf("Writing"),
@@ -1754,6 +1809,7 @@ class AuthoritativeGameCommandBusTests {
         val avoidGrowthRequests = mutableListOf<ApiV3SetAvoidGrowthRequest>()
         val citizenFocusRequests = mutableListOf<ApiV3SetCitizenFocusRequest>()
         val researchRequests = mutableListOf<ApiV3SetResearchPathRequest>()
+        val researchQueueRequests = mutableListOf<ApiV3ManageResearchQueueRequest>()
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
         val researchCompletionRequests = mutableListOf<ApiV3AcknowledgeResearchCompletionRequest>()
@@ -1881,6 +1937,9 @@ class AuthoritativeGameCommandBusTests {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onSetResearchPath: suspend (ApiV3SetResearchPathRequest) -> ApiV3CommandAccepted = {
+            accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
+        }
+        var onManageResearchQueue: suspend (ApiV3ManageResearchQueueRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
         var onAdoptPolicy: suspend (ApiV3AdoptPolicyRequest) -> ApiV3CommandAccepted = {
@@ -2276,6 +2335,13 @@ class AuthoritativeGameCommandBusTests {
         ): ApiV3CommandAccepted {
             researchRequests += request
             return onSetResearchPath(request)
+        }
+        override suspend fun manageResearchQueue(
+            gameId: String,
+            request: ApiV3ManageResearchQueueRequest,
+        ): ApiV3CommandAccepted {
+            researchQueueRequests += request
+            return onManageResearchQueue(request)
         }
         override suspend fun adoptPolicy(
             gameId: String,

@@ -485,6 +485,15 @@ sealed interface PendingAuthoritativeCommand {
         val append: Boolean,
     ) : PendingAuthoritativeCommand
 
+    data class ManageResearchQueue(
+        override val commandId: String,
+        override val expectedRevision: Long,
+        override val observedStateHash: String,
+        val technologyName: String,
+        val queueIndex: Int,
+        val action: ResearchQueueAction,
+    ) : PendingAuthoritativeCommand
+
     data class AdoptPolicy(
         override val commandId: String,
         override val expectedRevision: Long,
@@ -1536,6 +1545,26 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun manageResearchQueue(
+        technologyName: String,
+        queueIndex: Int,
+        action: ResearchQueueAction,
+    ) = mutex.withLock {
+        val current = requireSynchronized()
+        val entry = current.projection.research.queueEntries.getOrNull(queueIndex)
+        require(entry?.technologyName == technologyName && action in entry.availableActions) {
+            "Research queue action is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.ManageResearchQueue(
+            commandId = commandIdFactory(),
+            expectedRevision = current.committedRevision,
+            observedStateHash = current.canonicalStateHash,
+            technologyName = technologyName,
+            queueIndex = queueIndex,
+            action = action,
+        ), current)
+    }
+
     suspend fun adoptPolicy(policyName: String) = mutex.withLock {
         val current = requireSynchronized()
         require(policyName in current.projection.policies.selectablePolicies) {
@@ -2050,6 +2079,17 @@ class AuthoritativeGameCommandBus(
                         pending.observedStateHash,
                         pending.technologyName,
                         pending.append,
+                    ),
+                )
+                is PendingAuthoritativeCommand.ManageResearchQueue -> transport.manageResearchQueue(
+                    gameId,
+                    ApiV3ManageResearchQueueRequest(
+                        commandId = pending.commandId,
+                        expectedRevision = pending.expectedRevision,
+                        clientObservedStateHash = pending.observedStateHash,
+                        technologyName = pending.technologyName,
+                        queueIndex = pending.queueIndex,
+                        action = pending.action,
                     ),
                 )
                 is PendingAuthoritativeCommand.AdoptPolicy -> transport.adoptPolicy(

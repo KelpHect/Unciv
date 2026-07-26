@@ -384,6 +384,11 @@ pub enum GameCommand {
         #[serde(default)]
         append: bool,
     },
+    ManageResearchQueue {
+        technology_name: String,
+        queue_index: u32,
+        action: ResearchQueueAction,
+    },
     AdoptPolicy {
         policy_name: String,
     },
@@ -393,6 +398,18 @@ pub enum GameCommand {
     AcknowledgeResearchCompletion {
         prompt_id: String,
     },
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchQueueAction {
+    MoveToTop,
+    MoveUp,
+    MoveDown,
+    MoveToEnd,
+    Remove,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

@@ -203,18 +203,24 @@ class GameOptionsTable(
             { shouldUseMultiplayer ->
                 gameParameters.isOnlineMultiplayer = shouldUseMultiplayer
                 updatePlayerPickerTable("")
-                if (shouldUseMultiplayer && !usesAuthoritativeCreation()) {
+                if (shouldUseMultiplayer &&
+                    multiplayerCreationRoute() == MultiplayerCreationRoute.LegacyApiV2
+                ) {
                     MultiplayerHelpers.showDropboxWarning(previousScreen as BaseScreen)
                 }
                 update()
             }
 
-    private fun usesAuthoritativeCreation() =
+    private fun multiplayerCreationRoute() =
         multiplayerCreationRoute(
             gameParameters.isOnlineMultiplayer,
-            previousScreen is NewGameScreen &&
-                UncivGame.Current.onlineMultiplayer.authoritativeSession != null,
-        ) == MultiplayerCreationRoute.AuthoritativeApiV3
+            if (previousScreen is NewGameScreen)
+                UncivGame.Current.onlineMultiplayer.authoritativeStatus
+            else com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
+        )
+
+    private fun usesAuthoritativeCreation() =
+        multiplayerCreationRoute() == MultiplayerCreationRoute.AuthoritativeApiV3
 
     private fun Table.addAnyoneCanSpectateCheckbox() =
             addCheckbox("Allow anyone to spectate", gameParameters.anyoneCanSpectate)

@@ -13,17 +13,48 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
         val start = source.substring(
             source.indexOf("private suspend fun startNewGame()"),
-            source.indexOf("private fun usesAuthoritativeCreation()"),
+            source.indexOf("private fun multiplayerCreationRoute()"),
         )
-        val authoritativeBranch = start.indexOf("if (usesAuthoritativeCreation())")
+        val authoritativeBranch =
+            start.indexOf("MultiplayerCreationRoute.AuthoritativeApiV3 ->")
+        val unavailableBranch =
+            start.indexOf("MultiplayerCreationRoute.AuthoritativeUnavailable ->")
         val localConstruction = start.indexOf("GameStarter.startNewGame")
 
         assertTrue(authoritativeBranch >= 0)
         assertTrue(localConstruction > authoritativeBranch)
+        assertTrue(localConstruction > unavailableBranch)
         assertTrue(
             start.substring(authoritativeBranch, localConstruction)
                 .contains("return@coroutineScope"),
         )
+        assertTrue(
+            start.substring(unavailableBranch, localConstruction)
+                .contains("return@coroutineScope"),
+        )
+    }
+
+    @Test
+    fun productionStartupRestoresOnlyOsProtectedServerScopedCredentials() {
+        val game = sourceFile("core/src/com/unciv/UncivGame.kt").readText()
+        val platform = sourceFile("core/src/com/unciv/utils/PlatformSpecific.kt").readText()
+        val desktop = sourceFile(
+            "desktop/src/com/unciv/app/desktop/WindowsApiV3SessionTokenStore.kt",
+        ).readText()
+        val android = sourceFile(
+            "android/src/com/unciv/app/AndroidApiV3SessionTokenStore.kt",
+        ).readText()
+
+        assertTrue(game.contains("restoreConfiguredAuthoritativeSession("))
+        assertTrue(game.contains("::createApiV3SessionTokenStore"))
+        assertTrue(platform.contains("createApiV3SessionTokenStore(serverBaseUrl: String)"))
+        assertTrue(desktop.contains("Crypt32Util.cryptProtectData"))
+        assertTrue(desktop.contains("Crypt32Util.cryptUnprotectData"))
+        assertFalse(desktop.contains("writeString"))
+        assertTrue(android.contains("AndroidKeyStore"))
+        assertTrue(android.contains("AES/GCM/NoPadding"))
+        assertTrue(android.contains("apiV3CredentialScope(serverBaseUrl)"))
+        assertFalse(android.contains("putString(CIPHERTEXT"))
     }
 
     @Test
@@ -91,7 +122,7 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         assertTrue(facade.contains("val legacy = LegacyMultiplayer()"))
-        assertTrue(facade.contains("var authoritativeSession: AuthoritativeMultiplayerSession?"))
+        assertTrue(facade.contains("val authoritativeSession get() = authoritative.session"))
         for (forbidden in listOf(
             "GameInfo",
             "MultiplayerServer",
@@ -110,11 +141,15 @@ class AuthoritativeProductionRoutingTests {
         val directAccess = Regex("""onlineMultiplayer\.([A-Za-z_][A-Za-z0-9_]*)""")
         val allowedFacadeMembers = setOf(
             "authoritativeSession",
+            "authoritativeStatus",
             "clearAuthoritativeSession",
             "close",
-            "installAuthoritativeSession",
             "isInitialized",
             "legacy",
+            "loginAuthoritative",
+            "logoutAuthoritative",
+            "registerAuthoritative",
+            "restoreConfiguredAuthoritativeSession",
         )
         val violations = sourceDirectory("core/src")
             .walkTopDown()

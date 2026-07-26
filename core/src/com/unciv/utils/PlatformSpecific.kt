@@ -1,5 +1,6 @@
 package com.unciv.utils
 
+import com.unciv.logic.multiplayer.authoritative.ApiV3SessionTokenStore
 import java.util.Locale
 
 interface PlatformSpecific {
@@ -20,4 +21,10 @@ interface PlatformSpecific {
 
     /** Get system locale, on Android 13+ app-specific locale */
     fun getDefaultLocale(): Locale = Locale.getDefault()
+
+    /**
+     * Returns an OS-protected API-v3 token store, or null when this platform
+     * cannot safely persist credentials.
+     */
+    fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore? = null
 }

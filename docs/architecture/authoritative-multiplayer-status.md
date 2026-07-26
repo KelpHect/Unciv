@@ -1,5 +1,55 @@
 # Authoritative multiplayer v3 status
 
+## Production session restoration and OS-protected credentials
+
+Implemented on 2026-07-26:
+
+- Production startup now detects the configured multiplayer server before
+  choosing a protocol. An explicit API-v1/v2 result enables the legacy service;
+  unknown, unreachable, incompatible, or incompletely initialized servers fail
+  closed and cannot fall through to local whole-save game creation.
+- Added a focused `AuthoritativeSessionLifecycle` with explicit detection,
+  secure-store, login-required, authenticated, legacy, and failure states. It
+  restores the server-scoped token automatically, negotiates capabilities,
+  starts authenticated notifications, and owns login, registration-plus-login,
+  logout, and session replacement.
+- API-v3 origins now require HTTPS except for exact loopback development hosts.
+  URLs containing credentials, queries, or fragments are rejected; normalized
+  origins receive distinct SHA-256 credential scopes so a token for one server
+  is never offered to another.
+- Windows desktop persists only current-user-bound DPAPI ciphertext using an
+  atomic replacement file. Oversized or corrupt ciphertext is deleted rather
+  than loaded. A live Windows test proves save/restart/load, absence of the
+  plaintext token on disk, corrupt-file cleanup, and logout deletion.
+- Android now has an app-private, server-scoped Keystore implementation:
+  API 23+ uses a non-exportable AES-GCM key; supported API 21-22 devices wrap a
+  random AES key with a non-exportable Keystore RSA key pair. Ciphertext, IV,
+  wrapped-key, decoded-size, and token-size bounds fail closed.
+- The production multiplayer screen exposes login, account creation, and
+  logout without retaining passwords. New-game validation and submission block
+  while server detection or secure storage is unavailable instead of silently
+  executing `GameStarter` and uploading a save.
+- `Multiplayer.kt` remains a 43-line façade; detection/restoration, credential
+  implementations, account UI, and URL identity are separate focused modules.
+
+Verification on 2026-07-26:
+
+- Focused lifecycle, creation-route, production-routing, URL/origin, token
+  validation, and live Windows DPAPI tests pass with desktop compilation.
+- Installed the official Android command-line tools and Android 36 SDK locally.
+  `:android:compileDebugKotlin`, `:android:lintDebug`, and
+  `:android:assembleDebug` pass. Lint's API-level findings were fixed with an
+  explicit API-23 contract on the modern Keystore path rather than suppressed.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1072 JVM/server cases: 1059 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. No Rust, OpenAPI, persistence, or database source
+  changed, and no known error from this milestone is deferred.
+- Android runtime Keystore verification on API 21-22 and API 23+ devices or
+  emulators remains open. Secure macOS and Linux desktop stores,
+  password/account management beyond login/register/logout, and revision-zero
+  transition into the projection lobby/world also remain open.
+
 ## Explicit legacy whole-save boundary and completed UI authority audit
 
 Implemented on 2026-07-26:

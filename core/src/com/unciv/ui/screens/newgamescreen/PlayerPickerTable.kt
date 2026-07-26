@@ -236,7 +236,7 @@ class PlayerPickerTable(
         }
 
         if (gameParameters.isOnlineMultiplayer &&
-            !usesAuthoritativeCreation() &&
+            multiplayerCreationRoute() == MultiplayerCreationRoute.LegacyApiV2 &&
             player.playerType == PlayerType.Human
         )
             playerTable.addPlayerTableMultiplayerControls(player)
@@ -244,15 +244,19 @@ class PlayerPickerTable(
         return playerTable
     }
 
-    private fun usesAuthoritativeCreation() =
+    private fun multiplayerCreationRoute() =
         multiplayerCreationRoute(
             gameParameters.isOnlineMultiplayer,
-            previousScreen is NewGameScreen &&
-                UncivGame.Current.onlineMultiplayer.authoritativeSession != null,
-        ) == MultiplayerCreationRoute.AuthoritativeApiV3
+            if (previousScreen is NewGameScreen)
+                UncivGame.Current.onlineMultiplayer.authoritativeStatus
+            else com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
+        )
+
+    private fun usesAuthoritativeCreation() =
+        multiplayerCreationRoute() == MultiplayerCreationRoute.AuthoritativeApiV3
 
     private fun normalizeAuthoritativePlayers() {
-        if (!usesAuthoritativeCreation()) return
+        if (multiplayerCreationRoute() != MultiplayerCreationRoute.AuthoritativeApiV3) return
         gameParameters.players.removeAll { it.chosenCiv == Constants.spectator }
         if (gameParameters.players.isEmpty())
             gameParameters.players += Player(Constants.random, PlayerType.Human)

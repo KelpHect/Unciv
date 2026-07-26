@@ -1,8 +1,8 @@
 package com.unciv.logic.multiplayer
 
-import com.unciv.logic.multiplayer.authoritative.ApiV3Client
 import com.unciv.logic.multiplayer.authoritative.ApiV3SessionTokenStore
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionLifecycle
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 
 /**
  * Separates the authoritative API-v3 lifecycle from explicit legacy
@@ -13,24 +13,27 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
  */
 class Multiplayer {
     val legacy = LegacyMultiplayer()
+    private val authoritative = AuthoritativeSessionLifecycle()
 
-    var authoritativeSession: AuthoritativeMultiplayerSession? = null
-        private set
+    val authoritativeSession get() = authoritative.session
+    val authoritativeStatus get() = authoritative.status
 
-    fun installAuthoritativeSession(
+    suspend fun restoreConfiguredAuthoritativeSession(
         baseUrl: String,
-        tokenStore: ApiV3SessionTokenStore,
-    ): AuthoritativeMultiplayerSession {
-        authoritativeSession?.close()
-        return AuthoritativeMultiplayerSession.create(
-            ApiV3Client(baseUrl, tokenStore),
-            closeTransport = true,
-        ).also { authoritativeSession = it }
-    }
+        tokenStore: (String) -> ApiV3SessionTokenStore?,
+    ): AuthoritativeSessionStatus =
+        authoritative.restoreConfiguredServer(baseUrl, tokenStore)
+
+    suspend fun loginAuthoritative(username: String, password: String) =
+        authoritative.login(username, password)
+
+    suspend fun registerAuthoritative(username: String, password: String) =
+        authoritative.registerAndLogin(username, password)
+
+    suspend fun logoutAuthoritative() = authoritative.logout()
 
     fun clearAuthoritativeSession() {
-        authoritativeSession?.close()
-        authoritativeSession = null
+        authoritative.close()
     }
 
     fun close() {

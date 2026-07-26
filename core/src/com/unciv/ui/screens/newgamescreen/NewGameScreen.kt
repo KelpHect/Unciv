@@ -168,7 +168,10 @@ class NewGameScreen(
     // Should be run NOT on main thread because it contacts MP server and loads maps etc
     fun getErrorMessage(): String? {
         if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
-            if (usesAuthoritativeCreation()) {
+            when (multiplayerCreationRoute()) {
+                MultiplayerCreationRoute.AuthoritativeUnavailable ->
+                    return authoritativeUnavailableMessage()
+                MultiplayerCreationRoute.AuthoritativeApiV3 -> {
                 val humanPlayers = gameSetupInfo.gameParameters.players.count {
                     it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
                 }
@@ -178,7 +181,8 @@ class NewGameScreen(
                 runCatching { ApiV3GameSetup.from(gameSetupInfo) }
                     .exceptionOrNull()
                     ?.let { return it.message ?: "This setup is not supported by API v3." }
-            } else {
+                }
+                MultiplayerCreationRoute.LegacyApiV2 -> {
                 if (!checkConnectionToMultiplayerServer())
                     return if (LegacyMultiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
                         else "Couldn't connect to Dropbox!"
@@ -193,6 +197,8 @@ class NewGameScreen(
                     if (gameSetupInfo.gameParameters.players.none { it.playerId == UncivGame.Current.settings.multiplayer.getUserId() })
                         return "You are not allowed to spectate!"
                 }
+                }
+                MultiplayerCreationRoute.Local -> Unit
             }
         }
 
@@ -319,9 +325,23 @@ class NewGameScreen(
             ImageGetter.setNewRuleset(ruleset) // To build the temp atlases
         }
 
-        if (usesAuthoritativeCreation()) {
-            startAuthoritativeGame(popup)
-            return@coroutineScope
+        when (multiplayerCreationRoute()) {
+            MultiplayerCreationRoute.AuthoritativeApiV3 -> {
+                startAuthoritativeGame(popup)
+                return@coroutineScope
+            }
+            MultiplayerCreationRoute.AuthoritativeUnavailable -> {
+                launchOnGLThread {
+                    popup.reuseWith(authoritativeUnavailableMessage(), true)
+                    rightSideButton.enable()
+                    rightSideButton.setText("Start game!".tr())
+                    Gdx.input.inputProcessor = stage
+                }
+                return@coroutineScope
+            }
+            MultiplayerCreationRoute.Local,
+            MultiplayerCreationRoute.LegacyApiV2,
+            -> Unit
         }
 
         val newGame:GameInfo
@@ -424,11 +444,21 @@ class NewGameScreen(
         }
     }
 
-    private fun usesAuthoritativeCreation() =
+    private fun multiplayerCreationRoute() =
         multiplayerCreationRoute(
             gameSetupInfo.gameParameters.isOnlineMultiplayer,
-            game.onlineMultiplayer.authoritativeSession != null,
-        ) == MultiplayerCreationRoute.AuthoritativeApiV3
+            game.onlineMultiplayer.authoritativeStatus,
+        )
+
+    private fun authoritativeUnavailableMessage() =
+        when (game.onlineMultiplayer.authoritativeStatus) {
+            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
+            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.Detecting,
+            -> "Checking authoritative multiplayer server capabilities. Please wait."
+            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.SecureStoreUnavailable ->
+                "This platform has no secure credential store for authoritative multiplayer."
+            else -> "Could not establish the authoritative multiplayer session."
+        }
 
     private suspend fun startAuthoritativeGame(popup: Popup) {
         try {

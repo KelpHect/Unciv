@@ -4,13 +4,19 @@ enum class MultiplayerCreationRoute {
     Local,
     LegacyApiV2,
     AuthoritativeApiV3,
+    AuthoritativeUnavailable,
 }
 
 fun multiplayerCreationRoute(
     isOnlineMultiplayer: Boolean,
-    authoritativeSessionInstalled: Boolean,
+    authoritativeStatus: AuthoritativeSessionStatus,
 ) = when {
     !isOnlineMultiplayer -> MultiplayerCreationRoute.Local
-    authoritativeSessionInstalled -> MultiplayerCreationRoute.AuthoritativeApiV3
-    else -> MultiplayerCreationRoute.LegacyApiV2
+    authoritativeStatus == AuthoritativeSessionStatus.LegacyServer ->
+        MultiplayerCreationRoute.LegacyApiV2
+    authoritativeStatus in setOf(
+        AuthoritativeSessionStatus.LoginRequired,
+        AuthoritativeSessionStatus.Authenticated,
+    ) -> MultiplayerCreationRoute.AuthoritativeApiV3
+    else -> MultiplayerCreationRoute.AuthoritativeUnavailable
 }

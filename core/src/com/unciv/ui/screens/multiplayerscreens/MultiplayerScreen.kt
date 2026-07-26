@@ -14,6 +14,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordina
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeResignationCoordinator
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.toLabel
@@ -40,6 +41,7 @@ import java.time.Instant
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
 class MultiplayerScreen : PickerScreen() {
+    private val initialAuthoritativeStatus = game.onlineMultiplayer.authoritativeStatus
     private var selectedGame: MultiplayerGamePreview? = null
     private var selectedAuthoritativeGame: ApiV3GameSummary? = null
     private val authoritativeDirectory = game.onlineMultiplayer.authoritativeSession
@@ -77,6 +79,8 @@ class MultiplayerScreen : PickerScreen() {
     private val friendsListButton = createFriendsListButton()
     private val invitationsButton = createInvitationsButton()
     private val refreshButton = createRefreshButton()
+    private val authoritativeAccountButton = createAuthoritativeAccountButton()
+    private val authoritativeLogoutButton = createAuthoritativeLogoutButton()
 
     val gameList = GameList(::selectGame)
     val authoritativeGameList = AuthoritativeGameList(::selectAuthoritativeGame)
@@ -134,6 +138,10 @@ class MultiplayerScreen : PickerScreen() {
     private fun getGeneralActionsTable(): Table {
         val generalActions = Table().apply { defaults().pad(10f) }
         generalActions.add(copyUserIdButton).row()
+        if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.LoginRequired)
+            generalActions.add(authoritativeAccountButton).row()
+        if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.Authenticated)
+            generalActions.add(authoritativeLogoutButton).row()
         generalActions.add(addGameButton).row()
         if (authoritativeInvitations != null) generalActions.add(invitationsButton).row()
         generalActions.add(friendsListButton).row()
@@ -157,9 +165,66 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun createRefreshButton(): TextButton {
         val btn = "Refresh list".toTextButton()
-        btn.onClick { refreshGameLists() }
+        btn.onClick {
+            if (game.onlineMultiplayer.authoritativeStatus != initialAuthoritativeStatus) {
+                game.replaceCurrentScreen(MultiplayerScreen())
+                return@onClick
+            }
+            when (game.onlineMultiplayer.authoritativeStatus) {
+                AuthoritativeSessionStatus.NotStarted,
+                AuthoritativeSessionStatus.Failed,
+                -> retryAuthoritativeSession()
+                AuthoritativeSessionStatus.Detecting ->
+                    ToastPopup("Still checking the multiplayer server.", this)
+                AuthoritativeSessionStatus.SecureStoreUnavailable ->
+                    ToastPopup("No secure credential store is available on this platform.", this)
+                else -> refreshGameLists()
+            }
+        }
         return btn
     }
+
+    private fun retryAuthoritativeSession() {
+        Concurrency.runOnNonDaemonThreadPool("Retry authoritative session restoration") {
+            game.onlineMultiplayer.restoreConfiguredAuthoritativeSession(
+                game.settings.multiplayer.getServer(),
+                game::createApiV3SessionTokenStore,
+            )
+            launchOnGLThread {
+                game.replaceCurrentScreen(MultiplayerScreen())
+            }
+        }
+    }
+
+    private fun createAuthoritativeAccountButton(): TextButton =
+        "Log in to server account".toTextButton().apply {
+            onClick {
+                AuthoritativeAccountPopup(this@MultiplayerScreen) {
+                    game.replaceCurrentScreen(MultiplayerScreen())
+                }.open()
+            }
+        }
+
+    private fun createAuthoritativeLogoutButton(): TextButton =
+        "Log out of server account".toTextButton().apply {
+            onClick {
+                Concurrency.runOnNonDaemonThreadPool("Authoritative account logout") {
+                    try {
+                        game.onlineMultiplayer.logoutAuthoritative()
+                        launchOnGLThread {
+                            game.replaceCurrentScreen(MultiplayerScreen())
+                        }
+                    } catch (exception: Exception) {
+                        launchOnGLThread {
+                            ToastPopup(
+                                exception.message ?: "Could not log out of the server account.",
+                                this@MultiplayerScreen,
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
     private fun createInvitationsButton(): TextButton {
         val button = "Server invitations".toTextButton()
@@ -197,10 +262,17 @@ class MultiplayerScreen : PickerScreen() {
     }
 
     private fun refreshGameLists() {
-        Concurrency.run("Update all multiplayer games") {
-            game.onlineMultiplayer.legacy.requestUpdate()
+        if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.LegacyServer) {
+            Concurrency.run("Update all multiplayer games") {
+                game.onlineMultiplayer.legacy.requestUpdate()
+            }
         }
-        val directory = authoritativeDirectory ?: return
+        val directory = authoritativeDirectory
+            ?.takeIf {
+                game.onlineMultiplayer.authoritativeStatus ==
+                    AuthoritativeSessionStatus.Authenticated
+            }
+            ?: return
         Concurrency.runOnNonDaemonThreadPool("Update authoritative multiplayer games") {
             try {
                 val games = directory.refresh()

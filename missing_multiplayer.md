@@ -119,6 +119,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `onlineMultiplayer.legacy` boundary. The thin multiplayer façade owns only
   API-v3 session lifecycle plus the named legacy service, and a repository-wide
   routing test rejects any unclassified direct access.
+- [x] Add fail-closed production API-v3 server detection and session
+  restoration. Remote origins require HTTPS, credentials are scoped by
+  normalized server origin, Windows uses live-tested user-bound DPAPI storage,
+  and unavailable/failed detection cannot fall through to local game creation.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -154,18 +158,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Make v3 the complete production game lifecycle, not an explicitly opened
   opt-in path. New online games must be created by the v3 server and must never
   be created locally and uploaded. The installed-session route now satisfies
-  that invariant, but production still needs to install/restore the secure v3
-  session by default and retire new legacy-v2 game creation without breaking
-  existing legacy games.
+  that invariant, and production now detects/restores the configured v3 server
+  and OS-protected session by default. Remaining work is to retire creation of
+  new legacy-v2 games without breaking discovery/opening of existing legacy
+  games.
 - [ ] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero projection. The
   production screen now uses that lifecycle whenever a v3 session is installed,
   strips legacy player IDs and explicit civilization/public-spectator choices,
   rejects unsupported client nation pools, god mode, and advanced map values,
-  and retains an operation ID only while setup meaning is unchanged. Secure
-  default session/account installation and transition from the returned
-  revision-zero projection into a projection-only lobby/world remain.
+  and retains an operation ID only while setup meaning is unchanged. Default
+  session restoration plus login/register/logout UI now exist and fail closed;
+  transition from the returned revision-zero projection into a projection-only
+  lobby/world remains.
 - [ ] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save. Membership discovery and projection
@@ -485,9 +491,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - [ ] Build account registration/login/session/account-management UI, including
   password change, logout-all/disable/delete behavior, clear recovery policy,
-  and understandable rate-limit errors.
+  and understandable rate-limit errors. Production login, registration followed
+  by login, automatic session restoration, and logout now exist without
+  retaining passwords; the remaining account-management operations stay open.
 - [ ] Implement secure Android and desktop token stores. The in-memory/testing
-  token store is not a production credential store.
+  token store is not a production credential store. Windows desktop now uses
+  live-tested current-user DPAPI with server-scoped atomic ciphertext files.
+  Android has a bounded AES-GCM/Keystore implementation covering API 21+, but
+  only its compile, lint, and debug-APK build have been verified; API 21-22 and
+  API 23+ device/emulator runtime tests remain open. Secure macOS and Linux
+  desktop implementations are also missing.
 - [ ] Add bounded concurrent-session policy, account recovery policy,
   credential-stuffing monitoring, credential rotation, and tests that secrets
   never enter errors, logs, traces, worker frames, or projections.
@@ -581,8 +594,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1063 JVM/server cases: 1050 executed, 13 intentional skips).
+- `./gradlew :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes (1072 JVM/server cases: 1059
+  executed, 13 intentional skips), and `:android:lintDebug` passes.
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

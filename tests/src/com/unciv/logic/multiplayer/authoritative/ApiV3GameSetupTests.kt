@@ -15,23 +15,37 @@ class ApiV3GameSetupTests {
             MultiplayerCreationRoute.Local,
             multiplayerCreationRoute(
                 isOnlineMultiplayer = false,
-                authoritativeSessionInstalled = true,
+                authoritativeStatus = AuthoritativeSessionStatus.Authenticated,
             ),
         )
         assertEquals(
             MultiplayerCreationRoute.LegacyApiV2,
             multiplayerCreationRoute(
                 isOnlineMultiplayer = true,
-                authoritativeSessionInstalled = false,
+                authoritativeStatus = AuthoritativeSessionStatus.LegacyServer,
             ),
         )
         assertEquals(
             MultiplayerCreationRoute.AuthoritativeApiV3,
             multiplayerCreationRoute(
                 isOnlineMultiplayer = true,
-                authoritativeSessionInstalled = true,
+                authoritativeStatus = AuthoritativeSessionStatus.Authenticated,
             ),
         )
+        for (status in listOf(
+            AuthoritativeSessionStatus.NotStarted,
+            AuthoritativeSessionStatus.Detecting,
+            AuthoritativeSessionStatus.SecureStoreUnavailable,
+            AuthoritativeSessionStatus.Failed,
+        )) {
+            assertEquals(
+                MultiplayerCreationRoute.AuthoritativeUnavailable,
+                multiplayerCreationRoute(
+                    isOnlineMultiplayer = true,
+                    authoritativeStatus = status,
+                ),
+            )
+        }
     }
 
     @Test

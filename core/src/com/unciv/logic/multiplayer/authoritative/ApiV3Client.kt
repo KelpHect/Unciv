@@ -40,6 +40,10 @@ class ApiV3Client(
     private val tokenStore: ApiV3SessionTokenStore,
     private val client: HttpClient = defaultClient(baseUrl),
 ) : ApiV3Transport, AutoCloseable {
+    init {
+        normalizeApiV3BaseUrl(baseUrl)
+    }
+
     private var sessionToken: String? = null
     private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
@@ -834,18 +838,21 @@ class ApiV3Client(
     override fun close() = client.close()
 
     companion object {
-        private fun defaultClient(baseUrl: String) = HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = false; encodeDefaults = true })
-            }
-            install(WebSockets)
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 10_000
-            }
-            defaultRequest {
-                url(if (baseUrl.endsWith('/')) baseUrl else "$baseUrl/")
-                header(HttpHeaders.UserAgent, UncivGame.getUserAgent("Multiplayer-v3"))
+        private fun defaultClient(baseUrl: String): HttpClient {
+            val normalizedBaseUrl = normalizeApiV3BaseUrl(baseUrl)
+            return HttpClient(CIO) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = false; encodeDefaults = true })
+                }
+                install(WebSockets)
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 30_000
+                    connectTimeoutMillis = 10_000
+                }
+                defaultRequest {
+                    url(normalizedBaseUrl)
+                    header(HttpHeaders.UserAgent, UncivGame.getUserAgent("Multiplayer-v3"))
+                }
             }
         }
     }

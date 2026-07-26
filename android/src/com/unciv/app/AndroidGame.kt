@@ -14,6 +14,7 @@ import com.badlogic.gdx.math.Rectangle
 import com.unciv.UncivGame
 import com.unciv.logic.IdChecker
 import com.unciv.logic.event.EventBus
+import com.unciv.logic.multiplayer.authoritative.ApiV3SessionTokenStore
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.UncivStage
 import com.unciv.utils.Concurrency
@@ -96,4 +97,7 @@ class AndroidGame(private val activity: Activity) : UncivGame() {
     override fun getDefaultLocale(): Locale =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) super.getDefaultLocale()
         else activity.resources.configuration.locales.get(0)
+
+    override fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore =
+        AndroidApiV3SessionTokenStore(activity, serverBaseUrl)
 }

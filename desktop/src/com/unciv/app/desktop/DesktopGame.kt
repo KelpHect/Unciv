@@ -4,8 +4,11 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
 import com.sun.jna.platform.win32.Kernel32Util
 import com.unciv.UncivGame
+import com.unciv.logic.multiplayer.authoritative.ApiV3SessionTokenStore
+import com.unciv.logic.multiplayer.authoritative.apiV3CredentialScope
 import java.lang.management.GarbageCollectorMXBean
 import java.lang.management.ManagementFactory
+import java.nio.file.Path
 
 
 
@@ -62,5 +65,18 @@ class DesktopGame(config: Lwjgl3ApplicationConfiguration, override var customDat
         } catch (_: Throwable) {
             null
         }
+    }
+
+    override fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore? {
+        if (!System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) return null
+        val dataDirectory = customDataDirectory ?: "."
+        return WindowsApiV3SessionTokenStore(
+            Path.of(
+                dataDirectory,
+                ".unciv",
+                "credentials",
+                "api-v3-${apiV3CredentialScope(serverBaseUrl)}.dpapi",
+            ),
+        )
     }
 }

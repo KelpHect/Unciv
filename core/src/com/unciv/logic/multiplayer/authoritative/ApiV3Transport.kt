@@ -137,6 +137,21 @@ interface ApiV3SessionTokenStore {
 class InMemoryApiV3SessionTokenStore : ApiV3SessionTokenStore {
     private var token: String? = null
     override suspend fun load() = token
-    override suspend fun save(token: String) { this.token = token }
+    override suspend fun save(token: String) {
+        requireValidApiV3SessionToken(token)
+        this.token = token
+    }
     override suspend fun clear() { token = null }
+}
+
+const val MAX_API_V3_SESSION_TOKEN_BYTES = 4096
+
+fun requireValidApiV3SessionToken(token: String) {
+    require(token.isNotBlank()) { "API-v3 session token must not be blank" }
+    require(token.toByteArray(Charsets.UTF_8).size <= MAX_API_V3_SESSION_TOKEN_BYTES) {
+        "API-v3 session token exceeds $MAX_API_V3_SESSION_TOKEN_BYTES bytes"
+    }
+    require(token.none(Char::isISOControl)) {
+        "API-v3 session token contains control characters"
+    }
 }

@@ -599,17 +599,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 86 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 18 operations: handshake, game creation,
+  Fresh packaged-JVM evidence covers 22 operations: handshake, game creation,
   player assignment, research selection, end turn with all AI, unit movement,
+  durable movement-toward and cancellation, exploration/automation transitions,
   renaming, posture, disband, city founding, player/spectator projection,
-  ordinary construction queueing, adjacent queue movement, exact queue
-  removal, queue-context management, melee combat, and event choice. Stateful
-  unit and city scenarios compare every full response across two independent
-  JVMs. Changed canonical combat state, forged actor, and changed-clock
-  controls prove that state, authenticated identity, and server time remain
-  replay-critical. The other 68 operations plus additional random
-  setup/combat/event/AI branches still need fresh-process fixtures, so this
-  item remains unchecked.
+  ordinary construction queueing, adjacent queue movement, exact queue removal,
+  queue-context management, melee combat, and event choice. Stateful unit and
+  city scenarios compare every full response across two independent JVMs.
+  Changed canonical combat state, forged actor, and changed-clock controls
+  prove that state, authenticated identity, and server time remain
+  replay-critical. The other 64 operations plus additional random
+  setup/combat/event/AI branches still need fresh-process fixtures, so this item
+  remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

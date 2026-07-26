@@ -6690,6 +6690,40 @@ Focused verification on 2026-07-26:
   scenario under 170, and the refactored unit scenario under 110. No production
   façade or gameplay module changed.
 
+## Packaged-worker durable unit-order parity batch
+
+Implemented on 2026-07-26:
+
+- Added a deterministic stateful fixture for server-owned multi-turn movement.
+  Its canonical setup marks one far reachable destination explored, then two
+  independent packaged workers apply the same `MoveUnitToward` and
+  `CancelUnitMovementOrder` sequence.
+- The same scenario uses separate canonical units for exploration and broad
+  automation. Both enable/disable transitions execute through the packaged
+  shared engine and every complete intermediate response is byte-identical
+  across fresh JVMs.
+- The seeded scenario helper now owns snapshot encoding as well as decoding, so
+  specialized fixture preparation remains centralized without exposing mutable
+  state to production code.
+- Fresh-process evidence now covers 22 of 86 sealed worker operations. The
+  remaining 64 keep their explicit `InProcessOnly` classification.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitAutomationParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,121 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- The fixture derives the far destination from canonical pathfinding and uses
+  separate units for movement, exploration, and automation so immediate shared
+  engine actions cannot make a later transition artificially illegal.
+- The new scenario is a descriptive module under 150 lines; the shared fixture
+  remains under 80 lines. No production façade or gameplay module changed.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

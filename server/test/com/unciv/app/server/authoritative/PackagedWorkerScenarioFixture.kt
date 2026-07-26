@@ -70,4 +70,7 @@ internal class PackagedWorkerScenarioFixture(
 
     fun decode(snapshot: String?): GameInfo =
         UncivFiles.gameInfoFromString(requireNotNull(snapshot)).also(GameInfo::setTransients)
+
+    fun encode(game: GameInfo): String =
+        UncivFiles.gameInfoToString(game, forceZip = false, updateChecksum = false)
 }

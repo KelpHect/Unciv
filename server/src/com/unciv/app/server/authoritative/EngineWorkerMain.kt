@@ -9,6 +9,7 @@ import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.ruleset.RulesetCache
 import java.nio.file.Paths
+import kotlin.system.exitProcess
 
 /** Starts a private, headless Kotlin rules worker. It has no HTTP listener. */
 object EngineWorkerMain {
@@ -29,6 +30,30 @@ object EngineWorkerMain {
         val loadingErrors = RulesetCache.loadRulesets(consoleMode = true, noMods = false)
         require(loadingErrors.isEmpty()) { "Worker ruleset loading failed" }
         InstalledRulesetCatalog.initialize()
+        if (args.contentEquals(arrayOf("--print-catalog"))) {
+            val status = runCatching {
+                EngineWorkerAssetValidation.printCatalog()
+            }.fold({ 0 }, {
+                System.err.println("Worker asset catalog failed closed")
+                2
+            })
+            System.out.flush()
+            System.err.flush()
+            exitProcess(status)
+        }
+        if (args.firstOrNull() == "--validate-manifest") {
+            val status = runCatching {
+                require(args.size == 2) { "Manifest validation requires exactly one manifest path" }
+                EngineWorkerAssetValidation.validate(Paths.get(args[1]))
+            }.fold({ 0 }, {
+                System.err.println("Worker asset validation failed closed")
+                2
+            })
+            System.out.flush()
+            System.err.flush()
+            exitProcess(status)
+        }
+        require(args.isEmpty()) { "Unknown authoritative worker arguments" }
         val port = System.getenv("UNCIV_ENGINE_WORKER_PORT")?.toIntOrNull() ?: 43170
         val authentication = System.getenv("UNCIV_ENGINE_WORKER_SECRET")
             ?.let(EngineWorkerAuthentication::fromHex)

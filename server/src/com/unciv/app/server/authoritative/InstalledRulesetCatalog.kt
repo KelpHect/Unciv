@@ -20,15 +20,20 @@ object InstalledRulesetCatalog {
     val engineBuild: String
         get() = snapshot().engineBuild
 
+    @Synchronized
     fun initialize() {
-        check(captured == null) { "Installed ruleset catalog is already initialized" }
-        captured = RulesetCatalogSnapshot.capture(
+        val candidate = RulesetCatalogSnapshot.capture(
             UncivGame.VERSION.toSerializeString(),
             RulesetCache.mapValues { (_, ruleset) ->
                 ruleset.folderLocation?.child("jsons")
                     ?: FileHandle("jsons/${ruleset.name}")
             },
         )
+        val existing = captured
+        check(existing == null || existing == candidate) {
+            "Installed ruleset catalog changed after initialization"
+        }
+        captured = candidate
     }
 
     fun all(): List<WorkerRuleset> = snapshot().rulesets.values.toList()

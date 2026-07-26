@@ -42,13 +42,24 @@ impl PostgresGameRepository {
             return Ok(game_id);
         }
 
-        let manifest: serde_json::Value =
-            sqlx::query_scalar("SELECT manifest FROM ruleset_manifests WHERE hash = $1")
-                .bind(&ruleset_manifest_hash)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(CommitError::storage)?
-                .ok_or(CommitError::NotFound)?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('ruleset-asset:' || $1, 0))")
+            .bind(&ruleset_manifest_hash)
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
+        let manifest: serde_json::Value = sqlx::query_scalar(
+            "SELECT m.manifest FROM ruleset_manifests m
+                 WHERE m.hash = $1
+                   AND EXISTS (
+                     SELECT 1 FROM ruleset_asset_versions v
+                     WHERE v.manifest_hash=m.hash
+                   )",
+        )
+        .bind(&ruleset_manifest_hash)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
         let manifest: WorkerManifest =
             serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
 

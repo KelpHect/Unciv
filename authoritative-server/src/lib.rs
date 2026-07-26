@@ -35,6 +35,7 @@ pub mod notifications;
 pub mod operations;
 pub mod postgres;
 pub mod projection;
+pub mod ruleset_acquisition;
 pub mod worker;
 
 pub use command::{

@@ -135,7 +135,9 @@ Required hardening includes separate origins or network listeners, storage roots
 
 The client downloads GitHub or direct ZIP content into a staging area and parses saves, maps, and ruleset JSON through shared code. This is a distinct untrusted-content boundary. The observed ZIP extraction builds destinations from entry names, so containment must be enforced by canonical-path checks rather than assumed from staging.
 
-Required controls include canonical destination containment for every archive entry, rejection of absolute paths and links, compressed/uncompressed byte and entry-count limits, streaming quotas and cancellation, download timeouts, redirect/scheme/host policy, atomic staging, safe cleanup, JSON depth/collection/string limits, media limits, ruleset semantic validation, immutable manifest hashing, server-side allowlisting, and fuzz/property tests for decompression and deserialization. Authoritative workers must never fetch arbitrary client URLs.
+Current v3 acquisition is an offline operator boundary with a closed exact-hash policy. It permits HTTPS only, requires an exact allowlisted host, disables redirects and environment proxies, keeps optional bearer credentials in environment memory, streams into bounded new staging files, verifies archive hashes before parsing, and rejects unsafe paths, links, special files, unsupported compression, collisions, and archive bombs. It extracts only the selected JSON subtree, validates exact component hashes and combined ruleset semantics in the packaged worker, atomically installs immutable versions, and prevents garbage collection from racing new-game creation. Clients and authoritative workers have no arbitrary URL-fetch surface.
+
+Remaining hardening includes live Linux/systemd failure qualification, parser and decompressor fuzzing beyond the deterministic adversarial fixtures, media limits for any future server-side media ingestion, release-level worker/control-plane bundle pinning, and continued dependency and parser review.
 
 ### WebSocket notifications and availability
 

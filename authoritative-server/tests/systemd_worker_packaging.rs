@@ -69,7 +69,7 @@ fn packaged_worker_and_assets_are_read_only_inputs() {
     let directives = directives(SERVICE);
     assert_eq!(
         directives["WorkingDirectory"],
-        "/opt/unciv-authoritative/assets",
+        "/opt/unciv-authoritative/rulesets/active",
     );
     assert_eq!(directives["ProtectSystem"], "strict");
     assert!(

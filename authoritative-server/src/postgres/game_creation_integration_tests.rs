@@ -129,6 +129,28 @@ async fn failed_creation_leaves_no_record_and_the_same_id_can_retry() {
     );
 }
 
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn game_creation_requires_a_registered_asset_version_before_worker_contact() {
+    let (repository, owner, _, manifest_hash) = seeded_repository().await;
+    sqlx::query("DELETE FROM ruleset_asset_versions WHERE manifest_hash=$1")
+        .bind(&manifest_hash)
+        .execute(&repository.pool)
+        .await
+        .unwrap();
+    let worker = EngineWorkerClient::new(
+        "127.0.0.1:9".parse().unwrap(),
+        std::time::Duration::from_millis(10),
+        WorkerIdentityKey::for_test(),
+    );
+    assert_eq!(
+        repository
+            .create_authoritative_game(&worker, owner, Uuid::new_v4(), manifest_hash, setup(),)
+            .await,
+        Err(CommitError::NotFound),
+    );
+}
+
 async fn seeded_repository() -> (PostgresGameRepository, Uuid, Uuid, String) {
     let repository = PostgresGameRepository::connect(&database_url())
         .await
@@ -165,6 +187,11 @@ async fn seeded_repository() -> (PostgresGameRepository, Uuid, Uuid, String) {
     .execute(&repository.pool)
     .await
     .unwrap();
+    sqlx::query("INSERT INTO ruleset_asset_versions (version_id, manifest_hash) VALUES ($1, $1)")
+        .bind(&manifest_hash)
+        .execute(&repository.pool)
+        .await
+        .unwrap();
     (repository, owner, other, manifest_hash)
 }
 

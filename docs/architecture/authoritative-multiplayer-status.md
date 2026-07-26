@@ -6635,6 +6635,78 @@ Implemented on 2026-07-26:
   allowlisting, atomic version activation, rollback, and garbage collection
   remain explicitly unchecked.
 
+## Immutable operator ruleset acquisition
+
+Implemented on 2026-07-26:
+
+- Added the thin `unciv-v3-rulesets` operator CLI and focused acquisition
+  modules. Its closed schema binds the exact engine build, built-in ruleset,
+  ordered mod names and content hashes, HTTPS archive URLs, exact allowed
+  hosts, archive hashes, optional one-component archive roots, and optional
+  bearer-token environment names. Unknown fields, unsafe identities, malformed
+  hashes, credentials in URLs, fragments, non-HTTPS URLs, and host mismatches
+  fail before network access.
+- Downloads disable redirects and environment proxies, use Rustls certificate
+  validation, require identity encoding and HTTP 200, enforce connect and total
+  deadlines, stream into create-new files under a 64 MiB cap, and verify the
+  archive SHA-256. Optional bearer tokens are read only from the named
+  environment variable into zeroizing memory and are never accepted as command
+  arguments or emitted in reports.
+- ZIP inspection uses enclosed paths and independently rejects absolute,
+  traversing, NUL, backslash, linked, special, case-colliding, and unsupported
+  entries. Limits cap entries at 16,384, each file at 16 MiB, total compressed
+  input at 64 MiB, and total extracted bytes at 512 MiB. Only the selected
+  `jsons/` subtree reaches staging.
+- Trusted built-ins and exact extracted mods are staged on the destination
+  filesystem, content-hashed using the worker-compatible path framing, and
+  passed to the packaged Kotlin worker's offline `--validate-manifest` mode.
+  The worker parses the exact files, verifies the immutable catalog, combines
+  the selected rulesets, and rejects semantic link errors before Rust atomically
+  renames the completed version into `versions/<manifest-hash>`.
+- Migration `0020_ruleset_asset_versions.sql` registers installed immutable
+  versions. New-game creation now takes the manifest advisory lock and requires
+  a registered asset version before contacting the worker. Garbage collection
+  takes the same lock, refuses active or game-referenced versions, unregisters
+  an unreferenced version, renames it out of `versions/`, and then removes it.
+  Acquisition is exactly idempotent; Linux activation and rollback replace a
+  relative `active` symlink atomically.
+- The production systemd worker now starts inside
+  `/opt/unciv-authoritative/rulesets/active`. The acquisition runbook documents
+  installation, closed policy authoring, stage-and-review, activation,
+  rollback, garbage collection, credential handling, and recovery of exact
+  content. Clients have no URL, host, archive, path, hash, or byte-upload field.
+
+Verification on 2026-07-26:
+
+- Direct packaged-worker `--print-catalog` exits successfully and reports the
+  exact two built-in rulesets. The provisioned end-to-end acquisition test
+  passes against the pinned PostgreSQL 19 Beta 2 image and proves offline
+  worker semantic validation, atomic version creation, database registration,
+  and exact idempotent reacquisition.
+- Deterministic Rust tests pass for the closed HTTPS/identity policy, bounded
+  streaming hash verification, rooted ZIP extraction with worker-compatible
+  hashes, and rejection of traversal and symbolic-link entries. Kotlin tests
+  pass for valid staged assets and manifest/content mismatches.
+- `cargo fmt --all -- --check`, warnings-as-errors `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`, and `cargo test --workspace
+  --all-features` pass. Rust reports 161 active library tests, 26 provisioned
+  database tests, 16 HTTP/OpenAPI tests, two benchmark tests, three systemd
+  packaging tests, and the acquisition process test.
+- All 26 serialized database tests pass in 8.72 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Both response-loss/Rust-process cases and both packaged-worker/outbox-death
+  cases pass after rebuilding the packaged worker.
+- `./gradlew :server:test :tests:test :android:lint :android:assembleDebug
+  :desktop:dist` passes. The installed Android SDK was sufficient; no SDK
+  component or toolchain error was hidden or deferred.
+- Initial compile, formatting, archive-link-fixture, offline JVM-lifecycle, and
+  shell-invocation failures found during implementation were corrected and
+  every affected focused and broad lane was rerun. No compile, lint, test,
+  database, process, Android, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free. The new binary is four lines;
+  acquisition is split into descriptive shallow modules of 23-451 lines, and
+  no new god file was introduced.
+
 Focused verification on 2026-07-26:
 
 - `./gradlew :server:test --tests

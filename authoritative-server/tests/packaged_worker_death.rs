@@ -97,6 +97,11 @@ async fn packaged_worker_death_during_creation_leaves_no_game_and_retry_succeeds
     .execute(&pool)
     .await
     .unwrap();
+    sqlx::query("INSERT INTO ruleset_asset_versions (version_id, manifest_hash) VALUES ($1, $1)")
+        .bind(&manifest_hash)
+        .execute(&pool)
+        .await
+        .unwrap();
 
     let proxy_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let proxy_address = proxy_listener.local_addr().unwrap();
@@ -229,6 +234,11 @@ async fn outbox_acknowledgement_process_death_recovers_the_persisted_claim() {
     .execute(&pool)
     .await
     .unwrap();
+    sqlx::query("INSERT INTO ruleset_asset_versions (version_id, manifest_hash) VALUES ($1, $1)")
+        .bind(&manifest_hash)
+        .execute(&pool)
+        .await
+        .unwrap();
     let game_id = Uuid::new_v4();
     repository
         .create_game(NewGame {

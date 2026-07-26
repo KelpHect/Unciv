@@ -585,12 +585,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   executes only against that captured identity. Startup rejects links,
   unsupported filesystem entries, more than 64 staged mods, more than 16,384
   ruleset entries, files over 16 MiB, or more than 512 MiB total.
-- [ ] Finish the immutable mod-acquisition pipeline: explicit operator
-  allowlisting, archive traversal defenses before extraction, redirect and host
-  policy, authenticated downloads, atomic version-directory staging, semantic
-  validation, rollback, and garbage collection. Clients have no URL-fetch or
-  content-upload surface, and the worker can now load pre-staged read-only
-  `mods/<name>/jsons` trees, but acquisition itself is not implemented.
+- [x] Implement the immutable operator-only mod-acquisition pipeline with a
+  closed exact-hash allowlist, HTTPS-only exact-host downloads, disabled
+  redirects and environment proxies, optional environment-only bearer
+  authentication, streaming limits, archive traversal/link/bomb defenses,
+  same-filesystem atomic version staging, packaged-worker semantic validation,
+  PostgreSQL registration, Linux atomic activation and rollback, and
+  reference-safe garbage collection. New-game creation now requires a
+  registered asset version and serializes against garbage collection. Clients
+  have no URL-fetch, archive, path, hash, or content-upload surface. Live
+  systemd/Linux failure qualification remains separately unchecked above.
 - [ ] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
   Packaged-worker coverage currently proves seeded creation with city-states

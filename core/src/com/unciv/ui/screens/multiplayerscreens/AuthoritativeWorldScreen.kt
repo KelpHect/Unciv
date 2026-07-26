@@ -75,6 +75,7 @@ class AuthoritativeWorldScreen(
             )
         },
         diplomacyActions = authoritativeDiplomacyActions(session, gameSummary.gameId),
+        tradeActions = authoritativeTradeActions(session, gameSummary.gameId),
     )
 
     private var centerX = initialCenter().first

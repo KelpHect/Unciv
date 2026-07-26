@@ -485,6 +485,18 @@ class AuthoritativeWorldControllerTests {
                     "AuthoritativeDiplomacyController.kt",
             ),
             sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "AuthoritativeTradeController.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "TradeProjection.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "TradeProjectionValidation.kt",
+            ),
+            sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
             ),
@@ -527,6 +539,10 @@ class AuthoritativeWorldControllerTests {
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeDiplomacyPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeTradePanel.kt",
             ),
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +

@@ -1300,7 +1300,8 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val partner = current.projection.tradePartners.singleOrNull { it.civilizationId == otherCivilizationId }
             ?: error("Trade partner is absent from the current player projection")
-        require(!partner.hasPendingOutgoingOffer && (trade.ourOffers.isNotEmpty() || trade.theirOffers.isNotEmpty())) { "Trade offer is not available" }
+        require(!partner.hasPendingOutgoingOffer) { "Trade offer is already pending" }
+        TradeProjectionValidation.requireValid(partner, trade)
         submitLocked(PendingAuthoritativeCommand.OfferTrade(commandIdFactory(), current.committedRevision, current.canonicalStateHash, otherCivilizationId, trade), current)
     }
 
@@ -1323,7 +1324,14 @@ class AuthoritativeGameCommandBus(
 
     suspend fun counterTrade(requestId: String, trade: ProjectedTrade) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.pendingTradeRequests.any { it.requestId == requestId }) { "Trade request is absent from the current player projection" }
+        val request = current.projection.pendingTradeRequests.singleOrNull {
+            it.requestId == requestId
+        } ?: error("Trade request is absent from the current player projection")
+        val partner = current.projection.tradePartners.singleOrNull {
+            it.civilizationId == request.requestingCivilizationId
+        } ?: error("Trade partner is absent from the current player projection")
+        require(!partner.hasPendingOutgoingOffer) { "Counteroffer is already pending" }
+        TradeProjectionValidation.requireValid(partner, trade)
         submitLocked(PendingAuthoritativeCommand.CounterTrade(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, requestId, trade,
         ), current)

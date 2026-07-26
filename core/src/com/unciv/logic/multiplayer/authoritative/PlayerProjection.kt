@@ -495,8 +495,9 @@ object PlayerProjectionBuilder {
             policies = policyProjection(actor),
             gold = actor.gold,
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
-            tradePartners = TradeCommandExecutor.availablePartners(actor),
-            pendingTradeRequests = TradeCommandExecutor.pendingRequests(actor),
+            tradePartners = TradeProjection.partners(actor, canIssueTurnCommands),
+            pendingTradeRequests =
+                TradeProjection.pendingRequests(actor, canIssueTurnCommands),
             diplomacyPartners =
                 DiplomacyProjection.majorPartners(actor, canIssueTurnCommands),
             diplomacyPrompts =

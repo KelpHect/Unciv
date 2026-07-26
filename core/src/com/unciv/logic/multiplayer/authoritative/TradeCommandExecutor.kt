@@ -104,10 +104,16 @@ object TradeCommandExecutor {
     }
 
     private fun validateOffers(proposed: List<ProjectedTradeOffer>, available: List<TradeOffer>): List<TradeOffer> {
-        require(proposed.distinctBy { Triple(it.name, it.type, it.amount) }.size == proposed.size) { "Duplicate trade offer" }
+        require(proposed.distinctBy { it.name to it.type }.size == proposed.size) {
+            "Duplicate trade offer identity"
+        }
         return proposed.map { candidate ->
             val type = TradeOfferType.valueOf(candidate.type)
-            val source = available.singleOrNull { it.name == candidate.name && it.type == type }
+            val source = available.singleOrNull {
+                it.name == candidate.name &&
+                    it.type == type &&
+                    it.duration == candidate.duration
+            }
                 ?: error("Trade offer is not available in canonical state")
             require(candidate.amount > 0 && candidate.amount <= source.amount) { "Trade offer amount exceeds canonical availability" }
             source.copy(amount = candidate.amount)

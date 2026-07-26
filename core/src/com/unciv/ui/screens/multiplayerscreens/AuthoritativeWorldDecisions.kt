@@ -96,6 +96,14 @@ internal class AuthoritativeWorldDecisions(
                 submit,
             ).build(),
         ).left().row()
+        add(
+            AuthoritativeTradePanel(
+                controller.projection,
+                controller.trade,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",

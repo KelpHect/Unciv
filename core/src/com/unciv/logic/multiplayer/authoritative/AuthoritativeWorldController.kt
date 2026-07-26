@@ -49,6 +49,8 @@ class AuthoritativeWorldController(
     ) -> AuthoritativeCommandOutcome? = { _, _, _ -> null },
     diplomacyActions: AuthoritativeDiplomacyActions =
         AuthoritativeDiplomacyActions.Unavailable,
+    tradeActions: AuthoritativeTradeActions =
+        AuthoritativeTradeActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -108,6 +110,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         actions = diplomacyActions,
+    )
+    val trade = AuthoritativeTradeController(
+        projection = { projection },
+        submit = ::submit,
+        actions = tradeActions,
     )
 
     fun selectUnit(unitId: Int) {

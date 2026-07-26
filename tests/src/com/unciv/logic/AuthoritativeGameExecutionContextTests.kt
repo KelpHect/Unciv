@@ -2005,8 +2005,13 @@ class AuthoritativeGameExecutionContextTests {
         val initialRomeGold = rome.gold
         val initialGreeceGold = greece.gold
         rome.addGold(100)
+        val projectedGold = romeEngine.playerProjection(game, rome.civName)
+            .tradePartners.single { it.civilizationId == greece.civName }
+            .ourAvailableOffers.single {
+                it.name == Constants.flatGold && it.type == "Gold"
+            }
         val offer = ProjectedTrade(
-            ourOffers = listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 50, 0)),
+            ourOffers = listOf(projectedGold.copy(amount = 50)),
             theirOffers = emptyList(),
         )
 
@@ -2014,11 +2019,11 @@ class AuthoritativeGameExecutionContextTests {
 
         Assert.assertEquals(1, greece.tradeRequests.size)
         val greeceEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
+        game.currentPlayer = greece.civName
         val request = greeceEngine.playerProjection(game, greece.civName).pendingTradeRequests.single()
         Assert.assertEquals(64, request.requestId.length)
         Assert.assertEquals(rome.civName, request.requestingCivilizationId)
 
-        game.currentPlayer = greece.civName
         greeceEngine.acceptTrade(game, greece.civName, request.requestId)
 
         Assert.assertEquals(initialRomeGold + 50, rome.gold)
@@ -2036,11 +2041,31 @@ class AuthoritativeGameExecutionContextTests {
         val greece = game.getCivilization("Greece")
         rome.diplomacyFunctions.makeCivilizationsMeet(greece)
         val availableGold = rome.gold
+        val projectedGold = engine.playerProjection(game, rome.civName)
+            .tradePartners.single { it.civilizationId == greece.civName }
+            .ourAvailableOffers.single {
+                it.name == Constants.flatGold && it.type == "Gold"
+            }
         val forged = ProjectedTrade(
-            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", availableGold + 1, 0)), emptyList(),
+            listOf(projectedGold.copy(amount = availableGold + 1)), emptyList(),
         )
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.offerTrade(game, rome.civName, greece.civName, forged)
+        }
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
+                listOf(
+                    projectedGold.copy(amount = 1),
+                    projectedGold.copy(amount = 2),
+                ),
+                emptyList(),
+            ))
+        }
+        Assert.assertThrows(IllegalStateException::class.java) {
+            engine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
+                listOf(projectedGold.copy(amount = 1, duration = projectedGold.duration + 1)),
+                emptyList(),
+            ))
         }
         val foreign = HeadlessGameEngine(serverContext("account-2") { serverTime })
         Assert.assertThrows(IllegalStateException::class.java) {
@@ -2049,7 +2074,7 @@ class AuthoritativeGameExecutionContextTests {
 
         rome.addGold(10)
         engine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
-            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 5, 0)), emptyList(),
+            listOf(projectedGold.copy(amount = 5)), emptyList(),
         ))
         game.currentPlayer = greece.civName
         val requestId = foreign.playerProjection(game, greece.civName).pendingTradeRequests.single().requestId
@@ -2068,14 +2093,24 @@ class AuthoritativeGameExecutionContextTests {
         val greece = game.getCivilization("Greece")
         rome.diplomacyFunctions.makeCivilizationsMeet(greece)
         rome.addGold(100)
+        val projectedRomeGold = romeEngine.playerProjection(game, rome.civName)
+            .tradePartners.single { it.civilizationId == greece.civName }
+            .ourAvailableOffers.single {
+                it.name == Constants.flatGold && it.type == "Gold"
+            }
         romeEngine.offerTrade(game, rome.civName, greece.civName, ProjectedTrade(
-            listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 50, 0)), emptyList(),
+            listOf(projectedRomeGold.copy(amount = 50)), emptyList(),
         ))
         game.currentPlayer = greece.civName
         val incoming = greeceEngine.playerProjection(game, greece.civName).pendingTradeRequests.single()
+        val projectedCounterGold = greeceEngine.playerProjection(game, greece.civName)
+            .tradePartners.single { it.civilizationId == rome.civName }
+            .theirAvailableOffers.single {
+                it.name == Constants.flatGold && it.type == "Gold"
+            }
 
         greeceEngine.counterTrade(game, greece.civName, incoming.requestId, ProjectedTrade(
-            emptyList(), listOf(ProjectedTradeOffer(Constants.flatGold, "Gold", 25, 0)),
+            emptyList(), listOf(projectedCounterGold.copy(amount = 25)),
         ))
 
         Assert.assertTrue(greece.tradeRequests.isEmpty())

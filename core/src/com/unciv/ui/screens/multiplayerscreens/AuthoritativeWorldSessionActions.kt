@@ -9,6 +9,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativePromptActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeSpyActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeDiplomacyActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeTradeActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -217,5 +218,26 @@ internal fun authoritativeDiplomacyActions(
     },
     marry = { cityStateId ->
         session.marryCityStateIfOpen(gameId, cityStateId)
+    },
+)
+
+internal fun authoritativeTradeActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeTradeActions(
+    offer = { civilizationId, trade ->
+        session.offerTradeIfOpen(gameId, civilizationId, trade)
+    },
+    retract = { civilizationId ->
+        session.retractTradeOfferIfOpen(gameId, civilizationId)
+    },
+    accept = { requestId ->
+        session.acceptTradeIfOpen(gameId, requestId)
+    },
+    decline = { requestId ->
+        session.declineTradeIfOpen(gameId, requestId)
+    },
+    counter = { requestId, trade ->
+        session.counterTradeIfOpen(gameId, requestId, trade)
     },
 )

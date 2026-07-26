@@ -1,5 +1,57 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only bilateral trade
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now renders bilateral partners,
+  pending-outgoing status, exact available offers from both sides, bounded
+  integer quantity fields, incoming request terms, and offer/retract/accept/
+  decline/counter controls.
+- `AuthoritativeTradeController` requires the actor's current turn, exact
+  projected partner/request identity, pending-state compatibility, a nonempty
+  composition, and every selected amount within the projected maximum before
+  typed submission. `AuthoritativeTradePanel` only holds ephemeral form state;
+  it cannot mutate gold, resources, diplomacy, requests, or canonical trades.
+- `TradeProjectionValidation` now protects both direct offers and
+  counteroffers in the client command bus. Every offer must match one projected
+  `(name,type,duration)` identity, quantities must be positive and bounded,
+  sides are capped, and duplicate identities are rejected.
+- The canonical worker previously distinguished duplicates by
+  `(name,type,amount)`, allowing one available identity to be split into
+  different amounts, and ignored client duration. It now permits each
+  `(name,type)` identity once and requires the exact canonical duration before
+  copying the canonical offer and resolving the trade.
+- `TradeProjection` keeps counterpart identities visible but clears available
+  offers, outgoing-action state, and incoming actionable requests outside the
+  actor's turn. Existing canonical tests were updated to obtain exact duration
+  from the projection and to read incoming requests only on the recipient's
+  turn, eliminating their prior client-authored assumptions.
+- Deterministic tests cover offer, retraction, acceptance, decline,
+  counteroffer, empty/excessive/duplicate/forged-duration inputs, out-of-turn
+  rejection, retry without local revision mutation, and canonical duplicate
+  and duration rejection.
+
+Verification on 2026-07-26:
+
+- The first two focused runs exposed stale test assumptions: a hardcoded
+  duration and an incoming request read before the recipient's turn. Both tests
+  were corrected to consume the authoritative projection, then the full
+  focused trade/canonical gate reran cleanly.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1051 JVM/server cases: 1038 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. `PlayerProjection.kt` remains below threshold at
+  795 lines; the projection helper, shared validation, controller, panel,
+  session adapter, and world screen are 25, 38, 82, 116, 243, and 285 lines.
+  This milestone changes no Rust, wire schema, OpenAPI, persistence, or
+  PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The remaining projection-only world work is concentrated in under-specified
+unit controls and richer history/event presentation rather than social actions.
+
 ## Projection-only major and city-state diplomacy
 
 Implemented on 2026-07-26:

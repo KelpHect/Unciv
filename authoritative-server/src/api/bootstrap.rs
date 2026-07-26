@@ -40,7 +40,10 @@ pub(crate) async fn run() {
         .ok()
         .and_then(|value| unciv_authoritative_server::worker::WorkerIdentityKey::from_hex(&value).ok())
         .expect("UNCIV_ENGINE_WORKER_SECRET must be exactly 32 bytes encoded as 64 hexadecimal characters");
-    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30), worker_identity);
+    let worker_deadlines = unciv_authoritative_server::worker::WorkerDeadlines::from_environment()
+        .expect("authoritative engine worker deadlines must be valid");
+    let worker =
+        EngineWorkerClient::with_deadlines(worker_address, worker_deadlines, worker_identity);
     let worker_capabilities = worker
         .handshake()
         .await

@@ -1,10 +1,10 @@
-use std::{net::SocketAddr, process::ExitCode, time::Duration};
+use std::{net::SocketAddr, process::ExitCode};
 
 use uuid::Uuid;
 
 use crate::{
     postgres::PostgresGameRepository,
-    worker::{EngineWorkerClient, WorkerIdentityKey},
+    worker::{EngineWorkerClient, WorkerDeadlines, WorkerIdentityKey},
 };
 
 const DEFAULT_MAX_TAIL: u64 = 128;
@@ -62,7 +62,12 @@ pub async fn run_recovery_cli() -> ExitCode {
         );
         return ExitCode::FAILURE;
     };
-    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30), worker_identity);
+    let Ok(worker_deadlines) = WorkerDeadlines::from_environment() else {
+        eprintln!("authoritative engine worker deadlines must be valid");
+        return ExitCode::FAILURE;
+    };
+    let worker =
+        EngineWorkerClient::with_deadlines(worker_address, worker_deadlines, worker_identity);
     let Ok(recovered) = repository
         .reconstruct_head(&worker, game_id, max_tail)
         .await

@@ -559,6 +559,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Add separately configurable connect/read/write deadlines, worker crash
   recycling, circuit breakers, and per-command CPU/memory limits. A bounded
   total command deadline already cancels the connection and in-flight request.
+  Connect, request-write, response-read/execution, and total deadlines are now
+  independently configured, validated at startup, and tested with phase-specific
+  redacted failures; each operation already discards its one-shot socket.
+  Circuit breaking, managed worker-process recycling, and OS-enforced
+  per-command CPU/memory isolation remain open.
 - [ ] Verify the manifest inside the worker and finish immutable mod acquisition:
   allowlisting, archive path/link defenses, byte/entry quotas, redirect and host
   policy, atomic staging, semantic validation, and no client-selected URL fetch.

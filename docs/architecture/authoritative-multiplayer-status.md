@@ -6610,6 +6610,60 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Phase-specific private-worker deadlines
+
+Implemented on 2026-07-26:
+
+- Replaced the single opaque worker transport timeout with independently
+  configurable connect, authenticated-frame write, execution/response read, and
+  absolute total deadlines. The API service and bounded recovery CLI use the
+  same validated configuration.
+- Defaults retain the existing 30-second absolute cap while limiting connection
+  establishment to two seconds and request writes to five seconds. Empty,
+  malformed, zero, or greater-than-ten-minute values fail startup rather than
+  silently disabling a bound.
+- Timeout failures are separate redacted error variants. They identify only the
+  transport phase and never include actor, request, response, canonical
+  snapshot, or private engine diagnostics.
+- Each operation still owns exactly one TCP connection. Read or total expiry
+  drops that socket, and a subsequent idempotent retry must establish a fresh
+  authenticated connection.
+- `docs/operations/authoritative-worker-identity.md` now documents all four
+  environment variables, defaults, validation bounds, precedence, and retry
+  behavior. Circuit breakers, managed worker-process recycling, and OS-enforced
+  per-command CPU/memory isolation remain explicitly unchecked.
+
+Verification on 2026-07-26:
+
+- Deterministic Rust tests prove stalled connect and write futures return their
+  exact phase errors, stalled worker execution/read returns `ReadTimeout` and
+  closes the peer socket, and the absolute total deadline wins over a longer
+  read deadline.
+- `cargo test --all-targets` passes 148 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 24 provisioned database tests and five explicit
+  process/failover tests remain ignored by default.
+- All 24 serialized PostgreSQL integration tests pass in 7.99 seconds, both
+  lost-response/Rust-process tests pass in 4.41 seconds, and both packaged
+  worker/outbox process-death tests pass in 3.80 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+- The first focused Cargo invocation incorrectly supplied two name filters and
+  ran no tests; the corrected worker filter passed. The original read-timeout
+  assertion still expected the former generic transport error and was updated
+  to the new exact error. An initial write-timeout fixture depended on Windows
+  loopback buffer saturation and instead reached the read phase; it was
+  replaced by a deterministic pending writer. Every corrected focused and
+  broad gate then passed, so no test, compile, lint, database, process, or
+  Android error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). The largest Rust source is 796 lines, below the 800-line
+  guardrail; deadline policy is isolated in a 142-line descriptive module and
+  transport remains 495 lines.
+
 ## Packaged-worker research and all-AI-turn parity
 
 Implemented on 2026-07-26:

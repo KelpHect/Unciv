@@ -20,6 +20,7 @@ mod city_state;
 mod city_tiles;
 #[cfg(test)]
 mod client_tests;
+mod deadlines;
 mod diplomacy;
 mod espionage;
 mod event_choices;
@@ -48,6 +49,7 @@ pub use city_state::{
     CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
     CityStateTributeIntent,
 };
+pub use deadlines::{WorkerDeadlineConfigError, WorkerDeadlines};
 pub use game_setup::{
     BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
     WorkerGameSetup,
@@ -91,7 +93,7 @@ const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 #[derive(Clone)]
 pub struct EngineWorkerClient {
     address: SocketAddr,
-    request_timeout: Duration,
+    deadlines: WorkerDeadlines,
     identity_key: WorkerIdentityKey,
 }
 
@@ -99,6 +101,14 @@ pub struct EngineWorkerClient {
 pub enum WorkerClientError {
     #[error("worker transport failed")]
     Transport,
+    #[error("worker connect deadline expired")]
+    ConnectTimeout,
+    #[error("worker write deadline expired")]
+    WriteTimeout,
+    #[error("worker read deadline expired")]
+    ReadTimeout,
+    #[error("worker total deadline expired")]
+    TotalTimeout,
     #[error("worker frame exceeded its limit")]
     FrameTooLarge,
     #[error("worker returned an incompatible protocol")]
@@ -157,7 +167,19 @@ impl EngineWorkerClient {
     ) -> Self {
         Self {
             address,
-            request_timeout,
+            deadlines: WorkerDeadlines::uniform(request_timeout),
+            identity_key,
+        }
+    }
+
+    pub fn with_deadlines(
+        address: SocketAddr,
+        deadlines: WorkerDeadlines,
+        identity_key: WorkerIdentityKey,
+    ) -> Self {
+        Self {
+            address,
+            deadlines,
             identity_key,
         }
     }

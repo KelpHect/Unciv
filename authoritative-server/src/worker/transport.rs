@@ -1,7 +1,8 @@
 use rand_core::{OsRng, RngCore};
 use serde::Serialize;
+use std::future::Future;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpStream,
     time::timeout,
 };
@@ -105,68 +106,96 @@ impl EngineWorkerClient {
             &request_nonce,
             &payload,
         )?;
-        let response = timeout(self.request_timeout, async {
-            let mut stream = TcpStream::connect(self.address)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_u32(payload.len() as u32)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_all(&request_nonce)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_all(&request_tag)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_all(&payload)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .flush()
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            let size = stream
-                .read_u32()
-                .await
-                .map_err(|_| WorkerClientError::Transport)? as usize;
-            if !valid_frame_size(size) {
-                return Err(WorkerClientError::FrameTooLarge);
-            }
-            let mut response_nonce = [0_u8; NONCE_BYTES];
-            stream
-                .read_exact(&mut response_nonce)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            if response_nonce != request_nonce {
-                return Err(WorkerClientError::Identity);
-            }
-            let mut response_tag = [0_u8; TAG_BYTES];
-            stream
-                .read_exact(&mut response_tag)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            let mut response = vec![0; size];
-            stream
-                .read_exact(&mut response)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            verify_frame(
-                &self.identity_key,
-                FrameDirection::Response,
-                &response_nonce,
-                &response,
-                &response_tag,
-            )?;
-            decode_worker_response(&response)
+        let response = timeout(self.deadlines.total, async {
+            let mut stream =
+                connect_with_deadline(self.deadlines.connect, TcpStream::connect(self.address))
+                    .await?;
+            timeout(
+                self.deadlines.write,
+                write_request_frame(&mut stream, &request_nonce, &request_tag, &payload),
+            )
+            .await
+            .map_err(|_| WorkerClientError::WriteTimeout)??;
+            timeout(self.deadlines.read, async {
+                let size = stream
+                    .read_u32()
+                    .await
+                    .map_err(|_| WorkerClientError::Transport)? as usize;
+                if !valid_frame_size(size) {
+                    return Err(WorkerClientError::FrameTooLarge);
+                }
+                let mut response_nonce = [0_u8; NONCE_BYTES];
+                stream
+                    .read_exact(&mut response_nonce)
+                    .await
+                    .map_err(|_| WorkerClientError::Transport)?;
+                if response_nonce != request_nonce {
+                    return Err(WorkerClientError::Identity);
+                }
+                let mut response_tag = [0_u8; TAG_BYTES];
+                stream
+                    .read_exact(&mut response_tag)
+                    .await
+                    .map_err(|_| WorkerClientError::Transport)?;
+                let mut response = vec![0; size];
+                stream
+                    .read_exact(&mut response)
+                    .await
+                    .map_err(|_| WorkerClientError::Transport)?;
+                verify_frame(
+                    &self.identity_key,
+                    FrameDirection::Response,
+                    &response_nonce,
+                    &response,
+                    &response_tag,
+                )?;
+                decode_worker_response(&response)
+            })
+            .await
+            .map_err(|_| WorkerClientError::ReadTimeout)?
         })
         .await
-        .map_err(|_| WorkerClientError::Transport)??;
+        .map_err(|_| WorkerClientError::TotalTimeout)??;
         validate_worker_response(response)
     }
+}
+
+async fn connect_with_deadline<T>(
+    deadline: Duration,
+    connect: impl Future<Output = std::io::Result<T>>,
+) -> Result<T, WorkerClientError> {
+    timeout(deadline, connect)
+        .await
+        .map_err(|_| WorkerClientError::ConnectTimeout)?
+        .map_err(|_| WorkerClientError::Transport)
+}
+
+async fn write_request_frame(
+    stream: &mut (impl AsyncWrite + Unpin),
+    nonce: &[u8; NONCE_BYTES],
+    tag: &[u8; TAG_BYTES],
+    payload: &[u8],
+) -> Result<(), WorkerClientError> {
+    stream
+        .write_u32(payload.len() as u32)
+        .await
+        .map_err(|_| WorkerClientError::Transport)?;
+    stream
+        .write_all(nonce)
+        .await
+        .map_err(|_| WorkerClientError::Transport)?;
+    stream
+        .write_all(tag)
+        .await
+        .map_err(|_| WorkerClientError::Transport)?;
+    stream
+        .write_all(payload)
+        .await
+        .map_err(|_| WorkerClientError::Transport)?;
+    stream
+        .flush()
+        .await
+        .map_err(|_| WorkerClientError::Transport)
 }
 
 #[cfg(test)]
@@ -262,18 +291,101 @@ mod property_tests {
                 .unwrap()
                 .unwrap()
         });
-        let result = EngineWorkerClient::new(
-            address,
+        let deadlines = WorkerDeadlines::new(
+            Duration::from_millis(50),
+            Duration::from_millis(50),
             Duration::from_millis(10),
-            WorkerIdentityKey::for_test(),
+            Duration::from_millis(100),
         )
-        .execute_request(json!({
-            "protocolVersion": WORKER_PROTOCOL_VERSION,
-            "operation": {"type": "handshake"},
-        }))
-        .await;
-        assert!(matches!(result, Err(WorkerClientError::Transport)));
+        .unwrap();
+        let result =
+            EngineWorkerClient::with_deadlines(address, deadlines, WorkerIdentityKey::for_test())
+                .execute_request(json!({
+                    "protocolVersion": WORKER_PROTOCOL_VERSION,
+                    "operation": {"type": "handshake"},
+                }))
+                .await;
+        assert!(matches!(result, Err(WorkerClientError::ReadTimeout)));
         assert_eq!(server.await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn worker_connect_deadline_bounds_a_stalled_connector() {
+        let result = connect_with_deadline(
+            Duration::from_millis(5),
+            std::future::pending::<std::io::Result<()>>(),
+        )
+        .await;
+        assert!(matches!(result, Err(WorkerClientError::ConnectTimeout)));
+    }
+
+    #[tokio::test]
+    async fn worker_write_deadline_bounds_a_stalled_writer() {
+        struct PendingWriter;
+
+        impl tokio::io::AsyncWrite for PendingWriter {
+            fn poll_write(
+                self: std::pin::Pin<&mut Self>,
+                _context: &mut std::task::Context<'_>,
+                _buffer: &[u8],
+            ) -> std::task::Poll<std::io::Result<usize>> {
+                std::task::Poll::Pending
+            }
+
+            fn poll_flush(
+                self: std::pin::Pin<&mut Self>,
+                _context: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<std::io::Result<()>> {
+                std::task::Poll::Pending
+            }
+
+            fn poll_shutdown(
+                self: std::pin::Pin<&mut Self>,
+                _context: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<std::io::Result<()>> {
+                std::task::Poll::Ready(Ok(()))
+            }
+        }
+
+        let result = timeout(
+            Duration::from_millis(5),
+            write_request_frame(
+                &mut PendingWriter,
+                &[0_u8; NONCE_BYTES],
+                &[0_u8; TAG_BYTES],
+                b"request",
+            ),
+        )
+        .await
+        .map_err(|_| WorkerClientError::WriteTimeout);
+        assert!(matches!(result, Err(WorkerClientError::WriteTimeout)));
+    }
+
+    #[tokio::test]
+    async fn worker_total_deadline_caps_a_longer_read_deadline() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let _ = read_authenticated_test_frame(&mut stream).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        });
+        let deadlines = WorkerDeadlines::new(
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+            Duration::from_secs(1),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+        let result =
+            EngineWorkerClient::with_deadlines(address, deadlines, WorkerIdentityKey::for_test())
+                .execute_request(json!({
+                    "protocolVersion": WORKER_PROTOCOL_VERSION,
+                    "operation": {"type": "handshake"},
+                }))
+                .await;
+        assert!(matches!(result, Err(WorkerClientError::TotalTimeout)));
+        server.abort();
     }
 
     #[tokio::test]

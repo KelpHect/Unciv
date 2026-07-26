@@ -7001,6 +7001,35 @@ Focused verification on 2026-07-26:
   1,131 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker bilateral-trade parity batch
+
+Implemented on 2026-07-26:
+
+- Added one deterministic two-account scenario covering all five bilateral
+  trade operations: offer, counter, decline, retract, and accept.
+- Each account submits only the offer entries and request IDs advertised by its
+  authenticated private projection. The worker owns availability,
+  affordability, request replacement/removal, transfer, and bilateral trade
+  commitment.
+- The fixture exercises both actor identities and both current-player
+  perspectives. It proves declined and retracted negotiations leave no
+  committed trade, while the accepted final offer transfers the exact gold
+  amount and creates matching canonical trades for both civilizations.
+- All fifteen complete responses and intermediate snapshots/hashes are
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 61 of 86 sealed operations; 25 remain in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerTradeParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,132 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

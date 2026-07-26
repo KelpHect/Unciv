@@ -6900,6 +6900,39 @@ Focused verification on 2026-07-26:
   1,128 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker city context parity batch
+
+Implemented on 2026-07-26:
+
+- Added a two-fresh-JVM city scenario covering perpetual construction,
+  ordinary building purchase, captured-city disposition, and subsequent city
+  governance.
+- The selected perpetual option, affordable currency/cost pair, captured-city
+  action, and governance action all come from the authenticated player's
+  projection. The worker alone derives reserves, purchase legality, canonical
+  city ownership, pending conquest alerts, razing legality, and state changes.
+- The final canonical snapshot proves the perpetual queue entry remains, the
+  purchased building is complete, annexation removed puppet status and its
+  pending alert, and the projected governance action took effect.
+- All ten complete responses and intermediate snapshots/hashes are
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 48 of 86 sealed operations; 38 remain in-process-only debt.
+- Tile-targeted construction queue/purchase operations remain classified as
+  debt because the pinned Vanilla ruleset exposes no building with a
+  create-one-improvement placement contract; they were not marked complete
+  using an artificial or non-production ruleset path.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityContextParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,129 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

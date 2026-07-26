@@ -142,6 +142,8 @@ class PlayerProjectionContractTests {
             projection.ownUnits.single().improvementOrder.map { it.improvementName })
         assertEquals(8, projection.ownUnits.single().roadConnectionDestinationX)
         assertEquals(4, projection.ownUnits.single().roadConnectionPath.size)
+        assertEquals(1.5f, projection.ownUnits.single().currentMovement)
+        assertEquals(null, projection.visibleForeignUnits.single().currentMovement)
         assertEquals(null, projection.visibleForeignUnits.single().movementDestinationX)
         assertTrue(!projection.visibleForeignUnits.single().automated)
         assertTrue(!projection.visibleForeignUnits.single().exploring)
@@ -220,6 +222,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v58.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v59.fixture.json") }
         .first { it.isFile }
 }

@@ -1,5 +1,37 @@
 # Authoritative multiplayer v3 status
 
+## Fail-closed projection disclosure policy
+
+Implemented on 2026-07-26:
+
+- Added a machine-readable disclosure decision for every serialized leaf in
+  the player and spectator projections. Descriptor traversal requires exact
+  policy equality, so added, removed, renamed, or newly nested fields fail
+  tests until their audience, classification, and rationale are reviewed.
+- Documented public, player-private, legally-known, action-allowlist,
+  presentation, and structurally-redacted classifications plus the required
+  schema review procedure.
+- The audit found and fixed a real shared-DTO leak: visible foreign units
+  exposed exact remaining movement. Projection v59 makes the field nullable,
+  includes it for owned units, serializes it as `null` for foreign units, and
+  rejects missing owner values or disclosed foreign values in Rust semantic
+  validation.
+- Preserved projection v58 as an immutable historical fixture, added the v59
+  Kotlin/Rust fixture, and regenerated the closed OpenAPI contract.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin disclosure-policy, cross-language contract, and live
+  projection-builder confidentiality tests pass.
+- Focused Rust projection tests pass: 24 executed, one database-dependent test
+  intentionally skipped, zero failures.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1086 JVM/server cases: 1073
+  executed, 13 intentional skips, zero failures, and zero errors.
+- Full Rust tests pass: 130 executed, 21 database-dependent tests intentionally
+  skipped, zero failures. `cargo fmt --check`, warnings-as-errors Clippy,
+  OpenAPI parity, and `git diff --check` pass.
+
 ## Closed persistent-order inventory and no client-side autoplay
 
 Implemented on 2026-07-26:

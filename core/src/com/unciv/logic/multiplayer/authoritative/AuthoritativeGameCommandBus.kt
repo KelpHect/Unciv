@@ -629,7 +629,7 @@ class AuthoritativeGameCommandBus(
         require(unit != null) {
             "Unit is absent from the current player projection"
         }
-        require(current.projection.isCurrentTurn && unit.currentMovement > 0f) {
+        require(current.projection.isCurrentTurn && requireNotNull(unit.currentMovement) > 0f) {
             "Unit cannot receive a movement order in the current projection"
         }
         require(unit.moveTowardDestinations.any {
@@ -641,7 +641,10 @@ class AuthoritativeGameCommandBus(
             require(escortUnitId != unitId) { "Escort unit must differ from the moving unit" }
             val escort = current.projection.ownUnits.singleOrNull { it.id == escortUnitId }
             require(escort != null) { "Escort unit is absent from the current player projection" }
-            require(escort.x == unit.x && escort.y == unit.y && escort.currentMovement > 0f) {
+            require(
+                escort.x == unit.x && escort.y == unit.y &&
+                    requireNotNull(escort.currentMovement) > 0f,
+            ) {
                 "Escort unit cannot start a paired movement order from the current projection"
             }
         }

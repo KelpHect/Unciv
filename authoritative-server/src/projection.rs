@@ -399,7 +399,7 @@ pub struct ProjectedUnit {
     pub x: i32,
     pub y: i32,
     pub health: i32,
-    pub current_movement: f32,
+    pub current_movement: Option<f32>,
     pub movement_destination_x: Option<i32>,
     pub movement_destination_y: Option<i32>,
     #[serde(default)]
@@ -509,7 +509,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v58.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -585,6 +585,14 @@ mod tests {
         );
         assert!(projection.own_units[0].capital_project_name.is_none());
         assert!(projection.unit_actions_are_consistent());
+        assert_eq!(projection.own_units[0].current_movement, Some(1.5));
+        assert_eq!(projection.visible_foreign_units[0].current_movement, None);
+        let mut missing_private_movement = projection.clone();
+        missing_private_movement.own_units[0].current_movement = None;
+        assert!(!missing_private_movement.unit_actions_are_consistent());
+        let mut leaked_private_movement = projection.clone();
+        leaked_private_movement.visible_foreign_units[0].current_movement = Some(0.0);
+        assert!(!leaked_private_movement.unit_actions_are_consistent());
         assert!(
             projection.visible_foreign_units[0]
                 .available_religious_actions
@@ -724,7 +732,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v58.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -738,7 +746,7 @@ mod tests {
 
     #[test]
     fn tile_metadata_rejects_hidden_mutations_and_incoherent_resources() {
-        let fixture = include_str!("../../protocol/player-projection-v58.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden_improvement = projection.clone();
@@ -758,7 +766,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v58.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

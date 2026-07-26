@@ -140,7 +140,7 @@ class AuthoritativeInvitationFlowTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")),
     ) { it.parentFile }
-        .map { File(it, "protocol/player-projection-v58.fixture.json") }
+        .map { File(it, "protocol/player-projection-v59.fixture.json") }
         .first(File::isFile)
 
     private suspend inline fun <reified T : Throwable> assertThrows(

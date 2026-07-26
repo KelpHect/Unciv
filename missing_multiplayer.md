@@ -457,8 +457,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: projection confidentiality and protocol hardening
 
-- [ ] Write a per-field player and spectator projection policy and keep schemas
-  fail-closed when `GameInfo` grows.
+- [x] Write a per-field player and spectator projection policy and keep schemas
+  fail-closed when `GameInfo` grows. Every serialized leaf now has a
+  machine-checked audience, classification, and rationale; descriptor/schema
+  growth fails until reviewed. Projection v59 also structurally redacts exact
+  remaining movement from visible foreign units.
 - [ ] Expand golden sentinel leak tests across every civilization/relationship,
   fog state, private order, city, resource, notification, diplomacy, religion,
   espionage, and spectator role.

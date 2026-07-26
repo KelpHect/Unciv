@@ -266,7 +266,7 @@ class AuthoritativeWorldScreen(
         val selected = controller.selectedUnit()
         val selection = if (selected == null) "Select one of your projected units"
         else "${selected.name} #${selected.id} - ${selected.health} health - " +
-            "${selected.currentMovement} movement"
+            "${requireNotNull(selected.currentMovement)} movement"
         val blockers = controller.projection.pendingTurnActions
             .joinToString { it.name }
             .ifEmpty { "none" }

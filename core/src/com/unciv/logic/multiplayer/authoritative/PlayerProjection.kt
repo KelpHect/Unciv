@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 58
+        const val CURRENT_PROJECTION_VERSION = 59
     }
 }
 
@@ -501,7 +501,7 @@ object PlayerProjectionBuilder {
         x = unit.getTile().position.x,
         y = unit.getTile().position.y,
         health = unit.health,
-        currentMovement = unit.currentMovement,
+        currentMovement = unit.currentMovement.takeIf { includePrivateOrders },
         movementDestinationX = destination?.x,
         movementDestinationY = destination?.y,
         movementEscortUnitId = if (destination == null) null else unit.movementEscortUnitId,

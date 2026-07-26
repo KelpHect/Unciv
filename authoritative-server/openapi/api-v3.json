@@ -13407,7 +13407,6 @@
           "x",
           "y",
           "health",
-          "currentMovement",
           "automated",
           "exploring",
           "promotions",
@@ -13537,7 +13536,10 @@
             "type": "string"
           },
           "currentMovement": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "format": "float"
           },
           "exploring": {

@@ -187,11 +187,13 @@ impl PlayerProjection {
                 })
         };
         self.own_units.iter().all(|unit| {
-            valid_project_name(&unit.capital_project_name)
+            unit.current_movement.is_some()
+                && valid_project_name(&unit.capital_project_name)
                 && valid_instant_actions(&unit.available_instant_improvement_actions)
                 && valid_direct_controls(unit)
         }) && self.visible_foreign_units.iter().all(|unit| {
-            !unit.can_gift
+            unit.current_movement.is_none()
+                && !unit.can_gift
                 && !unit.can_disband
                 && !unit.can_pillage
                 && !unit.can_found_city

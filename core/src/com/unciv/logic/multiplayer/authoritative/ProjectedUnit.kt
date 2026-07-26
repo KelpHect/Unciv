@@ -11,7 +11,7 @@ data class ProjectedUnit(
     val x: Int,
     val y: Int,
     val health: Int,
-    val currentMovement: Float,
+    val currentMovement: Float?,
     val movementDestinationX: Int? = null,
     val movementDestinationY: Int? = null,
     val movementEscortUnitId: Int? = null,

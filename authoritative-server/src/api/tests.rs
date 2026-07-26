@@ -9,6 +9,27 @@ fn generated_openapi_matches_checked_in_contract() {
     assert_eq!(generated, include_str!("../../openapi/api-v3.json"));
 }
 
+#[tokio::test]
+async fn capabilities_advertise_every_public_gameplay_command_route() {
+    let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let mut expected = document["paths"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .filter_map(|path| path.split("/commands/").nth(1))
+        .map(|command| command.replace('-', "_"))
+        .collect::<std::collections::BTreeSet<_>>();
+    expected.insert("join_game".to_owned());
+    let advertised = capabilities()
+        .await
+        .0
+        .commands
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(advertised, expected);
+}
+
 #[test]
 fn openapi_covers_routes_security_and_closed_command_shapes() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -78,6 +99,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/commands/choose-great-person",
         "/api/v3/games/{game_id}/commands/use-great-person-unit",
         "/api/v3/games/{game_id}/commands/gift-unit",
+        "/api/v3/games/{game_id}/commands/add-unit-to-capital-project",
         "/api/v3/games/{game_id}/commands/transform-unit",
         "/api/v3/games/{game_id}/commands/trigger-unit-unique",
         "/api/v3/games/{game_id}/commands/use-religious-unit",
@@ -186,6 +208,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "ChooseGreatPersonRequest",
         "UseGreatPersonUnitRequest",
         "GiftUnitRequest",
+        "AddUnitToCapitalProjectRequest",
         "TransformUnitRequest",
         "TriggerUnitUniqueRequest",
         "UseReligiousUnitRequest",

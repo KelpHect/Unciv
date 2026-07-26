@@ -72,6 +72,7 @@ class PlayerProjectionContractTests {
         assertEquals("Warrior", projection.ownCities.single().unitPromotionPreferences.single().baseUnitName)
         assertTrue(projection.ownCities.single().unitPromotionPreferences.single().enabled)
         assertEquals(7, projection.ownUnits.single().movementDestinationX)
+        assertEquals(null, projection.ownUnits.single().capitalProjectName)
         assertEquals(listOf(ProjectedMovementDestination(2, -1)),
             projection.ownUnits.single().moveDestinations)
         assertEquals(listOf(ProjectedMovementDestination(2, -1)),
@@ -176,6 +177,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v51.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v52.fixture.json") }
         .first { it.isFile }
 }

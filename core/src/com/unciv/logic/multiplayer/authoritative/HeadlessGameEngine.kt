@@ -1537,6 +1537,19 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    fun addUnitToCapitalProject(
+        game: GameInfo,
+        actorCivilizationId: String,
+        unitId: Int,
+    ): EngineResult {
+        CapitalProjectUnitExecutor.execute(
+            game,
+            authenticatedCivilization(game, actorCivilizationId),
+            unitId,
+        )
+        return result(game)
+    }
+
     fun transformUnit(
         game: GameInfo,
         actorCivilizationId: String,

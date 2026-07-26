@@ -1335,6 +1335,29 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun addUnitToCapitalProjectIfOpen(
+        gameId: String,
+        unitId: Int,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(
+                    current.pending is PendingAuthoritativeCommand.AddUnitToCapitalProject &&
+                        current.pending.unitId == unitId
+                ) {
+                    "Resolve the pending authoritative command before adding another capital-project unit"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized -> bus.addUnitToCapitalProject(unitId)
+            else -> {
+                bus.refresh()
+                bus.addUnitToCapitalProject(unitId)
+            }
+        }
+    }
+
     suspend fun transformUnitIfOpen(
         gameId: String,
         unitId: Int,

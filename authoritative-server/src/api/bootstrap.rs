@@ -247,6 +247,10 @@ pub(crate) async fn run() {
             post(gift_unit),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/add-unit-to-capital-project",
+            post(add_unit_to_capital_project),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/transform-unit",
             post(transform_unit),
         )

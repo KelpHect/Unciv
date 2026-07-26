@@ -382,6 +382,7 @@ sealed interface PendingAuthoritativeCommand {
         val action: GreatPersonUnitAction,
     ) : PendingAuthoritativeCommand
     data class GiftUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
+    data class AddUnitToCapitalProject(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
     data class TransformUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
     data class TriggerUnitUnique(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
 
@@ -1230,6 +1231,18 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun addUnitToCapitalProject(unitId: Int) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any {
+            it.id == unitId && it.capitalProjectName != null
+        }) {
+            "Capital-project unit action is absent from the current player projection"
+        }
+        submitLocked(PendingAuthoritativeCommand.AddUnitToCapitalProject(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
+        ), current)
+    }
+
     suspend fun transformUnit(unitId: Int, actionId: String) = mutex.withLock {
         val current = requireSynchronized()
         require(current.projection.ownUnits.any {
@@ -2008,6 +2021,16 @@ class AuthoritativeGameCommandBus(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash, pending.unitId,
                     ),
                 )
+                is PendingAuthoritativeCommand.AddUnitToCapitalProject ->
+                    transport.addUnitToCapitalProject(
+                        gameId,
+                        ApiV3AddUnitToCapitalProjectRequest(
+                            pending.commandId,
+                            pending.expectedRevision,
+                            pending.observedStateHash,
+                            pending.unitId,
+                        ),
+                    )
                 is PendingAuthoritativeCommand.TransformUnit -> transport.transformUnit(
                     gameId, ApiV3TransformUnitRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,

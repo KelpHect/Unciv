@@ -237,6 +237,46 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun capitalProjectUnitRequestContainsNoProjectPartCapitalOrOutcomeClaims() = runBlocking {
+        val unit = ProjectedUnit(
+            42, "Rome", "SS Booster", 0, 0, 100, 2f,
+            capitalProjectName = "The Spaceship",
+        )
+        var attempts = 0
+        val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
+            onAddUnitToCapitalProject = { request ->
+                attempts++
+                if (attempts == 1) throw IOException("response lost after commit")
+                acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "command-1" }
+        bus.refresh()
+
+        assertTrue(bus.addUnitToCapitalProject(42) is AuthoritativeCommandOutcome.RetryRequired)
+        assertTrue(bus.retryPending() is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.capitalProjectUnitRequests.size)
+        val request = transport.capitalProjectUnitRequests.first()
+        assertEquals(request, transport.capitalProjectUnitRequests.last())
+        assertEquals(
+            ApiV3AddUnitToCapitalProjectRequest(
+                "command-1", 7, "hash-7", 42,
+            ),
+            request,
+        )
+        val encoded = Json.encodeToString(
+            ApiV3AddUnitToCapitalProjectRequest.serializer(),
+            request,
+        )
+        assertTrue(!encoded.contains("project"))
+        assertTrue(!encoded.contains("part"))
+        assertTrue(!encoded.contains("capital"))
+        assertTrue(!encoded.contains("actor"))
+        assertTrue(!encoded.contains("outcome"))
+    }
+
+    @Test
     fun pillageRequestContainsOnlyTheProjectedStableUnitIdAndReconcilesTile() = runBlocking {
         val visibleTile = ProjectedTileVisibility(
             0, 0, true, "Farm", false, "None", false,
@@ -1859,6 +1899,11 @@ class AuthoritativeGameCommandBusTests {
         val policyRequests = mutableListOf<ApiV3AdoptPolicyRequest>()
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
         val researchCompletionRequests = mutableListOf<ApiV3AcknowledgeResearchCompletionRequest>()
+        val capitalProjectUnitRequests = mutableListOf<ApiV3AddUnitToCapitalProjectRequest>()
+        var onAddUnitToCapitalProject:
+            suspend (ApiV3AddUnitToCapitalProjectRequest) -> ApiV3CommandAccepted = {
+                acceptTradeTestCommand(gameId, it.commandId, it.expectedRevision)
+            }
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
             accepted(it.commandId, it.expectedRevision, it.expectedRevision + 1, "unused")
         }
@@ -2335,11 +2380,15 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun setSpyCoup(gameId: String, request: ApiV3SetSpyCoupRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun useGreatPersonUnit(gameId: String, request: ApiV3UseGreatPersonUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun giftUnit(gameId: String, request: ApiV3GiftUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun addUnitToCapitalProject(gameId: String, request: ApiV3AddUnitToCapitalProjectRequest): ApiV3CommandAccepted {
+            capitalProjectUnitRequests += request
+            return onAddUnitToCapitalProject(request)
+        }
         override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
-        private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {
+        fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {
             current = current.copy(committedRevision = revision + 1, canonicalStateHash = "trade-hash", projectionHash = "trade-projection-hash")
             return ApiV3CommandAccepted(gameId, commandId, revision, revision + 1, "trade-hash")
         }

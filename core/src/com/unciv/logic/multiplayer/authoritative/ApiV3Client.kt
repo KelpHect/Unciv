@@ -502,6 +502,14 @@ class ApiV3Client(
             authenticate(); contentType(ContentType.Application.Json); setBody(request)
         })
 
+    override suspend fun addUnitToCapitalProject(
+        gameId: String,
+        request: ApiV3AddUnitToCapitalProjectRequest,
+    ): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/add-unit-to-capital-project") {
+            authenticate(); contentType(ContentType.Application.Json); setBody(request)
+        })
+
     override suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection =
         decode(client.get("api/v3/games/$gameId/spectator-projection") { authenticate() })
 

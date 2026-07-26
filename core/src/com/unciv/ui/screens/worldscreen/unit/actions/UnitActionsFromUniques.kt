@@ -8,6 +8,7 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
 import com.unciv.logic.civilization.managers.ImprovementFunctions
 import com.unciv.logic.map.mapunit.MapUnit
+import com.unciv.logic.multiplayer.authoritative.CapitalProjectUnitExecutor
 import com.unciv.logic.map.mapunit.actions.UnitParadrop
 import com.unciv.logic.map.mapunit.actions.UnitCityFounding
 import com.unciv.logic.map.tile.ImprovementBuildingProblem
@@ -280,8 +281,7 @@ object UnitActionsFromUniques {
             title = "Add to [${unique.params[0]}]",
             useFrequency = useFrequency,
             action = {
-                unit.civ.victoryManager.currentsSpaceshipParts.add(unit.name, 1)
-                unit.destroy()
+                CapitalProjectUnitExecutor.execute(unit)
             }.takeIf {
                 tile.isCityCenter() && tile.getCity()!!
                     .isCapital() && tile.getCity()!!.civ == unit.civ

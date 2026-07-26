@@ -324,6 +324,7 @@ sealed interface GameCommand {
     data class ResolveEventChoice(val promptId: String, val choiceId: String) : GameCommand
     data class UseGreatPersonUnit(val unitId: Int, val action: GreatPersonUnitAction) : GameCommand
     data class GiftUnit(val unitId: Int) : GameCommand
+    data class AddUnitToCapitalProject(val unitId: Int) : GameCommand
     data class TransformUnit(val unitId: Int, val actionId: String) : GameCommand
     data class TriggerUnitUnique(val unitId: Int, val actionId: String) : GameCommand
 

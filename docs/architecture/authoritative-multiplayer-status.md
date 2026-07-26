@@ -4873,3 +4873,50 @@ Verification on 2026-07-26:
   45 lines). New HTTP, persistence, worker-wire, and contract-test logic lives
   in focused city-tile modules. The largest Rust source is 781 lines, below the
   800-line guardrail.
+
+## Authoritative capital-project unit consumption and projection v52
+
+Opened-v3 `AddInCapital` actions now cross the authority boundary as
+`AddUnitToCapitalProject(unitId)`. The public request contains only the stable
+owned-unit identity. It cannot claim the actor, capital, project, spaceship
+part, unit-consumption result, or counter delta. Rust derives membership and
+serializes the canonical commit; it contains no Unciv project rules.
+
+The private Kotlin worker re-derives the current actor, owned unit, capital
+center, `AddInCapital` unique, nonblank project name, exact unit-name
+spaceship-part key, unit consumption, and resulting counter change. Projection
+v52 publishes the project label only for a legal owned current-turn unit.
+Foreign and out-of-turn unit projections expose none of the related action
+metadata. The same focused executor is used by local/hotseat behavior, while an
+opened-v3 unit action submits through the command bus and reconciles after the
+server commit.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests prove projection, exact part increment, unit
+  consumption, hash change, wrong-account rejection, out-of-turn omission, and
+  noncapital rejection. Command-bus tests prove a lost response retries the
+  identical idempotency key and closed payload.
+- The shared Kotlin/Rust fixture moved from v51 to v52. Rust validates bounded
+  owner-only current-turn disclosure, the closed request shape, and the exact
+  Kotlin/Rust worker operation name.
+- `./gradlew :tests:test :server:test --no-daemon` passes 971 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 108 active library tests and
+  all 8 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings`, regenerated OpenAPI parity, and
+  the capability-to-command-route parity test pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55492. The disposable `--rm` container was stopped and verified
+  absent.
+- The first focused compile found a test-only visibility error in the retry
+  fixture. It was corrected immediately, and the focused and broad suites
+  reran cleanly; no compile, test, format, Clippy, OpenAPI, database, or cleanup
+  error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). Capital-project HTTP, persistence, and worker logic lives in
+  focused modules; the largest Rust source remains 781 lines.

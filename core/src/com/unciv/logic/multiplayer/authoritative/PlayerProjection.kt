@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 51
+        const val CURRENT_PROJECTION_VERSION = 52
     }
 }
 
@@ -308,6 +308,7 @@ data class ProjectedUnit(
     val availableReligiousActions: List<ReligiousUnitAction> = emptyList(),
     val availableGreatPersonActions: List<GreatPersonUnitAction> = emptyList(),
     val canGift: Boolean = false,
+    val capitalProjectName: String? = null,
     val availableTransformActions: List<ProjectedUnitTransformAction> = emptyList(),
     val availableTriggerActions: List<ProjectedUnitTriggerAction> = emptyList(),
     val moveDestinations: List<ProjectedMovementDestination> = emptyList(),
@@ -604,14 +605,16 @@ object PlayerProjectionBuilder {
         roadConnectionPath = if (includePrivateOrders)
             unit.automatedRoadConnectionPath.orEmpty().map { ProjectedRoadPathTile(it.x, it.y) }
         else emptyList(),
-        availableReligiousActions = if (includePrivateOrders)
+        availableReligiousActions = if (includePrivateOrders && canIssueTurnCommands)
             ReligiousUnitActionExecutor.availableActions(unit) else emptyList(),
-        availableGreatPersonActions = if (includePrivateOrders)
+        availableGreatPersonActions = if (includePrivateOrders && canIssueTurnCommands)
             GreatPersonUnitActionExecutor.availableActions(unit) else emptyList(),
-        canGift = includePrivateOrders && UnitGiftCommandExecutor.canGift(unit),
-        availableTransformActions = if (includePrivateOrders)
+        canGift = includePrivateOrders && canIssueTurnCommands && UnitGiftCommandExecutor.canGift(unit),
+        capitalProjectName = if (includePrivateOrders && canIssueTurnCommands)
+            CapitalProjectUnitExecutor.projectName(unit) else null,
+        availableTransformActions = if (includePrivateOrders && canIssueTurnCommands)
             UnitTransformCommandExecutor.projectedActions(unit) else emptyList(),
-        availableTriggerActions = if (includePrivateOrders)
+        availableTriggerActions = if (includePrivateOrders && canIssueTurnCommands)
             UnitTriggerCommandExecutor.projectedActions(unit) else emptyList(),
         moveDestinations = moveDestinations,
         swapDestinations = swapDestinations,

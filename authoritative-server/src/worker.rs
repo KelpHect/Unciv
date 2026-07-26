@@ -12,6 +12,7 @@ use tokio::{
 
 use crate::CommitProposal;
 
+mod capital_project;
 mod city_disposition;
 mod city_economy;
 mod city_governance;
@@ -41,22 +42,22 @@ pub use city_state::{
     CityStateTributeIntent,
 };
 pub use intents::{
-    AcknowledgeResearchCompletionIntent, AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent,
-    BombardWithCityIntent, BuyCityTileBatchIntent, BuyCityTileIntent,
-    CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent,
-    ChooseGreatPersonIntent, DisbandUnitIntent, FoundCityIntent, GiftUnitIntent,
-    LaunchNuclearStrikeIntent, ManageConstructionQueuesIntent, ManageResearchQueueIntent,
-    MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent, MoveUnitTowardIntent,
-    ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent, PurchaseConstructionAtTileIntent,
-    PurchaseConstructionIntent, QueueConstructionAtTileIntent, QueueConstructionIntent,
-    RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent,
-    ResolveEventChoiceIntent, SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent,
-    SetCityGovernanceIntent, SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent,
-    SetManualSpecialistsIntent, SetPerpetualConstructionIntent, SetResearchPathIntent,
-    SetRoadConnectionOrderIntent, SetSpecialistCountIntent, SetSpyCoupIntent,
-    SetTileImprovementOrderIntent, SetUnitAutomationIntent, SetUnitExplorationIntent,
-    SetUnitPostureIntent, SwapUnitsIntent, TransformUnitIntent, TriggerUnitUniqueIntent,
-    UpgradeUnitsIntent, UseGreatPersonUnitIntent,
+    AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,
+    AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent, BuyCityTileBatchIntent,
+    BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
+    ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, DisbandUnitIntent, FoundCityIntent,
+    GiftUnitIntent, LaunchNuclearStrikeIntent, ManageConstructionQueuesIntent,
+    ManageResearchQueueIntent, MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent,
+    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
+    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
+    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
+    ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
+    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
+    SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
+    SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,
+    SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
+    TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
@@ -356,6 +357,7 @@ impl EngineWorkerClient {
             serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
         if !projection.research.is_consistent()
             || !projection.turn_readiness_is_consistent()
+            || !projection.unit_actions_are_consistent()
             || !projection.diplomacy_is_consistent()
             || !projection.movement_is_consistent()
             || !projection.combat_is_consistent()

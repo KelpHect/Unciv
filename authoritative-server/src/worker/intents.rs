@@ -31,6 +31,11 @@ pub struct GiftUnitIntent<'a> {
     pub unit_id: i32,
 }
 
+pub struct AddUnitToCapitalProjectIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+}
+
 pub struct TransformUnitIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub unit_id: i32,

@@ -783,6 +783,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when adding the unit to its capital project was submitted to API v3. */
+    fun addUnitToCapitalProject(unit: MapUnit): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("capital project unit", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.addUnitToCapitalProjectIfOpen(worldScreen.gameInfo.gameId, unit.id)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     /** Returns true when a mod-defined transformation was submitted to the authoritative server. */
     fun transformUnit(unit: MapUnit, actionId: String): Boolean {
         if (!isAuthoritativeGame()) return false

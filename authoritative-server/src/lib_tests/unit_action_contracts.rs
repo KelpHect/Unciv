@@ -25,6 +25,33 @@ fn gift_unit_contract_contains_only_the_unit_identifier() {
 }
 
 #[test]
+fn capital_project_unit_contract_contains_only_the_unit_identifier() {
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "add_unit_to_capital_project", "unit_id": 17
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::AddUnitToCapitalProject { unit_id: 17 }
+    );
+    for untrusted in [
+        "actor_id",
+        "project_name",
+        "part_name",
+        "capital_city_id",
+        "destroy_unit",
+        "outcome",
+    ] {
+        let mut value = serde_json::json!({"type": "add_unit_to_capital_project", "unit_id": 17});
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert(untrusted.to_owned(), serde_json::json!(1));
+        assert!(serde_json::from_value::<GameCommand>(value).is_err());
+    }
+}
+
+#[test]
 fn transform_unit_contract_contains_only_unit_and_projected_action_identity() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "transform_unit", "unit_id": 17, "action_id": "a".repeat(64)

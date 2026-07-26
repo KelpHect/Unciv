@@ -431,6 +431,13 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "unitId")]
         unit_id: i32,
     },
+    AddUnitToCapitalProject {
+        snapshot: &'a str,
+        #[serde(rename = "actorCivilizationId")]
+        actor_civilization_id: &'a str,
+        #[serde(rename = "unitId")]
+        unit_id: i32,
+    },
     TransformUnit {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]

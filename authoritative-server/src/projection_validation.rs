@@ -76,6 +76,33 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn unit_actions_are_consistent(&self) -> bool {
+        let valid_project_name = |name: &Option<String>| {
+            name.as_ref()
+                .is_none_or(|value| !value.is_empty() && value.chars().count() <= 128)
+        };
+        self.own_units
+            .iter()
+            .all(|unit| valid_project_name(&unit.capital_project_name))
+            && self.visible_foreign_units.iter().all(|unit| {
+                !unit.can_gift
+                    && unit.capital_project_name.is_none()
+                    && unit.available_religious_actions.is_empty()
+                    && unit.available_great_person_actions.is_empty()
+                    && unit.available_transform_actions.is_empty()
+                    && unit.available_trigger_actions.is_empty()
+            })
+            && (self.is_current_turn
+                || self.own_units.iter().all(|unit| {
+                    !unit.can_gift
+                        && unit.capital_project_name.is_none()
+                        && unit.available_religious_actions.is_empty()
+                        && unit.available_great_person_actions.is_empty()
+                        && unit.available_transform_actions.is_empty()
+                        && unit.available_trigger_actions.is_empty()
+                }))
+    }
+
     pub fn turn_readiness_is_consistent(&self) -> bool {
         self.pending_turn_actions.len() <= 9
             && self

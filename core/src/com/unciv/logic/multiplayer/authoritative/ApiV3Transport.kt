@@ -66,6 +66,10 @@ interface ApiV3Transport {
     suspend fun useReligiousUnit(gameId: String, request: ApiV3UseReligiousUnitRequest): ApiV3CommandAccepted
     suspend fun useGreatPersonUnit(gameId: String, request: ApiV3UseGreatPersonUnitRequest): ApiV3CommandAccepted
     suspend fun giftUnit(gameId: String, request: ApiV3GiftUnitRequest): ApiV3CommandAccepted
+    suspend fun addUnitToCapitalProject(
+        gameId: String,
+        request: ApiV3AddUnitToCapitalProjectRequest,
+    ): ApiV3CommandAccepted
     suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest): ApiV3CommandAccepted
     suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest): ApiV3CommandAccepted
     suspend fun chooseReligiousBeliefs(gameId: String, request: ApiV3ChooseReligiousBeliefsRequest): ApiV3CommandAccepted

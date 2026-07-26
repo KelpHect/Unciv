@@ -135,6 +135,7 @@ pub struct ClaimedOutboxEvent {
 
 mod accounts;
 mod administration;
+mod capital_project;
 mod city_disposition;
 mod city_economy;
 mod city_governance;

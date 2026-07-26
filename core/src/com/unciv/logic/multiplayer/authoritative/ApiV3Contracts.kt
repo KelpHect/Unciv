@@ -509,6 +509,14 @@ data class ApiV3GiftUnitRequest(
 )
 
 @Serializable
+data class ApiV3AddUnitToCapitalProjectRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("unit_id") val unitId: Int,
+)
+
+@Serializable
 data class ApiV3TransformUnitRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,

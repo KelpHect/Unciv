@@ -434,6 +434,7 @@ pub struct ProjectedUnit {
     pub available_religious_actions: Vec<ReligiousUnitAction>,
     pub available_great_person_actions: Vec<GreatPersonUnitAction>,
     pub can_gift: bool,
+    pub capital_project_name: Option<String>,
     pub available_transform_actions: Vec<ProjectedUnitTransformAction>,
     pub available_trigger_actions: Vec<ProjectedUnitTriggerAction>,
     pub move_destinations: Vec<ProjectedMovementDestination>,
@@ -503,7 +504,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v51.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v52.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -570,6 +571,8 @@ mod tests {
             projection.own_units[0].available_religious_actions,
             [ReligiousUnitAction::SpreadReligion]
         );
+        assert!(projection.own_units[0].capital_project_name.is_none());
+        assert!(projection.unit_actions_are_consistent());
         assert!(
             projection.visible_foreign_units[0]
                 .available_religious_actions
@@ -709,7 +712,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v51.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v52.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -723,7 +726,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v51.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v52.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

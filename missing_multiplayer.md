@@ -53,7 +53,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authoritative end turn. Whole-turn, military,
   civilian, and economy autoplay controls are fail-closed for opened v3 games;
   if retained as a product feature, implement them as explicit server-owned AI
-  operations rather than client automation.
+  operations rather than client automation. Instant water/general improvement
+  creation is still a direct client mutation and must be migrated to a closed
+  worker-owned command before this family can be checked complete.
+- [x] Migrate capital-project unit consumption (`AddInCapital`) to the
+  authoritative worker. Projection v52 advertises only the server-derived
+  project name for an owned current-turn unit at its own capital; the client
+  submits only the stable unit ID. The Kotlin worker re-derives the capital,
+  project unique, exact spaceship-part key, unit consumption, and resulting
+  counter change. Lost-response retry reuses the same idempotency key, while
+  foreign and out-of-turn projections expose no action metadata.
 - [x] Complete all inventoried authoritative city-production context operations for
   opened-v3 projection (move-to-top/end, add-to-top, add-to-all-cities,
   add-or-move-to-top-in-all-cities, and remove-from-all-cities) through a

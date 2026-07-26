@@ -1,15 +1,77 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-26 on the authoritative-v3 feature branch. It records only incomplete work;
-completed command families and historical milestones remain in
-`docs/multiplayer-command-coverage.md` and
+2026-07-26 on the authoritative-v3 feature branch. Completed foundations and
+command families are retained below with checked marks; the detailed evidence
+and historical milestones remain in `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
 
 The target remains: online clients submit typed intent and render permitted
 server projections; the private Kotlin worker runs all game rules, turn
 progression, deterministic randomness, and AI; Rust is the only committer of
 canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
+
+## Implemented and verified
+
+- [x] Establish the private headless Kotlin worker as the sole gameplay-rules,
+  turn-processing, deterministic-randomness, and AI execution boundary. Rust
+  remains the public control plane and sole canonical revision committer.
+- [x] Establish revisioned PostgreSQL persistence with immutable snapshots,
+  command journal, idempotency, compare-and-swap commits, membership, audit,
+  and durable notification outbox on the exact pinned PostgreSQL 19 Beta 2
+  image.
+- [x] Implement authenticated account/session lifecycle, durable throttling,
+  security auditing, authenticated game discovery, player-scoped projection
+  reads, and revision-aware command submission.
+- [x] Implement server-created revision-zero games, owner membership, invited
+  joins with server-owned civilization assignment, and retry-safe backend
+  administration for kick, ownership transfer, close, and archive. Production
+  UI migration for these backend capabilities remains listed below.
+- [x] Implement player-scoped full-projection reconciliation plus durable
+  revision WebSocket notifications, with HTTP projection refresh as the
+  authoritative recovery path.
+- [x] Implement inventoried unit movement, exact and durable escort movement,
+  movement cancellation, friendly swaps, and projection-owned movement
+  legality.
+- [x] Implement inventoried unit combat: melee/ranged attacks, city bombardment,
+  nuclear strikes, air sweeps, canonical confirmation previews, and
+  non-oracular hidden-target disclosure.
+- [x] Implement inventoried direct unit special actions: disband, found city,
+  paradrop, religious actions, great-person actions, gifting, capital-project
+  consumption, instant improvements, transformations, and generic triggered
+  uniques.
+- [x] Implement inventoried unit promotion, upgrade, saved city-promotion
+  defaults, renaming, exploration, automation, postures, siege setup,
+  improvement/repair orders, road orders, and pillaging. Optional whole-turn
+  autoplay remains unresolved below.
+- [x] Implement inventoried city production queues and context operations,
+  perpetual construction, purchases, tile-targeted construction, citizen and
+  specialist management, tile assignment, single- and multi-tile acquisition,
+  city economy, governance, and captured-city disposition.
+- [x] Implement public, knowledge-gated world-wonder completion/effect events.
+- [x] Implement inventoried research selection, prerequisite-safe append,
+  queue reorder/removal, free technologies, progress/history/turn estimates,
+  and opaque completion acknowledgements.
+- [x] Implement ordinary policies, branches, ideology/tenets, pantheons,
+  religion founding/enhancement/reform, religious-unit actions, and bounded
+  belief choices through shared Kotlin rules.
+- [x] Implement inventoried bilateral trade, major-civilization diplomacy,
+  city-state interactions, protection prompts, diplomatic marriage, war/peace,
+  and diplomatic-victory voting.
+- [x] Implement inventoried espionage controls, great-person selection,
+  mod-defined event choices, self-resignation, and owner force-resignation.
+- [x] Implement owner-invited spectators with a distinct public-only projection
+  and no access to player commands or canonical state.
+- [x] Implement authoritative end-turn readiness and advancement, including
+  worker-owned pending orders, all AI players, canonical blocker validation,
+  and server-side player rotation.
+- [x] Implement bounded snapshot compression, corruption quarantine, read-only
+  reconciliation tooling, multi-replica commit-race proof, and database
+  connection-loss retry proof. Automated reconstruction and broader fault/
+  failover coverage remain unresolved below.
+- [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
+  modules below the 800-line guardrail, with formatting and warnings-as-errors
+  Clippy gates.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -279,15 +341,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (953 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-daemon` passes (976 JVM/server tests,
   13 intentional skips).
-- Rust passes 96 active library tests and 7 HTTP/OpenAPI tests; 17 serialized
+- Rust passes 111 active library tests and 8 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 38-line facade, and the largest Rust source
-  is 781 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 6 lines, `lib.rs` is a 47-line facade, and the largest Rust source
+  is 787 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

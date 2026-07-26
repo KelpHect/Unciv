@@ -6648,6 +6648,48 @@ Focused verification on 2026-07-26:
 - This milestone changes only descriptive test modules and documentation; no
   production façade or gameplay module grew.
 
+## Packaged-worker city and projection parity batch
+
+Implemented on 2026-07-26:
+
+- Extracted deterministic seeded-game request construction and snapshot loading
+  into the focused `PackagedWorkerScenarioFixture` test module. Stateful
+  packaged-worker tests now share setup without growing a generic helper or
+  duplicating the complete setup contract.
+- Added a two-fresh-JVM city sequence covering typed city founding, private
+  player projection, three ordinary construction selections, one adjacent
+  queue reorder, exact queue removal, and one projection-advertised
+  queue-context action. The final city queue is checked against canonical
+  snapshot state.
+- The same canonical state now exercises the distinct public spectator
+  projection boundary. Complete serialized worker responses are compared after
+  every step, including both projection types and every intermediate canonical
+  snapshot/hash.
+- Fresh-process evidence now covers 18 of 86 sealed worker operations. The
+  remaining 68 retain their explicit `InProcessOnly` classification and remain
+  unchecked in `missing_multiplayer.md`.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitOrderParityTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityQueueParityTests
+  --no-parallel --console=plain` passes all four focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,120 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- The first queue fixture assumed append order instead of reading the canonical
+  worker result and was rejected by the exact-entry guard. It now derives
+  reorder/removal coordinates and names from the returned snapshot. A later
+  assertion incorrectly required a removed construction to remain absent even
+  when the projected context action legally re-added it; the test now asserts
+  the intended final top entry and queue size. No failure was deferred.
+- Test modules remain shallow: the shared fixture is under 80 lines, the city
+  scenario under 170, and the refactored unit scenario under 110. No production
+  façade or gameplay module changed.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

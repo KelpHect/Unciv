@@ -160,7 +160,7 @@ class AuthoritativeCityControlControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v56.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
         .first { it.isFile }
 
     private suspend inline fun <reified T : Throwable> assertThrows(

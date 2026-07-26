@@ -14,11 +14,15 @@ mod projection_escort_tests;
 #[cfg(test)]
 mod projection_policy_tests;
 mod projection_spectator;
+#[cfg(test)]
+mod projection_spectator_tests;
 mod projection_tiles;
 #[cfg(test)]
 mod projection_turn_readiness_tests;
 #[cfg(test)]
 mod projection_unit_action_tests;
+#[cfg(test)]
+mod projection_unit_control_tests;
 mod projection_validation;
 mod projection_wonder_events;
 #[cfg(test)]
@@ -41,7 +45,7 @@ pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 56;
+pub const PROJECTION_VERSION: u16 = 57;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

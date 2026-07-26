@@ -116,6 +116,16 @@ class PlayerProjectionContractTests {
         assertEquals(30, projection.ownUnits.single().nextPromotionXp)
         assertEquals(listOf("Drill II", "Shock I"), projection.ownUnits.single().availablePromotions)
         assertEquals("First Mission", projection.ownUnits.single().instanceName)
+        assertEquals(listOf(UnitPosture.Sleep, UnitPosture.Guard),
+            projection.ownUnits.single().availablePostures)
+        assertTrue(projection.ownUnits.single().canDisband)
+        assertTrue(projection.ownUnits.single().canPillage)
+        assertTrue(!projection.ownUnits.single().canFoundCity)
+        assertTrue(projection.ownUnits.single().canRename)
+        assertEquals(listOf(ProjectedMovementDestination(2, -1)),
+            projection.ownUnits.single().paradropDestinations)
+        assertEquals(listOf(ProjectedUnitUpgradeTarget("Rifleman", 120)),
+            projection.ownUnits.single().availableUpgradeTargets)
         assertEquals(listOf(ReligiousUnitAction.SpreadReligion),
             projection.ownUnits.single().availableReligiousActions)
         assertEquals(listOf("Remove Forest", "Farm"),
@@ -131,6 +141,16 @@ class PlayerProjectionContractTests {
         assertEquals(null, projection.visibleForeignUnits.single().nextPromotionXp)
         assertEquals(emptyList<String>(), projection.visibleForeignUnits.single().availablePromotions)
         assertEquals(null, projection.visibleForeignUnits.single().instanceName)
+        assertEquals(emptyList<UnitPosture>(),
+            projection.visibleForeignUnits.single().availablePostures)
+        assertTrue(!projection.visibleForeignUnits.single().canDisband)
+        assertTrue(!projection.visibleForeignUnits.single().canPillage)
+        assertTrue(!projection.visibleForeignUnits.single().canFoundCity)
+        assertTrue(!projection.visibleForeignUnits.single().canRename)
+        assertEquals(emptyList<ProjectedMovementDestination>(),
+            projection.visibleForeignUnits.single().paradropDestinations)
+        assertEquals(emptyList<ProjectedUnitUpgradeTarget>(),
+            projection.visibleForeignUnits.single().availableUpgradeTargets)
         assertEquals(emptyList<ProjectedImprovementOrderEntry>(),
             projection.visibleForeignUnits.single().improvementOrder)
         assertEquals(null, projection.visibleForeignUnits.single().roadConnectionDestinationX)
@@ -184,6 +204,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v56.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
         .first { it.isFile }
 }

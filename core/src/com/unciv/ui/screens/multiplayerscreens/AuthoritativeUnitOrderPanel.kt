@@ -7,6 +7,7 @@ import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
+import com.unciv.ui.components.widgets.UncivTextField
 
 /** Renders exact projected order-state transitions for the selected unit. */
 internal class AuthoritativeUnitOrderPanel(
@@ -43,6 +44,44 @@ internal class AuthoritativeUnitOrderPanel(
                 controller.swap(unit.id, destination.x, destination.y)
             }).left().row()
         }
+        for (posture in unit.availablePostures) {
+            add(actionButton("Posture: ${posture.name}") {
+                controller.setPosture(unit.id, posture)
+            }).left().row()
+        }
+        if (unit.canPillage)
+            add(actionButton("Pillage current tile") {
+                controller.pillage(unit.id)
+            }).left().row()
+        if (unit.canFoundCity)
+            add(actionButton("Found city") {
+                controller.foundCity(unit.id)
+            }).left().row()
+        for (destination in unit.paradropDestinations) {
+            add(actionButton("Paradrop to ${destination.x},${destination.y}") {
+                controller.paradrop(unit.id, destination.x, destination.y)
+            }).left().row()
+        }
+        for (upgrade in unit.availableUpgradeTargets) {
+            add(actionButton(
+                "Upgrade to ${upgrade.targetUnitName} (${upgrade.goldCost} gold)",
+            ) {
+                controller.upgrade(unit.id, upgrade.targetUnitName)
+            }).left().row()
+        }
+        if (unit.canRename) add(renameControl(unit.id, unit.instanceName)).left().row()
+        if (unit.canDisband)
+            add(actionButton("Disband unit") {
+                controller.disband(unit.id)
+            }).left().row()
+    }
+
+    private fun renameControl(unitId: Int, currentName: String?): Table = Table().apply {
+        val name = UncivTextField("Unit name", currentName.orEmpty())
+        add(name).width(220f)
+        add(actionButton("Rename") {
+            controller.rename(unitId, name.text.trim().ifEmpty { null })
+        })
     }
 
     private fun actionButton(

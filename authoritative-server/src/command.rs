@@ -43,7 +43,9 @@ pub enum ConstructionQueueAction {
     RemoveFromAllCities,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(
+    Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, utoipa::ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum UnitPosture {
     Sleep,

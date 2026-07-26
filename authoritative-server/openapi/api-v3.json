@@ -13394,6 +13394,13 @@
           "exploring",
           "promotions",
           "availablePromotions",
+          "availablePostures",
+          "canDisband",
+          "canPillage",
+          "canFoundCity",
+          "canRename",
+          "paradropDestinations",
+          "availableUpgradeTargets",
           "improvementOrder",
           "roadConnectionPath",
           "availableReligiousActions",
@@ -13436,6 +13443,12 @@
               "$ref": "#/components/schemas/ProjectedInstantImprovementAction"
             }
           },
+          "availablePostures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitPosture"
+            }
+          },
           "availablePromotions": {
             "type": "array",
             "items": {
@@ -13460,7 +13473,25 @@
               "$ref": "#/components/schemas/ProjectedUnitTriggerAction"
             }
           },
+          "availableUpgradeTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedUnitUpgradeTarget"
+            }
+          },
+          "canDisband": {
+            "type": "boolean"
+          },
+          "canFoundCity": {
+            "type": "boolean"
+          },
           "canGift": {
+            "type": "boolean"
+          },
+          "canPillage": {
+            "type": "boolean"
+          },
+          "canRename": {
             "type": "boolean"
           },
           "capitalProjectName": {
@@ -13540,6 +13571,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedNuclearTarget"
+            }
+          },
+          "paradropDestinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedMovementDestination"
             }
           },
           "posture": {
@@ -13652,6 +13689,23 @@
             "type": "string"
           },
           "title": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedUnitUpgradeTarget": {
+        "type": "object",
+        "required": [
+          "targetUnitName",
+          "goldCost"
+        ],
+        "properties": {
+          "goldCost": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "targetUnitName": {
             "type": "string"
           }
         },

@@ -1,5 +1,61 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only direct unit controls
+
+Implemented on 2026-07-26:
+
+- Projection v57 adds exact worker-derived posture choices, direct
+  disband/pillage/found capability, sorted visible paradrop destinations,
+  affordable upgrade targets with canonical gold cost, and turn-scoped rename
+  capability to each owned unit. Foreign and out-of-turn units receive empty
+  or false controls rather than client-hidden rule state.
+- `UnitControlProjection` is the focused Kotlin legality source. The headless
+  worker now consumes its posture allowlist before applying the shared posture
+  mutation, so projection and execution cannot drift into separate rule
+  implementations. Every command is still independently revalidated against
+  canonical state inside the private worker.
+- `AuthoritativeUnitOrderController` and the production projection-only panel
+  now route posture, disband, pillage, found city, paradrop, single-unit
+  upgrade, and bounded rename intents through the authenticated retry-stable
+  session. Invented capabilities, coordinates, targets, names, stale
+  projections, and out-of-turn actions fail before transport.
+- Rust accepts projection v57, validates bounded/sorted/unique direct controls,
+  requires paradrop coordinates to be currently visible, rejects malformed
+  costs and all foreign/out-of-turn leaks, and publishes the regenerated
+  OpenAPI contract. It still contains no gameplay rule implementation.
+- `ProjectedUnit.kt` now owns unit/combat DTOs instead of allowing
+  `PlayerProjection.kt` to cross the file-size guardrail. The Rust spectator
+  contract test was likewise split from `projection.rs` before that
+  implementation file crossed 800 lines.
+
+Verification on 2026-07-26:
+
+- The first focused Kotlin run exposed seven pre-v57 tests that constructed
+  permissive units without the new exact allowlists. Those fixtures were
+  corrected; the focused command-bus, session, controller, contract, and
+  desktop compilation gate then passed.
+- The initial OpenAPI command omitted Cargo's binary selector, and the first
+  Rust compile exposed missing ordering derives used by semantic validation.
+  Both invocation and derives were corrected. The explicit server binary now
+  regenerates `api-v3.json`, and generated-contract parity passes.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1051 JVM/server cases: 1038 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `cargo test --all-targets --all-features` passes 120 active library tests and
+  10 HTTP/OpenAPI tests; 21 PostgreSQL tests are intentionally ignored without
+  `UNCIV_V3_DATABASE_URL`. Warnings-as-errors Clippy, `cargo fmt --check`, and
+  `git diff --check` pass.
+- `main.rs` remains 6 lines and `lib.rs` a 53-line facade. The largest Rust
+  source remains `worker/protocol.rs` at 796 lines; `projection.rs`,
+  `PlayerProjection.kt`, `ProjectedUnit.kt`, the focused Kotlin projection,
+  controller, and panel are 778, 672, 153, 59, 150, and 94 lines.
+- No compile, test, formatting, OpenAPI, contract, or cleanup error remains
+  deferred.
+
+The next production projection-only unit gap is exact multi-turn route and
+improvement/road choice input. Whole-turn autoplay remains intentionally
+fail-closed unless it is implemented as explicit server-owned AI.
+
 ## Projection-only bilateral trade
 
 Implemented on 2026-07-26:

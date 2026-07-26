@@ -693,7 +693,9 @@ class AuthoritativeGameCommandBus(
         val current = requireSynchronized()
         val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
             ?: error("Unit is absent from the current player projection")
-        require(unit.posture != posture) { "Unit already has the requested posture" }
+        require(posture in unit.availablePostures) {
+            "Unit posture is absent from the current player projection"
+        }
         submitLocked(PendingAuthoritativeCommand.SetUnitPosture(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, posture,
@@ -702,8 +704,8 @@ class AuthoritativeGameCommandBus(
 
     suspend fun disbandUnit(unitId: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
+        require(current.projection.ownUnits.singleOrNull { it.id == unitId }?.canDisband == true) {
+            "Unit disband is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.DisbandUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
@@ -712,8 +714,8 @@ class AuthoritativeGameCommandBus(
 
     suspend fun pillageTile(unitId: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
+        require(current.projection.ownUnits.singleOrNull { it.id == unitId }?.canPillage == true) {
+            "Unit pillage is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.PillageTile(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
@@ -722,8 +724,8 @@ class AuthoritativeGameCommandBus(
 
     suspend fun foundCity(unitId: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
+        require(current.projection.ownUnits.singleOrNull { it.id == unitId }?.canFoundCity == true) {
+            "Found city is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.FoundCity(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash, unitId,
@@ -732,12 +734,11 @@ class AuthoritativeGameCommandBus(
 
     suspend fun paradropUnit(unitId: Int, destinationX: Int, destinationY: Int) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
-        }
-        require(current.projection.exploredTiles.any {
-            it.x == destinationX && it.y == destinationY && it.visible
-        }) { "Paradrop destination is absent from the current visible projection" }
+        val unit = current.projection.ownUnits.singleOrNull { it.id == unitId }
+            ?: error("Unit is absent from the current player projection")
+        require(unit.paradropDestinations.any {
+            it.x == destinationX && it.y == destinationY
+        }) { "Paradrop destination is absent from the unit's projected destinations" }
         submitLocked(PendingAuthoritativeCommand.ParadropUnit(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
             unitId, destinationX, destinationY,
@@ -812,9 +813,12 @@ class AuthoritativeGameCommandBus(
         require(targetUnitName.isNotBlank() && targetUnitName.length <= 200) {
             "Upgrade target name is invalid"
         }
-        val projectedIds = current.projection.ownUnits.mapTo(HashSet()) { it.id }
-        require(unitIds.all { it in projectedIds }) {
-            "Upgrade batch contains a unit absent from the current player projection"
+        require(unitIds.all { id ->
+            current.projection.ownUnits.singleOrNull { it.id == id }
+                ?.availableUpgradeTargets
+                ?.any { it.targetUnitName == targetUnitName } == true
+        }) {
+            "Upgrade target is absent from one or more projected units"
         }
         submitLocked(PendingAuthoritativeCommand.UpgradeUnits(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -864,8 +868,8 @@ class AuthoritativeGameCommandBus(
 
     suspend fun renameUnit(unitId: Int, instanceName: String?) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownUnits.any { it.id == unitId }) {
-            "Unit is absent from the current player projection"
+        require(current.projection.ownUnits.singleOrNull { it.id == unitId }?.canRename == true) {
+            "Unit rename is absent from the current player projection"
         }
         require(instanceName == null ||
             (instanceName.isNotBlank() && instanceName.length <= 100 && instanceName.none { it.isISOControl() })) {

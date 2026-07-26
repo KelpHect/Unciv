@@ -412,6 +412,13 @@ pub struct ProjectedUnit {
     pub next_promotion_xp: Option<i32>,
     pub available_promotions: Vec<String>,
     pub instance_name: Option<String>,
+    pub available_postures: Vec<UnitPosture>,
+    pub can_disband: bool,
+    pub can_pillage: bool,
+    pub can_found_city: bool,
+    pub can_rename: bool,
+    pub paradrop_destinations: Vec<ProjectedMovementDestination>,
+    pub available_upgrade_targets: Vec<ProjectedUnitUpgradeTarget>,
     pub improvement_order: Vec<ProjectedImprovementOrderEntry>,
     pub road_connection_destination_x: Option<i32>,
     pub road_connection_destination_y: Option<i32>,
@@ -435,6 +442,13 @@ pub struct ProjectedUnit {
 pub struct ProjectedMovementDestination {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedUnitUpgradeTarget {
+    pub target_unit_name: String,
+    pub gold_cost: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
@@ -485,7 +499,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v56.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v57.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -700,7 +714,7 @@ mod tests {
 
     #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v56.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v57.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -714,7 +728,7 @@ mod tests {
 
     #[test]
     fn tile_metadata_rejects_hidden_mutations_and_incoherent_resources() {
-        let fixture = include_str!("../../protocol/player-projection-v56.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v57.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden_improvement = projection.clone();
@@ -734,7 +748,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v56.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v57.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();
@@ -760,28 +774,5 @@ mod tests {
         let mut out_of_turn = projection;
         out_of_turn.is_current_turn = false;
         assert!(!out_of_turn.movement_is_consistent());
-    }
-
-    #[test]
-    fn spectator_projection_is_a_closed_public_summary() {
-        let projection = SpectatorProjection {
-            protocol_version: 3,
-            turn: 7,
-            current_player_civilization_id: "Rome".to_owned(),
-            major_civilizations: vec![SpectatorCivilization {
-                civilization_id: "Rome".to_owned(),
-                display_name: "Rome".to_owned(),
-                human_controlled: true,
-                defeated: false,
-            }],
-        };
-        let value = serde_json::to_value(&projection).unwrap();
-        let encoded = value.to_string();
-        for forbidden in ["gold", "unit", "city", "tile", "research", "notification"] {
-            assert!(!encoded.to_lowercase().contains(forbidden));
-        }
-        let mut malicious = value;
-        malicious["canonicalGameInfo"] = serde_json::json!({"secret": true});
-        assert!(serde_json::from_value::<SpectatorProjection>(malicious).is_err());
     }
 }

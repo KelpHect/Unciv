@@ -32,6 +32,34 @@ class AuthoritativeUnitOrderControllerTests {
                 calls += "swap:$unit:$x:$y"
                 AuthoritativeCommandOutcome.RetryRequired
             },
+            setPosture = { unit, posture ->
+                calls += "posture:$unit:$posture"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            disband = { unit ->
+                calls += "disband:$unit"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            pillage = { unit ->
+                calls += "pillage:$unit"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            foundCity = { unit ->
+                calls += "found:$unit"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            paradrop = { unit, x, y ->
+                calls += "paradrop:$unit:$x:$y"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            upgrade = { units, target ->
+                calls += "upgrade:${units.joinToString()}:$target"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            rename = { unit, name ->
+                calls += "rename:$unit:$name"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
         )
         val orders = controller(initial, actions).unitOrders
 
@@ -40,6 +68,12 @@ class AuthoritativeUnitOrderControllerTests {
         orders.setAutomation(17, false)
         orders.promote(17, "Drill II")
         orders.swap(17, 2, -1)
+        orders.setPosture(17, UnitPosture.Sleep)
+        orders.pillage(17)
+        orders.paradrop(17, 2, -1)
+        orders.upgrade(17, "Rifleman")
+        orders.rename(17, "Second Mission")
+        orders.disband(17)
 
         assertEquals(listOf(
             "cancel:17",
@@ -47,6 +81,12 @@ class AuthoritativeUnitOrderControllerTests {
             "automate:17:false",
             "promote:17:Drill II",
             "swap:17:2:-1",
+            "posture:17:Sleep",
+            "pillage:17",
+            "paradrop:17:2:-1",
+            "upgrade:17:Rifleman",
+            "rename:17:Second Mission",
+            "disband:17",
         ), calls)
     }
 
@@ -66,6 +106,13 @@ class AuthoritativeUnitOrderControllerTests {
         assertThrows<IllegalArgumentException> { orders.setAutomation(17, true) }
         assertThrows<IllegalArgumentException> { orders.promote(17, "Invented") }
         assertThrows<IllegalArgumentException> { orders.swap(17, 99, 99) }
+        assertThrows<IllegalArgumentException> {
+            orders.setPosture(17, UnitPosture.Setup)
+        }
+        assertThrows<IllegalArgumentException> { orders.paradrop(17, 99, 99) }
+        assertThrows<IllegalArgumentException> { orders.upgrade(17, "Invented") }
+        assertThrows<IllegalArgumentException> { orders.rename(17, "\u0000") }
+        assertThrows<IllegalArgumentException> { orders.foundCity(17) }
         assertThrows<IllegalStateException> { orders.cancelMovement(999) }
 
         val outOfTurn = initial.copy(
@@ -131,7 +178,7 @@ class AuthoritativeUnitOrderControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v56.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
         .first { it.isFile }
 
     private suspend inline fun <reified T : Throwable> assertThrows(

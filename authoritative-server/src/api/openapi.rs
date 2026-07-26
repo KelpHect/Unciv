@@ -248,6 +248,7 @@ use super::*;
         unciv_authoritative_server::projection::ProjectedUnitPromotionPreference,
         unciv_authoritative_server::projection::CitizenFocus,
         unciv_authoritative_server::projection::ProjectedUnit,
+        unciv_authoritative_server::projection::ProjectedUnitUpgradeTarget,
         unciv_authoritative_server::projection::ProjectedTileVisibility
     )),
     modifiers(&SecurityAddon),

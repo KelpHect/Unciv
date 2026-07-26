@@ -136,12 +136,47 @@ impl PlayerProjection {
                                 .all(|prior| prior.action_id != action.action_id)
                     })
             };
+        let valid_direct_controls = |unit: &crate::projection::ProjectedUnit| {
+            unit.available_postures.len() <= 6
+                && unit
+                    .available_postures
+                    .windows(2)
+                    .all(|pair| pair[0] < pair[1])
+                && unit.paradrop_destinations.len() <= MAX_PROJECTED_CHOICES
+                && unit
+                    .paradrop_destinations
+                    .windows(2)
+                    .all(|pair| (pair[0].x, pair[0].y) < (pair[1].x, pair[1].y))
+                && unit.paradrop_destinations.iter().all(|destination| {
+                    self.explored_tiles.iter().any(|tile| {
+                        tile.visible && tile.x == destination.x && tile.y == destination.y
+                    })
+                })
+                && unit.available_upgrade_targets.len() <= 32
+                && unit
+                    .available_upgrade_targets
+                    .windows(2)
+                    .all(|pair| pair[0].target_unit_name < pair[1].target_unit_name)
+                && unit.available_upgrade_targets.iter().all(|target| {
+                    !target.target_unit_name.is_empty()
+                        && target.target_unit_name.chars().count() <= 200
+                        && target.gold_cost >= 0
+                })
+        };
         self.own_units.iter().all(|unit| {
             valid_project_name(&unit.capital_project_name)
                 && valid_instant_actions(&unit.available_instant_improvement_actions)
+                && valid_direct_controls(unit)
         }) && self.visible_foreign_units.iter().all(|unit| {
             !unit.can_gift
+                && !unit.can_disband
+                && !unit.can_pillage
+                && !unit.can_found_city
+                && !unit.can_rename
                 && unit.capital_project_name.is_none()
+                && unit.available_postures.is_empty()
+                && unit.paradrop_destinations.is_empty()
+                && unit.available_upgrade_targets.is_empty()
                 && unit.available_instant_improvement_actions.is_empty()
                 && unit.available_religious_actions.is_empty()
                 && unit.available_great_person_actions.is_empty()
@@ -150,7 +185,14 @@ impl PlayerProjection {
         }) && (self.is_current_turn
             || self.own_units.iter().all(|unit| {
                 !unit.can_gift
+                    && !unit.can_disband
+                    && !unit.can_pillage
+                    && !unit.can_found_city
+                    && !unit.can_rename
                     && unit.capital_project_name.is_none()
+                    && unit.available_postures.is_empty()
+                    && unit.paradrop_destinations.is_empty()
+                    && unit.available_upgrade_targets.is_empty()
                     && unit.available_instant_improvement_actions.is_empty()
                     && unit.available_religious_actions.is_empty()
                     && unit.available_great_person_actions.is_empty()

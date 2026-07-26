@@ -149,7 +149,10 @@ class AuthoritativeGameCommandBusTests {
     fun automationRequestIsBoundToProjectedOwnUnitState() = runBlocking {
         val initial = projection(
             7, "hash-7",
-            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)),
+            ownUnits = listOf(ProjectedUnit(
+                42, "Rome", "Warrior", 0, 0, 100, 2f,
+                availablePostures = listOf(UnitPosture.Setup),
+            )),
         )
         val transport = FakeTransport(initial).apply {
             onSetUnitAutomation = { request ->
@@ -177,7 +180,10 @@ class AuthoritativeGameCommandBusTests {
     fun postureRequestUsesAClosedIntentAndProjectedOwnUnitState() = runBlocking {
         val initial = projection(
             7, "hash-7",
-            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)),
+            ownUnits = listOf(ProjectedUnit(
+                42, "Rome", "Warrior", 0, 0, 100, 2f,
+                availablePostures = listOf(UnitPosture.Setup),
+            )),
         )
         val transport = FakeTransport(initial).apply {
             onSetUnitPosture = { request ->
@@ -211,7 +217,10 @@ class AuthoritativeGameCommandBusTests {
     fun disbandRequestContainsOnlyTheProjectedStableUnitId() = runBlocking {
         val initial = projection(
             7, "hash-7",
-            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)),
+            ownUnits = listOf(ProjectedUnit(
+                42, "Rome", "Warrior", 0, 0, 100, 2f,
+                canDisband = true,
+            )),
         )
         val transport = FakeTransport(initial).apply {
             onDisbandUnit = { request ->
@@ -328,7 +337,10 @@ class AuthoritativeGameCommandBusTests {
         )
         val initial = projection(
             7, "hash-7",
-            ownUnits = listOf(ProjectedUnit(42, "Rome", "Warrior", 0, 0, 50, 2f)),
+            ownUnits = listOf(ProjectedUnit(
+                42, "Rome", "Warrior", 0, 0, 50, 2f,
+                canPillage = true,
+            )),
             exploredTiles = listOf(visibleTile),
         )
         val transport = FakeTransport(initial).apply {
@@ -361,7 +373,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun foundCityRequestContainsOnlyUnitIntentAndReconcilesCityIdentity() = runBlocking {
-        val settler = ProjectedUnit(42, "Rome", "Settler", 0, 0, 100, 2f)
+        val settler = ProjectedUnit(
+            42, "Rome", "Settler", 0, 0, 100, 2f,
+            canFoundCity = true,
+        )
         val initial = projection(7, "hash-7", ownUnits = listOf(settler))
         val foundedCity = ProjectedCity(
             "city-1", "Rome", 0, 0, 1, 200, emptyList(), emptyList(),
@@ -397,7 +412,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun paradropRequestContainsOnlyUnitAndVisibleDestinationIntent() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Paratrooper", 0, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Paratrooper", 0, 0, 100, 2f,
+            paradropDestinations = listOf(ProjectedMovementDestination(2, -1)),
+        )
         val initial = projection(7, "hash-7", ownUnits = listOf(unit)).copy(
             projection = projection(7, "hash-7", ownUnits = listOf(unit)).projection.copy(
                 exploredTiles = listOf(ProjectedTileVisibility(2, -1, true)),
@@ -605,8 +623,18 @@ class AuthoritativeGameCommandBusTests {
     @Test
     fun upgradeBatchContainsOnlyProjectedIdsAndTargetIntent() = runBlocking {
         val units = listOf(
-            ProjectedUnit(42, "Rome", "Archer", 0, 0, 100, 2f),
-            ProjectedUnit(43, "Rome", "Archer", 1, 0, 100, 2f),
+            ProjectedUnit(
+                42, "Rome", "Archer", 0, 0, 100, 2f,
+                availableUpgradeTargets = listOf(
+                    ProjectedUnitUpgradeTarget("Crossbowman", 80),
+                ),
+            ),
+            ProjectedUnit(
+                43, "Rome", "Archer", 1, 0, 100, 2f,
+                availableUpgradeTargets = listOf(
+                    ProjectedUnitUpgradeTarget("Crossbowman", 80),
+                ),
+            ),
         )
         val transport = FakeTransport(projection(7, "hash-7", ownUnits = units)).apply {
             onUpgradeUnits = { request ->
@@ -672,7 +700,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun renameContainsOnlyProjectedUnitAndOptionalName() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 0, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 0, 0, 100, 2f,
+            canRename = true,
+        )
         val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
             onRenameUnit = { request ->
                 current = current.copy(committedRevision = 8, canonicalStateHash = "hash-8")

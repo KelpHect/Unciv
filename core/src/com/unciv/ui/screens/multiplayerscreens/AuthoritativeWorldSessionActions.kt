@@ -148,6 +148,21 @@ internal fun authoritativeUnitOrderActions(
     swap = { unitId, x, y ->
         session.swapUnitsIfOpen(gameId, unitId, x, y)
     },
+    setPosture = { unitId, posture ->
+        session.setUnitPostureIfOpen(gameId, unitId, posture)
+    },
+    disband = { unitId -> session.disbandUnitIfOpen(gameId, unitId) },
+    pillage = { unitId -> session.pillageTileIfOpen(gameId, unitId) },
+    foundCity = { unitId -> session.foundCityIfOpen(gameId, unitId) },
+    paradrop = { unitId, x, y ->
+        session.paradropUnitIfOpen(gameId, unitId, x, y)
+    },
+    upgrade = { unitIds, target ->
+        session.upgradeUnitsIfOpen(gameId, unitIds, target)
+    },
+    rename = { unitId, name ->
+        session.renameUnitIfOpen(gameId, unitId, name)
+    },
 )
 
 internal fun authoritativePromptActions(

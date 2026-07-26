@@ -466,6 +466,14 @@ class AuthoritativeWorldControllerTests {
             ),
             sourceFile(
                 "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "UnitControlProjection.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "ProjectedUnit.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
                     "AuthoritativePromptController.kt",
             ),
             sourceFile(
@@ -660,7 +668,7 @@ class AuthoritativeWorldControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v56.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v57.fixture.json") }
         .first { it.isFile }
 
     private fun sourceFile(path: String): File = generateSequence(

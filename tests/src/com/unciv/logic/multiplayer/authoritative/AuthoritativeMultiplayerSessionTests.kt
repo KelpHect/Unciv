@@ -527,7 +527,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitPostureRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 2f,
+            availablePostures = listOf(UnitPosture.Fortify),
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
@@ -546,7 +549,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitDisbandRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 2f,
+            canDisband = true,
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
@@ -565,7 +571,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun tilePillageRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 2f,
+            canPillage = true,
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))
@@ -584,7 +593,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun cityFoundingRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val settler = ProjectedUnit(42, "Rome", "Settler", 1, 0, 100, 2f)
+        val settler = ProjectedUnit(
+            42, "Rome", "Settler", 1, 0, 100, 2f,
+            canFoundCity = true,
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(settler)))
@@ -701,8 +713,18 @@ class AuthoritativeMultiplayerSessionTests {
     @Test
     fun unitUpgradeBatchRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
         val units = listOf(
-            ProjectedUnit(42, "Rome", "Archer", 1, 0, 100, 2f),
-            ProjectedUnit(43, "Rome", "Archer", 2, 0, 100, 2f),
+            ProjectedUnit(
+                42, "Rome", "Archer", 1, 0, 100, 2f,
+                availableUpgradeTargets = listOf(
+                    ProjectedUnitUpgradeTarget("Crossbowman", 80),
+                ),
+            ),
+            ProjectedUnit(
+                43, "Rome", "Archer", 2, 0, 100, 2f,
+                availableUpgradeTargets = listOf(
+                    ProjectedUnitUpgradeTarget("Crossbowman", 80),
+                ),
+            ),
         )
         val transport = FakeTransport().apply {
             restored = true
@@ -764,7 +786,10 @@ class AuthoritativeMultiplayerSessionTests {
 
     @Test
     fun unitRenameRoutesOnlyForAnExplicitlyOpenedGame() = runBlocking {
-        val unit = ProjectedUnit(42, "Rome", "Warrior", 1, 0, 100, 2f)
+        val unit = ProjectedUnit(
+            42, "Rome", "Warrior", 1, 0, 100, 2f,
+            canRename = true,
+        )
         val transport = FakeTransport().apply {
             restored = true
             current = current.copy(projection = current.projection.copy(ownUnits = listOf(unit)))

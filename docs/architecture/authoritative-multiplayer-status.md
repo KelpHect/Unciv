@@ -1,5 +1,42 @@
 # Authoritative multiplayer v3 status
 
+## Lost HTTP response recovery
+
+Implemented on 2026-07-26:
+
+- Added a process-level Cargo integration fixture that launches the actual
+  `unciv-authoritative-server` binary with a real PostgreSQL repository and an
+  authenticated private worker peer.
+- The first raw HTTP client submits `EndTurn`, waits until the committed command
+  is independently visible in PostgreSQL, and then discards its TCP connection
+  without reading any response bytes. A fresh connection retries the same
+  command ID and expected revision.
+- The retry returns the original accepted revision and hash while the worker
+  peer proves exactly one gameplay execution. PostgreSQL contains exactly one
+  revision, immutable snapshot, command journal entry, and outbox event, and
+  post-fault reconciliation reports zero findings.
+- The harness uses only public API/process behavior and production framing; it
+  adds no production fault hooks, debug endpoints, or router seams.
+
+Verification on 2026-07-26:
+
+- The focused
+  `lost_http_response_retries_without_reexecuting_the_worker` process test
+  passes in 1.70 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- All 24 in-crate PostgreSQL integration/fault tests pass in 8.10 seconds and
+  the separate lost-response process test passes in 1.58 seconds in the same
+  serialized run. The disposable PostgreSQL container was removed and cleanup
+  was verified.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; the 24 database tests and one process test are
+  intentionally ignored without an explicit database. `cargo fmt --all
+  -- --check` and warnings-as-errors `cargo clippy --all-targets --all-features
+  -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+
 ## Worker-boundary crash consistency
 
 Implemented on 2026-07-26:

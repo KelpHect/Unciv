@@ -455,11 +455,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   command, or outbox row. The identical command then commits once through a
   healthy worker, and a later retry returns that durable result without
   contacting the now-unreachable worker.
+- [x] Prove lost HTTP response recovery through the real Rust API process. The
+  client discards its TCP connection after PostgreSQL exposes the committed
+  journal row without reading the response, reconnects, and retries the exact
+  command ID. The API returns the original acceptance with one worker execution
+  and exactly one revision, snapshot, command, and outbox event.
 - [ ] Complete controlled whole-process fault tests for Rust process death,
-  packaged Kotlin worker termination, lost HTTP transport responses, and
-  outbox-dispatch boundaries. Forced database-connection termination while
-  blocked at the canonical commit lock is covered: it leaves no phantom rows
-  and the same command retries safely.
+  packaged Kotlin worker termination, and outbox-dispatch boundaries. Forced
+  database-connection termination while blocked at the canonical commit lock is
+  covered: it leaves no phantom rows and the same command retries safely.
 - [ ] Test actual PostgreSQL/service failover and reconnection under load. The
   independent-replica CAS race is covered: two valid commands at one expected
   revision produce exactly one complete head and one stale conflict.

@@ -140,6 +140,15 @@ async fn postgres_commit_is_atomic_idempotent_and_stale_safe() {
             .await
             .unwrap();
     assert_eq!(outbox_count, 1);
+    let journal_actor: (String, bool) = sqlx::query_as(
+        "SELECT actor_civilization_id, replay_identity_available FROM game_commands WHERE game_id=$1 AND command_id=$2",
+    )
+    .bind(game)
+    .bind(command_id)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(journal_actor, ("test-civilization".to_owned(), true));
 }
 
 #[tokio::test]
@@ -181,6 +190,18 @@ async fn resignation_atomically_commits_and_removes_membership_but_remains_idemp
         .unwrap();
     assert_eq!(membership_count, 0);
     assert_eq!(head_revision, 1);
+    let journal_actor: String = sqlx::query_scalar(
+        "SELECT actor_civilization_id FROM game_commands WHERE game_id=$1 AND command_id=$2",
+    )
+    .bind(game)
+    .bind(command_id)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        journal_actor, "test-civilization",
+        "replay identity must survive resignation membership removal"
+    );
 }
 
 #[tokio::test]

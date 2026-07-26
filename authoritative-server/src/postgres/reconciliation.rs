@@ -12,6 +12,7 @@ pub enum ReconciliationKind {
     OrphanSnapshot,
     BrokenRevisionChain,
     MissingRevisionCommand,
+    MissingCommandActor,
     OrphanCommand,
     MissingCommitOutbox,
     OrphanCommitOutbox,
@@ -29,6 +30,7 @@ impl ReconciliationKind {
             "orphan_snapshot" => Self::OrphanSnapshot,
             "broken_revision_chain" => Self::BrokenRevisionChain,
             "missing_revision_command" => Self::MissingRevisionCommand,
+            "missing_command_actor" => Self::MissingCommandActor,
             "orphan_command" => Self::OrphanCommand,
             "missing_commit_outbox" => Self::MissingCommitOutbox,
             "orphan_commit_outbox" => Self::OrphanCommitOutbox,
@@ -122,6 +124,10 @@ impl PostgresGameRepository {
             FROM game_commands c LEFT JOIN game_revisions r
               ON r.game_id=c.game_id AND r.revision=c.revision AND r.command_id=c.command_id
             WHERE r.game_id IS NULL
+            UNION ALL
+            SELECT 'missing_command_actor', c.game_id, c.revision, 'accepted command has no immutable actor civilization for replay'
+            FROM game_commands c
+            WHERE NOT c.replay_identity_available OR c.actor_civilization_id IS NULL
             UNION ALL
             SELECT 'missing_commit_outbox', r.game_id, r.revision, 'revision does not have exactly one commit outbox event'
             FROM game_revisions r

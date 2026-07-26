@@ -107,6 +107,15 @@ async fn owner_invitations_are_retry_safe_discoverable_and_atomically_consumed()
         .await
         .unwrap();
     assert_eq!(first_accepted.committed_revision, 1);
+    let first_journal_actor: String = sqlx::query_scalar(
+        "SELECT actor_civilization_id FROM game_commands WHERE game_id=$1 AND command_id=$2",
+    )
+    .bind(game)
+    .bind(first_command)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(first_journal_actor, "first-civilization");
     assert!(
         repository
             .list_player_invitations(first)

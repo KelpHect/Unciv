@@ -44,7 +44,22 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .execute(&repository.pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, payload) VALUES ($1, $2, 99, $3, '{}'::jsonb)")
+    let omitted_actor = sqlx::query(
+        "INSERT INTO game_commands (game_id, command_id, revision, account_id, payload) VALUES ($1, $2, 98, $3, '{}'::jsonb)",
+    )
+    .bind(game)
+    .bind(Uuid::new_v4())
+    .bind(owner)
+    .execute(&repository.pool)
+    .await
+    .unwrap_err();
+    assert_eq!(
+        omitted_actor
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_commands_replay_identity_complete")
+    );
+    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_identity_available, payload) VALUES ($1, $2, 99, $3, NULL, FALSE, '{}'::jsonb)")
         .bind(game)
         .bind(Uuid::new_v4())
         .bind(owner)
@@ -97,6 +112,7 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
     for expected in [
         ReconciliationKind::BrokenRevisionChain,
         ReconciliationKind::MissingRevisionCommand,
+        ReconciliationKind::MissingCommandActor,
         ReconciliationKind::OrphanCommand,
         ReconciliationKind::MissingCommitOutbox,
         ReconciliationKind::OrphanCommitOutbox,

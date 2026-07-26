@@ -5074,6 +5074,47 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Immutable command replay actor identity
+
+Implemented on 2026-07-26:
+
+- Migration `0012_command_replay_actor.sql` adds an immutable
+  `actor_civilization_id` to accepted command journal rows. It safely backfills
+  identities that remain available from current memberships and deliberately
+  retains `NULL` with an explicit unavailable marker for older history that
+  cannot be proven. A database constraint requires every new default-marked
+  replayable row to carry a nonempty actor.
+- Every new canonical commit resolves the actor civilization inside the same
+  transaction after invitation membership is created and before resignation or
+  kick membership is removed. The journal therefore remains replay-complete
+  after lifecycle changes instead of consulting mutable current membership.
+- Read-only reconciliation reports `missing_command_actor` for legacy or
+  damaged commands whose replay identity is unavailable. Recovery must fail
+  closed on those rows; it may not infer an actor from current state.
+
+Verification on 2026-07-26:
+
+- Focused PostgreSQL tests prove ordinary commits retain the actor, invitation
+  acceptance records the newly assigned civilization, resignation preserves
+  actor identity after membership deletion, and reconciliation detects a
+  missing actor without mutating any row. The database rejects a new
+  default-replayable journal row that omits its actor.
+- Rust passes 112 active library tests, all 10 HTTP/OpenAPI tests, and the
+  reconciliation binary target. `cargo fmt --all -- --check` and
+  warnings-as-errors `cargo clippy --all-targets -- -D warnings` pass.
+- All 20 serialized PostgreSQL integration tests pass in 6.97 seconds against
+  only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The disposable container was removed.
+- The first focused assertion used `Rome`, while the shared database fixture
+  intentionally names its civilization `test-civilization`; the expectation
+  was corrected and the complete focused and full database suites passed. No
+  source, migration, test, formatting, Clippy, database, or cleanup error
+  remains deferred.
+- Full bounded snapshot replay and recovery-revision publication remain open.
+  This milestone supplies the immutable historical actor identity they require;
+  it does not claim recovery is complete.
+
 ## Bounded authoritative generated-game setup
 
 API-v3 game creation now requires a closed setup object rather than silently

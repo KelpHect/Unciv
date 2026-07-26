@@ -508,6 +508,16 @@ impl PostgresGameRepository {
                 return Err(CommitError::Unauthorized);
             }
         }
+        let actor_civilization_id: String = sqlx::query_scalar(
+            "SELECT civilization_id FROM game_members WHERE game_id=$1 AND account_id=$2 AND role IN ('owner', 'player')",
+        )
+        .bind(envelope.game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(CommitError::storage)?
+        .flatten()
+        .ok_or(CommitError::Unauthorized)?;
         let manifest_hash: String = head.get("ruleset_manifest_hash");
         let engine_build: String = head.get("engine_build");
         let command_json =
@@ -530,12 +540,13 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
-            "INSERT INTO game_commands (game_id, command_id, revision, account_id, payload) VALUES ($1, $2, $3, $4, $5)",
+            "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, payload) VALUES ($1, $2, $3, $4, $5, $6)",
         )
         .bind(envelope.game_id)
         .bind(envelope.command_id)
         .bind(next_revision_i64)
         .bind(actor_account_id)
+        .bind(actor_civilization_id)
         .bind(command_json)
         .execute(&mut *tx)
         .await

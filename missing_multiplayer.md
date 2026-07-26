@@ -69,6 +69,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   reconciliation tooling, multi-replica commit-race proof, and database
   connection-loss retry proof. Automated reconstruction and broader fault/
   failover coverage remain unresolved below.
+- [x] Persist the executing civilization as immutable command-journal replay
+  identity. New normal, join, resignation, and kick commits retain the actor
+  even after membership deletion; reconciliation reports older or
+  damaged rows whose actor cannot be reconstructed instead of guessing.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -229,13 +233,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - [ ] Implement bounded recovery from the newest valid prior immutable snapshot
   plus journal replay. Current corrupt-head handling quarantines the game but
-  does not reconstruct it.
+  does not reconstruct it. New journal entries retain the public command,
+  authenticated account, and immutable executing civilization needed for safe
+  replay; pre-migration rows without that identity fail reconciliation and
+  require operator-supplied recovery evidence.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [ ] Add reviewed, dry-run-first repair workflows for reconciliation findings.
   The bounded read-only CLI now detects invalid heads/chains, missing or orphaned
   snapshots, commands and commit-outbox events, owner/civilization membership
-  damage, quarantine state, and invalid compressed/canonical snapshot bytes.
+  damage, missing replay actors, quarantine state, and invalid compressed/
+  canonical snapshot bytes.
 - [ ] Complete controlled process fault tests for Rust process death, Kotlin
   worker death, lost HTTP responses, and outbox-dispatch boundaries. Forced
   database-connection termination while blocked at the canonical commit lock is

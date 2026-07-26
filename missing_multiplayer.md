@@ -208,13 +208,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   improvements, transformations, and opaque triggered uniques. Exact action
   identities are rechecked against the latest projection before typed
   submission; canonical costs, effects, and unit consumption stay private.
+- [x] Expose exact current-turn unit order state in the projection-only world.
+  Selected units can cancel an advertised movement order, flip their projected
+  exploration/automation state, and choose one immediate worker-advertised
+  promotion or exact friendly swap destination. Out-of-turn, no-op, stale, and
+  invented choices fail before transport, while uncertain retries retain the
+  unchanged projection.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected unit orders/promotions, diplomacy, belief/religion choices, trade,
-  popup/choice, history/event, and remaining end-turn-blocker interaction
-  surfaces before this item can be checked.
+  projected posture/route/improvement/upgrade and other unit controls,
+  diplomacy, belief/religion choices, trade, popup/choice, history/event, and
+  remaining end-turn-blocker interaction surfaces before this item can be
+  checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -240,10 +247,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   the worker, projected only to the owner, cleared by cancellation/replacement
   through either pair member, and proven across snapshot reload. Pending
   serialized unit orders execute inside the worker immediately before
-  authoritative end turn. Whole-turn, military,
-  civilian, and economy autoplay controls are fail-closed for opened v3 games;
-  if retained as a product feature, implement them as explicit server-owned AI
-  operations rather than client automation.
+  authoritative end turn. The projection-only production world now exposes
+  exact movement cancellation and exploration/automation state flips, but
+  per-unit posture availability, long-route destinations, improvement/road
+  choices, upgrades, rename, disband/found/pillage/paradrop, and any
+  retained autoplay controls still need explicit projected inputs and UI.
+  Whole-turn, military, civilian, and economy autoplay remains fail-closed for
+  opened v3 games; if retained, implement it as explicit server-owned AI.
 - [x] Migrate capital-project unit consumption (`AddInCapital`) to the
   authoritative worker. Projection v52 advertises only the server-derived
   project name for an owned current-turn unit at its own capital; the client
@@ -497,7 +507,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1030 JVM/server tests, 13 intentional skips).
+  passes (1033 JVM/server tests, 13 intentional skips).
 - Rust passes 118 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

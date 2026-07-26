@@ -1,5 +1,49 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only exact unit order state
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now exposes the unit-order controls
+  whose exact state or immediate choice is present in the latest player
+  projection: cancellation of a projected movement destination,
+  exploration/automation state flips, one immediate available promotion, and
+  exact friendly swap destinations.
+- A focused `AuthoritativeUnitOrderController` requires the actor's current
+  turn, an exact owned unit, a real projected movement order, a non-no-op state
+  transition, an exact worker-advertised promotion, or a projected swap
+  coordinate before typed submission. It never infers order or promotion
+  legality from unit type, ruleset, XP, movement, or tile state.
+- A focused `AuthoritativeUnitOrderPanel` renders these controls only for the
+  selected current-turn unit. The session adapter submits the existing typed
+  operations, and response-uncertain retries continue to reuse the session's
+  pending command identity and meaning.
+- Posture, long-route, improvement/road, upgrade, rename,
+  disband/found/pillage/paradrop, and optional autoplay UI remain intentionally
+  absent until each has an equally precise projected choice contract. Their
+  existing worker commands are not treated as proof of safe production UI.
+- Deterministic controller tests cover every exposed order, no-op and invented
+  rejection, missing-unit and out-of-turn rejection, and retry without local
+  revision mutation. The canonical/legacy dependency boundary test covers both
+  new source files.
+
+Verification on 2026-07-26:
+
+- Focused controller, command-bus, session, world-boundary, and desktop
+  compilation gates pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1033 JVM/server cases: 1020 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The new controller and panel are 81 and 55 lines;
+  the focused session adapter and production world screen remain 147 and 276
+  lines. This milestone changes no Rust, wire schema, OpenAPI, persistence, or
+  PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The remaining unit UI gap is now explicitly limited to controls that need new
+per-unit projected choice contracts rather than client-side rules inference.
+
 ## Projection-only direct unit special actions
 
 Implemented on 2026-07-26:

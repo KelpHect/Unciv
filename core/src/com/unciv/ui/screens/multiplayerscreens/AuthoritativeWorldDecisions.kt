@@ -55,6 +55,15 @@ internal class AuthoritativeWorldDecisions(
                 submit,
             ).build(),
         ).left().row()
+        add(
+            AuthoritativeUnitOrderPanel(
+                controller.projection,
+                controller.selectedUnitId,
+                controller.unitOrders,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",

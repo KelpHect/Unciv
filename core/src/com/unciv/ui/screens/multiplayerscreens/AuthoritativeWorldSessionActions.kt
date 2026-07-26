@@ -5,6 +5,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityEconomyActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCombatActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -121,5 +122,26 @@ internal fun authoritativeUnitActions(
     },
     createInstantImprovement = { unitId, actionId ->
         session.createInstantImprovementIfOpen(gameId, unitId, actionId)
+    },
+)
+
+internal fun authoritativeUnitOrderActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeUnitOrderActions(
+    cancelMovement = { unitId ->
+        session.cancelUnitMovementOrderIfOpen(gameId, unitId)
+    },
+    setExploration = { unitId, enabled ->
+        session.setUnitExplorationIfOpen(gameId, unitId, enabled)
+    },
+    setAutomation = { unitId, enabled ->
+        session.setUnitAutomationIfOpen(gameId, unitId, enabled)
+    },
+    promote = { unitId, promotion ->
+        session.promoteUnitIfOpen(gameId, unitId, listOf(promotion))
+    },
+    swap = { unitId, x, y ->
+        session.swapUnitsIfOpen(gameId, unitId, x, y)
     },
 )

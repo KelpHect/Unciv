@@ -107,6 +107,11 @@ class AuthoritativeProductionRoutingTests {
             "pickerscreens/GreatPersonPickerScreen.kt",
             "pickerscreens/ReligionPickerScreenCommon.kt",
             "overviewscreen/EspionageOverviewScreen.kt",
+            "diplomacyscreen/DiplomacyScreen.kt",
+            "diplomacyscreen/MajorCivDiplomacyTable.kt",
+            "diplomacyscreen/CityStateDiplomacyTable.kt",
+            "diplomacyscreen/TradeTable.kt",
+            "worldscreen/TradePopup.kt",
         )) {
             val source = sourceFile(
                 "core/src/com/unciv/ui/screens/$legacyScreen",
@@ -143,6 +148,20 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
         assertTrue(espionage.contains("controller.move("))
         assertTrue(espionage.contains("controller.setCoup("))
+        val diplomacy = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeDiplomacyPanel.kt",
+        ).readText()
+        val trades = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeTradePanel.kt",
+        ).readText()
+        assertTrue(diplomacy.contains("controller.declareWar("))
+        assertTrue(diplomacy.contains("controller.giftImprovement("))
+        assertTrue(diplomacy.contains("controller.marry("))
+        assertTrue(trades.contains("controller.offer("))
+        assertTrue(trades.contains("controller.accept("))
+        assertTrue(trades.contains("controller.counter("))
     }
 
     @Test

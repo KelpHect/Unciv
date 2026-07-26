@@ -1,5 +1,34 @@
 # Authoritative multiplayer v3 status
 
+## Legacy diplomacy and trade authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed historical API-v3 branches from `DiplomacyScreen`,
+  `MajorCivDiplomacyTable`, `CityStateDiplomacyTable`, `TradeTable`, and
+  `TradePopup`. These canonical-`GameInfo` surfaces now retain only local,
+  saved, hotseat, and legacy/API-v2 behavior.
+- Production API v3 continues to expose war, denouncement, friendship,
+  demands, city-state gold/protection/tribute/improvement/peace/marriage, and
+  the complete offer/retract/accept/decline/counter trade lifecycle only
+  through focused projection-world panels and controllers.
+- Source-level routing coverage rejects session lookup, typed API-v3
+  submission, and authoritative outcome handling in all five legacy surfaces,
+  while proving representative diplomacy and trade controller routes remain.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/diplomacy/trade controller tests and desktop
+  compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1065 JVM/server cases: 1052 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed. No known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped city, unit, and alert
+  surfaces; the broad mutation audit remains correctly unchecked until those
+  are removed or explicitly classified.
+
 ## Legacy espionage authority-boundary removal
 
 Implemented on 2026-07-26:

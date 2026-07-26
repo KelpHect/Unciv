@@ -243,12 +243,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   peace, and diplomatic-marriage capabilities. Exact counterparts, amounts,
   demands, coordinates, improvements, and state changes are rechecked before
   typed submission; out-of-turn projections retain counterparts but no actions.
+  Legacy canonical-`GameInfo` diplomacy screens contain no API-v3 session or
+  command path.
 - [x] Expose authoritative bilateral trade in the projection-only world. The UI
   composes offers and counteroffers from bounded integer quantities of exact
   projected `(name,type,duration)` offers, displays incoming terms, and routes
   accept, decline, retract, and counter decisions by opaque request identity.
   Empty, excessive, duplicate, forged-duration, stale, and out-of-turn trades
   fail before transport; the worker independently revalidates canonical stock.
+  Legacy trade tables and popups contain no API-v3 session or command path.
 - [x] Build projection-only world rendering. The online world screen does not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   has no gameplay effect. Its map, player/current-turn status, treasury, known
@@ -268,8 +271,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   been removed from their canonical-`GameInfo` picker screens; production v3
   uses only projection-world controllers for those decisions. The remaining
   work is removal or hard classification of historical legacy-shaped city,
-  unit, diplomacy, and alert interceptors that key API-v3 behavior to an open
-  command bus. Great-person, religion, and espionage picker/overview
+  unit, and alert interceptors that key API-v3 behavior to an open command bus.
+  Great-person, religion, espionage, diplomacy, and trade picker/overview
   interceptors have also been removed.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every

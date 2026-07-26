@@ -210,12 +210,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val revokeProtectionButton = "Revoke Protection".toTextButton()
         revokeProtectionButton.onClick {
             ConfirmPopup(diplomacyScreen, "Revoke protection for [${otherCiv.civName}]?", "Revoke Protection") {
-                if (diplomacyScreen.usesAuthoritativeCommands()) {
-                    diplomacyScreen.submitAuthoritativeDiplomacy("revoke city-state protection") {
-                        it.setCityStateProtectionIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, false)
-                    }
-                    return@ConfirmPopup
-                }
                 otherCiv.cityStateFunctions.removeProtectorCiv(viewingCiv)
                 diplomacyScreen.updateLeftSideTable(otherCiv)
                 diplomacyScreen.updateRightSide(otherCiv)
@@ -235,12 +229,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                 "Pledge to protect",
                 true
             ) {
-                if (diplomacyScreen.usesAuthoritativeCommands()) {
-                    diplomacyScreen.submitAuthoritativeDiplomacy("pledge city-state protection") {
-                        it.setCityStateProtectionIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, true)
-                    }
-                    return@ConfirmPopup
-                }
                 otherCiv.cityStateFunctions.addProtectorCiv(viewingCiv)
                 diplomacyScreen.updateLeftSideTable(otherCiv)
                 diplomacyScreen.updateRightSide(otherCiv)
@@ -263,12 +251,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                 "Negotiate Peace",
                 true
             ) {
-                if (diplomacyScreen.usesAuthoritativeCommands()) {
-                    diplomacyScreen.submitAuthoritativeDiplomacy("negotiate city-state peace") {
-                        it.negotiateCityStatePeaceIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
-                    }
-                    return@ConfirmPopup
-                }
                 val tradeLogic = TradeLogic(viewingCiv, otherCiv)
                 tradeLogic.currentTrade.ourOffers.add(
                     TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = viewingCiv.gameInfo.speed)
@@ -334,12 +316,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val diplomaticMarriageButton =
             "Diplomatic Marriage ([${otherCiv.cityStateFunctions.getDiplomaticMarriageCost()}] Gold)".toTextButton()
         diplomaticMarriageButton.onClick {
-            if (diplomacyScreen.usesAuthoritativeCommands()) {
-                diplomacyScreen.submitAuthoritativeDiplomacy("diplomatic marriage") {
-                    it.marryCityStateIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID)
-                }
-                return@onClick
-            }
             val newCities = otherCiv.cities
             otherCiv.cityStateFunctions.diplomaticMarriage(viewingCiv)
             UncivGame.Current.popScreen() // The other civ will no longer exist
@@ -360,12 +336,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
             val giftButton =
                 "Gift [$giftAmount] gold (+[$influenceAmount] influence)".toTextButton()
             giftButton.onClick {
-                if (diplomacyScreen.usesAuthoritativeCommands()) {
-                    diplomacyScreen.submitAuthoritativeDiplomacy("gift city-state gold") {
-                        it.giftCityStateGoldIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, giftAmount)
-                    }
-                    return@onClick
-                }
                 otherCiv.cityStateFunctions.receiveGoldGift(viewingCiv, giftAmount)
                 diplomacyScreen.updateLeftSideTable(otherCiv)
                 diplomacyScreen.updateRightSide(otherCiv)
@@ -406,15 +376,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
                     val improveTileButton =
                         "Build [${tileImprovement}] on [${improvableTile.tileResource}] (200 Gold)".toTextButton()
                     improveTileButton.onClick {
-                        if (diplomacyScreen.usesAuthoritativeCommands()) {
-                            diplomacyScreen.submitAuthoritativeDiplomacy("gift city-state improvement") {
-                                it.giftCityStateImprovementIfOpen(
-                                    viewingCiv.gameInfo.gameId, otherCiv.civID,
-                                    improvableTile.position.x, improvableTile.position.y, tileImprovement.name,
-                                )
-                            }
-                            return@onClick
-                        }
                         viewingCiv.addGold(-200)
                         improvableTile.stopWorkingOnImprovement()
                         improvableTile.setImprovement(tileImprovement)
@@ -458,12 +419,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
 
         val demandGoldButton = "Take [${otherCiv.cityStateFunctions.goldGainedByTribute()}] gold (-15 Influence)".toTextButton()
         demandGoldButton.onClick {
-            if (diplomacyScreen.usesAuthoritativeCommands()) {
-                diplomacyScreen.submitAuthoritativeDiplomacy("demand city-state gold tribute") {
-                    it.demandCityStateTributeIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, false)
-                }
-                return@onClick
-            }
             otherCiv.cityStateFunctions.tributeGold(viewingCiv)
             diplomacyScreen.rightSideTable.clear()
             diplomacyScreen.rightSideTable.add(ScrollPane(getCityStateDiplomacyTable(otherCiv)))
@@ -473,12 +428,6 @@ class CityStateDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
 
         val demandWorkerButton = "Take worker (-50 Influence)".toTextButton()
         demandWorkerButton.onClick {
-            if (diplomacyScreen.usesAuthoritativeCommands()) {
-                diplomacyScreen.submitAuthoritativeDiplomacy("demand city-state worker tribute") {
-                    it.demandCityStateTributeIfOpen(viewingCiv.gameInfo.gameId, otherCiv.civID, true)
-                }
-                return@onClick
-            }
             otherCiv.cityStateFunctions.tributeWorker(viewingCiv)
             diplomacyScreen.rightSideTable.clear()
             diplomacyScreen.rightSideTable.add(ScrollPane(getCityStateDiplomacyTable(otherCiv)))

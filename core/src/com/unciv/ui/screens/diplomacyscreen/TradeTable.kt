@@ -2,12 +2,7 @@ package com.unciv.ui.screens.diplomacyscreen
 
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.Constants
-import com.unciv.UncivGame
 import com.unciv.logic.civilization.Civilization
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
-import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
-import com.unciv.logic.multiplayer.authoritative.ProjectedTradeOffer
 import com.unciv.logic.trade.TradeLogic
 import com.unciv.logic.trade.TradeRequest
 import com.unciv.logic.trade.TradeOfferType
@@ -16,16 +11,12 @@ import com.unciv.ui.components.extensions.isEnabled
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.screens.basescreen.BaseScreen
-import com.unciv.ui.popups.ToastPopup
-import com.unciv.utils.Concurrency
 
 class TradeTable(
     private val civ: Civilization,
     private val otherCivilization: Civilization,
     private val diplomacyScreen: DiplomacyScreen
 ): Table(BaseScreen.skin) {
-    private val authoritative = civ.gameInfo.gameParameters.isOnlineMultiplayer &&
-        UncivGame.Current.onlineMultiplayer.authoritativeSession?.isGameOpen(civ.gameInfo.gameId) == true
     internal val tradeLogic = TradeLogic(civ, otherCivilization)
     internal val offerColumnsTable = OfferColumnsTable(tradeLogic, diplomacyScreen , civ, otherCivilization) { onChange() }
     // This is so that after a trade has been traded, we can switch out the offersToDisplay to start anew - this is the easiest way
@@ -37,11 +28,6 @@ class TradeTable(
     private fun isTradeOffered() = otherCivilization.tradeRequests.any { it.requestingCiv == civ.civID }
 
     private fun retractOffer() {
-        if (authoritative && isTradeOffered()) {
-            submitAuthoritative("retract trade offer") { it.retractTradeOfferIfOpen(civ.gameInfo.gameId, otherCivilization.civID) }
-            return
-        }
-        if (authoritative) return
         otherCivilization.tradeRequests.removeAll { it.requestingCiv == civ.civID }
         civ.cache.updateCivResources()
         offerButton.setText(offerTradeText.tr())
@@ -88,23 +74,6 @@ class TradeTable(
                 }
             }
 
-            if (authoritative) {
-                val trade = ProjectedTrade(
-                    tradeLogic.currentTrade.ourOffers.map { ProjectedTradeOffer(it.name, it.type.name, it.amount, it.duration) },
-                    tradeLogic.currentTrade.theirOffers.map { ProjectedTradeOffer(it.name, it.type.name, it.amount, it.duration) },
-                )
-                submitAuthoritative(if (diplomacyScreen.selectTrade == null) "offer trade" else "counter trade") { session ->
-                    if (diplomacyScreen.selectTrade == null)
-                        session.offerTradeIfOpen(civ.gameInfo.gameId, otherCivilization.civID, trade)
-                    else {
-                        val request = session.projectionIfOpen(civ.gameInfo.gameId)?.pendingTradeRequests?.singleOrNull {
-                            it.requestingCivilizationId == otherCivilization.civID
-                        } ?: error("Projected trade request no longer matches this counteroffer")
-                        session.counterTradeIfOpen(civ.gameInfo.gameId, request.requestId, trade)
-                    }
-                }
-                return@onClick
-            }
             otherCivilization.tradeRequests.add(TradeRequest(civ.civID, tradeLogic.currentTrade.reverse()))
             civ.cache.updateCivResources()
             offerButton.setText("Retract offer".tr())
@@ -116,34 +85,6 @@ class TradeTable(
         lowerTable.y = 10f
         add(lowerTable)
         pack()
-    }
-
-    private fun submitAuthoritative(
-        label: String,
-        submit: suspend (AuthoritativeMultiplayerSession) -> AuthoritativeCommandOutcome?,
-    ) {
-        offerButton.isEnabled = false
-        Concurrency.runOnNonDaemonThreadPool("Authoritative $label") {
-            val outcome = try {
-                val session = UncivGame.Current.onlineMultiplayer.authoritativeSession
-                    ?: return@runOnNonDaemonThreadPool
-                submit(session)
-            } catch (ex: Exception) {
-                Concurrency.runOnGLThread {
-                    offerButton.isEnabled = true
-                    ToastPopup("Could not submit $label: [${ex.message ?: "Unknown"}]", diplomacyScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                civ.gameInfo.isUpToDate = false
-                offerButton.isEnabled = true
-                val message = if (outcome is AuthoritativeCommandOutcome.Accepted)
-                    "$label committed by the authoritative server"
-                else "$label synchronized with the authoritative server"
-                ToastPopup(message, diplomacyScreen)
-            }
-        }
     }
 
     private fun onChange() {

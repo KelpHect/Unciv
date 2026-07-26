@@ -599,8 +599,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   Packaged-worker coverage currently proves seeded creation with city-states
   plus replayable player assignment, typed research selection, and a complete
-  human-to-two-AI-to-human turn. Forged actor and changed-clock controls prove
-  that authenticated identity and server time remain replay-critical.
+  human-to-two-AI-to-human turn. It now also proves a canonical state-seeded
+  melee-combat randomness path and a real ruleset event-choice path across
+  independent JVMs. Changed canonical combat state, forged actor, and
+  changed-clock controls prove that state, authenticated identity, and server
+  time remain replay-critical. Every remaining command family and additional
+  random setup/combat/event/AI branch still needs an inventoried fixture.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole
@@ -723,7 +727,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
-  --no-parallel` passes (1,114 JVM/server cases: 1,100 executed, 14 intentional
+  --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
   skips), and `:android:lint` passes.
 - Rust passes 163 active library tests and 16 HTTP/OpenAPI tests; all 26
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta

@@ -6670,6 +6670,50 @@ Verification on 2026-07-26:
   argument delegation and exit handling. Release implementation is split into
   focused 275-line packaging and 325-line manifest/verification modules.
 
+## Packaged-worker combat and event parity
+
+Implemented on 2026-07-26:
+
+- Extracted the authenticated packaged-worker subprocess boundary into
+  `PackagedWorkerParityHarness`. It launches a fresh self-contained worker JAR
+  on an isolated loopback port, waits through the signed handshake, sends one
+  bounded authenticated frame, verifies the signed response, and always
+  terminates the process. The prior creation, assignment, research, complete
+  AI-turn, forged-actor, and changed-clock fixtures now reuse this harness
+  instead of retaining a second process implementation in the already-large
+  protocol test.
+- Added a canonical melee-combat fixture. A server-created two-civilization
+  game is transformed into an exact at-war adjacent-unit snapshot; only the
+  stable attacker identity and target coordinate cross the operation boundary.
+  Two independent JVMs derive the same attack-from choice, state-based combat
+  randomness, damage/outcome, complete snapshot bytes, and SHA-256. Changing
+  the canonical turn state changes the resulting snapshot/hash, proving the
+  operation is bound to canonical state rather than ambient process randomness.
+- Added a real `Civ V - Gods & Kings` event-choice fixture. The canonical
+  snapshot contains a pending built-in event alert; the test derives its opaque
+  prompt/choice identities from the same projection logic and sends only those
+  identities. Two independent JVMs produce identical bytes/hashes and remove
+  the event alert, while a forged account is rejected without a snapshot or
+  hash.
+- The exhaustive parity gap remains open. These fixtures extend evidence to a
+  random combat path and a ruleset event path, but do not stand in for every
+  setup, command family, combat type, event effect, turn branch, or AI
+  configuration.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.EngineWorkerProtocolTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerRandomParityTests
+  --no-parallel --console=plain` passes all existing packaged-worker parity
+  cases plus both new scenarios.
+- The first event fixture correctly produced no projected choice because its
+  built-in tutorial event is unavailable before turn two. The canonical fixture
+  was corrected to the event's documented availability state and the complete
+  focused lane then passed; no test failure was deferred.
+- Process/bootstrap code remains outside the scenario tests in a descriptive
+  shared helper, and no production file or Rust façade grew for this milestone.
+
 ## Worker-bound immutable ruleset identity
 
 Implemented on 2026-07-26:

@@ -1,5 +1,45 @@
 use super::*;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SecurityAuditEvent {
+    Registration,
+    Login,
+    AccountSecurity,
+    PasswordChange,
+    AccountDisable,
+    AccountDelete,
+}
+
+impl SecurityAuditEvent {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Registration => "registration",
+            Self::Login => "login",
+            Self::AccountSecurity => "account_security",
+            Self::PasswordChange => "password_change",
+            Self::AccountDisable => "account_disable",
+            Self::AccountDelete => "account_delete",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SecurityAuditOutcome {
+    Success,
+    Rejected,
+    RateLimited,
+}
+
+impl SecurityAuditOutcome {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Success => "success",
+            Self::Rejected => "rejected",
+            Self::RateLimited => "rate_limited",
+        }
+    }
+}
+
 impl PostgresGameRepository {
     pub async fn consume_rate_limit(
         &self,
@@ -40,8 +80,8 @@ impl PostgresGameRepository {
     pub async fn record_security_audit(
         &self,
         account_id: Option<Uuid>,
-        event_type: &str,
-        outcome: &str,
+        event_type: SecurityAuditEvent,
+        outcome: SecurityAuditOutcome,
         source_ip_prefix: &str,
         identity: Option<&str>,
     ) -> Result<(), AuthError> {
@@ -50,8 +90,8 @@ impl PostgresGameRepository {
             "INSERT INTO security_audit_events (account_id, event_type, outcome, source_ip_prefix, identity_hash) VALUES ($1, $2, $3, $4::inet, $5)",
         )
         .bind(account_id)
-        .bind(event_type)
-        .bind(outcome)
+        .bind(event_type.as_str())
+        .bind(outcome.as_str())
         .bind(source_ip_prefix)
         .bind(identity_hash)
         .execute(&self.pool)

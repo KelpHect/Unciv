@@ -136,11 +136,9 @@ pub(super) fn game_error(error: CommitError) -> ApiError {
             retry_after_seconds: None,
         },
         CommitError::UnsupportedProtocol(_) => ApiError::bad_request("unsupported_protocol"),
-        CommitError::WorkerRejected(reason) => {
-            // Worker errors are deliberately reduced to a stable public code.
-            // The local service log retains the diagnostic without logging a
-            // snapshot, credentials, or a player projection.
-            eprintln!("authoritative worker rejected command: {reason}");
+        CommitError::WorkerRejected(_) => {
+            // Worker reasons are private and may contain canonical-state
+            // diagnostics. Both the response and normal logs use stable codes.
             ApiError {
                 status: StatusCode::UNPROCESSABLE_ENTITY,
                 code: "invalid_command",

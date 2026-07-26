@@ -22,7 +22,7 @@ pub struct InMemoryGameRepository {
     games: Arc<Mutex<HashMap<Uuid, GameHead>>>,
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Error, PartialEq, Eq)]
 pub enum CommitError {
     #[error("unsupported protocol version {0}")]
     UnsupportedProtocol(u16),
@@ -32,6 +32,8 @@ pub enum CommitError {
     Stale { expected: u64, actual: u64 },
     #[error("worker proposal did not start from the canonical head")]
     WorkerRevisionMismatch,
+    // The private reason may contain rule or state diagnostics. Keep it for
+    // internal control flow, but never expose it through Display/logging.
     #[error("worker rejected the command")]
     WorkerRejected(String),
     #[error("snapshot hash does not match its payload")]
@@ -54,6 +56,12 @@ pub enum CommitError {
     InvalidCommand,
     #[error("database storage failure")]
     Storage,
+}
+
+impl std::fmt::Debug for CommitError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, formatter)
+    }
 }
 
 impl CommitError {

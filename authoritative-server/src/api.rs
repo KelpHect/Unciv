@@ -97,7 +97,7 @@ pub(super) use unciv_authoritative_server::{
     GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION, ResearchQueueAction,
     auth::{Account, AuthError},
     notifications::{NotificationHub, run_outbox_dispatcher},
-    postgres::{GameMetadata, PostgresGameRepository},
+    postgres::{GameMetadata, PostgresGameRepository, SecurityAuditEvent, SecurityAuditOutcome},
     worker::EngineWorkerClient,
 };
 pub(super) use utoipa::{Modify, OpenApi, ToSchema};

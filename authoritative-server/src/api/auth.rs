@@ -26,7 +26,7 @@ pub(super) async fn register(
             window_seconds: 3_600,
             max_requests: 5,
             block_seconds: 3_600,
-            event_type: "registration",
+            event_type: SecurityAuditEvent::Registration,
         },
         &source_prefix,
         Some(&identity),
@@ -41,8 +41,8 @@ pub(super) async fn register(
             audit_security(
                 &state,
                 Some(account.id),
-                "registration",
-                "success",
+                SecurityAuditEvent::Registration,
+                SecurityAuditOutcome::Success,
                 &source_prefix,
                 Some(&identity),
             )
@@ -53,8 +53,8 @@ pub(super) async fn register(
             audit_security(
                 &state,
                 None,
-                "registration",
-                "rejected",
+                SecurityAuditEvent::Registration,
+                SecurityAuditOutcome::Rejected,
                 &source_prefix,
                 Some(&identity),
             )
@@ -89,7 +89,7 @@ pub(super) async fn login(
             window_seconds: 60,
             max_requests: 30,
             block_seconds: 60,
-            event_type: "login",
+            event_type: SecurityAuditEvent::Login,
         },
         &source_prefix,
         Some(&identity),
@@ -103,7 +103,7 @@ pub(super) async fn login(
             window_seconds: 900,
             max_requests: 5,
             block_seconds: 900,
-            event_type: "login",
+            event_type: SecurityAuditEvent::Login,
         },
         &source_prefix,
         Some(&identity),
@@ -119,8 +119,8 @@ pub(super) async fn login(
             audit_security(
                 &state,
                 None,
-                "login",
-                "rejected",
+                SecurityAuditEvent::Login,
+                SecurityAuditOutcome::Rejected,
                 &source_prefix,
                 Some(&identity),
             )
@@ -141,8 +141,8 @@ pub(super) async fn login(
     audit_security(
         &state,
         Some(account.id),
-        "login",
-        "success",
+        SecurityAuditEvent::Login,
+        SecurityAuditOutcome::Success,
         &source_prefix,
         Some(&identity),
     )
@@ -176,7 +176,7 @@ pub(super) async fn enforce_rate_limit(
                 state,
                 None,
                 policy.event_type,
-                "rate_limited",
+                SecurityAuditOutcome::RateLimited,
                 source_prefix,
                 identity,
             )
@@ -190,8 +190,8 @@ pub(super) async fn enforce_rate_limit(
 pub(super) async fn audit_security(
     state: &AppState,
     account_id: Option<uuid::Uuid>,
-    event_type: &str,
-    outcome: &str,
+    event_type: SecurityAuditEvent,
+    outcome: SecurityAuditOutcome,
     source_prefix: &str,
     identity: Option<&str>,
 ) {
@@ -295,12 +295,25 @@ pub(super) async fn change_password(
     {
         Ok(credential) => credential,
         Err(error) => {
-            audit_account_lifecycle(&state, actor.id, "password_change", "rejected", source.ip())
-                .await;
+            audit_account_lifecycle(
+                &state,
+                actor.id,
+                SecurityAuditEvent::PasswordChange,
+                SecurityAuditOutcome::Rejected,
+                source.ip(),
+            )
+            .await;
             return Err(account_change_error(error));
         }
     };
-    audit_account_lifecycle(&state, actor.id, "password_change", "success", source.ip()).await;
+    audit_account_lifecycle(
+        &state,
+        actor.id,
+        SecurityAuditEvent::PasswordChange,
+        SecurityAuditOutcome::Success,
+        source.ip(),
+    )
+    .await;
     Ok(Json(SessionResponse {
         session_token: credential.token,
     }))
@@ -331,10 +344,24 @@ pub(super) async fn disable_account(
         .disable_account(actor.id, &request.password)
         .await
     {
-        audit_account_lifecycle(&state, actor.id, "account_disable", "rejected", source.ip()).await;
+        audit_account_lifecycle(
+            &state,
+            actor.id,
+            SecurityAuditEvent::AccountDisable,
+            SecurityAuditOutcome::Rejected,
+            source.ip(),
+        )
+        .await;
         return Err(account_change_error(error));
     }
-    audit_account_lifecycle(&state, actor.id, "account_disable", "success", source.ip()).await;
+    audit_account_lifecycle(
+        &state,
+        actor.id,
+        SecurityAuditEvent::AccountDisable,
+        SecurityAuditOutcome::Success,
+        source.ip(),
+    )
+    .await;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -363,10 +390,24 @@ pub(super) async fn delete_account(
         .delete_account(actor.id, &request.password)
         .await
     {
-        audit_account_lifecycle(&state, actor.id, "account_delete", "rejected", source.ip()).await;
+        audit_account_lifecycle(
+            &state,
+            actor.id,
+            SecurityAuditEvent::AccountDelete,
+            SecurityAuditOutcome::Rejected,
+            source.ip(),
+        )
+        .await;
         return Err(account_change_error(error));
     }
-    audit_account_lifecycle(&state, actor.id, "account_delete", "success", source.ip()).await;
+    audit_account_lifecycle(
+        &state,
+        actor.id,
+        SecurityAuditEvent::AccountDelete,
+        SecurityAuditOutcome::Success,
+        source.ip(),
+    )
+    .await;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -383,7 +424,7 @@ pub(super) async fn enforce_account_security_rate_limit(
             window_seconds: 900,
             max_requests: 5,
             block_seconds: 900,
-            event_type: "account_security",
+            event_type: SecurityAuditEvent::AccountSecurity,
         },
         &source_prefix,
         None,
@@ -394,8 +435,8 @@ pub(super) async fn enforce_account_security_rate_limit(
 pub(super) async fn audit_account_lifecycle(
     state: &AppState,
     account_id: uuid::Uuid,
-    event_type: &str,
-    outcome: &str,
+    event_type: SecurityAuditEvent,
+    outcome: SecurityAuditOutcome,
     source: IpAddr,
 ) {
     audit_security(

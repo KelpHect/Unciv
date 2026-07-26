@@ -1,5 +1,55 @@
 # Authoritative multiplayer v3 status
 
+## Fail-closed public and observability disclosure boundaries
+
+Implemented on 2026-07-26:
+
+- Closed an actual normal-log disclosure path. Private Kotlin worker rejection
+  reasons may contain canonical-state or rule diagnostics, so neither
+  `WorkerClientError` nor `CommitError` now includes that reason in `Display` or
+  `Debug`. Public HTTP continues to return only the stable
+  `invalid_command` code, and the service no longer logs the private reason.
+- Added a public-OpenAPI disclosure gate that recursively inventories every
+  property and rejects canonical snapshots, `GameInfo`, replay operations,
+  worker request/response fields, server execution time, and RNG/seed state.
+  This complements the real-canonical-game player and spectator secret
+  sentinel matrix for response values.
+- Added an exact WebSocket serialization test. Revision hints contain only
+  event type, protocol version, game ID, committed revision, and canonical
+  state hash; lag recovery remains the fixed `resync_required` frame and forces
+  authenticated HTTP recovery.
+- Added a source/dependency observability gate. Runtime log calls cannot
+  interpolate snapshot, payload, projection, reason, request/response,
+  credential, token, password, or identity values or debug objects. The
+  service currently has no tracing, metrics, Prometheus, or OpenTelemetry
+  dependency; introducing one fails until its disclosure contract is reviewed.
+- Replaced arbitrary security-audit event/outcome strings with closed Rust
+  enums. Migration `0016_close_security_audit_payload.sql` enforces the same
+  event and outcome sets in PostgreSQL and permanently constrains the JSON
+  `details` payload to `{}`. Source identities remain SHA-256 hashes and
+  network addresses remain bounded prefixes.
+
+Verification on 2026-07-26:
+
+- Disclosure-focused tests pass private worker sentinels through `Display`,
+  `Debug`, HTTP error conversion, WebSocket serialization, the OpenAPI property
+  inventory, and the runtime observability source/dependency scan without
+  disclosure.
+- Rust passes 127 active library tests and all 12 HTTP/OpenAPI tests.
+  `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- All 21 serialized PostgreSQL integration and replica-fault tests pass in
+  7.64 seconds against only the pinned PostgreSQL 19 Beta 2 digest. The audit
+  test proves exact closed labels, an empty details object, hashed identity,
+  bounded network prefix, and database rejection of a canonical-state details
+  payload. The disposable database was removed.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1097 JVM/server cases: 1084 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Rust entry façades remain declaration/re-export/bootstrap-only, and every
+  substantive Rust source remains below the 800-line guardrail.
+
 ## Compact authenticated projection deltas
 
 Implemented on 2026-07-26:

@@ -174,6 +174,7 @@ mod unit_triggers;
 pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 pub use recovery::RecoveredHead;
+pub use security::{SecurityAuditEvent, SecurityAuditOutcome};
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

@@ -369,3 +369,66 @@ fn game_discovery_page_limits_are_bounded_and_stable() {
     assert_eq!(error.status, StatusCode::BAD_REQUEST);
     assert_eq!(error.code, "invalid_page_cursor");
 }
+
+#[test]
+fn public_openapi_contains_no_canonical_or_worker_private_fields() {
+    let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let mut property_names = std::collections::BTreeSet::new();
+    collect_openapi_property_names(&document, &mut property_names);
+    for forbidden in [
+        "snapshot",
+        "canonical_snapshot",
+        "canonical_game_info",
+        "canonicalGameInfo",
+        "game_info",
+        "gameInfo",
+        "replay_operation",
+        "server_time_millis",
+        "worker_request",
+        "worker_response",
+        "rng_state",
+        "random_seed",
+    ] {
+        assert!(
+            !property_names.contains(forbidden),
+            "public OpenAPI exposes private field {forbidden}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn worker_rejection_details_never_cross_http_errors() {
+    let sentinel = "PRIVATE_CANONICAL_SNAPSHOT_hidden-unit_secret-diplomacy";
+    let response = game_error(CommitError::WorkerRejected(sentinel.to_owned())).into_response();
+    let status = response.status();
+    let body = axum::body::to_bytes(response.into_body(), 1024)
+        .await
+        .unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(value, serde_json::json!({"code": "invalid_command"}));
+    assert!(!String::from_utf8_lossy(&body).contains(sentinel));
+}
+
+fn collect_openapi_property_names(
+    value: &serde_json::Value,
+    names: &mut std::collections::BTreeSet<String>,
+) {
+    match value {
+        serde_json::Value::Object(object) => {
+            if let Some(properties) = object.get("properties").and_then(|value| value.as_object()) {
+                names.extend(properties.keys().cloned());
+            }
+            for nested in object.values() {
+                collect_openapi_property_names(nested, names);
+            }
+        }
+        serde_json::Value::Array(array) => {
+            for nested in array {
+                collect_openapi_property_names(nested, names);
+            }
+        }
+        _ => {}
+    }
+}

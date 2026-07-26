@@ -490,8 +490,8 @@ async fn auth_rate_limits_are_durable_resettable_and_privacy_bounded() {
     repository
         .record_security_audit(
             None,
-            "login",
-            "rejected",
+            SecurityAuditEvent::Login,
+            SecurityAuditOutcome::Rejected,
             "192.0.2.0/24",
             Some("private-user"),
         )
@@ -503,7 +503,7 @@ async fn auth_rate_limits_are_durable_resettable_and_privacy_bounded() {
         .await
         .unwrap();
     let audit = sqlx::query(
-        "SELECT identity_hash, source_ip_prefix::text AS source_ip_prefix FROM security_audit_events",
+        "SELECT event_type, outcome, identity_hash, source_ip_prefix::text AS source_ip_prefix, details FROM security_audit_events",
     )
     .fetch_one(&repository.pool)
     .await
@@ -512,6 +512,16 @@ async fn auth_rate_limits_are_durable_resettable_and_privacy_bounded() {
     assert!(!stored_bucket.contains("private-user"));
     assert_eq!(audit.get::<String, _>("identity_hash").len(), 64);
     assert_eq!(audit.get::<String, _>("source_ip_prefix"), "192.0.2.0/24");
+    assert_eq!(audit.get::<String, _>("event_type"), "login");
+    assert_eq!(audit.get::<String, _>("outcome"), "rejected");
+    assert_eq!(audit.get::<serde_json::Value, _>("details"), json!({}));
+    assert!(
+        sqlx::query("UPDATE security_audit_events SET details=$1")
+            .bind(json!({"snapshot": "private-canonical-state"}))
+            .execute(&repository.pool)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

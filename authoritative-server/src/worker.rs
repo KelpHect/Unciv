@@ -85,7 +85,7 @@ pub struct EngineWorkerClient {
     request_timeout: Duration,
 }
 
-#[derive(Debug, Error)]
+#[derive(Error)]
 pub enum WorkerClientError {
     #[error("worker transport failed")]
     Transport,
@@ -93,10 +93,18 @@ pub enum WorkerClientError {
     FrameTooLarge,
     #[error("worker returned an incompatible protocol")]
     Protocol,
-    #[error("worker rejected execution: {0}")]
+    // The private reason may contain rule or state diagnostics. Keep it for
+    // internal control flow, but never expose it through Display/logging.
+    #[error("worker rejected execution")]
     Rejected(String),
     #[error("worker response was incomplete")]
     Incomplete,
+}
+
+impl std::fmt::Debug for WorkerClientError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, formatter)
+    }
 }
 
 fn commit_proposal(

@@ -11,5 +11,5 @@ pub(super) struct RateLimitPolicy {
     pub(super) window_seconds: i32,
     pub(super) max_requests: i32,
     pub(super) block_seconds: i32,
-    pub(super) event_type: &'static str,
+    pub(super) event_type: SecurityAuditEvent,
 }

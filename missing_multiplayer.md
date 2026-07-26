@@ -480,8 +480,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   malformed, stale, gapped, duplicate, or hash-mismatched delta falls back to
   the existing authenticated full HTTP projection. WebSockets remain hints,
   and `resync_required` always takes the full recovery path.
-- [ ] Prove canonical snapshots and hidden fields never occur in public HTTP,
+- [x] Prove canonical snapshots and hidden fields never occur in public HTTP,
   WebSocket frames, normal logs, traces, metrics, audit payloads, or errors.
+  The generated public OpenAPI fails if canonical/worker-private properties
+  appear; real-game player/spectator sentinel matrices cover permitted response
+  values; revision WebSockets have one exact five-field DTO; worker rejection
+  reasons are redacted from HTTP plus `Display`/`Debug`; runtime log
+  interpolation is scanned for private values; adding an observability
+  dependency requires an explicit disclosure-policy update; and PostgreSQL
+  constrains security-audit labels to closed enums while forcing the JSON
+  details payload to remain empty. Credentials and identities remain absent or
+  one-way hashed.
 - [ ] Add property/fuzz tests for command envelopes, unknown fields/enums,
   length-prefixed worker frames, projection serialization, revision transitions,
   idempotency-key reuse with changed content, decompression, and save/ruleset

@@ -1491,6 +1491,29 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("free_great"))
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun cityStatePromptRejectsBooleanDiplomacyResponseBeforeTransport() = runBlocking {
+        val base = projection(7, "hash-7")
+        val prompt = ProjectedDiplomacyPrompt(
+            promptId = "1111111111111111111111111111111111111111111111111111111111111111",
+            requestingCivilizationId = "Greece",
+            type = DiplomacyPromptType.BulliedProtectedMinor,
+            demand = null,
+            cityStateCivilizationId = "Geneva",
+            availableCityStateResponses = listOf(CityStateProtectionResponse.Condemn),
+        )
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(base.copy(
+                projection = base.projection.copy(diplomacyPrompts = listOf(prompt)),
+            )),
+        )
+        bus.refresh()
+
+        bus.respondToDiplomaticPrompt(prompt.promptId, accept = true)
+        Unit
+    }
+
     @Test
     fun religiousUnitActionIsBoundToTheOwnedProjectedUnitAndClosedAction() = runBlocking {
         val initial = projection(

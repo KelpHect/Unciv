@@ -6,6 +6,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCombatActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativePromptActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -143,5 +144,26 @@ internal fun authoritativeUnitOrderActions(
     },
     swap = { unitId, x, y ->
         session.swapUnitsIfOpen(gameId, unitId, x, y)
+    },
+)
+
+internal fun authoritativePromptActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativePromptActions(
+    castDiplomaticVote = { candidate ->
+        session.castDiplomaticVoteIfOpen(gameId, candidate)
+    },
+    chooseGreatPerson = { unitName ->
+        session.chooseGreatPersonIfOpen(gameId, unitName)
+    },
+    resolveEvent = { promptId, choiceId ->
+        session.resolveEventChoiceIfOpen(gameId, promptId, choiceId)
+    },
+    respondToDiplomacy = { promptId, accept ->
+        session.respondToDiplomaticPromptIfOpen(gameId, promptId, accept)
+    },
+    respondToCityState = { promptId, response ->
+        session.respondToCityStateProtectionPromptIfOpen(gameId, promptId, response)
     },
 )

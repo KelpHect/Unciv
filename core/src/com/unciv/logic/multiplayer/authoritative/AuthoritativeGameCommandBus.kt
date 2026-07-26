@@ -1370,7 +1370,11 @@ class AuthoritativeGameCommandBus(
 
     suspend fun respondToDiplomaticPrompt(promptId: String, accept: Boolean) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.diplomacyPrompts.any { it.promptId == promptId }) { "Diplomatic prompt is absent from the current player projection" }
+        require(current.projection.diplomacyPrompts.any {
+            it.promptId == promptId &&
+                (it.type == DiplomacyPromptType.Friendship ||
+                    it.type == DiplomacyPromptType.Demand)
+        }) { "Boolean diplomatic prompt is absent from the current player projection" }
         submitLocked(PendingAuthoritativeCommand.RespondToDiplomaticPrompt(commandIdFactory(), current.committedRevision, current.canonicalStateHash, promptId, accept), current)
     }
 

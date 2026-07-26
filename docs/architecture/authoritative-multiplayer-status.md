@@ -1,5 +1,51 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only votes, selections, events, and prompts
+
+Implemented on 2026-07-26:
+
+- The projection-only production world now renders the exact blocking
+  diplomatic-victory vote and great-person selection choices. Voting includes
+  an explicit worker-supported abstention path plus only projected candidate
+  civilizations; great-person buttons use only projected unit names.
+- The same focused surface renders mod-defined event text and opaque choices,
+  friendship/demand accept/decline prompts, and protected-city-state response
+  enums. It does not reconstruct event conditions or diplomacy consequences.
+- `AuthoritativePromptController` requires the matching pending-turn action
+  where applicable and rechecks every candidate, unit name, prompt ID, choice
+  ID, prompt kind, and city-state response against the latest projection before
+  typed submission.
+- The command bus previously allowed any projected diplomacy prompt to use the
+  generic boolean accept/decline operation. It now restricts that route to
+  friendship and demand prompts; protected-minor prompts must use one of their
+  projected `CityStateProtectionResponse` values.
+- `AuthoritativePromptPanel` and the focused session adapter connect the exact
+  operations without canonical state or legacy popup dependencies. Religion
+  identity/belief selection remains absent because it needs a deliberate
+  bounded name/icon and belief-type combination UI; it is not auto-selected.
+- Deterministic tests cover vote/abstain, great-person selection, event choice,
+  ordinary diplomacy, protected-city-state response, invented and wrong-kind
+  rejection before transport, and response-uncertain retry. A command-bus test
+  directly proves wrong-kind boolean diplomacy rejection.
+
+Verification on 2026-07-26:
+
+- Focused prompt/controller, command-bus, session, world-boundary, and desktop
+  compilation gates pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1037 JVM/server cases: 1024 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The controller and panel are 91 and 78 lines; the
+  focused session adapter and production world screen remain 169 and 277 lines.
+  This milestone changes no Rust, wire schema, OpenAPI, persistence, or
+  PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The voting and great-person pending-turn blockers now have exact production UI.
+Religion choice and spy movement are the known remaining projected end-turn
+blockers, alongside the broader diplomacy/trade/history surfaces.
+
 ## Projection-only exact unit order state
 
 Implemented on 2026-07-26:

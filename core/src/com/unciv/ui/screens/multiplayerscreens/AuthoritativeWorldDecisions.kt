@@ -64,6 +64,14 @@ internal class AuthoritativeWorldDecisions(
                 submit,
             ).build(),
         ).left().row()
+        add(
+            AuthoritativePromptPanel(
+                controller.projection,
+                controller.prompts,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",

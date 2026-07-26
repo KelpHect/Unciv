@@ -67,6 +67,7 @@ class AuthoritativeWorldScreen(
         combatActions = authoritativeCombatActions(session, gameSummary.gameId),
         unitActionActions = authoritativeUnitActions(session, gameSummary.gameId),
         unitOrderActions = authoritativeUnitOrderActions(session, gameSummary.gameId),
+        promptActions = authoritativePromptActions(session, gameSummary.gameId),
     )
 
     private var centerX = initialCenter().first

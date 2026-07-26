@@ -38,6 +38,8 @@ class AuthoritativeWorldController(
         AuthoritativeUnitActions.Unavailable,
     unitOrderActions: AuthoritativeUnitOrderActions =
         AuthoritativeUnitOrderActions.Unavailable,
+    promptActions: AuthoritativePromptActions =
+        AuthoritativePromptActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -77,6 +79,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         actions = unitOrderActions,
+    )
+    val prompts = AuthoritativePromptController(
+        projection = { projection },
+        submit = ::submit,
+        actions = promptActions,
     )
 
     fun selectUnit(unitId: Int) {

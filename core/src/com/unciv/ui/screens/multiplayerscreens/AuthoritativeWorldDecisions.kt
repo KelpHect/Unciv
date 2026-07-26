@@ -37,6 +37,15 @@ internal class AuthoritativeWorldDecisions(
                 submit,
             ).build(),
         ).left().row()
+        add(
+            AuthoritativeCombatPanel(
+                controller.projection,
+                controller.selectedUnitId,
+                controller.combat,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",

@@ -196,11 +196,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   only affordable projected tile/ring purchases, assignable tile states,
   bounded specialist counts, projected focus choices, exact governance and
   captured-city disposition actions, and retry-stable toggles/resets.
+- [x] Expose authoritative projected combat in the projection-only world.
+  Selecting an owned unit renders only its worker-derived attack, nuclear, and
+  air-sweep targets; owned cities render only their projected bombard targets.
+  Canonical strength/health previews are display-only, hidden nuclear and
+  interceptor effects remain undisclosed until commit, invented coordinates
+  never reach transport, and ambiguous retries preserve the current revision.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected unit, diplomacy, religion, trade, combat, popup/choice,
+  projected non-combat unit, diplomacy, religion, trade, popup/choice,
   history/event, and remaining end-turn-blocker interaction surfaces before
   this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
@@ -485,7 +491,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1024 JVM/server tests, 13 intentional skips).
+  passes (1027 JVM/server tests, 13 intentional skips).
 - Rust passes 118 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

@@ -32,6 +32,8 @@ class AuthoritativeWorldController(
         AuthoritativeCityEconomyActions.Unavailable,
     cityControlActions: AuthoritativeCityControlActions =
         AuthoritativeCityControlActions.Unavailable,
+    combatActions: AuthoritativeCombatActions =
+        AuthoritativeCombatActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -56,6 +58,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         actions = cityControlActions,
+    )
+    val combat = AuthoritativeCombatController(
+        projection = { projection },
+        submit = ::submit,
+        actions = combatActions,
     )
 
     fun selectUnit(unitId: Int) {

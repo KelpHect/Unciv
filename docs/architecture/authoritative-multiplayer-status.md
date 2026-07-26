@@ -1,5 +1,50 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only authoritative combat controls
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now exposes all combat families whose
+  legal targets are already explicitly advertised by the private worker:
+  ordinary/ranged unit attacks, nuclear strikes, air sweeps, and city
+  bombardment. No combat action consults a client `GameInfo`, ruleset, target
+  search, or legacy world-screen state.
+- A focused `AuthoritativeCombatController` accepts only exact unit/city and
+  coordinate pairs present in the latest player projection before routing to
+  typed authenticated session commands. Canonical legality, deterministic
+  combat randomness, damage, capture, nuclear effects, and interception remain
+  entirely worker-owned.
+- A focused `AuthoritativeCombatPanel` renders the canonical strength and
+  health preview already supplied for ordinary attacks and bombardment. Nuclear
+  radius and air-sweep attacker information are shown without revealing the
+  intentionally hidden nuclear-effect or interceptor result before commit.
+- Combat session wiring lives with the existing focused world-session action
+  adapters. `AuthoritativeWorldScreen` remains a 274-line bootstrap and
+  presentation surface; the new controller and panel are 61 and 64 lines.
+- Deterministic controller tests prove exact routing for every exposed combat
+  family, rejection of invented unit, city, and coordinate identities before
+  transport, and response-uncertain retry without local revision mutation.
+  The projection-world dependency test now covers both new source files and
+  continues to reject canonical `GameInfo`, legacy `WorldScreen`,
+  `multiplayerFiles`, and `GameStarter` dependencies.
+
+Verification on 2026-07-26:
+
+- The focused combat/controller/command-bus tests and desktop compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1027 JVM/server cases: 1014 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. This milestone changes no Rust, wire schema,
+  OpenAPI, persistence, or PostgreSQL behavior, so the previously verified
+  Rust and exact PostgreSQL 19 Beta 2 gates remain unchanged.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+Projection-only combat rendering is now complete for the four target families
+already covered by closed server-authored projection allowlists. Non-combat
+unit actions, diplomacy/trade/religion, choices, history/events, and remaining
+end-turn blockers stay explicitly tracked.
+
 ## Generated OpenAPI and typed projection contract
 
 Implemented on 2026-07-18:

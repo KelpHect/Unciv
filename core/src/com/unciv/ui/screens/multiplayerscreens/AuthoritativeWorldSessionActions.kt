@@ -2,6 +2,7 @@ package com.unciv.ui.screens.multiplayerscreens
 
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityControlActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityEconomyActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCombatActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 
 internal fun authoritativeCityEconomyActions(
@@ -76,5 +77,23 @@ internal fun authoritativeCityControlActions(
     },
     setCitizenFocus = { cityId, focus ->
         session.setCitizenFocusIfOpen(gameId, cityId, focus)
+    },
+)
+
+internal fun authoritativeCombatActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeCombatActions(
+    attack = { unitId, x, y ->
+        session.attackWithUnitIfOpen(gameId, unitId, x, y)
+    },
+    launchNuclearStrike = { unitId, x, y ->
+        session.launchNuclearStrikeIfOpen(gameId, unitId, x, y)
+    },
+    airSweep = { unitId, x, y ->
+        session.airSweepIfOpen(gameId, unitId, x, y)
+    },
+    bombard = { cityId, x, y ->
+        session.bombardWithCityIfOpen(gameId, cityId, x, y)
     },
 )

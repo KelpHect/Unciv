@@ -5,6 +5,7 @@ use crate::projection::{
 };
 
 const MAX_PROJECTED_CHOICES: usize = 10_000;
+const MAX_UNIT_ACTION_CHOICES: usize = 256;
 
 fn coordinates_are_sorted(coordinates: &[ProjectedTargetCoordinate]) -> bool {
     coordinates.len() <= MAX_PROJECTED_CHOICES
@@ -81,26 +82,43 @@ impl PlayerProjection {
             name.as_ref()
                 .is_none_or(|value| !value.is_empty() && value.chars().count() <= 128)
         };
-        self.own_units
-            .iter()
-            .all(|unit| valid_project_name(&unit.capital_project_name))
-            && self.visible_foreign_units.iter().all(|unit| {
+        let valid_instant_actions =
+            |actions: &[crate::projection::ProjectedInstantImprovementAction]| {
+                actions.len() <= MAX_UNIT_ACTION_CHOICES
+                    && actions.iter().enumerate().all(|(index, action)| {
+                        action.action_id.len() == 64
+                            && action
+                                .action_id
+                                .bytes()
+                                .all(|byte| byte.is_ascii_hexdigit())
+                            && !action.title.is_empty()
+                            && action.title.chars().count() <= 256
+                            && actions[..index]
+                                .iter()
+                                .all(|prior| prior.action_id != action.action_id)
+                    })
+            };
+        self.own_units.iter().all(|unit| {
+            valid_project_name(&unit.capital_project_name)
+                && valid_instant_actions(&unit.available_instant_improvement_actions)
+        }) && self.visible_foreign_units.iter().all(|unit| {
+            !unit.can_gift
+                && unit.capital_project_name.is_none()
+                && unit.available_instant_improvement_actions.is_empty()
+                && unit.available_religious_actions.is_empty()
+                && unit.available_great_person_actions.is_empty()
+                && unit.available_transform_actions.is_empty()
+                && unit.available_trigger_actions.is_empty()
+        }) && (self.is_current_turn
+            || self.own_units.iter().all(|unit| {
                 !unit.can_gift
                     && unit.capital_project_name.is_none()
+                    && unit.available_instant_improvement_actions.is_empty()
                     && unit.available_religious_actions.is_empty()
                     && unit.available_great_person_actions.is_empty()
                     && unit.available_transform_actions.is_empty()
                     && unit.available_trigger_actions.is_empty()
-            })
-            && (self.is_current_turn
-                || self.own_units.iter().all(|unit| {
-                    !unit.can_gift
-                        && unit.capital_project_name.is_none()
-                        && unit.available_religious_actions.is_empty()
-                        && unit.available_great_person_actions.is_empty()
-                        && unit.available_transform_actions.is_empty()
-                        && unit.available_trigger_actions.is_empty()
-                }))
+            }))
     }
 
     pub fn turn_readiness_is_consistent(&self) -> bool {

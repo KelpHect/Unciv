@@ -259,6 +259,10 @@ pub(crate) async fn run() {
             post(trigger_unit_unique),
         )
         .route(
+            "/api/v3/games/{game_id}/commands/create-instant-improvement",
+            post(create_instant_improvement),
+        )
+        .route(
             "/api/v3/games/{game_id}/commands/use-religious-unit",
             post(use_religious_unit),
         )

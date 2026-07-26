@@ -2108,6 +2108,7 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun addUnitToCapitalProject(gameId: String, request: ApiV3AddUnitToCapitalProjectRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun createInstantImprovement(gameId: String, request: ApiV3CreateInstantImprovementRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
         private fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {

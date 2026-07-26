@@ -70,6 +70,10 @@ interface ApiV3Transport {
         gameId: String,
         request: ApiV3AddUnitToCapitalProjectRequest,
     ): ApiV3CommandAccepted
+    suspend fun createInstantImprovement(
+        gameId: String,
+        request: ApiV3CreateInstantImprovementRequest,
+    ): ApiV3CommandAccepted
     suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest): ApiV3CommandAccepted
     suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest): ApiV3CommandAccepted
     suspend fun chooseReligiousBeliefs(gameId: String, request: ApiV3ChooseReligiousBeliefsRequest): ApiV3CommandAccepted

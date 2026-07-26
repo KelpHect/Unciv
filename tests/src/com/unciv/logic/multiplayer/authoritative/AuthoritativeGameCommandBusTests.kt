@@ -277,6 +277,51 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun instantImprovementRequestContainsOnlyUnitAndProjectedOpaqueAction() = runBlocking {
+        val actionId = "a".repeat(64)
+        val unit = ProjectedUnit(
+            42, "Rome", "Great Scientist", 0, 0, 100, 2f,
+            availableInstantImprovementActions = listOf(
+                ProjectedInstantImprovementAction(actionId, "Create Academy"),
+            ),
+        )
+        var attempts = 0
+        val transport = FakeTransport(projection(7, "hash-7", ownUnits = listOf(unit))).apply {
+            onCreateInstantImprovement = { request ->
+                attempts++
+                if (attempts == 1) throw IOException("response lost after commit")
+                acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+            }
+        }
+        val bus = AuthoritativeGameCommandBus(gameId, transport) { "command-1" }
+        bus.refresh()
+
+        assertTrue(
+            bus.createInstantImprovement(42, actionId) is
+                AuthoritativeCommandOutcome.RetryRequired,
+        )
+        assertTrue(bus.retryPending() is AuthoritativeCommandOutcome.Accepted)
+
+        assertEquals(2, transport.instantImprovementRequests.size)
+        val request = transport.instantImprovementRequests.first()
+        assertEquals(request, transport.instantImprovementRequests.last())
+        assertEquals(
+            ApiV3CreateInstantImprovementRequest(
+                "command-1", 7, "hash-7", 42, actionId,
+            ),
+            request,
+        )
+        val encoded = Json.encodeToString(
+            ApiV3CreateInstantImprovementRequest.serializer(),
+            request,
+        )
+        for (forbidden in listOf(
+            "improvement", "tile_x", "tile_y", "movement", "consume",
+            "side_effect", "actor", "civilization", "outcome",
+        )) assertTrue(!encoded.contains(forbidden))
+    }
+
+    @Test
     fun pillageRequestContainsOnlyTheProjectedStableUnitIdAndReconcilesTile() = runBlocking {
         val visibleTile = ProjectedTileVisibility(
             0, 0, true, "Farm", false, "None", false,
@@ -1900,8 +1945,13 @@ class AuthoritativeGameCommandBusTests {
         val freeTechnologyRequests = mutableListOf<ApiV3ChooseFreeTechnologyRequest>()
         val researchCompletionRequests = mutableListOf<ApiV3AcknowledgeResearchCompletionRequest>()
         val capitalProjectUnitRequests = mutableListOf<ApiV3AddUnitToCapitalProjectRequest>()
+        val instantImprovementRequests = mutableListOf<ApiV3CreateInstantImprovementRequest>()
         var onAddUnitToCapitalProject:
             suspend (ApiV3AddUnitToCapitalProjectRequest) -> ApiV3CommandAccepted = {
+                acceptTradeTestCommand(gameId, it.commandId, it.expectedRevision)
+            }
+        var onCreateInstantImprovement:
+            suspend (ApiV3CreateInstantImprovementRequest) -> ApiV3CommandAccepted = {
                 acceptTradeTestCommand(gameId, it.commandId, it.expectedRevision)
             }
         var onMove: suspend (ApiV3MoveUnitRequest) -> ApiV3CommandAccepted = {
@@ -2386,6 +2436,13 @@ class AuthoritativeGameCommandBusTests {
         }
         override suspend fun transformUnit(gameId: String, request: ApiV3TransformUnitRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
         override suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
+        override suspend fun createInstantImprovement(
+            gameId: String,
+            request: ApiV3CreateInstantImprovementRequest,
+        ): ApiV3CommandAccepted {
+            instantImprovementRequests += request
+            return onCreateInstantImprovement(request)
+        }
         override suspend fun resolveEventChoice(gameId: String, request: ApiV3ResolveEventChoiceRequest) = acceptTradeTestCommand(gameId, request.commandId, request.expectedRevision)
 
         fun acceptTradeTestCommand(gameId: String, commandId: String, revision: Long): ApiV3CommandAccepted {

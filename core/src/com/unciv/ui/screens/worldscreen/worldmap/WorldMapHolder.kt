@@ -793,6 +793,16 @@ class WorldMapHolder(
         return true
     }
 
+    /** Returns true when an instant improvement was submitted to API v3. */
+    fun createInstantImprovement(unit: MapUnit, actionId: String): Boolean {
+        if (!isAuthoritativeGame()) return false
+        submitAuthoritativeUnitCommand("instant improvement", submit = {
+            worldScreen.game.onlineMultiplayer.authoritativeSession
+                ?.createInstantImprovementIfOpen(worldScreen.gameInfo.gameId, unit.id, actionId)
+        }) { removeUnitActionOverlay() }
+        return true
+    }
+
     /** Returns true when a mod-defined transformation was submitted to the authoritative server. */
     fun transformUnit(unit: MapUnit, actionId: String): Boolean {
         if (!isAuthoritativeGame()) return false

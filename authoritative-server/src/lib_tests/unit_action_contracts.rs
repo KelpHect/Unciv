@@ -52,6 +52,45 @@ fn capital_project_unit_contract_contains_only_the_unit_identifier() {
 }
 
 #[test]
+fn instant_improvement_contract_contains_only_unit_and_opaque_action_identity() {
+    let action_id = "a".repeat(64);
+    let command: GameCommand = serde_json::from_value(serde_json::json!({
+        "type": "create_instant_improvement",
+        "unit_id": 17,
+        "action_id": action_id,
+    }))
+    .unwrap();
+    assert_eq!(
+        command,
+        GameCommand::CreateInstantImprovement {
+            unit_id: 17,
+            action_id: "a".repeat(64),
+        }
+    );
+    for untrusted in [
+        "actor_id",
+        "improvement_name",
+        "tile_x",
+        "tile_y",
+        "resource_cost",
+        "movement_cost",
+        "consume_unit",
+        "side_effects",
+        "outcome",
+    ] {
+        let mut value = serde_json::to_value(&command).unwrap();
+        value.as_object_mut().unwrap().insert(
+            untrusted.to_owned(),
+            serde_json::Value::String("client-claim".to_owned()),
+        );
+        assert!(
+            serde_json::from_value::<GameCommand>(value).is_err(),
+            "{untrusted} must not cross the command boundary"
+        );
+    }
+}
+
+#[test]
 fn transform_unit_contract_contains_only_unit_and_projected_action_identity() {
     let command: GameCommand = serde_json::from_value(serde_json::json!({
         "type": "transform_unit", "unit_id": 17, "action_id": "a".repeat(64)

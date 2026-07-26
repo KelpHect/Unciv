@@ -4920,3 +4920,59 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). Capital-project HTTP, persistence, and worker logic lives in
   focused modules; the largest Rust source remains 781 lines.
+
+## Authoritative instant improvements and projection v53
+
+Opened-v3 water-resource and general/mod-defined instant improvement actions
+now cross the authority boundary as
+`CreateInstantImprovement(unitId, actionId)`. The public request contains only
+the stable owned-unit identity and a 64-character opaque identity selected from
+the authenticated projection. It cannot claim the actor, tile, improvement,
+resource or movement cost, unit consumption, unique side effects, or result.
+
+The private Kotlin worker regenerates the currently executable shared
+`CreateImprovement` actions from canonical state and invokes only the exact
+opaque match. This re-derives water/resource eligibility, improvement filters,
+permanent build problems, available resources, movement, conditionals,
+consumption, and side effects. Projection v53 publishes bounded action IDs and
+presentation titles only for owned current-turn units. It publishes nothing to
+foreign or out-of-turn unit projections. Multiple improvements produced by one
+mod-defined filter receive distinct IDs, and the UI maps the selected button
+using both its canonical unique and title. An opened-v3 mapping failure returns
+without invoking the local callback.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests prove exact general improvement execution, work-boat
+  water-resource improvement and consumption, distinct multi-option mod-filter
+  identities, forged-ID rejection, wrong-account rejection, out-of-turn
+  omission, canonical hash changes, and no mutation on rejection.
+- Command-bus tests prove lost-response retry reuses the exact idempotency key
+  and payload. Kotlin and Rust closed-contract tests prohibit client-authored
+  tiles, improvement names, costs, consumption, side effects, actor, or
+  outcome.
+- The shared Kotlin/Rust fixture moved from v52 to v53. Rust rejects malformed,
+  duplicate, oversized, foreign, or out-of-turn instant-improvement
+  disclosures, and verifies the exact Kotlin/Rust worker operation name.
+- `./gradlew :tests:test :server:test --no-daemon` passes 976 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 111 active library tests and
+  all 8 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings`, regenerated OpenAPI parity, and
+  capability-to-route parity pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55493. The clean disposable `--rm` container was stopped and verified
+  absent.
+- The first database invocation through the context-compression command
+  wrapper intermittently exhausted its SQLx pool, and a retry against the
+  already-mutated fault-test database reproduced varying timeouts. The exact
+  gate was rerun directly against a newly initialized pinned container and all
+  17 tests passed in 7.02 seconds. No failed container or database remains.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). New HTTP, persistence, and worker logic is split into descriptive
+  focused modules; the largest Rust sources are 787 lines, below the 800-line
+  guardrail.

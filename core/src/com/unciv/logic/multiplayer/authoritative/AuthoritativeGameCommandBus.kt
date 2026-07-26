@@ -383,6 +383,7 @@ sealed interface PendingAuthoritativeCommand {
     ) : PendingAuthoritativeCommand
     data class GiftUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
     data class AddUnitToCapitalProject(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int) : PendingAuthoritativeCommand
+    data class CreateInstantImprovement(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
     data class TransformUnit(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
     data class TriggerUnitUnique(override val commandId: String, override val expectedRevision: Long, override val observedStateHash: String, val unitId: Int, val actionId: String) : PendingAuthoritativeCommand
 
@@ -1265,6 +1266,18 @@ class AuthoritativeGameCommandBus(
         ), current)
     }
 
+    suspend fun createInstantImprovement(unitId: Int, actionId: String) = mutex.withLock {
+        val current = requireSynchronized()
+        require(current.projection.ownUnits.any {
+            it.id == unitId &&
+                it.availableInstantImprovementActions.any { action -> action.actionId == actionId }
+        }) { "Instant improvement is absent from the current player projection" }
+        submitLocked(PendingAuthoritativeCommand.CreateInstantImprovement(
+            commandIdFactory(), current.committedRevision, current.canonicalStateHash,
+            unitId, actionId,
+        ), current)
+    }
+
     suspend fun chooseReligiousBeliefs(
         beliefNames: List<String>,
         religionIconName: String?,
@@ -2037,6 +2050,13 @@ class AuthoritativeGameCommandBus(
                         pending.unitId, pending.actionId,
                     ),
                 )
+                is PendingAuthoritativeCommand.CreateInstantImprovement ->
+                    transport.createInstantImprovement(
+                        gameId, ApiV3CreateInstantImprovementRequest(
+                            pending.commandId, pending.expectedRevision,
+                            pending.observedStateHash, pending.unitId, pending.actionId,
+                        ),
+                    )
                 is PendingAuthoritativeCommand.TriggerUnitUnique -> transport.triggerUnitUnique(
                     gameId, ApiV3TriggerUnitUniqueRequest(
                         pending.commandId, pending.expectedRevision, pending.observedStateHash,

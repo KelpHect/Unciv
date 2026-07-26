@@ -10,6 +10,7 @@ import com.unciv.UncivGame
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.multiplayer.authoritative.ReligiousUnitAction
 import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
+import com.unciv.logic.multiplayer.authoritative.InstantImprovementCommandExecutor
 import com.unciv.logic.multiplayer.authoritative.UnitTransformCommandExecutor
 import com.unciv.logic.multiplayer.authoritative.UnitTriggerCommandExecutor
 import com.unciv.models.UnitAction
@@ -220,6 +221,12 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         if (unitAction.type == UnitActionType.GiftUnit && worldScreen.mapHolder.giftUnit(unit)) return
         if (unitAction.type == UnitActionType.AddInCapital &&
             worldScreen.mapHolder.addUnitToCapitalProject(unit)) return
+        if (unitAction.type == UnitActionType.CreateImprovement &&
+            worldScreen.mapHolder.usesAuthoritativeCommands()) {
+            val actionId = InstantImprovementCommandExecutor.actionIdFor(unit, unitAction)
+            if (actionId != null) worldScreen.mapHolder.createInstantImprovement(unit, actionId)
+            return
+        }
         if (unitAction.type == UnitActionType.Transform) {
             val actionId = UnitTransformCommandExecutor.actionIdFor(unit, unitAction)
             if (actionId != null && worldScreen.mapHolder.transformUnit(unit, actionId)) return

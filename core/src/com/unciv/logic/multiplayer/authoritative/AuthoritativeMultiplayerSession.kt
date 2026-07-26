@@ -1397,6 +1397,26 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    suspend fun createInstantImprovementIfOpen(
+        gameId: String,
+        unitId: Int,
+        actionId: String,
+    ): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        return when (val current = bus.state) {
+            is AuthoritativeSyncState.Retryable -> {
+                check(current.pending is PendingAuthoritativeCommand.CreateInstantImprovement &&
+                    current.pending.unitId == unitId && current.pending.actionId == actionId) {
+                    "Resolve the pending authoritative command before creating another improvement"
+                }
+                bus.retryPending()
+            }
+            is AuthoritativeSyncState.Synchronized ->
+                bus.createInstantImprovement(unitId, actionId)
+            else -> error("Authoritative game is not synchronized")
+        }
+    }
+
     suspend fun chooseReligiousBeliefsIfOpen(
         gameId: String,
         beliefNames: List<String>,

@@ -557,6 +557,14 @@ class ApiV3Client(
             authenticate(); contentType(ContentType.Application.Json); setBody(request)
         })
 
+    override suspend fun createInstantImprovement(
+        gameId: String,
+        request: ApiV3CreateInstantImprovementRequest,
+    ): ApiV3CommandAccepted =
+        decode(client.post("api/v3/games/$gameId/commands/create-instant-improvement") {
+            authenticate(); contentType(ContentType.Application.Json); setBody(request)
+        })
+
     override suspend fun triggerUnitUnique(gameId: String, request: ApiV3TriggerUnitUniqueRequest): ApiV3CommandAccepted =
         decode(client.post("api/v3/games/$gameId/commands/trigger-unit-unique") {
             authenticate(); contentType(ContentType.Application.Json); setBody(request)

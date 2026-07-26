@@ -23,6 +23,7 @@ mod diplomacy;
 mod espionage;
 mod event_choices;
 mod great_people;
+mod instant_improvements;
 mod intents;
 mod lifecycle;
 mod major_diplomacy;
@@ -45,14 +46,14 @@ pub use intents::{
     AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,
     AirSweepIntent, AttackWithUnitIntent, BombardWithCityIntent, BuyCityTileBatchIntent,
     BuyCityTileIntent, CancelUnitMovementOrderIntent, CastDiplomaticVoteIntent,
-    ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, DisbandUnitIntent, FoundCityIntent,
-    GiftUnitIntent, LaunchNuclearStrikeIntent, ManageConstructionQueuesIntent,
-    ManageResearchQueueIntent, MoveConstructionIntent, MoveSpyIntent, MoveUnitIntent,
-    MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    ChooseFreeTechnologyIntent, ChooseGreatPersonIntent, CreateInstantImprovementIntent,
+    DisbandUnitIntent, FoundCityIntent, GiftUnitIntent, LaunchNuclearStrikeIntent,
+    ManageConstructionQueuesIntent, ManageResearchQueueIntent, MoveConstructionIntent,
+    MoveSpyIntent, MoveUnitIntent, MoveUnitTowardIntent, ParadropUnitIntent, PillageTileIntent,
+    PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
+    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
+    RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent, ResolveEventChoiceIntent,
+    SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
     SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetSpyCoupIntent, SetTileImprovementOrderIntent,

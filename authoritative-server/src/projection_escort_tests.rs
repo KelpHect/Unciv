@@ -2,7 +2,7 @@ use crate::projection::PlayerProjection;
 
 #[test]
 fn movement_metadata_rejects_malformed_persistent_escort_orders() {
-    let fixture = include_str!("../../protocol/player-projection-v52.fixture.json");
+    let fixture = include_str!("../../protocol/player-projection-v53.fixture.json");
     let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
     let mut escort = projection.own_units[0].clone();
     escort.id = 43;

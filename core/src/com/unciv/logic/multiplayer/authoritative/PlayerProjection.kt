@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 52
+        const val CURRENT_PROJECTION_VERSION = 53
     }
 }
 
@@ -309,6 +309,7 @@ data class ProjectedUnit(
     val availableGreatPersonActions: List<GreatPersonUnitAction> = emptyList(),
     val canGift: Boolean = false,
     val capitalProjectName: String? = null,
+    val availableInstantImprovementActions: List<ProjectedInstantImprovementAction> = emptyList(),
     val availableTransformActions: List<ProjectedUnitTransformAction> = emptyList(),
     val availableTriggerActions: List<ProjectedUnitTriggerAction> = emptyList(),
     val moveDestinations: List<ProjectedMovementDestination> = emptyList(),
@@ -403,6 +404,9 @@ data class ProjectedUnitTransformAction(val actionId: String, val targetUnitName
 
 @Serializable
 data class ProjectedUnitTriggerAction(val actionId: String, val title: String)
+
+@Serializable
+data class ProjectedInstantImprovementAction(val actionId: String, val title: String)
 
 @Serializable
 data class ProjectedImprovementOrderEntry(
@@ -612,6 +616,8 @@ object PlayerProjectionBuilder {
         canGift = includePrivateOrders && canIssueTurnCommands && UnitGiftCommandExecutor.canGift(unit),
         capitalProjectName = if (includePrivateOrders && canIssueTurnCommands)
             CapitalProjectUnitExecutor.projectName(unit) else null,
+        availableInstantImprovementActions = if (includePrivateOrders && canIssueTurnCommands)
+            InstantImprovementCommandExecutor.projectedActions(unit) else emptyList(),
         availableTransformActions = if (includePrivateOrders && canIssueTurnCommands)
             UnitTransformCommandExecutor.projectedActions(unit) else emptyList(),
         availableTriggerActions = if (includePrivateOrders && canIssueTurnCommands)

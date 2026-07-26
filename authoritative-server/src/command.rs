@@ -273,6 +273,10 @@ pub enum GameCommand {
     AddUnitToCapitalProject {
         unit_id: i32,
     },
+    CreateInstantImprovement {
+        unit_id: i32,
+        action_id: String,
+    },
     TransformUnit {
         unit_id: i32,
         action_id: String,

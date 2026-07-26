@@ -15,15 +15,15 @@ use crate::worker::{
     AcknowledgeResearchCompletionIntent, AdoptPolicyIntent, AirSweepIntent, AttackWithUnitIntent,
     BombardWithCityIntent, BuyCityTileIntent, CancelUnitMovementOrderIntent,
     CastDiplomaticVoteIntent, ChooseFreeTechnologyIntent, ChooseGreatPersonIntent,
-    ChooseReligiousBeliefsIntent, CounterTradeIntent, DiplomacyPartnerIntent,
-    DiplomaticDemandIntent, DiplomaticPromptIntent, DisbandUnitIntent, EngineWorkerClient,
-    FoundCityIntent, GiftUnitIntent, LaunchNuclearStrikeIntent, ManageConstructionQueuesIntent,
-    ManageResearchQueueIntent, MoveConstructionIntent, MoveUnitIntent, MoveUnitTowardIntent,
-    OfferTradeIntent, ParadropUnitIntent, PillageTileIntent, PromoteUnitIntent,
-    PurchaseConstructionAtTileIntent, PurchaseConstructionIntent, QueueConstructionAtTileIntent,
-    QueueConstructionIntent, RemoveConstructionIntent, RenameUnitIntent, ResetCitizensIntent,
-    ResolveCityDispositionIntent, ResolveEventChoiceIntent, SellBuildingIntent,
-    SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
+    ChooseReligiousBeliefsIntent, CounterTradeIntent, CreateInstantImprovementIntent,
+    DiplomacyPartnerIntent, DiplomaticDemandIntent, DiplomaticPromptIntent, DisbandUnitIntent,
+    EngineWorkerClient, FoundCityIntent, GiftUnitIntent, LaunchNuclearStrikeIntent,
+    ManageConstructionQueuesIntent, ManageResearchQueueIntent, MoveConstructionIntent,
+    MoveUnitIntent, MoveUnitTowardIntent, OfferTradeIntent, ParadropUnitIntent, PillageTileIntent,
+    PromoteUnitIntent, PurchaseConstructionAtTileIntent, PurchaseConstructionIntent,
+    QueueConstructionAtTileIntent, QueueConstructionIntent, RemoveConstructionIntent,
+    RenameUnitIntent, ResetCitizensIntent, ResolveCityDispositionIntent, ResolveEventChoiceIntent,
+    SellBuildingIntent, SetAvoidGrowthIntent, SetCitizenFocusIntent, SetCityGovernanceIntent,
     SetCityTileAssignmentIntent, SetCityUnitPromotionPreferenceIntent, SetManualSpecialistsIntent,
     SetPerpetualConstructionIntent, SetResearchPathIntent, SetRoadConnectionOrderIntent,
     SetSpecialistCountIntent, SetTileImprovementOrderIntent, SetUnitAutomationIntent,
@@ -149,6 +149,7 @@ mod espionage;
 mod event_choices;
 mod games;
 mod great_people;
+mod instant_improvements;
 mod invitations;
 mod lifecycle;
 mod major_diplomacy;

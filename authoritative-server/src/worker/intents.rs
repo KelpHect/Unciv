@@ -48,6 +48,12 @@ pub struct TriggerUnitUniqueIntent<'a> {
     pub action_id: &'a str,
 }
 
+pub struct CreateInstantImprovementIntent<'a> {
+    pub actor_civilization_id: &'a str,
+    pub unit_id: i32,
+    pub action_id: &'a str,
+}
+
 pub struct SetCityTileAssignmentIntent<'a> {
     pub actor_civilization_id: &'a str,
     pub city_id: &'a str,

@@ -494,6 +494,8 @@ sealed interface WorkerOperation {
     data class TransformUnit(val snapshot: String, val actorCivilizationId: String, val unitId: Int, val actionId: String) : WorkerOperation
     @Serializable @SerialName("trigger_unit_unique")
     data class TriggerUnitUnique(val snapshot: String, val actorCivilizationId: String, val unitId: Int, val actionId: String) : WorkerOperation
+    @Serializable @SerialName("create_instant_improvement")
+    data class CreateInstantImprovement(val snapshot: String, val actorCivilizationId: String, val unitId: Int, val actionId: String) : WorkerOperation
 
     @Serializable @SerialName("set_city_tile_assignment")
     data class SetCityTileAssignment(
@@ -1096,6 +1098,13 @@ class AuthoritativeEngineWorker {
             is WorkerOperation.TriggerUnitUnique -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val result = engine.triggerUnitUnique(
+                    game, operation.actorCivilizationId, operation.unitId, operation.actionId,
+                )
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.CreateInstantImprovement -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.createInstantImprovement(
                     game, operation.actorCivilizationId, operation.unitId, operation.actionId,
                 )
                 responseForGame(engine, result.game)

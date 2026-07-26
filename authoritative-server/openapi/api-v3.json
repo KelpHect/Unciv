@@ -2436,6 +2436,90 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/create-instant-improvement": {
+      "post": {
+        "tags": [],
+        "operationId": "create_instant_improvement",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstantImprovementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/declare-war": {
       "post": {
         "tags": [],
@@ -10341,6 +10425,40 @@
         },
         "additionalProperties": false
       },
+      "CreateInstantImprovementRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision",
+          "unit_id",
+          "action_id"
+        ],
+        "properties": {
+          "action_id": {
+            "type": "string"
+          },
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unit_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "CredentialsRequest": {
         "type": "object",
         "required": [
@@ -12411,6 +12529,22 @@
         },
         "additionalProperties": false
       },
+      "ProjectedInstantImprovementAction": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "title"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedMovementDestination": {
         "type": "object",
         "required": [
@@ -12961,6 +13095,7 @@
           "availableReligiousActions",
           "availableGreatPersonActions",
           "canGift",
+          "availableInstantImprovementActions",
           "availableTransformActions",
           "availableTriggerActions",
           "moveDestinations",
@@ -12989,6 +13124,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GreatPersonUnitAction"
+            }
+          },
+          "availableInstantImprovementActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedInstantImprovementAction"
             }
           },
           "availablePromotions": {

@@ -6833,6 +6833,41 @@ Focused verification on 2026-07-26:
   scenario fixture gained only an optional authenticated-actor parameter; no
   production façade or gameplay module changed.
 
+## Packaged-worker unit advancement parity batch
+
+Implemented on 2026-07-26:
+
+- Added a projection-driven two-fresh-JVM scenario with an owned city, one
+  XP-ready military unit, and two affordable same-type upgrade candidates.
+  Fixture preparation unlocks only the canonical prerequisite technology and
+  supplies treasury; the submitted promotion and upgrade target come from the
+  private worker projection.
+- Promotion spends server-derived XP and saves the canonical unit promotion set
+  as the city default. A separate typed command disables that exact projected
+  base-unit preference, and the final projection proves the preference changed.
+- One bounded upgrade command upgrades both stable unit IDs to their common
+  projected target. Canonical gold cost, target equivalence, placement, and
+  resulting unit type remain worker-derived.
+- Every complete response and intermediate snapshot/hash is byte-identical
+  across independent packaged JVMs. Fresh-process evidence now covers 41 of 86
+  sealed operations; 45 remain explicitly in-process-only.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitAdvancementParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- Promotion identity, saved base-unit preference, and the common upgrade target
+  are all selected from worker projections. The client fixture supplies no XP
+  cost or upgrade gold cost.
+- The new test is a descriptive module under 150 lines and no production
+  façade or gameplay module changed.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,127 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

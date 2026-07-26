@@ -7059,6 +7059,33 @@ Focused verification on 2026-07-26:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker espionage parity batch
+
+Implemented on 2026-07-26:
+
+- Added one deterministic scenario with a city state covering both espionage
+  operations: moving a spy between an eligible major-civilization city and its
+  hideout, then staging and cancelling a city-state coup.
+- The client submits only the spy name and city/coup choices present in its
+  private projection. The worker derives explored-city eligibility, hideout
+  availability, coup eligibility, action transitions, and countdown values.
+- The fixture asserts the canonical moving, coup, and counter-intelligence
+  states after each command. All nine complete responses and intermediate
+  snapshots/hashes are byte-identical across independent packaged JVMs.
+  Fresh-process evidence now covers 68 of 86 sealed operations; 18 remain
+  in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerEspionageParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,134 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

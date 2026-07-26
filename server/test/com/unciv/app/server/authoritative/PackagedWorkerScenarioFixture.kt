@@ -10,6 +10,7 @@ internal class PackagedWorkerScenarioFixture(
     private val gameId: String,
     private val serverSeed: Long,
     private val baseName: String = "Civ V - Vanilla",
+    private val cityStates: Int = 0,
 ) {
     val manifest by lazy {
         WorkerRulesetManifest(
@@ -33,7 +34,7 @@ internal class PackagedWorkerScenarioFixture(
                         .map { it.name }
                         .sorted(),
                     majorCivilizations = 2,
-                    cityStates = 0,
+                    cityStates = cityStates,
                     maxTurns = 500,
                     mapType = GeneratedMapType.Pangaea,
                     mapShape = GeneratedMapShape.Rectangular,

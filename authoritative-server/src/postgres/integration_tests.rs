@@ -13,6 +13,8 @@ mod invitations;
 mod manifests;
 #[path = "reconciliation_integration_tests.rs"]
 mod reconciliation;
+#[path = "recovery_integration_tests.rs"]
+mod recovery;
 #[path = "replica_fault_integration_tests.rs"]
 mod replica_faults;
 #[path = "snapshot_integration_tests.rs"]
@@ -72,6 +74,7 @@ fn proposal(previous_revision: u64, snapshot: &[u8]) -> CommitProposal {
         snapshot: snapshot.to_vec(),
         canonical_state_hash: state_hash(snapshot),
         server_time_millis: 0,
+        replay_operation: serde_json::json!({"type": "test"}),
     }
 }
 
@@ -141,8 +144,8 @@ async fn postgres_commit_is_atomic_idempotent_and_stale_safe() {
             .await
             .unwrap();
     assert_eq!(outbox_count, 1);
-    let journal_actor: (String, bool, i64, bool) = sqlx::query_as(
-        "SELECT actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available FROM game_commands WHERE game_id=$1 AND command_id=$2",
+    let journal_actor: (String, bool, i64, bool, serde_json::Value, bool) = sqlx::query_as(
+        "SELECT actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available, replay_operation, replay_operation_available FROM game_commands WHERE game_id=$1 AND command_id=$2",
     )
     .bind(game)
     .bind(command_id)
@@ -151,7 +154,14 @@ async fn postgres_commit_is_atomic_idempotent_and_stale_safe() {
     .unwrap();
     assert_eq!(
         journal_actor,
-        ("test-civilization".to_owned(), true, 0, true)
+        (
+            "test-civilization".to_owned(),
+            true,
+            0,
+            true,
+            serde_json::json!({"type": "test"}),
+            true
+        )
     );
 }
 

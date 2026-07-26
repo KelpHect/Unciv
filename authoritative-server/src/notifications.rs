@@ -159,5 +159,9 @@ mod tests {
             notification_type("game.lifecycle.changed"),
             "resync_required"
         );
+        assert_eq!(
+            notification_type("game.revision.recovered"),
+            "resync_required"
+        );
     }
 }

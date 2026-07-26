@@ -760,6 +760,8 @@ pub(super) struct WorkerResponse {
     pub(super) player_projection: Option<serde_json::Value>,
     pub(super) spectator_projection: Option<serde_json::Value>,
     pub(super) error: Option<WorkerError>,
+    #[serde(skip)]
+    pub(super) replay_operation: Option<serde_json::Value>,
 }
 
 pub struct CreatedGame {

@@ -40,6 +40,12 @@ pub enum CommitError {
     SnapshotTooLarge,
     #[error("game is unavailable pending operator recovery")]
     GameUnavailable,
+    #[error("bounded recovery evidence is missing or incomplete")]
+    RecoveryEvidenceMissing,
+    #[error("recovery journal tail exceeds the configured bound")]
+    RecoveryTailTooLong,
+    #[error("replayed state diverged from immutable revision history")]
+    RecoveryDiverged,
     #[error("authenticated account is not allowed to mutate this game")]
     Unauthorized,
     #[error("command is not valid for the canonical game state")]

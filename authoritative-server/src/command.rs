@@ -439,6 +439,7 @@ pub struct CommitProposal {
     pub snapshot: Vec<u8>,
     pub canonical_state_hash: String,
     pub server_time_millis: i64,
+    pub replay_operation: serde_json::Value,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]

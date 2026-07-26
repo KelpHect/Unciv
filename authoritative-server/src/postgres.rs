@@ -157,6 +157,7 @@ mod major_diplomacy;
 mod manifests;
 mod outbox;
 mod reconciliation;
+mod recovery;
 mod religion;
 mod research;
 mod security;
@@ -172,6 +173,7 @@ mod unit_triggers;
 
 pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
+pub use recovery::RecoveredHead;
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {
@@ -313,7 +315,7 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
-            "INSERT INTO game_revisions (game_id, revision, parent_revision, command_id, snapshot_revision, canonical_state_hash) VALUES ($1, 0, NULL, NULL, 0, $2)",
+            "INSERT INTO game_revisions (game_id, revision, parent_revision, command_id, snapshot_revision, canonical_state_hash, revision_kind) VALUES ($1, 0, NULL, NULL, 0, $2, 'genesis')",
         )
         .bind(game.game_id)
         .bind(&stored.canonical_state_hash)
@@ -540,7 +542,7 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
-            "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, server_time_millis, payload) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, server_time_millis, replay_operation, payload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         )
         .bind(envelope.game_id)
         .bind(envelope.command_id)
@@ -548,6 +550,7 @@ impl PostgresGameRepository {
         .bind(actor_account_id)
         .bind(actor_civilization_id)
         .bind(proposal.server_time_millis)
+        .bind(&proposal.replay_operation)
         .bind(command_json)
         .execute(&mut *tx)
         .await

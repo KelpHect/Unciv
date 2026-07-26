@@ -7,11 +7,6 @@ use std::{
 };
 
 use thiserror::Error;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-    time::timeout,
-};
 
 use crate::CommitProposal;
 
@@ -36,6 +31,7 @@ mod religion;
 mod research;
 mod spectators;
 mod trade;
+mod transport;
 mod unit_actions;
 mod unit_gifts;
 mod unit_movement;
@@ -118,6 +114,9 @@ fn commit_proposal(
             .ok_or(WorkerClientError::Incomplete)?,
         server_time_millis: response
             .server_time_millis
+            .ok_or(WorkerClientError::Incomplete)?,
+        replay_operation: response
+            .replay_operation
             .ok_or(WorkerClientError::Incomplete)?,
     })
 }
@@ -464,87 +463,16 @@ impl EngineWorkerClient {
             owner_civilization_id,
         })
     }
-
-    async fn execute(
-        &self,
-        actor_id: &str,
-        manifest: &WorkerManifest,
-        operation: WorkerOperation<'_>,
-    ) -> Result<WorkerResponse, WorkerClientError> {
-        let server_time_millis = server_time_millis()?;
-        let request = WorkerRequest {
-            protocol_version: WORKER_PROTOCOL_VERSION,
-            server_time_millis: Some(server_time_millis),
-            actor_id: Some(actor_id),
-            ruleset_manifest: Some(manifest),
-            operation,
-        };
-        let response = self.execute_request(request).await?;
-        if response.server_time_millis != Some(server_time_millis) {
-            return Err(WorkerClientError::Protocol);
-        }
-        Ok(response)
-    }
-
-    async fn execute_request(
-        &self,
-        request: WorkerRequest<'_>,
-    ) -> Result<WorkerResponse, WorkerClientError> {
-        let payload = serde_json::to_vec(&request).map_err(|_| WorkerClientError::Transport)?;
-        if payload.len() > MAX_FRAME_BYTES {
-            return Err(WorkerClientError::FrameTooLarge);
-        }
-        let response = timeout(self.request_timeout, async {
-            let mut stream = TcpStream::connect(self.address)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_u32(payload.len() as u32)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_all(&payload)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .flush()
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            let size = stream
-                .read_u32()
-                .await
-                .map_err(|_| WorkerClientError::Transport)? as usize;
-            if !(1..=MAX_FRAME_BYTES).contains(&size) {
-                return Err(WorkerClientError::FrameTooLarge);
-            }
-            let mut response = vec![0; size];
-            stream
-                .read_exact(&mut response)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            serde_json::from_slice::<WorkerResponse>(&response)
-                .map_err(|_| WorkerClientError::Transport)
-        })
-        .await
-        .map_err(|_| WorkerClientError::Transport)??;
-        if response.protocol_version != WORKER_PROTOCOL_VERSION {
-            return Err(WorkerClientError::Protocol);
-        }
-        if let Some(error) = response.error {
-            return Err(WorkerClientError::Rejected(format!(
-                "{}: {}",
-                error.code, error.message
-            )));
-        }
-        Ok(response)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::Value;
-    use tokio::net::TcpListener;
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
 
     #[tokio::test]
     async fn handshake_uses_the_versioned_actorless_contract() {
@@ -614,6 +542,99 @@ mod tests {
             .execute("account-1", &manifest, WorkerOperation::Handshake)
             .await;
         assert!(matches!(result, Err(WorkerClientError::Protocol)));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn commit_proposal_retains_the_exact_operation_without_snapshot_bytes() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let size = stream.read_u32().await.unwrap() as usize;
+            let mut request = vec![0; size];
+            stream.read_exact(&mut request).await.unwrap();
+            let request: Value = serde_json::from_slice(&request).unwrap();
+            let supplied = request["serverTimeMillis"].as_i64().unwrap();
+            assert_eq!(request["operation"]["snapshot"], "canonical-before");
+            let response = serde_json::to_vec(&serde_json::json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": supplied,
+                "snapshot": "canonical-after",
+                "canonicalStateHash": "a".repeat(64),
+            }))
+            .unwrap();
+            stream.write_u32(response.len() as u32).await.unwrap();
+            stream.write_all(&response).await.unwrap();
+        });
+        let manifest = WorkerManifest {
+            engine_build: "engine-1".to_owned(),
+            base_ruleset: WorkerRuleset {
+                name: "Base".to_owned(),
+                sha256: "a".repeat(64),
+            },
+            mods: Vec::new(),
+        };
+        let proposal = EngineWorkerClient::new(address, Duration::from_secs(1))
+            .end_turn("account-1", &manifest, 7, "canonical-before", "Rome")
+            .await
+            .unwrap();
+        assert_eq!(proposal.previous_revision, 7);
+        assert_eq!(proposal.replay_operation["type"], "end_turn");
+        assert_eq!(proposal.replay_operation["actorCivilizationId"], "Rome");
+        assert!(proposal.replay_operation.get("snapshot").is_none());
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replay_injects_only_the_validated_snapshot_and_original_timestamp() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let size = stream.read_u32().await.unwrap() as usize;
+            let mut request = vec![0; size];
+            stream.read_exact(&mut request).await.unwrap();
+            let request: Value = serde_json::from_slice(&request).unwrap();
+            assert_eq!(request["serverTimeMillis"], 1_700_000_000_000_i64);
+            assert_eq!(request["operation"]["snapshot"], "validated-prior");
+            assert_eq!(request["operation"]["type"], "end_turn");
+            let response = serde_json::to_vec(&serde_json::json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": 1_700_000_000_000_i64,
+                "snapshot": "replayed-next",
+                "canonicalStateHash": "b".repeat(64),
+            }))
+            .unwrap();
+            stream.write_u32(response.len() as u32).await.unwrap();
+            stream.write_all(&response).await.unwrap();
+        });
+        let manifest = WorkerManifest {
+            engine_build: "engine-1".to_owned(),
+            base_ruleset: WorkerRuleset {
+                name: "Base".to_owned(),
+                sha256: "a".repeat(64),
+            },
+            mods: Vec::new(),
+        };
+        let replay_operation = serde_json::json!({
+            "type": "end_turn",
+            "actorCivilizationId": "Rome",
+        });
+        let proposal = EngineWorkerClient::new(address, Duration::from_secs(1))
+            .replay_operation(
+                3,
+                "account-1",
+                &manifest,
+                1_700_000_000_000,
+                "validated-prior",
+                replay_operation.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(proposal.previous_revision, 3);
+        assert_eq!(proposal.replay_operation, replay_operation);
+        assert_eq!(proposal.snapshot, b"replayed-next");
         server.await.unwrap();
     }
 

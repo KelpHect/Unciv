@@ -60,7 +60,7 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         Some("game_commands_replay_identity_complete")
     );
     let omitted_time = sqlx::query(
-        "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, payload) VALUES ($1, $2, 98, $3, 'test-civilization', '{}'::jsonb)",
+        "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_operation, payload) VALUES ($1, $2, 98, $3, 'test-civilization', '{\"type\":\"test\"}'::jsonb, '{}'::jsonb)",
     )
     .bind(game)
     .bind(Uuid::new_v4())
@@ -74,7 +74,22 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
             .and_then(|error| error.constraint()),
         Some("game_commands_replay_time_complete")
     );
-    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available, payload) VALUES ($1, $2, 99, $3, NULL, FALSE, NULL, FALSE, '{}'::jsonb)")
+    let omitted_replay_operation = sqlx::query(
+        "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, server_time_millis, payload) VALUES ($1, $2, 98, $3, 'test-civilization', 0, '{}'::jsonb)",
+    )
+    .bind(game)
+    .bind(Uuid::new_v4())
+    .bind(owner)
+    .execute(&repository.pool)
+    .await
+    .unwrap_err();
+    assert_eq!(
+        omitted_replay_operation
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_commands_replay_operation_complete")
+    );
+    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available, replay_operation, replay_operation_available, payload) VALUES ($1, $2, 99, $3, NULL, FALSE, NULL, FALSE, NULL, FALSE, '{}'::jsonb)")
         .bind(game)
         .bind(Uuid::new_v4())
         .bind(owner)
@@ -153,6 +168,7 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         ReconciliationKind::MissingRevisionCommand,
         ReconciliationKind::MissingCommandActor,
         ReconciliationKind::MissingCommandTime,
+        ReconciliationKind::MissingCommandReplayOperation,
         ReconciliationKind::MissingCreationReplayContext,
         ReconciliationKind::OrphanCommand,
         ReconciliationKind::MissingCommitOutbox,

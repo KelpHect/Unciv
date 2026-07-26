@@ -162,6 +162,9 @@ pub(super) fn game_error(error: CommitError) -> ApiError {
             current_revision: None,
             retry_after_seconds: None,
         },
-        CommitError::Storage => ApiError::internal(),
+        CommitError::RecoveryEvidenceMissing
+        | CommitError::RecoveryTailTooLong
+        | CommitError::RecoveryDiverged
+        | CommitError::Storage => ApiError::internal(),
     }
 }

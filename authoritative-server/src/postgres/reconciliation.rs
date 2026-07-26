@@ -14,6 +14,7 @@ pub enum ReconciliationKind {
     MissingRevisionCommand,
     MissingCommandActor,
     MissingCommandTime,
+    MissingCommandReplayOperation,
     MissingCreationReplayContext,
     OrphanCommand,
     MissingCommitOutbox,
@@ -34,6 +35,7 @@ impl ReconciliationKind {
             "missing_revision_command" => Self::MissingRevisionCommand,
             "missing_command_actor" => Self::MissingCommandActor,
             "missing_command_time" => Self::MissingCommandTime,
+            "missing_command_replay_operation" => Self::MissingCommandReplayOperation,
             "missing_creation_replay_context" => Self::MissingCreationReplayContext,
             "orphan_command" => Self::OrphanCommand,
             "missing_commit_outbox" => Self::MissingCommitOutbox,
@@ -114,15 +116,18 @@ impl PostgresGameRepository {
             UNION ALL
             SELECT 'broken_revision_chain', r.game_id, r.revision, 'revision parent or command identity is inconsistent'
             FROM game_revisions r
-            WHERE (r.revision=0 AND (r.parent_revision IS NOT NULL OR r.command_id IS NOT NULL))
-               OR (r.revision>0 AND (r.parent_revision IS DISTINCT FROM r.revision-1 OR r.command_id IS NULL))
+            WHERE (r.revision=0 AND (r.revision_kind<>'genesis' OR r.parent_revision IS NOT NULL OR r.command_id IS NOT NULL))
+               OR (r.revision>0 AND r.parent_revision IS DISTINCT FROM r.revision-1)
+               OR (r.revision>0 AND r.revision_kind='command' AND r.command_id IS NULL)
+               OR (r.revision>0 AND r.revision_kind='recovery' AND r.command_id IS NOT NULL)
+               OR r.revision_kind NOT IN ('genesis','command','recovery')
                OR r.snapshot_revision<>r.revision
                OR r.revision>(SELECT g.head_revision FROM games g WHERE g.id=r.game_id)
             UNION ALL
             SELECT 'missing_revision_command', r.game_id, r.revision, 'revision has no matching accepted command'
             FROM game_revisions r LEFT JOIN game_commands c
               ON c.game_id=r.game_id AND c.revision=r.revision AND c.command_id=r.command_id
-            WHERE r.revision>0 AND c.game_id IS NULL
+            WHERE r.revision>0 AND r.revision_kind='command' AND c.game_id IS NULL
             UNION ALL
             SELECT 'orphan_command', c.game_id, c.revision, 'accepted command has no matching revision'
             FROM game_commands c LEFT JOIN game_revisions r
@@ -137,6 +142,10 @@ impl PostgresGameRepository {
             FROM game_commands c
             WHERE NOT c.replay_time_available OR c.server_time_millis IS NULL
             UNION ALL
+            SELECT 'missing_command_replay_operation', c.game_id, c.revision, 'accepted command has no exact private worker operation for replay'
+            FROM game_commands c
+            WHERE NOT c.replay_operation_available OR c.replay_operation IS NULL
+            UNION ALL
             SELECT 'missing_creation_replay_context', operation.game_id, 0, 'game creation has no retained server seed or execution timestamp for replay'
             FROM game_creation_operations operation
             WHERE NOT operation.replay_context_available
@@ -145,13 +154,18 @@ impl PostgresGameRepository {
             UNION ALL
             SELECT 'missing_commit_outbox', r.game_id, r.revision, 'revision does not have exactly one commit outbox event'
             FROM game_revisions r
-            WHERE r.revision>0 AND (SELECT count(*) FROM game_outbox o
-              WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.committed')<>1
+            WHERE r.revision>0 AND (
+                (r.revision_kind='command' AND (SELECT count(*) FROM game_outbox o
+                  WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.committed')<>1)
+                OR
+                (r.revision_kind='recovery' AND (SELECT count(*) FROM game_outbox o
+                  WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.recovered')<>1)
+            )
             UNION ALL
             SELECT 'orphan_commit_outbox', o.game_id, o.revision, 'commit outbox event has no matching revision'
             FROM game_outbox o LEFT JOIN game_revisions r
               ON r.game_id=o.game_id AND r.revision=o.revision
-            WHERE o.topic='game.revision.committed' AND r.game_id IS NULL
+            WHERE o.topic IN ('game.revision.committed','game.revision.recovered') AND r.game_id IS NULL
             UNION ALL
             SELECT 'duplicate_civilization_membership', gm.game_id, NULL::bigint, 'civilization is assigned to multiple player memberships'
             FROM game_members gm

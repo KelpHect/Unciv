@@ -67,8 +67,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and server-side player rotation.
 - [x] Implement bounded snapshot compression, corruption quarantine, read-only
   reconciliation tooling, multi-replica commit-race proof, and database
-  connection-loss retry proof. Automated reconstruction and broader fault/
-  failover coverage remain unresolved below.
+  connection-loss retry proof. Broader process/failover coverage remains
+  unresolved below.
 - [x] Persist the executing civilization as immutable command-journal replay
   identity. New normal, join, resignation, and kick commits retain the actor
   even after membership deletion; reconciliation reports older or
@@ -78,6 +78,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   creation operation retains its OS-backed seed, execution time, and canonical
   game UUID. The worker must echo the control-plane time and cannot replace it.
   Reconciliation reports legacy or damaged rows missing these inputs.
+- [x] Persist the exact private worker operation for each new command without
+  duplicating snapshot bytes, then reconstruct a quarantined head read-only from
+  the newest valid immutable snapshot through a bounded, contiguous journal
+  tail. Every replayed hash must match immutable revision history.
+- [x] Publish a verified recovered head as a distinct immutable recovery
+  revision with its own audit event and resynchronization outbox event. The
+  compare-and-swap publication preserves damaged history, rejects stale
+  recovery attempts, and is exposed through a dry-run-first operator CLI.
 - [x] Make representative generated-map creation byte-repeatable for identical
   canonical UUID, server seed, server time, manifest, and setup. `GameStarter`,
   region generation, start normalization, and luxury/strategic placement now
@@ -241,23 +249,24 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: recovery and canonical-history guarantees
 
-- [ ] Implement bounded recovery from the newest valid prior immutable snapshot
-  plus journal replay. Current corrupt-head handling quarantines the game but
-  does not reconstruct it. New journal entries retain the public command,
-  authenticated account, immutable executing civilization, and server
-  execution time needed for safe replay; revision-zero operations retain their
-  seed, time, and canonical UUID. Pre-migration rows without that context fail
-  reconciliation and require operator-supplied recovery evidence. Add
-  fresh-process coverage for city-state placement and every supported setup,
-  then execute the bounded tail and publish recovery as a new immutable
-  revision.
+- [ ] Complete recovery qualification with a real packaged Kotlin worker in a
+  fresh process for city-state placement and every supported setup. The bounded
+  replay and immutable recovery-publication path is implemented and PostgreSQL
+  integration-tested, but production recovery remains gated on those
+  fresh-process determinism fixtures and controlled worker/process fault tests.
+  Pre-migration rows without exact replay context fail closed and require
+  operator-supplied recovery evidence.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
-- [ ] Add reviewed, dry-run-first repair workflows for reconciliation findings.
-  The bounded read-only CLI now detects invalid heads/chains, missing or orphaned
-  snapshots, commands and commit-outbox events, owner/civilization membership
-  damage, missing replay actors, quarantine state, and invalid compressed/
-  canonical snapshot bytes.
+- [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
+  only revision metadata and the canonical hash by default; `--apply` publishes
+  only a still-current, verified quarantined head as a new immutable revision.
+- [ ] Add reviewed repair workflows for the remaining reconciliation findings.
+  The bounded read-only reconciliation CLI detects invalid heads/chains,
+  missing or orphaned snapshots, commands and commit-outbox events,
+  owner/civilization membership damage, missing replay identities, time, or
+  exact operations, quarantine state, and invalid compressed/canonical snapshot
+  bytes, but it intentionally does not mutate those findings.
 - [ ] Complete controlled process fault tests for Rust process death, Kotlin
   worker death, lost HTTP responses, and outbox-dispatch boundaries. Forced
   database-connection termination while blocked at the canonical commit lock is

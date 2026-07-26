@@ -5074,6 +5074,56 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Bounded journal recovery and immutable publication
+
+Implemented on 2026-07-26:
+
+- Every new committed command now retains the exact private worker operation,
+  authenticated replay identity, and control-plane-selected execution time.
+  Snapshot bytes are excluded from the operation journal. Legacy rows without
+  complete replay evidence are explicitly marked unavailable and fail
+  reconciliation rather than being guessed.
+- Read-only reconstruction scans prior immutable snapshots newest-first,
+  validates their payload and canonical hashes, enforces a caller-bounded
+  contiguous tail, and asks the private Kotlin worker to replay each exact
+  operation with its original identity and time. Each result must match the
+  corresponding immutable revision hash.
+- Applying a reconstruction creates a distinct immutable recovery revision,
+  recovery audit record, snapshot, and resynchronization outbox event in one
+  compare-and-swap transaction. It never rewrites damaged history, requires the
+  game to remain quarantined, and rejects a stale second publication.
+- `unciv-v3-recover <game-uuid> [--max-tail <count>] [--apply]` is dry-run-only
+  unless `--apply` is explicit. Its output contains revision metadata and the
+  canonical hash, never the private snapshot.
+- Worker transport was extracted into a focused submodule. `main.rs` and
+  `lib.rs` remain thin, and the largest Rust source is 796 lines.
+
+Verification on 2026-07-26:
+
+- `cargo fmt --check`, `cargo check --all-targets`, and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `cargo test --all-targets --all-features` passes 125 active Rust tests with
+  21 explicitly database-gated tests ignored: 115 library tests and 10
+  HTTP/OpenAPI tests, with no failures.
+- All 21 serialized PostgreSQL integration and controlled replica-fault tests
+  pass in 7.08 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Recovery coverage proves read-only reconstruction from a damaged head,
+  immutable publication, audit/outbox creation, quarantine clearing, damaged
+  byte preservation, and stale-publication rejection. The disposable database
+  container was removed.
+- During implementation, the first complete database run exposed an invalid
+  default revision kind for revision zero, and an earlier reconciliation
+  fixture omitted the newly required operation evidence before reaching its
+  intended missing-time assertion. Both defects were corrected and the entire
+  database suite rerun cleanly. No compiler, formatting, Clippy, unit,
+  integration, migration, container-cleanup, or documentation error remains
+  deferred.
+- Production recovery is not yet claimed complete: fresh-process parity with
+  the packaged real Kotlin worker for city-state placement and every supported
+  setup, plus controlled worker/process fault coverage, remains checked as
+  missing in `missing_multiplayer.md`.
+
 ## Durable server replay context
 
 Migration `0013_deterministic_replay_context.sql` makes the server-selected

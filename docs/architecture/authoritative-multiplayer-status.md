@@ -5074,6 +5074,53 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Projection-only production queues and purchases
+
+Implemented on 2026-07-26:
+
+- The player world now renders each owned city's projected construction queue,
+  stored production, server-estimated turns, queueable options, bounded
+  queue-management actions, and allowed purchase choices. Prices and available
+  currency are display-only values from the projection.
+- A focused `AuthoritativeCityEconomyController` validates the exact projected
+  city, queue index/name, adjacent move, option action, currency, purchase
+  availability, and optional legal tile before invoking the authenticated
+  session. It routes only the existing typed remove/move/manage/purchase and
+  purchase-at-tile operations; it cannot submit price, affordability,
+  prerequisite, refund, production, or result claims.
+- Ambiguous command responses leave the full projection unchanged. Repeating
+  the same projected input reaches the session's pending-command retry path;
+  accepted and stale outcomes continue through the world controller's complete
+  revision/hash-validated projection replacement.
+- City economy presentation moved into
+  `AuthoritativeCityEconomyPanel.kt`. Construction/economy input logic moved
+  out of `AuthoritativeWorldController`, reducing that shared controller rather
+  than growing a mixed-concern god file.
+
+Verification on 2026-07-26:
+
+- Focused controller tests prove exact queue removal, adjacent reorder,
+  server-advertised `AddToTop`, ordinary purchase, tile-targeted purchase,
+  invented currency/name rejection before transport, and ambiguous retry
+  without local projection mutation.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1019 JVM/server cases: 1006 executed, 13 intentional skips, zero
+  failures, and zero errors. Desktop compilation passes in the same run.
+- `git diff --check` passes. The world controller is 214 lines, the focused
+  city-economy controller is 180, the world screen is 318, the general decision
+  renderer is 117, and the city panel is 152. The combined controller test
+  remains below the project guardrail at 594 lines.
+- Rust, OpenAPI, projection v55, canonical worker execution, and PostgreSQL
+  persistence are unchanged in this client-only slice. Their immediately
+  preceding clean evidence remains 117 active Rust library tests, 10
+  HTTP/OpenAPI tests, warnings-as-errors Clippy, and 21 PostgreSQL integrations
+  on the sole pinned PostgreSQL 19 Beta 2 digest.
+
+Construction queue management and purchases no longer require canonical client
+state. City tile purchases, citizen/specialist controls, governance/disposition,
+building sales, and the other projected gameplay families remain separate
+production UI gaps.
+
 ## Projection v55 and authoritative construction selection
 
 Implemented on 2026-07-26:

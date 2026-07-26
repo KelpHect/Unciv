@@ -3,8 +3,6 @@ package com.unciv.ui.screens.multiplayerscreens
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldController
-import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionKind
-import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionOption
 import com.unciv.logic.multiplayer.authoritative.ResearchQueueAction
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toLabel
@@ -23,7 +21,14 @@ internal class AuthoritativeWorldDecisions(
 ) {
     fun build(): Table = Table().apply {
         defaults().pad(3f)
-        addConstructionChoices()
+        add(
+            AuthoritativeCityEconomyPanel(
+                controller.projection,
+                controller.cityEconomy,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",
@@ -54,46 +59,6 @@ internal class AuthoritativeWorldDecisions(
             controller.projection.policies.selectablePolicies,
             controller::adoptProjectedPolicy,
         )
-    }
-
-    private fun Table.addConstructionChoices() {
-        for (city in controller.projection.ownCities) {
-            add("${city.name} production:".toLabel()).left().row()
-            if (city.constructionQueueEntries.isEmpty()) {
-                add("No construction selected".toLabel()).left().row()
-            } else {
-                add(
-                    city.constructionQueueEntries.mapIndexed { index, entry ->
-                        "${index + 1}. ${entry.name}"
-                    }.joinToString(" - ").toLabel(),
-                ).left().row()
-            }
-            val buttons = Table()
-            for (option in city.constructionOptions.filter { it.queueable }) {
-                addConstructionButtons(buttons, city.id, option)
-            }
-            if (buttons.children.size > 0) add(buttons).left().row()
-        }
-    }
-
-    private fun addConstructionButtons(
-        buttons: Table,
-        cityId: String,
-        option: ProjectedConstructionOption,
-    ) {
-        if (option.placementTargets.isEmpty()) {
-            val suffix = if (option.kind == ProjectedConstructionKind.Perpetual)
-                " (perpetual)" else ""
-            buttons.add(actionButton("${option.name}$suffix") {
-                controller.selectConstruction(cityId, option.name)
-            }).pad(2f)
-            return
-        }
-        for (target in option.placementTargets) {
-            buttons.add(actionButton("${option.name} @ ${target.x},${target.y}") {
-                controller.selectConstruction(cityId, option.name, target)
-            }).pad(2f)
-        }
     }
 
     private fun Table.addResearchQueue() {

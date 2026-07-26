@@ -233,7 +233,7 @@ class AuthoritativeWorldControllerTests {
             },
         )
 
-        ordinaryController.selectConstruction("city-rome", "Archer")
+        ordinaryController.cityEconomy.selectConstruction("city-rome", "Archer")
         assertEquals("queue:city-rome:Archer", calls.single())
 
         val perpetualController = controller(
@@ -243,7 +243,7 @@ class AuthoritativeWorldControllerTests {
                 accepted(initial, 8)
             },
         )
-        perpetualController.selectConstruction("city-rome", "Nothing")
+        perpetualController.cityEconomy.selectConstruction("city-rome", "Nothing")
         assertEquals("perpetual:city-rome:Nothing", calls.last())
 
         val target = ProjectedTargetCoordinate(3, -1)
@@ -266,7 +266,7 @@ class AuthoritativeWorldControllerTests {
                 accepted(placed, 8)
             },
         )
-        placedController.selectConstruction("city-rome", "Archer", target)
+        placedController.cityEconomy.selectConstruction("city-rome", "Archer", target)
         assertEquals("placed:city-rome:Archer:3:-1", calls.last())
     }
 
@@ -290,16 +290,151 @@ class AuthoritativeWorldControllerTests {
         )
 
         assertThrows<IllegalStateException> {
-            controller.selectConstruction("city-rome", "Secret Wonder")
+            controller.cityEconomy.selectConstruction("city-rome", "Secret Wonder")
         }
         assertThrows<IllegalArgumentException> {
-            controller.selectConstruction(
+            controller.cityEconomy.selectConstruction(
                 "city-rome",
                 "Archer",
                 ProjectedTargetCoordinate(99, 99),
             )
         }
         assertEquals(0, calls)
+    }
+
+    @Test
+    fun projectedCityQueueManagementAndPurchaseUseExactIdentities() = runBlocking {
+        val initial = gameProjection(7)
+        val calls = mutableListOf<String>()
+        val controller = controller(
+            initial,
+            removeConstruction = { cityId, index, name ->
+                calls += "remove:$cityId:$index:$name"
+                accepted(initial, 8)
+            },
+            manageConstruction = { cityId, name, index, action ->
+                calls += "manage:$cityId:$name:$index:$action"
+                accepted(initial, 8)
+            },
+            purchaseConstruction = { cityId, name, currency, index ->
+                calls += "purchase:$cityId:$name:$currency:$index"
+                accepted(initial, 8)
+            },
+        )
+
+        controller.cityEconomy.removeConstruction("city-rome", 0, "Monument")
+        assertEquals("remove:city-rome:0:Monument", calls.single())
+
+        val manageController = controller(
+            initial,
+            manageConstruction = { cityId, name, index, action ->
+                calls += "manage:$cityId:$name:$index:$action"
+                accepted(initial, 8)
+            },
+        )
+        manageController.cityEconomy.manageQueues(
+            "city-rome",
+            "Archer",
+            null,
+            ConstructionQueueAction.AddToTop,
+        )
+        assertEquals(
+            "manage:city-rome:Archer:null:${ConstructionQueueAction.AddToTop}",
+            calls.last(),
+        )
+
+        val purchaseController = controller(
+            initial,
+            purchaseConstruction = { cityId, name, currency, index ->
+                calls += "purchase:$cityId:$name:$currency:$index"
+                accepted(initial, 8)
+            },
+        )
+        purchaseController.cityEconomy.purchase(
+            "city-rome", "Archer", "Gold", queueIndex = null,
+        )
+        assertEquals("purchase:city-rome:Archer:Gold:null", calls.last())
+    }
+
+    @Test
+    fun projectedAdjacentQueueMoveAndTilePurchaseAreBounded() = runBlocking {
+        val base = gameProjection(7)
+        val city = base.projection.ownCities.single()
+        val target = ProjectedTargetCoordinate(3, -1)
+        val tilePurchase = city.constructionOptions.first().purchases.single().copy(
+            requiresTile = true,
+            legalTargets = listOf(target),
+        )
+        val projected = base.copy(
+            projection = base.projection.copy(
+                ownCities = listOf(city.copy(
+                    constructionQueueEntries = city.constructionQueueEntries +
+                        city.constructionQueueEntries.single().copy(name = "Granary"),
+                    constructionQueue = listOf("Monument", "Granary"),
+                    constructionOptions = city.constructionOptions.map { option ->
+                        if (option.name == "Archer") {
+                            option.copy(purchases = listOf(tilePurchase))
+                        } else option
+                    },
+                )),
+            ),
+        )
+        val calls = mutableListOf<String>()
+        val moveController = controller(
+            projected,
+            moveConstruction = { cityId, from, to, name ->
+                calls += "move:$cityId:$from:$to:$name"
+                accepted(projected, 8)
+            },
+        )
+        moveController.cityEconomy.moveConstruction("city-rome", 1, 0, "Granary")
+        assertEquals("move:city-rome:1:0:Granary", calls.single())
+
+        val purchaseController = controller(
+            projected,
+            purchaseConstructionAtTile = { cityId, name, currency, x, y, index ->
+                calls += "tile:$cityId:$name:$currency:$x:$y:$index"
+                accepted(projected, 8)
+            },
+        )
+        purchaseController.cityEconomy.purchase(
+            "city-rome", "Archer", "Gold", null, target,
+        )
+        assertEquals("tile:city-rome:Archer:Gold:3:-1:null", calls.last())
+    }
+
+    @Test
+    fun unadvertisedCityEconomyInputsAndAmbiguousRetryNeverMutateProjection() = runBlocking {
+        val initial = gameProjection(7)
+        var calls = 0
+        val controller = controller(
+            initial,
+            removeConstruction = { _, _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            purchaseConstruction = { _, _, _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.Rejected("unexpected")
+            },
+        )
+
+        assertThrows<IllegalStateException> {
+            controller.cityEconomy.purchase(
+                "city-rome", "Archer", "Faith", queueIndex = null,
+            )
+        }
+        assertThrows<IllegalStateException> {
+            controller.cityEconomy.removeConstruction("city-rome", 0, "Granary")
+        }
+        assertEquals(0, calls)
+
+        controller.cityEconomy.removeConstruction("city-rome", 0, "Monument")
+        assertEquals(AuthoritativeWorldStatus.RetryRequired, controller.status)
+        assertEquals(7, controller.current.committedRevision)
+        controller.cityEconomy.removeConstruction("city-rome", 0, "Monument")
+        assertEquals(2, calls)
+        assertEquals(7, controller.current.committedRevision)
     }
 
     @Test
@@ -310,12 +445,20 @@ class AuthoritativeWorldControllerTests {
                     "AuthoritativeWorldController.kt",
             ),
             sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "AuthoritativeCityEconomyController.kt",
+            ),
+            sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
             ),
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldDecisions.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeCityEconomyPanel.kt",
             ),
         ).joinToString("\n") { it.readText() }
 
@@ -349,6 +492,24 @@ class AuthoritativeWorldControllerTests {
             { _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
         perpetualConstruction: suspend (String, String) -> AuthoritativeCommandOutcome? =
             { _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        removeConstruction: suspend (String, Int, String) -> AuthoritativeCommandOutcome? =
+            { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        moveConstruction: suspend (String, Int, Int, String) -> AuthoritativeCommandOutcome? =
+            { _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        manageConstruction:
+            suspend (
+                String,
+                String,
+                Int?,
+                ConstructionQueueAction,
+            ) -> AuthoritativeCommandOutcome? =
+            { _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        purchaseConstruction:
+            suspend (String, String, String, Int?) -> AuthoritativeCommandOutcome? =
+            { _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
+        purchaseConstructionAtTile:
+            suspend (String, String, String, Int, Int, Int?) -> AuthoritativeCommandOutcome? =
+            { _, _, _, _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
     ) = AuthoritativeWorldController(
         initial = initial,
         refreshProjection = refresh,
@@ -357,9 +518,16 @@ class AuthoritativeWorldControllerTests {
         setResearch = setResearch,
         adoptPolicy = adoptPolicy,
         acknowledgeResearchCompletion = acknowledgeResearch,
-        queueConstruction = queueConstruction,
-        queueConstructionAtTile = queueConstructionAtTile,
-        setPerpetualConstruction = perpetualConstruction,
+        cityEconomyActions = AuthoritativeCityEconomyActions(
+            queue = queueConstruction,
+            queueAtTile = queueConstructionAtTile,
+            setPerpetual = perpetualConstruction,
+            remove = removeConstruction,
+            move = moveConstruction,
+            manage = manageConstruction,
+            purchase = purchaseConstruction,
+            purchaseAtTile = purchaseConstructionAtTile,
+        ),
     )
 
     private fun accepted(

@@ -28,19 +28,8 @@ class AuthoritativeWorldController(
         suspend (technologyName: String) -> AuthoritativeCommandOutcome? = { null },
     private val acknowledgeResearchCompletion:
         suspend (promptId: String) -> AuthoritativeCommandOutcome? = { null },
-    private val queueConstruction:
-        suspend (cityId: String, constructionName: String) -> AuthoritativeCommandOutcome? =
-        { _, _ -> null },
-    private val queueConstructionAtTile:
-        suspend (
-            cityId: String,
-            constructionName: String,
-            x: Int,
-            y: Int,
-        ) -> AuthoritativeCommandOutcome? = { _, _, _, _ -> null },
-    private val setPerpetualConstruction:
-        suspend (cityId: String, constructionName: String) -> AuthoritativeCommandOutcome? =
-        { _, _ -> null },
+    cityEconomyActions: AuthoritativeCityEconomyActions =
+        AuthoritativeCityEconomyActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -55,6 +44,12 @@ class AuthoritativeWorldController(
 
     val projection: PlayerProjection
         get() = current.projection
+
+    val cityEconomy = AuthoritativeCityEconomyController(
+        projection = { projection },
+        submit = ::submit,
+        actions = cityEconomyActions,
+    )
 
     fun selectUnit(unitId: Int) {
         require(projection.ownUnits.any { it.id == unitId }) {
@@ -153,46 +148,6 @@ class AuthoritativeWorldController(
         }
         submit {
             acknowledgeResearchCompletion(promptId)
-        }
-    }
-
-    suspend fun selectConstruction(
-        cityId: String,
-        constructionName: String,
-        target: ProjectedTargetCoordinate? = null,
-    ) {
-        val city = projection.ownCities.singleOrNull { it.id == cityId }
-            ?: error("City is absent from the current server projection")
-        val option = city.constructionOptions.singleOrNull {
-            it.name == constructionName && it.queueable
-        } ?: error("Construction is absent from the current server projection")
-        when (option.kind) {
-            ProjectedConstructionKind.Perpetual -> {
-                require(target == null && option.placementTargets.isEmpty()) {
-                    "Perpetual construction cannot use a placement target"
-                }
-                submit { setPerpetualConstruction(cityId, constructionName) }
-            }
-            ProjectedConstructionKind.Ordinary -> {
-                if (option.placementTargets.isEmpty()) {
-                    require(target == null) {
-                        "Construction does not accept a placement target"
-                    }
-                    submit { queueConstruction(cityId, constructionName) }
-                } else {
-                    require(target in option.placementTargets) {
-                        "Tile is absent from the construction's projected legal targets"
-                    }
-                    submit {
-                        queueConstructionAtTile(
-                            cityId,
-                            constructionName,
-                            requireNotNull(target).x,
-                            target.y,
-                        )
-                    }
-                }
-            }
         }
     }
 

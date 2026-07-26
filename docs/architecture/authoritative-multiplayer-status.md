@@ -6965,6 +6965,42 @@ Focused verification on 2026-07-26:
   1,130 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker tactical parity batch
+
+Implemented on 2026-07-26:
+
+- Added one deterministic two-fresh-JVM war-state scenario covering pillaging,
+  paradrops, city bombardment, air sweeps with hidden interceptors, and nuclear
+  strikes.
+- The submitted unit IDs and every destination/target come from the
+  authenticated player's private projection. The worker derives territory
+  legality, pillage healing and movement, paradrop range/action consumption,
+  bombard damage, interceptor selection, nuclear blast effects, and all combat
+  randomness.
+- The nuclear command runs last so the scenario observes every preceding
+  transition independently. The final snapshot proves the neutral Farm was
+  pillaged and healed the unit, the paratrooper reached its projected
+  coordinate, the city attack was recorded, the fighter consumed its attack,
+  and the nuclear unit was consumed.
+- All twelve complete responses and intermediate snapshots/hashes are
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 56 of 86 sealed operations; 30 remain in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerTacticalParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- The first fixture incorrectly placed the pillage target inside the actor's
+  new city border; the private projection correctly reported that pillaging
+  was illegal. The clean fixture uses a deterministically selected visible
+  neutral tile and introduces no deprecated test API use or compiler warning.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,131 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

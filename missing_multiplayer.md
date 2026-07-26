@@ -449,10 +449,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   data. Applied actions are append-only audited and idempotent, and the operator
   runbook maps every closed reconciliation finding to recovery, restore, or
   reviewed bespoke migration.
-- [ ] Complete controlled process fault tests for Rust process death, Kotlin
-  worker death, lost HTTP responses, and outbox-dispatch boundaries. Forced
-  database-connection termination while blocked at the canonical commit lock is
-  covered: it leaves no phantom rows and the same command retries safely.
+- [x] Prove authenticated worker-boundary death and response-uncertain retry
+  safety against PostgreSQL. A worker connection that disappears after a
+  complete authenticated `EndTurn` request creates no revision, snapshot,
+  command, or outbox row. The identical command then commits once through a
+  healthy worker, and a later retry returns that durable result without
+  contacting the now-unreachable worker.
+- [ ] Complete controlled whole-process fault tests for Rust process death,
+  packaged Kotlin worker termination, lost HTTP transport responses, and
+  outbox-dispatch boundaries. Forced database-connection termination while
+  blocked at the canonical commit lock is covered: it leaves no phantom rows
+  and the same command retries safely.
 - [ ] Test actual PostgreSQL/service failover and reconnection under load. The
   independent-replica CAS race is covered: two valid commands at one expected
   revision produce exactly one complete head and one stale conflict.

@@ -1,5 +1,40 @@
 # Authoritative multiplayer v3 status
 
+## Worker-boundary crash consistency
+
+Implemented on 2026-07-26:
+
+- Added a PostgreSQL integration fault fixture around the real authenticated
+  Rust worker client. The worker peer reads and verifies a complete `EndTurn`
+  frame, then disappears without returning any proposal.
+- The failed execution returns a worker-boundary error and leaves all canonical
+  commit artifacts absent: no revision, immutable snapshot, command journal
+  entry, or outbox event is created.
+- Retrying the identical command through a healthy authenticated worker commits
+  exactly one complete revision. Retrying again with the worker address
+  unreachable returns the original durable acceptance before transport, proving
+  response-uncertain idempotency does not re-execute gameplay.
+- Post-fault reconciliation reports zero findings. Actual forced termination of
+  the packaged JVM and Rust API processes, raw HTTP response loss, and
+  outbox-dispatch process boundaries remain explicit open qualification work.
+
+Verification on 2026-07-26:
+
+- The focused
+  `worker_connection_death_cannot_create_a_phantom_revision_and_retry_is_safe`
+  PostgreSQL test passes against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+- All 24 serialized PostgreSQL integration and controlled fault tests pass in
+  8.10 seconds against that pinned PostgreSQL 19 Beta 2 image. Both disposable
+  containers were removed and cleanup was verified.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 24 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 63
+  actionable tasks: three executed and 60 up-to-date.
+
 ## Mutually authenticated private worker protocol
 
 Implemented on 2026-07-26:

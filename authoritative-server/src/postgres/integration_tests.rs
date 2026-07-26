@@ -23,6 +23,8 @@ mod replica_faults;
 mod retention;
 #[path = "snapshot_integration_tests.rs"]
 mod snapshots;
+#[path = "worker_fault_integration_tests.rs"]
+mod worker_faults;
 
 fn database_url() -> String {
     env::var("UNCIV_V3_DATABASE_URL")

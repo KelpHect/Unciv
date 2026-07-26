@@ -1,12 +1,10 @@
 use super::*;
 use crate::worker::{
     BarbarianMode, EngineWorkerClient, GeneratedMapShape, GeneratedMapSize, GeneratedMapType,
-    MapResourceDensity, WORKER_PROTOCOL_VERSION, WorkerGameSetup,
+    MapResourceDensity, WORKER_PROTOCOL_VERSION, WorkerGameSetup, WorkerIdentityKey,
+    read_authenticated_test_frame, write_authenticated_test_frame,
 };
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
-};
+use tokio::net::TcpListener;
 
 #[tokio::test]
 #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
@@ -177,10 +175,7 @@ async fn one_shot_creation_worker(
     let address = listener.local_addr().unwrap();
     let task = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
-        let size = stream.read_u32().await.unwrap() as usize;
-        let mut request = vec![0; size];
-        stream.read_exact(&mut request).await.unwrap();
-        let request: serde_json::Value = serde_json::from_slice(&request).unwrap();
+        let (nonce, request) = read_authenticated_test_frame(&mut stream).await;
         assert_eq!(request["operation"]["type"], "create_game");
         assert!(request["operation"].get("snapshot").is_none());
         let server_time_millis = request["serverTimeMillis"]
@@ -193,19 +188,25 @@ async fn one_shot_creation_worker(
         } else {
             "0".repeat(64)
         };
-        let response = serde_json::to_vec(&json!({
-            "protocolVersion": WORKER_PROTOCOL_VERSION,
-            "serverTimeMillis": server_time_millis,
-            "snapshot": snapshot,
-            "canonicalStateHash": canonical_hash,
-            "actorCivilizationId": "Owner civilization",
-        }))
-        .unwrap();
-        stream.write_u32(response.len() as u32).await.unwrap();
-        stream.write_all(&response).await.unwrap();
+        write_authenticated_test_frame(
+            &mut stream,
+            nonce,
+            json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": server_time_millis,
+                "snapshot": snapshot,
+                "canonicalStateHash": canonical_hash,
+                "actorCivilizationId": "Owner civilization",
+            }),
+        )
+        .await;
     });
     (
-        EngineWorkerClient::new(address, Duration::from_secs(2)),
+        EngineWorkerClient::new(
+            address,
+            Duration::from_secs(2),
+            WorkerIdentityKey::for_test(),
+        ),
         task,
     )
 }

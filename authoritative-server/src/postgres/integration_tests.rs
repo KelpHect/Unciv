@@ -315,7 +315,11 @@ async fn spectator_membership_is_owner_controlled_idempotent_and_player_projecti
     let metadata = repository.game_metadata(spectator, game).await.unwrap();
     assert_eq!(metadata.role, "spectator");
     assert_eq!(metadata.civilization_id, None);
-    let worker = EngineWorkerClient::new("127.0.0.1:9".parse().unwrap(), Duration::from_millis(10));
+    let worker = EngineWorkerClient::new(
+        "127.0.0.1:9".parse().unwrap(),
+        Duration::from_millis(10),
+        crate::worker::WorkerIdentityKey::for_test(),
+    );
     assert_eq!(
         repository
             .game_projection(&worker, spectator, game)

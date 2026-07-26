@@ -114,7 +114,11 @@ async fn compaction_preserves_milestones_head_history_and_idempotency() {
     repository.validate_canonical_head(game).await.unwrap();
     let unavailable_delta = repository
         .game_projection_delta(
-            &EngineWorkerClient::new("127.0.0.1:9".parse().unwrap(), Duration::from_millis(10)),
+            &EngineWorkerClient::new(
+                "127.0.0.1:9".parse().unwrap(),
+                Duration::from_millis(10),
+                crate::worker::WorkerIdentityKey::for_test(),
+            ),
             owner,
             game,
             2,

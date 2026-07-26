@@ -25,8 +25,11 @@ async fn owner_kick_atomically_commits_and_removes_only_the_player_membership() 
         command: GameCommand::KickMember {},
         ..command(game, command_id, 0)
     };
-    let unreachable_worker =
-        EngineWorkerClient::new("127.0.0.1:1".parse().unwrap(), Duration::from_millis(50));
+    let unreachable_worker = EngineWorkerClient::new(
+        "127.0.0.1:1".parse().unwrap(),
+        Duration::from_millis(50),
+        crate::worker::WorkerIdentityKey::for_test(),
+    );
     let unauthorized = repository
         .execute_kick_member(
             &unreachable_worker,
@@ -169,8 +172,11 @@ async fn ownership_and_lifecycle_operations_are_idempotent_authorized_and_gate_c
     let page = repository.list_games(owner, None, 10).await.unwrap();
     assert_eq!(page.games[0].lifecycle_status, "archived");
     assert!(!page.games[0].available);
-    let unreachable_worker =
-        EngineWorkerClient::new("127.0.0.1:1".parse().unwrap(), Duration::from_millis(50));
+    let unreachable_worker = EngineWorkerClient::new(
+        "127.0.0.1:1".parse().unwrap(),
+        Duration::from_millis(50),
+        crate::worker::WorkerIdentityKey::for_test(),
+    );
     assert!(matches!(
         repository
             .game_projection(&unreachable_worker, owner, game)

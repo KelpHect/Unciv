@@ -1,5 +1,59 @@
 # Authoritative multiplayer v3 status
 
+## Mutually authenticated private worker protocol
+
+Implemented on 2026-07-26:
+
+- Worker protocol version 2 adds mutual HMAC-SHA256 service identity to the
+  private Rust/Kotlin boundary. Every request uses a fresh 128-bit OS-random
+  nonce. Direction-separated tags bind the nonce, big-endian frame length, and
+  exact payload; the worker echoes the nonce in its authenticated response.
+- Kotlin verifies request identity before bounded JSON decoding or engine
+  execution. Rust verifies the echoed nonce and response identity before JSON
+  parsing, accepting a proposal, or reaching PostgreSQL.
+- Both production entrypoints require the same independently generated 256-bit
+  `UNCIV_ENGINE_WORKER_SECRET` and fail closed on absent, malformed, or
+  incorrectly sized values. The secret is never carried in JSON, canonical
+  history, logs, or command-line arguments.
+- Authentication lives in focused Rust and Kotlin modules; `main.rs`, `lib.rs`,
+  bootstrap façades, and the worker engine remain free of cryptographic logic.
+- Broad validation exposed identity/hash-order traversal in shared
+  `TileMap.placeUnitNearTile()`: equivalent city-state settler destinations
+  could differ between fresh JVMs. Candidate tiles are now ordered
+  canonically by coordinates at every search depth, preserving the shared
+  engine while making this server game-creation path byte-stable.
+- Added `docs/operations/authoritative-worker-identity.md` with generation,
+  distribution, framing, rotation, and compromise procedures.
+
+Verification on 2026-07-26:
+
+- Rust unit/property tests prove exact key parsing, payload/nonce/direction/tag
+  binding, forged-response rejection, authenticated handshake and proposal
+  exchange, and deadline cancellation with the new frame.
+- The packaged fresh-process Kotlin worker suite proves cross-language
+  request/response authentication while retaining deterministic creation and
+  replay fixtures. Kotlin tests reject changed payloads, tags, directions, and
+  malformed keys.
+- A shared fixed protocol-v2 vector proves Rust and Kotlin produce the exact
+  same request and response tags. The fresh-process city-state creation fixture
+  passed 12 consecutive complete class runs after canonical tile ordering, then
+  passed the full regression gate.
+- `cargo test --all-features` passes 143 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 23 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- All 23 serialized PostgreSQL integration and replica-fault tests pass in
+  7.82 seconds against only the pinned PostgreSQL 19 Beta 2 image digest. This
+  includes authenticated worker game-creation and recovery mocks. The
+  disposable database was removed.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1101 JVM/server cases: 1088 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Every substantive Rust source remains below the 800-line guardrail. The
+  largest is 796 lines; `worker.rs` is 640 lines, authentication is isolated in
+  a 132-line module, and client transport tests are isolated from the façade.
+
 ## Reviewed reconciliation repair workflows
 
 Implemented on 2026-07-26:

@@ -674,8 +674,11 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
     ): MapUnit? {
         val unit = baseUnit.newMapUnit(civInfo, unitId)
 
+        val canonicalTileOrder = compareBy<Tile> { it.position.x }.thenBy { it.position.y }
         fun getPassableNeighbours(tile: Tile) =
-                tile.neighbors.filter { unit.movement.canPassThrough(it) }
+                tile.neighbors
+                    .filter { unit.movement.canPassThrough(it) }
+                    .sortedWith(canonicalTileOrder)
 
         // both the civ name and actual civ need to be in here in order to calculate the canMoveTo...Darn
         unit.assignOwner(civInfo, false)
@@ -718,7 +721,9 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
                 checkedCandidates.addAll(potentialCandidates.allTiles)
                 val newCandidates = potentialCandidates.allTiles
                     .flatMap { getPassableNeighbours(it).filter { it !in checkedCandidates } }
-                    .toSet()
+                    .distinct()
+                    .sortedWith(canonicalTileOrder)
+                    .asIterable()
                 potentialCandidates = TileCandidates(isRestrictedLandUnit, newCandidates)
             }
         }

@@ -2,7 +2,10 @@ use std::{net::SocketAddr, process::ExitCode, time::Duration};
 
 use uuid::Uuid;
 
-use crate::{postgres::PostgresGameRepository, worker::EngineWorkerClient};
+use crate::{
+    postgres::PostgresGameRepository,
+    worker::{EngineWorkerClient, WorkerIdentityKey},
+};
 
 const DEFAULT_MAX_TAIL: u64 = 128;
 
@@ -50,7 +53,16 @@ pub async fn run_recovery_cli() -> ExitCode {
         eprintln!("failed to connect to the authoritative database");
         return ExitCode::FAILURE;
     };
-    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30));
+    let Ok(worker_identity) = std::env::var("UNCIV_ENGINE_WORKER_SECRET")
+        .map_err(|_| ())
+        .and_then(|value| WorkerIdentityKey::from_hex(&value).map_err(|_| ()))
+    else {
+        eprintln!(
+            "UNCIV_ENGINE_WORKER_SECRET must be exactly 32 bytes encoded as 64 hexadecimal characters"
+        );
+        return ExitCode::FAILURE;
+    };
+    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30), worker_identity);
     let Ok(recovered) = repository
         .reconstruct_head(&worker, game_id, max_tail)
         .await

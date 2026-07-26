@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::CommitProposal;
 
+mod authentication;
 mod capital_project;
 mod city_disposition;
 mod city_economy;
@@ -17,6 +18,8 @@ mod city_governance;
 mod city_population;
 mod city_state;
 mod city_tiles;
+#[cfg(test)]
+mod client_tests;
 mod diplomacy;
 mod espionage;
 mod event_choices;
@@ -40,6 +43,7 @@ mod unit_movement;
 mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
+pub use authentication::WorkerIdentityKey;
 pub use city_state::{
     CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
     CityStateTributeIntent,
@@ -78,14 +82,17 @@ pub use protocol::{
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
 pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeRequestIntent};
+#[cfg(test)]
+pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 1;
+pub const WORKER_PROTOCOL_VERSION: u16 = 2;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct EngineWorkerClient {
     address: SocketAddr,
     request_timeout: Duration,
+    identity_key: WorkerIdentityKey,
 }
 
 #[derive(Error)]
@@ -96,6 +103,8 @@ pub enum WorkerClientError {
     FrameTooLarge,
     #[error("worker returned an incompatible protocol")]
     Protocol,
+    #[error("worker identity verification failed")]
+    Identity,
     // The private reason may contain rule or state diagnostics. Keep it for
     // internal control flow, but never expose it through Display/logging.
     #[error("worker rejected execution")]
@@ -141,6 +150,18 @@ fn server_time_millis() -> Result<i64, WorkerClientError> {
 }
 
 impl EngineWorkerClient {
+    pub fn new(
+        address: SocketAddr,
+        request_timeout: Duration,
+        identity_key: WorkerIdentityKey,
+    ) -> Self {
+        Self {
+            address,
+            request_timeout,
+            identity_key,
+        }
+    }
+
     pub async fn purchase_construction_at_tile(
         &self,
         actor_id: &str,
@@ -426,13 +447,6 @@ impl EngineWorkerClient {
         })
     }
 
-    pub fn new(address: SocketAddr, request_timeout: Duration) -> Self {
-        Self {
-            address,
-            request_timeout,
-        }
-    }
-
     pub async fn end_turn(
         &self,
         actor_id: &str,
@@ -490,175 +504,6 @@ impl EngineWorkerClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
-    use tokio::{
-        io::{AsyncReadExt, AsyncWriteExt},
-        net::TcpListener,
-    };
-
-    #[tokio::test]
-    async fn handshake_uses_the_versioned_actorless_contract() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let size = stream.read_u32().await.unwrap() as usize;
-            let mut request = vec![0; size];
-            stream.read_exact(&mut request).await.unwrap();
-            let request: Value = serde_json::from_slice(&request).unwrap();
-            assert_eq!(request["protocolVersion"], WORKER_PROTOCOL_VERSION);
-            assert_eq!(request["operation"]["type"], "handshake");
-            assert!(request.get("actorId").is_none());
-            assert!(request.get("rulesetManifest").is_none());
-
-            let response = serde_json::to_vec(&serde_json::json!({
-                "protocolVersion": WORKER_PROTOCOL_VERSION,
-                "engineBuild": "4.21.1",
-                "installedRulesets": [{
-                    "name": "Civ V - Vanilla",
-                    "sha256": "a".repeat(64),
-                }],
-            }))
-            .unwrap();
-            stream.write_u32(response.len() as u32).await.unwrap();
-            stream.write_all(&response).await.unwrap();
-        });
-
-        let capabilities = EngineWorkerClient::new(address, Duration::from_secs(1))
-            .handshake()
-            .await
-            .unwrap();
-        assert_eq!(capabilities.engine_build, "4.21.1");
-        assert_eq!(capabilities.installed_rulesets.len(), 1);
-        server.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn worker_cannot_rewrite_the_control_plane_timestamp() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let size = stream.read_u32().await.unwrap() as usize;
-            let mut request = vec![0; size];
-            stream.read_exact(&mut request).await.unwrap();
-            let request: Value = serde_json::from_slice(&request).unwrap();
-            let supplied = request["serverTimeMillis"].as_i64().unwrap();
-            let response = serde_json::to_vec(&serde_json::json!({
-                "protocolVersion": WORKER_PROTOCOL_VERSION,
-                "serverTimeMillis": supplied + 1,
-            }))
-            .unwrap();
-            stream.write_u32(response.len() as u32).await.unwrap();
-            stream.write_all(&response).await.unwrap();
-        });
-        let manifest = WorkerManifest {
-            engine_build: "engine-1".to_owned(),
-            base_ruleset: WorkerRuleset {
-                name: "Base".to_owned(),
-                sha256: "a".repeat(64),
-            },
-            mods: Vec::new(),
-        };
-        let result = EngineWorkerClient::new(address, Duration::from_secs(1))
-            .execute("account-1", &manifest, WorkerOperation::Handshake)
-            .await;
-        assert!(matches!(result, Err(WorkerClientError::Protocol)));
-        server.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn commit_proposal_retains_the_exact_operation_without_snapshot_bytes() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let size = stream.read_u32().await.unwrap() as usize;
-            let mut request = vec![0; size];
-            stream.read_exact(&mut request).await.unwrap();
-            let request: Value = serde_json::from_slice(&request).unwrap();
-            let supplied = request["serverTimeMillis"].as_i64().unwrap();
-            assert_eq!(request["operation"]["snapshot"], "canonical-before");
-            let response = serde_json::to_vec(&serde_json::json!({
-                "protocolVersion": WORKER_PROTOCOL_VERSION,
-                "serverTimeMillis": supplied,
-                "snapshot": "canonical-after",
-                "canonicalStateHash": "a".repeat(64),
-            }))
-            .unwrap();
-            stream.write_u32(response.len() as u32).await.unwrap();
-            stream.write_all(&response).await.unwrap();
-        });
-        let manifest = WorkerManifest {
-            engine_build: "engine-1".to_owned(),
-            base_ruleset: WorkerRuleset {
-                name: "Base".to_owned(),
-                sha256: "a".repeat(64),
-            },
-            mods: Vec::new(),
-        };
-        let proposal = EngineWorkerClient::new(address, Duration::from_secs(1))
-            .end_turn("account-1", &manifest, 7, "canonical-before", "Rome")
-            .await
-            .unwrap();
-        assert_eq!(proposal.previous_revision, 7);
-        assert_eq!(proposal.replay_operation["type"], "end_turn");
-        assert_eq!(proposal.replay_operation["actorCivilizationId"], "Rome");
-        assert!(proposal.replay_operation.get("snapshot").is_none());
-        server.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn replay_injects_only_the_validated_snapshot_and_original_timestamp() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.unwrap();
-            let size = stream.read_u32().await.unwrap() as usize;
-            let mut request = vec![0; size];
-            stream.read_exact(&mut request).await.unwrap();
-            let request: Value = serde_json::from_slice(&request).unwrap();
-            assert_eq!(request["serverTimeMillis"], 1_700_000_000_000_i64);
-            assert_eq!(request["operation"]["snapshot"], "validated-prior");
-            assert_eq!(request["operation"]["type"], "end_turn");
-            let response = serde_json::to_vec(&serde_json::json!({
-                "protocolVersion": WORKER_PROTOCOL_VERSION,
-                "serverTimeMillis": 1_700_000_000_000_i64,
-                "snapshot": "replayed-next",
-                "canonicalStateHash": "b".repeat(64),
-            }))
-            .unwrap();
-            stream.write_u32(response.len() as u32).await.unwrap();
-            stream.write_all(&response).await.unwrap();
-        });
-        let manifest = WorkerManifest {
-            engine_build: "engine-1".to_owned(),
-            base_ruleset: WorkerRuleset {
-                name: "Base".to_owned(),
-                sha256: "a".repeat(64),
-            },
-            mods: Vec::new(),
-        };
-        let replay_operation = serde_json::json!({
-            "type": "end_turn",
-            "actorCivilizationId": "Rome",
-        });
-        let proposal = EngineWorkerClient::new(address, Duration::from_secs(1))
-            .replay_operation(
-                3,
-                "account-1",
-                &manifest,
-                1_700_000_000_000,
-                "validated-prior",
-                replay_operation.clone(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(proposal.previous_revision, 3);
-        assert_eq!(proposal.replay_operation, replay_operation);
-        assert_eq!(proposal.snapshot, b"replayed-next");
-        server.await.unwrap();
-    }
 
     #[test]
     fn event_choice_worker_operation_matches_kotlin_wire_names() {

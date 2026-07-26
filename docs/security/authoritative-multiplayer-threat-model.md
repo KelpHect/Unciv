@@ -94,7 +94,15 @@ Required hardening includes a documented per-field projection policy, golden tes
 
 **Attacker story:** A malicious command or snapshot triggers excessive CPU, memory, recursion, or an engine crash; a local process impersonates the worker; malformed length prefixes desynchronize the stream; a compromised worker returns an invalid snapshot/hash pair; or nondeterministic engine behavior creates divergent outcomes.
 
-Current controls keep the worker protocol off the public router, use typed JSON operations and bounded response frames, bind actor civilization server-side, and verify worker-produced canonical hashes before persistence. The worker reuses Unciv's game engine instead of accepting client outcomes.
+Current controls keep the worker protocol off the public router, use typed JSON
+operations and bounded response frames, bind actor civilization server-side,
+and verify worker-produced canonical hashes before persistence. Protocol v2
+also authenticates every request and response with direction-separated
+HMAC-SHA256 over a fresh request nonce, length, and exact payload; both
+processes fail startup when the shared 256-bit service secret is absent or
+malformed. The worker verifies identity before JSON parsing or rule execution,
+and Rust verifies the response before parsing or persistence. The worker reuses
+Unciv's game engine instead of accepting client outcomes.
 
 Required hardening includes strict request and response frame limits, connect/read/write/deadline timeouts, bounded worker concurrency, per-command CPU and memory isolation, crash recycling, authenticated local IPC or an equivalent service-identity control, schema-version negotiation, deterministic replay tests, manifest verification inside the worker, structured redacted errors, and circuit breakers that preserve the old canonical head on every failure.
 

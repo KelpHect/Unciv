@@ -36,7 +36,11 @@ pub(crate) async fn run() {
         .unwrap_or_else(|_| "127.0.0.1:43170".to_owned())
         .parse::<SocketAddr>()
         .expect("UNCIV_ENGINE_WORKER_ADDR must be a socket address");
-    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30));
+    let worker_identity = std::env::var("UNCIV_ENGINE_WORKER_SECRET")
+        .ok()
+        .and_then(|value| unciv_authoritative_server::worker::WorkerIdentityKey::from_hex(&value).ok())
+        .expect("UNCIV_ENGINE_WORKER_SECRET must be exactly 32 bytes encoded as 64 hexadecimal characters");
+    let worker = EngineWorkerClient::new(worker_address, Duration::from_secs(30), worker_identity);
     let worker_capabilities = worker
         .handshake()
         .await

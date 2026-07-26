@@ -51,7 +51,56 @@ class EngineWorkerProtocolTests {
             EngineWorkerProtocol.validateJsonFrame(oversizedCollection)
         }
         EngineWorkerProtocol.validateJsonFrame(
-            """{"protocolVersion":1,"operation":{"type":"handshake"}}""".encodeToByteArray(),
+            """{"protocolVersion":${EngineWorkerProtocol.VERSION},"operation":{"type":"handshake"}}"""
+                .encodeToByteArray(),
+        )
+    }
+
+    @Test
+    fun workerAuthenticationRejectsChangedPayloadTagAndMalformedKeys() {
+        val authentication = EngineWorkerAuthentication.fromHex(TEST_WORKER_SECRET)
+        val payload = "authenticated request".encodeToByteArray()
+        val nonce = ByteArray(EngineWorkerAuthentication.nonceBytes) { 7 }
+        val tag = authentication.sign(EngineWorkerFrameDirection.Request, nonce, payload)
+        authentication.verify(EngineWorkerFrameDirection.Request, nonce, payload, tag)
+        assertThrows(IllegalArgumentException::class.java) {
+            authentication.verify(
+                EngineWorkerFrameDirection.Request,
+                nonce,
+                "changed request".encodeToByteArray(),
+                tag,
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            authentication.verify(
+                EngineWorkerFrameDirection.Request,
+                nonce,
+                payload,
+                tag.clone().also { it[0] = (it[0].toInt() xor 1).toByte() },
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            authentication.verify(EngineWorkerFrameDirection.Response, nonce, payload, tag)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            EngineWorkerAuthentication.fromHex("00")
+        }
+    }
+
+    @Test
+    fun crossLanguageProtocolV2TagVectorIsStable() {
+        val authentication = EngineWorkerAuthentication.fromHex(TEST_WORKER_SECRET)
+        val nonce = ByteArray(EngineWorkerAuthentication.nonceBytes) { it.toByte() }
+        val payload = "cross-language-v2".encodeToByteArray()
+        assertEquals(
+            "9aadde07280bfbb985dd6d2838648ae5357e7d7fe6cc5884f70a9b94f200a37c",
+            authentication.sign(EngineWorkerFrameDirection.Request, nonce, payload)
+                .joinToString("") { "%02x".format(it) },
+        )
+        assertEquals(
+            "69e97ebc3a5df91ec83e2730cf9290e58a5d378e5868e4a9e79aa14392feda1a",
+            authentication.sign(EngineWorkerFrameDirection.Response, nonce, payload)
+                .joinToString("") { "%02x".format(it) },
         )
     }
 
@@ -386,6 +435,7 @@ class EngineWorkerProtocolTests {
                 .redirectOutput(ProcessBuilder.Redirect.INHERIT)
                 .apply {
                     environment()["UNCIV_ENGINE_WORKER_PORT"] = port.toString()
+                    environment()["UNCIV_ENGINE_WORKER_SECRET"] = TEST_WORKER_SECRET
                 }
                 .start()
             try {
@@ -442,22 +492,48 @@ class EngineWorkerProtocolTests {
             val payload = EngineWorkerProtocol.json
                 .encodeToString(WorkerRequest.serializer(), request)
                 .encodeToByteArray()
+            val nonce = ByteArray(EngineWorkerAuthentication.nonceBytes).also(TEST_RANDOM::nextBytes)
             return Socket().use { socket ->
                 socket.connect(java.net.InetSocketAddress(address, port), 500)
                 socket.soTimeout = 120_000
                 val output = DataOutputStream(socket.getOutputStream())
                 output.writeInt(payload.size)
+                output.write(nonce)
+                output.write(
+                    TEST_AUTHENTICATION.sign(
+                        EngineWorkerFrameDirection.Request,
+                        nonce,
+                        payload,
+                    ),
+                )
                 output.write(payload)
                 output.flush()
                 val input = DataInputStream(socket.getInputStream())
                 val responseSize = input.readInt()
                 require(responseSize in 1..EngineWorkerProtocol.maxFrameBytes)
+                val responseNonce = input.readNBytes(EngineWorkerAuthentication.nonceBytes)
+                require(responseNonce.contentEquals(nonce))
+                val responseTag = input.readNBytes(EngineWorkerAuthentication.tagBytes)
+                require(responseTag.size == EngineWorkerAuthentication.tagBytes)
+                val responsePayload = input.readNBytes(responseSize)
+                TEST_AUTHENTICATION.verify(
+                    EngineWorkerFrameDirection.Response,
+                    responseNonce,
+                    responsePayload,
+                    responseTag,
+                )
                 EngineWorkerProtocol.json.decodeFromString(
                     WorkerResponse.serializer(),
-                    input.readNBytes(responseSize).decodeToString(),
+                    responsePayload.decodeToString(),
                 )
             }
         }
+
+        private const val TEST_WORKER_SECRET =
+            "5555555555555555555555555555555555555555555555555555555555555555"
+        private val TEST_AUTHENTICATION =
+            EngineWorkerAuthentication.fromHex(TEST_WORKER_SECRET)
+        private val TEST_RANDOM = java.security.SecureRandom()
 
         private fun defaultSetup(baseRulesetName: String): WorkerGameSetup {
             val ruleset = requireNotNull(RulesetCache[baseRulesetName])

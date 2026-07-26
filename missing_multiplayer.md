@@ -505,9 +505,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Replace the current one-operation connection model with a measured bounded
   persistent worker pool or document with benchmarks why the existing model is
   retained.
-- [ ] Add authenticated local IPC/service identity, strict connect/read/write and
-  command deadlines, worker crash recycling, circuit breakers, and per-command
-  CPU/memory limits.
+- [x] Add mutually authenticated local IPC/service identity. Worker protocol v2
+  HMAC-authenticates every request and response with direction separation, a
+  fresh OS-random request nonce, exact frame length, and payload. The worker
+  authenticates before JSON/rules execution, Rust authenticates before parsing
+  or persistence, missing/malformed secrets fail startup, and captured or
+  reflected frames fail closed.
+- [ ] Add separately configurable connect/read/write deadlines, worker crash
+  recycling, circuit breakers, and per-command CPU/memory limits. A bounded
+  total command deadline already cancels the connection and in-flight request.
 - [ ] Verify the manifest inside the worker and finish immutable mod acquisition:
   allowlisting, archive path/link defenses, byte/entry quotas, redirect and host
   policy, atomic staging, semantic validation, and no client-selected URL fetch.

@@ -36,7 +36,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 1
+    const val VERSION = 2
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -1475,7 +1475,10 @@ object InstalledRulesetCatalog {
         }
 }
 
-class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker()) {
+class LoopbackEngineWorkerServer(
+    private val worker: AuthoritativeEngineWorker = AuthoritativeEngineWorker(),
+    private val authentication: EngineWorkerAuthentication,
+) {
     fun serve(port: Int) = ServerSocket(port, 50, java.net.InetAddress.getLoopbackAddress()).use { server ->
         while (true) {
             server.accept().use { socket ->
@@ -1492,12 +1495,35 @@ class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker =
         val output = DataOutputStream(socket.getOutputStream())
         val frameSize = input.readInt()
         require(frameSize in 1..EngineWorkerProtocol.maxFrameBytes) { "Invalid frame length" }
-        val request = EngineWorkerProtocol.decodeRequest(frameSize, input.readNBytes(frameSize))
+        val nonce = input.readNBytes(EngineWorkerAuthentication.nonceBytes)
+        require(nonce.size == EngineWorkerAuthentication.nonceBytes) {
+            "Incomplete worker authentication nonce"
+        }
+        val requestTag = input.readNBytes(EngineWorkerAuthentication.tagBytes)
+        require(requestTag.size == EngineWorkerAuthentication.tagBytes) {
+            "Incomplete worker authentication tag"
+        }
+        val requestPayload = input.readNBytes(frameSize)
+        authentication.verify(
+            EngineWorkerFrameDirection.Request,
+            nonce,
+            requestPayload,
+            requestTag,
+        )
+        val request = EngineWorkerProtocol.decodeRequest(frameSize, requestPayload)
         val response = EngineWorkerProtocol.json
             .encodeToString(WorkerResponse.serializer(), worker.execute(request))
             .encodeToByteArray()
         EngineWorkerProtocol.validateJsonFrame(response)
         output.writeInt(response.size)
+        output.write(nonce)
+        output.write(
+            authentication.sign(
+                EngineWorkerFrameDirection.Response,
+                nonce,
+                response,
+            ),
+        )
         output.write(response)
         output.flush()
     }

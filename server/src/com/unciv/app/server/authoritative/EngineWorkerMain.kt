@@ -26,6 +26,9 @@ object EngineWorkerMain {
         }
         RulesetCache.loadRulesets(noMods = true)
         val port = System.getenv("UNCIV_ENGINE_WORKER_PORT")?.toIntOrNull() ?: 43170
-        LoopbackEngineWorkerServer().serve(port)
+        val authentication = System.getenv("UNCIV_ENGINE_WORKER_SECRET")
+            ?.let(EngineWorkerAuthentication::fromHex)
+            ?: error("UNCIV_ENGINE_WORKER_SECRET is required")
+        LoopbackEngineWorkerServer(authentication = authentication).serve(port)
     }
 }

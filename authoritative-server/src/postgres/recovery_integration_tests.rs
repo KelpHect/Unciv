@@ -1,10 +1,10 @@
 use serde_json::Value;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
-};
+use tokio::net::TcpListener;
 
 use super::*;
+use crate::worker::{
+    WorkerIdentityKey, read_authenticated_test_frame, write_authenticated_test_frame,
+};
 
 #[tokio::test]
 #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
@@ -52,26 +52,29 @@ async fn bounded_recovery_replays_from_the_newest_valid_prior_snapshot() {
         .unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let worker = EngineWorkerClient::new(listener.local_addr().unwrap(), Duration::from_secs(1));
+    let worker = EngineWorkerClient::new(
+        listener.local_addr().unwrap(),
+        Duration::from_secs(1),
+        WorkerIdentityKey::for_test(),
+    );
     let server = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
-        let size = stream.read_u32().await.unwrap() as usize;
-        let mut request = vec![0; size];
-        stream.read_exact(&mut request).await.unwrap();
-        let request: Value = serde_json::from_slice(&request).unwrap();
+        let (nonce, request): (_, Value) = read_authenticated_test_frame(&mut stream).await;
         assert_eq!(request["actorId"], owner.to_string());
         assert_eq!(request["serverTimeMillis"], 0);
         assert_eq!(request["operation"]["type"], "test");
         assert_eq!(request["operation"]["snapshot"], "revision-0");
-        let response = serde_json::to_vec(&serde_json::json!({
-            "protocolVersion": crate::worker::WORKER_PROTOCOL_VERSION,
-            "serverTimeMillis": 0,
-            "snapshot": "revision-1",
-            "canonicalStateHash": state_hash(b"revision-1"),
-        }))
-        .unwrap();
-        stream.write_u32(response.len() as u32).await.unwrap();
-        stream.write_all(&response).await.unwrap();
+        write_authenticated_test_frame(
+            &mut stream,
+            nonce,
+            serde_json::json!({
+                "protocolVersion": crate::worker::WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": 0,
+                "snapshot": "revision-1",
+                "canonicalStateHash": state_hash(b"revision-1"),
+            }),
+        )
+        .await;
     });
 
     let recovered = repository.reconstruct_head(&worker, game, 1).await.unwrap();

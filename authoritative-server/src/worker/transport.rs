@@ -1,3 +1,4 @@
+use rand_core::{OsRng, RngCore};
 use serde::Serialize;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -5,6 +6,7 @@ use tokio::{
     time::timeout,
 };
 
+use super::authentication::{FrameDirection, NONCE_BYTES, TAG_BYTES, sign_frame, verify_frame};
 use super::json_limits::validate_worker_json;
 use super::*;
 
@@ -95,12 +97,28 @@ impl EngineWorkerClient {
             return Err(WorkerClientError::FrameTooLarge);
         }
         validate_worker_json(&payload)?;
+        let mut request_nonce = [0_u8; NONCE_BYTES];
+        OsRng.fill_bytes(&mut request_nonce);
+        let request_tag = sign_frame(
+            &self.identity_key,
+            FrameDirection::Request,
+            &request_nonce,
+            &payload,
+        )?;
         let response = timeout(self.request_timeout, async {
             let mut stream = TcpStream::connect(self.address)
                 .await
                 .map_err(|_| WorkerClientError::Transport)?;
             stream
                 .write_u32(payload.len() as u32)
+                .await
+                .map_err(|_| WorkerClientError::Transport)?;
+            stream
+                .write_all(&request_nonce)
+                .await
+                .map_err(|_| WorkerClientError::Transport)?;
+            stream
+                .write_all(&request_tag)
                 .await
                 .map_err(|_| WorkerClientError::Transport)?;
             stream
@@ -118,17 +136,80 @@ impl EngineWorkerClient {
             if !valid_frame_size(size) {
                 return Err(WorkerClientError::FrameTooLarge);
             }
+            let mut response_nonce = [0_u8; NONCE_BYTES];
+            stream
+                .read_exact(&mut response_nonce)
+                .await
+                .map_err(|_| WorkerClientError::Transport)?;
+            if response_nonce != request_nonce {
+                return Err(WorkerClientError::Identity);
+            }
+            let mut response_tag = [0_u8; TAG_BYTES];
+            stream
+                .read_exact(&mut response_tag)
+                .await
+                .map_err(|_| WorkerClientError::Transport)?;
             let mut response = vec![0; size];
             stream
                 .read_exact(&mut response)
                 .await
                 .map_err(|_| WorkerClientError::Transport)?;
+            verify_frame(
+                &self.identity_key,
+                FrameDirection::Response,
+                &response_nonce,
+                &response,
+                &response_tag,
+            )?;
             decode_worker_response(&response)
         })
         .await
         .map_err(|_| WorkerClientError::Transport)??;
         validate_worker_response(response)
     }
+}
+
+#[cfg(test)]
+pub(crate) async fn read_authenticated_test_frame(
+    stream: &mut TcpStream,
+) -> ([u8; NONCE_BYTES], serde_json::Value) {
+    let size = stream.read_u32().await.unwrap() as usize;
+    let mut nonce = [0_u8; NONCE_BYTES];
+    stream.read_exact(&mut nonce).await.unwrap();
+    let mut tag = [0_u8; TAG_BYTES];
+    stream.read_exact(&mut tag).await.unwrap();
+    let mut payload = vec![0; size];
+    stream.read_exact(&mut payload).await.unwrap();
+    verify_frame(
+        &WorkerIdentityKey::for_test(),
+        FrameDirection::Request,
+        &nonce,
+        &payload,
+        &tag,
+    )
+    .unwrap();
+    let value = serde_json::from_slice(&payload).unwrap();
+    (nonce, value)
+}
+
+#[cfg(test)]
+pub(crate) async fn write_authenticated_test_frame(
+    stream: &mut TcpStream,
+    nonce: [u8; NONCE_BYTES],
+    response: serde_json::Value,
+) {
+    let payload = serde_json::to_vec(&response).unwrap();
+    let tag = sign_frame(
+        &WorkerIdentityKey::for_test(),
+        FrameDirection::Response,
+        &nonce,
+        &payload,
+    )
+    .unwrap();
+    stream.write_u32(payload.len() as u32).await.unwrap();
+    stream.write_all(&nonce).await.unwrap();
+    stream.write_all(&tag).await.unwrap();
+    stream.write_all(&payload).await.unwrap();
 }
 
 fn valid_frame_size(size: usize) -> bool {
@@ -169,6 +250,10 @@ mod property_tests {
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.unwrap();
             let size = stream.read_u32().await.unwrap() as usize;
+            let mut nonce = [0_u8; NONCE_BYTES];
+            stream.read_exact(&mut nonce).await.unwrap();
+            let mut tag = [0_u8; TAG_BYTES];
+            stream.read_exact(&mut tag).await.unwrap();
             let mut request = vec![0; size];
             stream.read_exact(&mut request).await.unwrap();
             let mut byte = [0_u8; 1];
@@ -177,14 +262,46 @@ mod property_tests {
                 .unwrap()
                 .unwrap()
         });
-        let result = EngineWorkerClient::new(address, Duration::from_millis(10))
-            .execute_request(json!({
-                "protocolVersion": WORKER_PROTOCOL_VERSION,
-                "operation": {"type": "handshake"},
-            }))
-            .await;
+        let result = EngineWorkerClient::new(
+            address,
+            Duration::from_millis(10),
+            WorkerIdentityKey::for_test(),
+        )
+        .execute_request(json!({
+            "protocolVersion": WORKER_PROTOCOL_VERSION,
+            "operation": {"type": "handshake"},
+        }))
+        .await;
         assert!(matches!(result, Err(WorkerClientError::Transport)));
         assert_eq!(server.await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn worker_response_requires_the_same_service_identity() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let (nonce, _) = read_authenticated_test_frame(&mut stream).await;
+            let response =
+                serde_json::to_vec(&json!({"protocolVersion": WORKER_PROTOCOL_VERSION})).unwrap();
+            stream.write_u32(response.len() as u32).await.unwrap();
+            stream.write_all(&nonce).await.unwrap();
+            stream.write_all(&[0_u8; TAG_BYTES]).await.unwrap();
+            stream.write_all(&response).await.unwrap();
+        });
+        let result = EngineWorkerClient::new(
+            address,
+            Duration::from_secs(1),
+            WorkerIdentityKey::for_test(),
+        )
+        .execute_request(json!({
+            "protocolVersion": WORKER_PROTOCOL_VERSION,
+            "operation": {"type": "handshake"},
+        }))
+        .await;
+        assert!(matches!(result, Err(WorkerClientError::Identity)));
+        server.await.unwrap();
     }
 
     proptest! {

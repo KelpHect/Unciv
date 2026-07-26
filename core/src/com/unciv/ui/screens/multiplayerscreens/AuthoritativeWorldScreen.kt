@@ -74,6 +74,7 @@ class AuthoritativeWorldScreen(
                 gameSummary.gameId, beliefs, icon, name,
             )
         },
+        diplomacyActions = authoritativeDiplomacyActions(session, gameSummary.gameId),
     )
 
     private var centerX = initialCenter().first

@@ -1,0 +1,99 @@
+package com.unciv.ui.screens.multiplayerscreens
+
+import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeDiplomacyController
+import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.ui.components.extensions.disable
+import com.unciv.ui.components.extensions.toLabel
+import com.unciv.ui.components.extensions.toTextButton
+import com.unciv.ui.components.input.onClick
+
+/** Renders only worker-advertised diplomacy capabilities and exact inputs. */
+internal class AuthoritativeDiplomacyPanel(
+    private val projection: PlayerProjection,
+    private val controller: AuthoritativeDiplomacyController,
+    private val busy: Boolean,
+    private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
+) {
+    fun build(): Table = Table().apply {
+        defaults().pad(3f)
+        if (!projection.isCurrentTurn) return@apply
+        for (partner in projection.diplomacyPartners) {
+            add(
+                (
+                    "${partner.civilizationId} - policies: " +
+                        partner.adoptedPolicyBranches.joinToString().ifEmpty { "none" }
+                ).toLabel(),
+            ).left().row()
+            if (partner.canDeclareWar) add(actionButton("Declare war") {
+                controller.declareWar(partner.civilizationId)
+            }).left().row()
+            if (partner.canDenounce) add(actionButton("Denounce") {
+                controller.denounce(partner.civilizationId)
+            }).left().row()
+            if (partner.canOfferFriendship) add(actionButton("Offer friendship") {
+                controller.offerFriendship(partner.civilizationId)
+            }).left().row()
+            for (demand in partner.availableDemands) {
+                add(actionButton("Demand: ${demand.name}") {
+                    controller.makeDemand(partner.civilizationId, demand)
+                }).left().row()
+            }
+        }
+        for (partner in projection.cityStatePartners) {
+            add("City-state: ${partner.civilizationId}".toLabel()).left().row()
+            if (partner.canDeclareWar) add(actionButton("Declare war") {
+                controller.declareWar(partner.civilizationId)
+            }).left().row()
+            for (amount in partner.availableGoldGifts) {
+                add(actionButton("Gift $amount gold") {
+                    controller.giftGold(partner.civilizationId, amount)
+                }).left().row()
+            }
+            if (partner.canPledgeProtection) add(actionButton("Pledge protection") {
+                controller.setProtection(partner.civilizationId, true)
+            }).left().row()
+            if (partner.canRevokeProtection) add(actionButton("Revoke protection") {
+                controller.setProtection(partner.civilizationId, false)
+            }).left().row()
+            partner.tributeGoldAmount?.let { amount ->
+                add(actionButton("Demand $amount gold tribute") {
+                    controller.demandTribute(partner.civilizationId, false)
+                }).left().row()
+            }
+            if (partner.canDemandWorker) add(actionButton("Demand worker tribute") {
+                controller.demandTribute(partner.civilizationId, true)
+            }).left().row()
+            for (gift in partner.improvementGifts) {
+                add(actionButton(
+                    "Gift ${gift.improvementName} at ${gift.x},${gift.y} " +
+                        "(${gift.goldCost} gold)",
+                ) {
+                    controller.giftImprovement(
+                        partner.civilizationId,
+                        gift.x,
+                        gift.y,
+                        gift.improvementName,
+                    )
+                }).left().row()
+            }
+            if (partner.canNegotiatePeace) add(actionButton("Negotiate peace") {
+                controller.negotiatePeace(partner.civilizationId)
+            }).left().row()
+            partner.diplomaticMarriageCost?.let { cost ->
+                add(actionButton("Diplomatic marriage ($cost gold)") {
+                    controller.marry(partner.civilizationId)
+                }).left().row()
+            }
+        }
+    }
+
+    private fun actionButton(
+        title: String,
+        operation: suspend () -> Unit,
+    ): TextButton = title.toTextButton().apply {
+        if (busy) disable()
+        onClick { submit("Submit authoritative diplomacy", operation) }
+    }
+}

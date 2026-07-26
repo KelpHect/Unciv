@@ -47,6 +47,8 @@ class AuthoritativeWorldController(
         religionIconName: String?,
         religionDisplayName: String?,
     ) -> AuthoritativeCommandOutcome? = { _, _, _ -> null },
+    diplomacyActions: AuthoritativeDiplomacyActions =
+        AuthoritativeDiplomacyActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -101,6 +103,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         action = religionAction,
+    )
+    val diplomacy = AuthoritativeDiplomacyController(
+        projection = { projection },
+        submit = ::submit,
+        actions = diplomacyActions,
     )
 
     fun selectUnit(unitId: Int) {

@@ -8,6 +8,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativePromptActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeSpyActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeDiplomacyActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -178,5 +179,43 @@ internal fun authoritativeSpyActions(
     },
     setCoup = { spyName, enabled ->
         session.setSpyCoupIfOpen(gameId, spyName, enabled)
+    },
+)
+
+internal fun authoritativeDiplomacyActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeDiplomacyActions(
+    declareWar = { civilizationId ->
+        session.declareWarIfOpen(gameId, civilizationId)
+    },
+    denounce = { civilizationId ->
+        session.denounceCivilizationIfOpen(gameId, civilizationId)
+    },
+    offerFriendship = { civilizationId ->
+        session.offerFriendshipIfOpen(gameId, civilizationId)
+    },
+    makeDemand = { civilizationId, demand ->
+        session.makeDiplomaticDemandIfOpen(gameId, civilizationId, demand)
+    },
+    giftGold = { cityStateId, amount ->
+        session.giftCityStateGoldIfOpen(gameId, cityStateId, amount)
+    },
+    setProtection = { cityStateId, protect ->
+        session.setCityStateProtectionIfOpen(gameId, cityStateId, protect)
+    },
+    demandTribute = { cityStateId, worker ->
+        session.demandCityStateTributeIfOpen(gameId, cityStateId, worker)
+    },
+    giftImprovement = { cityStateId, x, y, improvement ->
+        session.giftCityStateImprovementIfOpen(
+            gameId, cityStateId, x, y, improvement,
+        )
+    },
+    negotiatePeace = { cityStateId ->
+        session.negotiateCityStatePeaceIfOpen(gameId, cityStateId)
+    },
+    marry = { cityStateId ->
+        session.marryCityStateIfOpen(gameId, cityStateId)
     },
 )

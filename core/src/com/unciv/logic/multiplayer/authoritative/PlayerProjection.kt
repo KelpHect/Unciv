@@ -497,9 +497,12 @@ object PlayerProjectionBuilder {
             knownCivilizations = actor.getKnownCivs().map { it.civID }.sorted().toList(),
             tradePartners = TradeCommandExecutor.availablePartners(actor),
             pendingTradeRequests = TradeCommandExecutor.pendingRequests(actor),
-            diplomacyPartners = DiplomacyCommandExecutor.partners(actor),
-            diplomacyPrompts = DiplomacyCommandExecutor.prompts(actor),
-            cityStatePartners = CityStateCommandExecutor.partners(actor),
+            diplomacyPartners =
+                DiplomacyProjection.majorPartners(actor, canIssueTurnCommands),
+            diplomacyPrompts =
+                DiplomacyProjection.prompts(actor, canIssueTurnCommands),
+            cityStatePartners =
+                DiplomacyProjection.cityStatePartners(actor, canIssueTurnCommands),
             spies = EspionageCommandExecutor.spies(actor),
             eventPrompts = EventChoiceCommandExecutor.prompts(actor),
             wonderEvents = WonderEventProjection.build(game, actor),

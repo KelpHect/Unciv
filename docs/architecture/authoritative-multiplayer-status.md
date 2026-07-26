@@ -1,5 +1,52 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only major and city-state diplomacy
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now renders every worker-advertised
+  major-civilization action: declaration of war, denunciation, friendship
+  offer, and each exact diplomatic demand.
+- City-state controls now render exact projected war, gold gifts, protection
+  pledge/revocation, gold/worker tribute, resource-improvement gifts, peace,
+  and diplomatic-marriage choices. Displayed amounts, costs, coordinates, and
+  improvement names come only from the projection.
+- `AuthoritativeDiplomacyController` requires the actor's current turn and
+  rechecks every counterpart and capability before typed submission.
+  `AuthoritativeDiplomacyPanel` contains presentation/routing only; relationship
+  rules, influence, costs, yields, ownership changes, and consequences remain
+  canonical worker behavior.
+- Mutable diplomacy capabilities were previously projected even outside the
+  actor's turn and relied on worker rejection. `DiplomacyProjection` now keeps
+  visible counterparts and adopted public policy branches while clearing every
+  action flag/list/cost and all actionable prompts outside the turn. This makes
+  direct command-bus callers fail closed from the same server-authored view.
+- The turn-scoping concern was extracted instead of growing
+  `PlayerProjection.kt` past the agreed file threshold. The builder is 794
+  lines and the focused diplomacy projection module is 44 lines.
+- Deterministic controller tests cover all ten major/city-state operation
+  routes, invented counterpart, unadvertised amount/state, out-of-turn
+  rejection, and response-uncertain retry without local projection mutation.
+  Structural tests cover the new controller/panel.
+
+Verification on 2026-07-26:
+
+- The first focused run exposed one test-only exception-class mismatch for an
+  invented war target. The assertion was corrected, and the complete focused
+  gate reran cleanly.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1048 JVM/server cases: 1035 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The projection helper, controller, panel, session
+  adapter, and production world screen are 44, 144, 99, 221, and 284 lines.
+  This milestone changes no Rust, wire schema, OpenAPI, persistence, or
+  PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+The remaining projection-only social interaction gap is trade composition and
+decisions; broader unit and history/event presentation also remains tracked.
+
 ## Projection-only religion choices and complete end-turn inputs
 
 Implemented on 2026-07-26:

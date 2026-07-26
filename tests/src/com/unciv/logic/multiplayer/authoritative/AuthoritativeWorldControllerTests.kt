@@ -481,6 +481,10 @@ class AuthoritativeWorldControllerTests {
                     "ReligionChoiceValidation.kt",
             ),
             sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "AuthoritativeDiplomacyController.kt",
+            ),
+            sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
             ),
@@ -519,6 +523,10 @@ class AuthoritativeWorldControllerTests {
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeReligionPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeDiplomacyPanel.kt",
             ),
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +

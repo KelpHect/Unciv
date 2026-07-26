@@ -88,6 +88,14 @@ internal class AuthoritativeWorldDecisions(
                 submit,
             ).build(),
         ).left().row()
+        add(
+            AuthoritativeDiplomacyPanel(
+                controller.projection,
+                controller.diplomacy,
+                busy,
+                submit,
+            ).build(),
+        ).left().row()
         add(researchSummary()).left().row()
         addChoices(
             "Research",

@@ -7086,6 +7086,34 @@ Focused verification on 2026-07-26:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker Great Person and unit-gift parity batch
+
+Implemented on 2026-07-27:
+
+- Added a deterministic scenario using shipped Vanilla ruleset assets covering
+  a Great Scientist's projected `HurryResearch` action and gifting a projected
+  military unit to a city state.
+- The private projection selects the exact Great Person action and confirms
+  unit-gift eligibility; the worker derives technology progress, Great Person
+  consumption, city-state recipient, ownership transfer, and influence.
+- Canonical snapshots prove the scientist was consumed with research advanced,
+  then the gifted unit was removed from the actor, added to the city state, and
+  granted the canonical five influence. All five complete responses and
+  intermediate snapshots/hashes are byte-identical across independent packaged
+  JVMs. Fresh-process evidence now covers 70 of 86 sealed operations; 16 remain
+  in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerSpecialUnitParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,135 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

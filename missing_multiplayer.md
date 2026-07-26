@@ -226,7 +226,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   projection-only world. Every owned spy displays only worker-projected city
   destinations, hideout availability, and coup stage/cancel capabilities.
   Invented destinations, unavailable state changes, and all out-of-turn spy
-  commands fail before transport; `move_spies` now has production UI.
+  commands fail before transport; `move_spies` now has production UI. The
+  legacy canonical-`GameInfo` espionage overview contains no API-v3 session or
+  command path.
 - [x] Expose authoritative religion and belief selection in the projection-only
   world. The UI fills each projected belief-type slot with a distinct
   worker-advertised belief and, while founding, requires one projected icon and
@@ -266,9 +268,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   been removed from their canonical-`GameInfo` picker screens; production v3
   uses only projection-world controllers for those decisions. The remaining
   work is removal or hard classification of historical legacy-shaped city,
-  unit, diplomacy, espionage, and alert interceptors that key API-v3 behavior
-  to an open command bus. Great-person and religion picker interceptors have
-  also been removed.
+  unit, diplomacy, and alert interceptors that key API-v3 behavior to an open
+  command bus. Great-person, religion, and espionage picker/overview
+  interceptors have also been removed.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or

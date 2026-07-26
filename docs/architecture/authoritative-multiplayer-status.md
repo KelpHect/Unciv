@@ -1,5 +1,31 @@
 # Authoritative multiplayer v3 status
 
+## Legacy espionage authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed historical API-v3 movement and coup submission branches from
+  `EspionageOverviewScreen`. This canonical-`GameInfo` overview is now
+  explicitly limited to local, saved, hotseat, and legacy/API-v2 behavior.
+- Production API v3 continues to expose exact projected hideout/city movement,
+  coup staging, and coup cancellation only through `AuthoritativeSpyPanel` and
+  its projection-validating controller.
+- Source-level routing coverage now rejects API-v3 session lookup, typed
+  submission, and authoritative outcomes in the legacy espionage overview
+  while proving the projection-only spy controls remain wired.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/spy-controller tests and desktop compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1065 JVM/server cases: 1052 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed. No known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped city, unit,
+  diplomacy, and alert surfaces; the broad mutation audit remains correctly
+  unchecked until those are removed or explicitly classified.
+
 ## Legacy great-person and religion picker authority-boundary removal
 
 Implemented on 2026-07-26:

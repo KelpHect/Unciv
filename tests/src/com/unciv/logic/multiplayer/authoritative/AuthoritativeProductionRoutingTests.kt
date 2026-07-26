@@ -100,20 +100,21 @@ class AuthoritativeProductionRoutingTests {
 
     @Test
     fun apiV3DecisionsExistOnlyInProjectionWorldRouting() {
-        for (legacyPicker in listOf(
-            "TechPickerScreen.kt",
-            "PolicyPickerScreen.kt",
-            "DiplomaticVotePickerScreen.kt",
-            "GreatPersonPickerScreen.kt",
-            "ReligionPickerScreenCommon.kt",
+        for (legacyScreen in listOf(
+            "pickerscreens/TechPickerScreen.kt",
+            "pickerscreens/PolicyPickerScreen.kt",
+            "pickerscreens/DiplomaticVotePickerScreen.kt",
+            "pickerscreens/GreatPersonPickerScreen.kt",
+            "pickerscreens/ReligionPickerScreenCommon.kt",
+            "overviewscreen/EspionageOverviewScreen.kt",
         )) {
             val source = sourceFile(
-                "core/src/com/unciv/ui/screens/pickerscreens/$legacyPicker",
+                "core/src/com/unciv/ui/screens/$legacyScreen",
             ).readText()
 
-            assertFalse("$legacyPicker must not inspect API-v3 sessions", source.contains("authoritativeSession"))
-            assertFalse("$legacyPicker must not submit API-v3 commands", source.contains("IfOpen("))
-            assertFalse("$legacyPicker must not handle API-v3 outcomes", source.contains("AuthoritativeCommandOutcome"))
+            assertFalse("$legacyScreen must not inspect API-v3 sessions", source.contains("authoritativeSession"))
+            assertFalse("$legacyScreen must not submit API-v3 commands", source.contains("IfOpen("))
+            assertFalse("$legacyScreen must not handle API-v3 outcomes", source.contains("AuthoritativeCommandOutcome"))
         }
 
         val decisions = sourceFile(
@@ -136,6 +137,12 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(prompts.contains("controller.castDiplomaticVote("))
         assertTrue(prompts.contains("controller.chooseGreatPerson("))
         assertTrue(projectionWorld.contains("session.chooseReligiousBeliefsIfOpen("))
+        val espionage = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeSpyPanel.kt",
+        ).readText()
+        assertTrue(espionage.contains("controller.move("))
+        assertTrue(espionage.contains("controller.setCoup("))
     }
 
     @Test

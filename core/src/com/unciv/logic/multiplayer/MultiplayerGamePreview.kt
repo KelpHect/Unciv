@@ -167,5 +167,5 @@ private class GameUpdateResult private constructor(
  * How often games can be checked for remote updates. More attempted checks within this time period will do nothing.
  */
 private fun getUpdateThrottleInterval(): Duration {
-    return Duration.ofSeconds(if (Multiplayer.usesCustomServer()) CUSTOM_SERVER_THROTTLE_PERIOD else DROPBOX_THROTTLE_PERIOD)
+    return Duration.ofSeconds(if (LegacyMultiplayer.usesCustomServer()) CUSTOM_SERVER_THROTTLE_PERIOD else DROPBOX_THROTTLE_PERIOD)
 }

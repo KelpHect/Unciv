@@ -86,7 +86,7 @@ class ChatButton(val worldScreen: WorldScreen) : IconTextButton(
     fun refreshVisibility() {
         isVisible = if (
             worldScreen.gameInfo.gameParameters.isOnlineMultiplayer &&
-            UncivGame.Current.onlineMultiplayer.multiplayerServer.getFeatureSet().chatVersion > 0
+            UncivGame.Current.onlineMultiplayer.legacy.multiplayerServer.getFeatureSet().chatVersion > 0
         ) {
             ChatWebSocket.requestMessageSend(
                 Message.Join(listOf(worldScreen.gameInfo.gameId)),

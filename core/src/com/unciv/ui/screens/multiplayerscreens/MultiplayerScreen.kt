@@ -198,7 +198,7 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun refreshGameLists() {
         Concurrency.run("Update all multiplayer games") {
-            game.onlineMultiplayer.requestUpdate()
+            game.onlineMultiplayer.legacy.requestUpdate()
         }
         val directory = authoritativeDirectory ?: return
         Concurrency.runOnNonDaemonThreadPool("Update authoritative multiplayer games") {
@@ -401,7 +401,7 @@ class MultiplayerScreen : PickerScreen() {
 
         Concurrency.runOnNonDaemonThreadPool("Resign") {
             try {
-                val errorMessage = game.onlineMultiplayer.resignPlayer(
+                val errorMessage = game.onlineMultiplayer.legacy.resignPlayer(
                     multiplayerGamePreview,
                     playerCiv,
                     responsibleCivNameOrPlayerId
@@ -446,7 +446,7 @@ class MultiplayerScreen : PickerScreen() {
 
         Concurrency.runOnNonDaemonThreadPool("Skip turn") {
             try {
-                val skipTurnErrorMessage = game.onlineMultiplayer.skipCurrentPlayerTurn(
+                val skipTurnErrorMessage = game.onlineMultiplayer.legacy.skipCurrentPlayerTurn(
                     multiplayerGamePreview,
                     playerToSkip,
                     responsibleCivNameOrPlayerId
@@ -489,7 +489,7 @@ class MultiplayerScreen : PickerScreen() {
                     "Delete save",
             ) {
                 try {
-                    game.onlineMultiplayer.multiplayerFiles.deleteGame(selectedGame!!)
+                    game.onlineMultiplayer.legacy.multiplayerFiles.deleteGame(selectedGame!!)
                     onGameDeleted(selectedGame!!.name)
                 } catch (ex: Exception) {
                     Log.error("Could not delete game!", ex)
@@ -513,7 +513,7 @@ class MultiplayerScreen : PickerScreen() {
 
                 val saveNewNameFunction = {
                     val newName = textField.text.trim()
-                    game.onlineMultiplayer.multiplayerFiles.changeGameName(selectedGame!!, newName) {
+                    game.onlineMultiplayer.legacy.multiplayerFiles.changeGameName(selectedGame!!, newName) {
                         if (it != null) reuseWith("Could not save game!", true)
                     }
                     gameList.update()
@@ -617,7 +617,7 @@ class MultiplayerScreen : PickerScreen() {
     }
 
     private fun selectGame(name: String) {
-        val multiplayerGame = game.onlineMultiplayer.multiplayerFiles.getGameByName(name)
+        val multiplayerGame = game.onlineMultiplayer.legacy.multiplayerFiles.getGameByName(name)
         if (multiplayerGame == null) {
             // Should never happen
             unselectGame()

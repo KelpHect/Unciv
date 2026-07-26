@@ -1,5 +1,41 @@
 # Authoritative multiplayer v3 status
 
+## Explicit legacy whole-save boundary and completed UI authority audit
+
+Implemented on 2026-07-26:
+
+- Split the former mixed `Multiplayer` service into a 40-line lifecycle façade
+  and a focused `LegacyMultiplayer` implementation. The façade owns only the
+  authenticated API-v3 session lifecycle and an explicitly named `legacy`
+  boundary; it cannot accept `GameInfo`, upload/download saves, or advance a
+  turn.
+- Updated every API-v1/v2 whole-save, preview, file, chat, authentication,
+  status, deep-link, creation, resignation, skip-turn, and world-screen call
+  site to opt into `onlineMultiplayer.legacy`. Existing legacy games retain
+  their behavior while accidental use is visible in source and review.
+- API-v3 creation returns before local `GameStarter` execution, authoritative
+  directory entries open only the projection world, and that world cannot
+  reference `GameInfo`, `WorldScreen`, local saves, upload/download, or local
+  turn advancement.
+- Completed the source-level UI mutation/fallback audit across creation,
+  multiplayer directory/administration, world, city, unit, combat, movement,
+  research, policy, religion, diplomacy, trade, espionage, alert, picker,
+  save, and status call sites. Production API v3 now has no route to the
+  explicitly legacy whole-save service.
+- Added a repository-wide routing regression that fails if any Kotlin caller
+  reaches a whole-save member through the thin façade rather than `.legacy`.
+  Existing projection-world and legacy-screen assertions continue to prevent
+  canonical-state or API-v3 interceptor regressions.
+
+Verification on 2026-07-26:
+
+- Focused production-routing tests and desktop compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1063 JVM/server cases: 1050 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. No Rust, OpenAPI, persistence, or database source
+  changed, and no known error from this milestone is deferred.
+
 ## Legacy unit, combat, movement, and alert authority-boundary removal
 
 Implemented on 2026-07-26:

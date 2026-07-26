@@ -83,7 +83,7 @@ class MultiplayerStatusButton(
     }
 
     private fun getInitialGamesWithCurrentTurn(): MutableSet<String> {
-        return findGamesToBeNotifiedAbout(UncivGame.Current.onlineMultiplayer.games)
+        return findGamesToBeNotifiedAbout(UncivGame.Current.onlineMultiplayer.legacy.games)
     }
 
     /** @return set of gameIds */

@@ -44,7 +44,7 @@ class GameList(
     fun update(){
         clearChildren()
         gameDisplays.clear()
-        for (game in UncivGame.Current.onlineMultiplayer.games) {
+        for (game in UncivGame.Current.onlineMultiplayer.legacy.games) {
             val gameDisplay = GameDisplay(game.name, game.preview, game.error, onSelected)
             gameDisplays[game.name] = gameDisplay
             addActor(gameDisplay)

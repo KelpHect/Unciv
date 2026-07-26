@@ -116,7 +116,7 @@ object ChatWebSocket {
     }
 
     private fun getChatUrl(): Url = URLBuilder(
-        UncivGame.Current.onlineMultiplayer.multiplayerServer.getServerUrl()
+        UncivGame.Current.onlineMultiplayer.legacy.multiplayerServer.getServerUrl()
     ).apply {
         appendPathSegments("chat")
         protocol = if (protocol.isSecure()) URLProtocol.WSS else URLProtocol.WS
@@ -185,7 +185,7 @@ object ChatWebSocket {
                 }
 
                 val gameIds = ChatStore.getGameIds()
-                    .union(UncivGame.Current.onlineMultiplayer.games.mapNotNull { it.preview?.gameId })
+                    .union(UncivGame.Current.onlineMultiplayer.legacy.games.mapNotNull { it.preview?.gameId })
                 this.sendSerialized(Message.Join(gameIds.toList()))
 
                 while (this.isActive) {

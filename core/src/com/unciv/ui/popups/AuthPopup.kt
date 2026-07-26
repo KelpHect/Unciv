@@ -21,7 +21,7 @@ class AuthPopup(stage: Stage, private val authSuccessful: ((Boolean) -> Unit)? =
     init {
         button.onClick {
             try {
-                UncivGame.Current.onlineMultiplayer.multiplayerServer.authenticate(passwordField.text)
+                UncivGame.Current.onlineMultiplayer.legacy.multiplayerServer.authenticate(passwordField.text)
                 authSuccessful?.invoke(true)
                 close()
             } catch (_: Exception) {

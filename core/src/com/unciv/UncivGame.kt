@@ -122,7 +122,7 @@ open class UncivGame(val isConsoleMode: Boolean = false) : Game(), PlatformSpeci
         Concurrency.run {
             // Check if the server is available in case the feature set has changed
             try {
-                onlineMultiplayer.multiplayerServer.checkServerStatus()
+                onlineMultiplayer.legacy.multiplayerServer.checkServerStatus()
             } catch (ex: Exception) {
                 debug("Couldn't connect to server: " + ex.message)
             }
@@ -366,7 +366,7 @@ open class UncivGame(val isConsoleMode: Boolean = false) : Game(), PlatformSpeci
             }
         }
         try {
-            onlineMultiplayer.downloadGame(deepLinkedMultiplayerGame!!)
+            onlineMultiplayer.legacy.downloadGame(deepLinkedMultiplayerGame!!)
         } catch (ex: Exception) {
             launchOnGLThread {
                 val mainMenu = MainMenuScreen()
@@ -416,7 +416,7 @@ open class UncivGame(val isConsoleMode: Boolean = false) : Game(), PlatformSpeci
         SoundPlayer.clearCache()
         if (::musicController.isInitialized) musicController.gracefulShutdown()  // Do allow fade-out
         // We stop the *in-game* multiplayer update, so that it doesn't keep working and A. we'll have errors and B. we'll have multiple updaters active
-        if (::onlineMultiplayer.isInitialized) onlineMultiplayer.multiplayerGameUpdater.cancel()
+        if (::onlineMultiplayer.isInitialized) onlineMultiplayer.close()
 
         val curGameInfo = gameInfo
         if (curGameInfo != null) {

@@ -53,7 +53,7 @@ class AuthoritativeProductionRoutingTests {
             source.indexOf("private fun skipCurrentPlayerTurn("),
         )
 
-        assertTrue(legacyResignation.contains("onlineMultiplayer.resignPlayer"))
+        assertTrue(legacyResignation.contains("onlineMultiplayer.legacy.resignPlayer"))
         assertFalse(legacyResignation.contains("authoritativeSession"))
         assertFalse(legacyResignation.contains("resignIfOpen"))
         assertFalse(legacyResignation.contains("forceResignIfOpen"))
@@ -79,6 +79,58 @@ class AuthoritativeProductionRoutingTests {
         )) {
             assertFalse("Projection world must not reference $forbidden", source.contains(forbidden))
         }
+    }
+
+    @Test
+    fun wholeSaveMultiplayerRequiresAnExplicitLegacyBoundary() {
+        val facade = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/Multiplayer.kt",
+        ).readText()
+        val legacy = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/LegacyMultiplayer.kt",
+        ).readText()
+
+        assertTrue(facade.contains("val legacy = LegacyMultiplayer()"))
+        assertTrue(facade.contains("var authoritativeSession: AuthoritativeMultiplayerSession?"))
+        for (forbidden in listOf(
+            "GameInfo",
+            "MultiplayerServer",
+            "MultiplayerFiles",
+            "uploadGame",
+            "downloadGame",
+            "nextTurn(",
+        )) {
+            assertFalse("Multiplayer facade must not own $forbidden", facade.contains(forbidden))
+        }
+        assertTrue(legacy.contains("class LegacyMultiplayer"))
+        assertTrue(legacy.contains("multiplayerServer.uploadGame"))
+        assertTrue(legacy.contains("multiplayerServer.downloadGame"))
+        assertTrue(legacy.contains("gameInfo.nextTurn()"))
+
+        val directAccess = Regex("""onlineMultiplayer\.([A-Za-z_][A-Za-z0-9_]*)""")
+        val allowedFacadeMembers = setOf(
+            "authoritativeSession",
+            "clearAuthoritativeSession",
+            "close",
+            "installAuthoritativeSession",
+            "isInitialized",
+            "legacy",
+        )
+        val violations = sourceDirectory("core/src")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .flatMap { file ->
+                directAccess.findAll(file.readText()).map { match ->
+                    "${file.relativeTo(workspaceFile(""))}:${match.value}"
+                }
+            }
+            .filter { access -> access.substringAfterLast(".") !in allowedFacadeMembers }
+            .toList()
+
+        assertTrue(
+            "Every whole-save multiplayer access must opt into .legacy: $violations",
+            violations.isEmpty(),
+        )
     }
 
     @Test
@@ -260,4 +312,8 @@ class AuthoritativeProductionRoutingTests {
 
     private fun sourceFile(path: String): File = workspaceFile(path).takeIf(File::isFile)
         ?: error("Could not locate $path")
+
+    private fun sourceDirectory(path: String): File =
+        workspaceFile(path).takeIf(File::isDirectory)
+            ?: error("Could not locate $path")
 }

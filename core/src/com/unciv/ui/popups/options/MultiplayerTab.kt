@@ -7,7 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextField
 import com.unciv.Constants
 import com.unciv.logic.files.IMediaFinder.LabeledSounds
-import com.unciv.logic.multiplayer.Multiplayer
+import com.unciv.logic.multiplayer.LegacyMultiplayer
 import com.unciv.logic.multiplayer.storage.AuthStatus
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
@@ -33,7 +33,7 @@ internal class MultiplayerTab(
     optionsPopup: OptionsPopup
 ) : OptionsPopupTab(optionsPopup), MultiplayerSelectBoxHelpers {
     private val mpSettings by settings::multiplayer
-    private val mpServer by game.onlineMultiplayer::multiplayerServer
+    private val mpServer by game.onlineMultiplayer.legacy::multiplayerServer
 
     override fun lateInitialize() {
         addCheckbox(
@@ -84,7 +84,7 @@ internal class MultiplayerTab(
     private fun addMultiplayerServerOptions(toUpdate: Iterable<RefreshSelectOptions>) {
         val connectionToServerButton = "Check connection".toTextButton()
 
-        val textToShowForOnlineMultiplayerAddress = if (Multiplayer.usesCustomServer()) {
+        val textToShowForOnlineMultiplayerAddress = if (LegacyMultiplayer.usesCustomServer()) {
             mpSettings.getServer()
         } else {
             "https://"
@@ -123,7 +123,7 @@ internal class MultiplayerTab(
                 multiplayerServerTextField.color = Color.RED
             }
 
-            val isCustomServer = Multiplayer.usesCustomServer()
+            val isCustomServer = LegacyMultiplayer.usesCustomServer()
             connectionToServerButton.isEnabled = isCustomServer
 
             for (refreshSelect in toUpdate) refreshSelect.update(isCustomServer)

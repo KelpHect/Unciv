@@ -115,6 +115,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   unit actions, and persistent unit orders now exist only in focused
   projection-world panels/controllers; legacy-only movement/combat adapters
   and their obsolete routing tests are deleted.
+- [x] Split API-v1/v2 whole-save behavior behind the explicit
+  `onlineMultiplayer.legacy` boundary. The thin multiplayer façade owns only
+  API-v3 session lifecycle plus the named legacy service, and a repository-wide
+  routing test rejects any unclassified direct access.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -269,7 +273,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   governance, tile, specialist, and citizen controls now exist only in the
   projection-world city panels; local city mutation remains isolated to
   offline, saved, hotseat, and legacy/API-v2 screens.
-- [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
+- [x] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
   legacy/API-v2 games. Production creation, directory selection, world entry,
@@ -282,13 +286,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   uses only projection-world controllers for those decisions. Historical
   unit, combat, movement, action, turn-status, alert, great-person, religion,
   espionage, diplomacy, trade, and city picker/overview/screen interceptors
-  have also been removed. The item remains open pending the final
-  repository-wide classification of every multiplayer fallback and mutation
-  call site.
-- [ ] Finish the source-level mutation audit across all world, city, unit,
+  have also been removed. Every remaining API-v1/v2 whole-save call site now
+  opts into the explicit `onlineMultiplayer.legacy` service, while the API-v3
+  projection world cannot reference canonical or legacy state operations.
+- [x] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or
-  be explicitly classified as client-local presentation.
+  be explicitly classified as client-local presentation. Source-level routing
+  coverage inventories the legacy canonical screens, forbids API-v3
+  interception there, forbids canonical/legacy operations in the projection
+  world, and requires all whole-save access to opt into `.legacy`.
 - [x] Complete all end-turn prerequisites so a legal player cannot be
   permanently blocked by a choice that v3 cannot submit or render. Every
   `PendingEndTurnAction` family now has a typed projection-only production
@@ -575,7 +582,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1062 JVM/server cases: 1049 executed, 13 intentional skips).
+  passes (1063 JVM/server cases: 1050 executed, 13 intentional skips).
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

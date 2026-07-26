@@ -14,7 +14,7 @@ import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.MapSaver
 import com.unciv.logic.map.MapGeneratedMainType
-import com.unciv.logic.multiplayer.Multiplayer
+import com.unciv.logic.multiplayer.LegacyMultiplayer
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
@@ -180,7 +180,7 @@ class NewGameScreen(
                     ?.let { return it.message ?: "This setup is not supported by API v3." }
             } else {
                 if (!checkConnectionToMultiplayerServer())
-                    return if (Multiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
+                    return if (LegacyMultiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
                         else "Couldn't connect to Dropbox!"
 
                 for (player in gameSetupInfo.gameParameters.players.filter { it.playerType == PlayerType.Human }) {
@@ -300,7 +300,7 @@ class NewGameScreen(
     private fun checkConnectionToMultiplayerServer(): Boolean {
         return try {
             val multiplayerServer = UncivGame.Current.settings.multiplayer.getServer()
-            val u = URI(if (Multiplayer.usesDropbox()) "https://content.dropboxapi.com" else multiplayerServer).toURL()
+            val u = URI(if (LegacyMultiplayer.usesDropbox()) "https://content.dropboxapi.com" else multiplayerServer).toURL()
             val con = u.openConnection()
             con.connectTimeout = 3000
             con.connect()
@@ -388,7 +388,7 @@ class NewGameScreen(
         if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
             newGame.isUpToDate = true // So we don't try to download it from dropbox the second after we upload it - the file is not yet ready for loading!
             try {
-                game.onlineMultiplayer.createGame(newGame)
+                game.onlineMultiplayer.legacy.createGame(newGame)
                 game.files.autosaves.requestAutoSave(newGame)
             } catch (ex: FileStorageRateLimitReached) {
                 launchOnGLThread {

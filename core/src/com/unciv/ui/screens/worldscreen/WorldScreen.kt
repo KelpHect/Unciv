@@ -199,7 +199,7 @@ class WorldScreen(
         if (gameInfo.gameParameters.isOnlineMultiplayer) {
             val gameId = gameInfo.gameId
             events.receive(MultiplayerGameUpdated::class, { it.preview.gameId == gameId }) {
-                if (isNextTurnUpdateRunning() || game.onlineMultiplayer.hasLatestGameState(gameInfo, it.preview)) {
+                if (isNextTurnUpdateRunning() || game.onlineMultiplayer.legacy.hasLatestGameState(gameInfo, it.preview)) {
                     return@receive
                 }
                 Concurrency.run("Load latest multiplayer state") {
@@ -336,7 +336,7 @@ class WorldScreen(
         try {
             debug("loadLatestMultiplayerState current game: gameId: %s, turn: %s, curCiv: %s",
                 gameInfo.gameId, gameInfo.turns, gameInfo.currentPlayer)
-            val latestGame = game.onlineMultiplayer.multiplayerServer.downloadGame(gameInfo.gameId)
+            val latestGame = game.onlineMultiplayer.legacy.multiplayerServer.downloadGame(gameInfo.gameId)
             debug("loadLatestMultiplayerState downloaded game: gameId: %s, turn: %s, curCiv: %s",
                 latestGame.gameId, latestGame.turns, latestGame.currentPlayer)
             if (viewingCiv.civID == latestGame.currentPlayer || viewingCiv.civID == Constants.spectator) {
@@ -600,7 +600,7 @@ class WorldScreen(
                     var retryUpload: Boolean
                     do {
                         try {
-                            game.onlineMultiplayer.updateGame(gameInfoClone)
+                            game.onlineMultiplayer.legacy.updateGame(gameInfoClone)
                             // upload succeeded
                             retryUpload = false
                         } catch (_: MultiplayerAuthException) {
@@ -727,7 +727,7 @@ class WorldScreen(
         if (gameInfo.gameParameters.isOnlineMultiplayer || game.settings.multiplayer.statusButtonInSinglePlayer) {
             if (statusButtons.multiplayerStatusButton != null) return
             statusButtons.multiplayerStatusButton = MultiplayerStatusButton(this,
-                game.onlineMultiplayer.multiplayerFiles.getGameByGameId(gameInfo.gameId))
+                game.onlineMultiplayer.legacy.multiplayerFiles.getGameByGameId(gameInfo.gameId))
         } else {
             if (statusButtons.multiplayerStatusButton == null) return
             statusButtons.multiplayerStatusButton = null

@@ -3,7 +3,7 @@ package com.unciv.ui.popups.options
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox
 import com.badlogic.gdx.utils.Array
 import com.unciv.json.DurationSerializer
-import com.unciv.logic.multiplayer.Multiplayer
+import com.unciv.logic.multiplayer.LegacyMultiplayer
 import com.unciv.models.UncivSound
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.format
@@ -68,7 +68,7 @@ internal interface MultiplayerSelectBoxHelpers {
                 property.set(value.value)
             }
 
-        fun getItems(isCustomServer: Boolean = Multiplayer.usesCustomServer()) =
+        fun getItems(isCustomServer: Boolean = LegacyMultiplayer.usesCustomServer()) =
             if (isCustomServer) customServerItems else dropboxItems
 
         /** Maintains the currently selected item if possible, otherwise resets to the first item */

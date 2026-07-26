@@ -3,7 +3,7 @@ package com.unciv.ui.screens.multiplayerscreens
 import com.badlogic.gdx.Gdx
 import com.unciv.Constants
 import com.unciv.UncivGame
-import com.unciv.logic.multiplayer.Multiplayer
+import com.unciv.logic.multiplayer.LegacyMultiplayer
 import com.unciv.logic.multiplayer.MultiplayerGamePreview
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.formatShort
@@ -26,7 +26,7 @@ object MultiplayerHelpers {
 
         Concurrency.run("JoinMultiplayerGame") {
             try {
-                UncivGame.Current.onlineMultiplayer.downloadGame(selectedGame)
+                UncivGame.Current.onlineMultiplayer.legacy.downloadGame(selectedGame)
             } catch (ex: Exception) {
                 val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
                 launchOnGLThread {
@@ -75,7 +75,7 @@ object MultiplayerHelpers {
     }
 
     fun showDropboxWarning(screen: BaseScreen) {
-        if (!Multiplayer.usesDropbox() || UncivGame.Current.settings.multiplayer.hideDropboxWarning) return
+        if (!LegacyMultiplayer.usesDropbox() || UncivGame.Current.settings.multiplayer.hideDropboxWarning) return
 
         val dropboxWarning = Popup(screen)
         dropboxWarning.addGoodSizedLabel(

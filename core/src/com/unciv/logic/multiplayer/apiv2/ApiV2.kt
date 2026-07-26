@@ -572,7 +572,7 @@ class ApiV2(private val baseUrl: String) : ApiV2Wrapper(baseUrl), Disposable {
         val success = auth.login(
             UncivGame.Current.settings.multiplayer.userName,
             UncivGame.Current.settings.multiplayer.getPassword(
-                UncivGame.Current.onlineMultiplayer.multiplayerServer.getServerUrl()
+                UncivGame.Current.onlineMultiplayer.legacy.multiplayerServer.getServerUrl()
             ) ?: "",
             suppress = true
         )

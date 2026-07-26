@@ -547,9 +547,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: worker isolation and deterministic execution
 
-- [ ] Replace the current one-operation connection model with a measured bounded
-  persistent worker pool or document with benchmarks why the existing model is
-  retained.
+- [x] Measure and bound the private-worker process model. The initial low-memory
+  deployment retains one persistent sequential JVM and one authenticated
+  connection per command: 500 warmed fresh-connection handshakes measured
+  3.05-ms p50/6.39-ms p95, while 50 real tiny-game creations measured
+  20.59-ms p50/109.69-ms p95 on the documented Windows host. Rust now owns a
+  shared one-operation execution permit plus a configurable bounded admission
+  queue; overflow fails before opening a socket, queue waits expire, and queue
+  time remains inside the absolute total deadline. Linux/large-save/AI/load
+  qualification remains separately unchecked below.
 - [x] Add mutually authenticated local IPC/service identity. Worker protocol v2
   HMAC-authenticates every request and response with direction separation, a
   fresh OS-random request nonce, exact frame length, and payload. The worker
@@ -701,8 +707,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `./gradlew :android:assembleDebug :tests:test :server:test
   :desktop:compileKotlin --no-parallel` passes (1083 JVM/server cases: 1070
   executed, 13 intentional skips), and `:android:lintDebug` passes.
-- Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
-  PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
+- Rust passes 157 active library tests and 16 HTTP/OpenAPI tests; all 24
+  serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
+  2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
+  lanes also pass.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.

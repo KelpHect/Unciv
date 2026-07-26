@@ -85,6 +85,24 @@ failed probe reopens it for the complete cooldown. The breaker is an
 availability control only: PostgreSQL revision CAS and idempotency remain the
 canonical correctness boundary.
 
+## Admission queue
+
+All clones of one Rust worker client also share one explicit sequential
+execution permit and a bounded admission queue:
+
+| Environment variable | Default | Valid range |
+| --- | ---: | ---: |
+| `UNCIV_ENGINE_WORKER_QUEUE_CAPACITY` | 64 | 1-1024 running plus waiting operations |
+| `UNCIV_ENGINE_WORKER_QUEUE_TIMEOUT_MS` | 30000 | 1-600000 milliseconds |
+
+The worker executes one operation at a time. Rust acquires the execution permit
+before opening a socket, so the operating-system listener backlog is not a
+hidden work queue. Once the configured number of running-plus-waiting
+operations is admitted, later operations fail fast without contacting the
+worker. A queued operation that cannot start before its queue deadline is
+rejected, and queue time is included in the absolute total worker deadline.
+Empty, malformed, zero, or excessive values fail API and recovery-CLI startup.
+
 Production crash recycling, JVM/cgroup limits, the hard command watchdog, and
 the Linux failure drill are defined in
 `docs/operations/authoritative-worker-systemd.md`.

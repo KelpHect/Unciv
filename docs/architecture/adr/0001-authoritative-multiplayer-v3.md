@@ -13,8 +13,11 @@ commit per accepted command without exposing the full state to clients.
 ## Decision
 
 Build API v3 as a Rust public control plane and a bounded Kotlin/JVM headless
-engine worker pool. The services use a versioned, length-prefixed JSON protocol
-over loopback in development and a Unix-domain socket in Linux production. The
+engine worker boundary. The initial 1-vCPU/1-GB deployment uses one persistent
+sequential JVM with a bounded Rust admission queue and a fresh authenticated
+connection per command. The services use a versioned, length-prefixed JSON
+protocol over loopback; a future Unix-domain socket remains an isolation
+hardening option rather than a correctness dependency. The
 Rust service owns authentication, membership, rate limits, PostgreSQL
 transactions, revision CAS, idempotency, snapshots, and outbox notifications.
 The Kotlin worker owns loading pinned snapshots/rulesets and executing typed
@@ -40,11 +43,14 @@ It must stay narrow: create game, load snapshot, apply one command, run end
 turn, and return a state hash plus player-scoped projection. The worker is
 version-pinned with every game/ruleset manifest.
 
-The required measurements—worker startup, idle/large-save memory, command and
-end-turn latency—are not yet available. The baseline Gradle test was blocked
-before compilation because the installed Java is `25.0.3`; this Gradle/Kotlin
-toolchain must first be run with a supported JDK. Record measured values in the
-status document rather than treating estimates as results.
+The first reproducible process-model measurements are recorded in
+`docs/benchmarks/authoritative-multiplayer.md`. On the Windows development host,
+500 fresh authenticated handshakes measured 3.05-ms p50 and 6.39-ms p95; 50
+real tiny-game creations measured 20.59-ms p50 and 109.69-ms p95. Ten cold
+workers became connectable in 1.09 seconds on average and used about 108 MiB at
+readiness. These measurements justify retaining the fresh-connection model and
+one JVM for the low-memory target, but they do not replace the still-required
+Linux, large-save, AI/end-turn, and sustained-load qualification.
 
 Licensing: no code from the separate AGPL `hopfenspace/runciv` reference may be
 copied or vendored without an explicit compatibility and notice decision.

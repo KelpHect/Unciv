@@ -45,10 +45,13 @@ pub(crate) async fn run() {
     let worker_circuit_breaker =
         unciv_authoritative_server::worker::WorkerCircuitBreakerConfig::from_environment()
             .expect("authoritative engine worker circuit breaker must be valid");
-    let worker = EngineWorkerClient::with_transport_policy(
+    let worker_queue = unciv_authoritative_server::worker::WorkerQueueConfig::from_environment()
+        .expect("authoritative engine worker queue must be valid");
+    let worker = EngineWorkerClient::with_runtime_policy(
         worker_address,
         worker_deadlines,
         worker_circuit_breaker,
+        worker_queue,
         worker_identity,
     );
     let worker_capabilities = worker

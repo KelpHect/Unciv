@@ -6780,6 +6780,69 @@ Verification on 2026-07-26:
   proactive modularization target; it is below the absolute 2,000-line ban but
   is not treated as ideal.
 
+## Bounded worker admission and measured connection model
+
+Implemented on 2026-07-26:
+
+- All clones of one Rust worker client now share one execution permit matching
+  the Kotlin worker's sequential process model. Rust acquires it before opening
+  a socket; the OS listener backlog is no longer an implicit work queue.
+- A separately configurable admission bound counts the running operation plus
+  queued operations. The default admits 64; the next request fails fast without
+  worker contact. Queue waits have a bounded deadline and remain within the
+  existing absolute total worker deadline. API and recovery-CLI startup reject
+  empty, malformed, disabled, or excessive queue settings.
+- Added a release-mode JSON benchmark executable covering authenticated
+  fresh-connection handshakes and real shared-engine tiny-game creation. The
+  ADR now records why the first 1-vCPU/1-GB target retains one persistent JVM
+  and one disposable connection per command rather than adding stream
+  multiplexing or multiple memory-heavy JVMs.
+
+Measured on Windows 11 build 26200, an i7-13700KF, 32 GB RAM, and Temurin JDK
+21.0.11:
+
+- 500 warmed fresh-connection handshakes: mean 3.82 ms, p50 3.05 ms, p95
+  6.39 ms, p99 24.12 ms.
+- 50 real two-major tiny-game creations: mean 31.31 ms, p50 20.59 ms, p95
+  109.69 ms, p99 129.05 ms.
+- Ten cold packaged workers became connectable in 1,093.74 ms on average
+  (p50 1,031.75 ms, p95 1,186.15 ms). Ready working set averaged 108.27 MiB;
+  observed post-workload peak working set was 243.61 MiB.
+
+These values qualify only the process/connection decision. Linux cgroup
+behavior, large saves, AI/end-turn latency, sustained concurrency, and final
+low-resource capacity remain open in `missing_multiplayer.md`.
+
+Verification on 2026-07-26:
+
+- Focused worker verification passes 43 queue, deadline, circuit-breaker,
+  authentication, transport, and wire-contract tests. It proves cloned clients
+  share the admission bound, the 65th default-capacity operation can fail
+  before socket creation, execution is serialized, and queued work expires.
+- `cargo test --workspace --all-features` passes 157 active library tests, all
+  16 HTTP/OpenAPI tests, both benchmark-binary tests, and all three systemd
+  packaging tests; 24 provisioned database tests and five explicit
+  process/failover tests are ignored only in the default unprovisioned lane.
+- All 24 serialized PostgreSQL tests pass in 8.57 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Both lost-response/Rust-process tests pass in 4.39 seconds and both packaged
+  worker/outbox-death tests pass in 4.03 seconds. The exact disposable
+  `unciv-v3-worker-queue-test` container was removed and verified absent.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --workspace --all-targets --all-features -- -D warnings` pass.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes with 65
+  actionable tasks: seven executed and 58 up-to-date.
+- The first focused Cargo command supplied two name filters, which Cargo
+  rejects. The corrected single `worker::` filter passed all 43 focused tests.
+  The initial admission fixture constructed but did not poll its queued future;
+  it was corrected to run the waiter concurrently before the focused and broad
+  gates passed. No compile, test, lint, format, Clippy, database, process, or
+  cleanup error remains deferred.
+- `main.rs` remains a six-line bootstrap façade and `lib.rs` remains a narrow
+  façade. Every Rust source remains below 800 lines; queue policy and the
+  benchmark executable are isolated in descriptive modules.
+
 ## Packaged-worker research and all-AI-turn parity
 
 Implemented on 2026-07-26:

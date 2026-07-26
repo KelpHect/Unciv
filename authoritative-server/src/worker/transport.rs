@@ -1,6 +1,6 @@
 use rand_core::{OsRng, RngCore};
 use serde::Serialize;
-use std::future::Future;
+use std::{future::Future, time::Instant};
 use tokio::{
     io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpStream,
@@ -98,6 +98,18 @@ impl EngineWorkerClient {
             return Err(WorkerClientError::FrameTooLarge);
         }
         validate_worker_json(&payload)?;
+        let total_started = Instant::now();
+        let _queue_permit = timeout(self.deadlines.total, self.queue.acquire())
+            .await
+            .map_err(|_| WorkerClientError::TotalTimeout)??;
+        let remaining_total = self
+            .deadlines
+            .total
+            .checked_sub(total_started.elapsed())
+            .ok_or(WorkerClientError::TotalTimeout)?;
+        if remaining_total.is_zero() {
+            return Err(WorkerClientError::TotalTimeout);
+        }
         let mut request_nonce = [0_u8; NONCE_BYTES];
         OsRng.fill_bytes(&mut request_nonce);
         let request_tag = sign_frame(
@@ -107,7 +119,7 @@ impl EngineWorkerClient {
             &payload,
         )?;
         let permit = self.circuit_breaker.acquire()?;
-        let result = timeout(self.deadlines.total, async {
+        let result = timeout(remaining_total, async {
             let mut stream =
                 connect_with_deadline(self.deadlines.connect, TcpStream::connect(self.address))
                     .await?;
@@ -394,6 +406,46 @@ mod property_tests {
                 }))
                 .await;
         assert!(matches!(result, Err(WorkerClientError::TotalTimeout)));
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn cloned_clients_share_bounded_worker_admission() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (accepted_tx, accepted_rx) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let _ = read_authenticated_test_frame(&mut stream).await;
+            accepted_tx.send(()).unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        });
+        let client = EngineWorkerClient::with_runtime_policy(
+            address,
+            WorkerDeadlines::uniform(Duration::from_secs(1)),
+            WorkerCircuitBreakerConfig::default_bounded(),
+            WorkerQueueConfig::new(2, Duration::from_secs(1)).unwrap(),
+            WorkerIdentityKey::for_test(),
+        );
+        let request = || {
+            json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "operation": {"type": "handshake"},
+            })
+        };
+        let first_client = client.clone();
+        let first = tokio::spawn(async move { first_client.execute_request(request()).await });
+        accepted_rx.await.unwrap();
+        let second_client = client.clone();
+        let second = tokio::spawn(async move { second_client.execute_request(request()).await });
+        tokio::task::yield_now().await;
+
+        assert!(matches!(
+            client.execute_request(request()).await,
+            Err(WorkerClientError::QueueFull),
+        ));
+        first.abort();
+        second.abort();
         server.abort();
     }
 

@@ -35,6 +35,7 @@ mod lifecycle;
 mod major_diplomacy;
 mod manifest;
 mod protocol;
+mod queue;
 mod religion;
 mod research;
 mod spectators;
@@ -85,6 +86,7 @@ pub use protocol::{
     WorkerCapabilities,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
+pub use queue::{WorkerQueueConfig, WorkerQueueConfigError};
 pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
 pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeRequestIntent};
 #[cfg(test)]
@@ -98,6 +100,7 @@ pub struct EngineWorkerClient {
     address: SocketAddr,
     deadlines: WorkerDeadlines,
     circuit_breaker: Arc<circuit_breaker::WorkerCircuitBreaker>,
+    queue: Arc<queue::WorkerQueue>,
     identity_key: WorkerIdentityKey,
 }
 
@@ -115,6 +118,10 @@ pub enum WorkerClientError {
     TotalTimeout,
     #[error("worker circuit is open")]
     CircuitOpen,
+    #[error("worker queue is full")]
+    QueueFull,
+    #[error("worker queue deadline expired")]
+    QueueTimeout,
     #[error("worker frame exceeded its limit")]
     FrameTooLarge,
     #[error("worker returned an incompatible protocol")]
@@ -177,6 +184,7 @@ impl EngineWorkerClient {
             circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(
                 WorkerCircuitBreakerConfig::default_bounded(),
             )),
+            queue: Arc::new(queue::WorkerQueue::new(WorkerQueueConfig::default_bounded())),
             identity_key,
         }
     }
@@ -192,6 +200,7 @@ impl EngineWorkerClient {
             circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(
                 WorkerCircuitBreakerConfig::default_bounded(),
             )),
+            queue: Arc::new(queue::WorkerQueue::new(WorkerQueueConfig::default_bounded())),
             identity_key,
         }
     }
@@ -202,10 +211,27 @@ impl EngineWorkerClient {
         circuit_breaker: WorkerCircuitBreakerConfig,
         identity_key: WorkerIdentityKey,
     ) -> Self {
+        Self::with_runtime_policy(
+            address,
+            deadlines,
+            circuit_breaker,
+            WorkerQueueConfig::default_bounded(),
+            identity_key,
+        )
+    }
+
+    pub fn with_runtime_policy(
+        address: SocketAddr,
+        deadlines: WorkerDeadlines,
+        circuit_breaker: WorkerCircuitBreakerConfig,
+        queue: WorkerQueueConfig,
+        identity_key: WorkerIdentityKey,
+    ) -> Self {
         Self {
             address,
             deadlines,
             circuit_breaker: Arc::new(circuit_breaker::WorkerCircuitBreaker::new(circuit_breaker)),
+            queue: Arc::new(queue::WorkerQueue::new(queue)),
             identity_key,
         }
     }

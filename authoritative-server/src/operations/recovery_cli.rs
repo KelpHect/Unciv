@@ -70,10 +70,15 @@ pub async fn run_recovery_cli() -> ExitCode {
         eprintln!("authoritative engine worker circuit breaker must be valid");
         return ExitCode::FAILURE;
     };
-    let worker = EngineWorkerClient::with_transport_policy(
+    let Ok(worker_queue) = crate::worker::WorkerQueueConfig::from_environment() else {
+        eprintln!("authoritative engine worker queue must be valid");
+        return ExitCode::FAILURE;
+    };
+    let worker = EngineWorkerClient::with_runtime_policy(
         worker_address,
         worker_deadlines,
         worker_circuit_breaker,
+        worker_queue,
         worker_identity,
     );
     let Ok(recovered) = repository

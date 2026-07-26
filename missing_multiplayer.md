@@ -436,7 +436,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   representative fixtures do not yet prove all setups, commands, AI turns, or
   process failures. Pre-migration rows without exact replay context fail closed
   and require operator-supplied recovery evidence.
-- [ ] Add revision/snapshot retention and compaction without breaking command
+- [x] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
   only revision metadata and the canonical hash by default; `--apply` publishes

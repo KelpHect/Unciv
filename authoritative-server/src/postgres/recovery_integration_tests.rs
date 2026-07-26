@@ -36,17 +36,20 @@ async fn bounded_recovery_replays_from_the_newest_valid_prior_snapshot() {
         )
         .await
         .unwrap();
-    sqlx::query(
-        "UPDATE game_snapshots
-         SET payload=$2, compressed_size=1, payload_hash=$3
-         WHERE game_id=$1 AND revision=1",
+    let compressed_size: i64 = sqlx::query_scalar(
+        "SELECT compressed_size FROM game_snapshots WHERE game_id=$1 AND revision=1",
     )
     .bind(game)
-    .bind(vec![0_u8])
-    .bind(state_hash(&[0_u8]))
-    .execute(&repository.pool)
+    .fetch_one(&repository.pool)
     .await
     .unwrap();
+    let invalid_zstd = vec![0_u8; compressed_size as usize];
+    sqlx::query("UPDATE game_snapshot_blobs SET payload=$2 WHERE game_id=$1 AND revision=1")
+        .bind(game)
+        .bind(&invalid_zstd)
+        .execute(&repository.pool)
+        .await
+        .unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let worker = EngineWorkerClient::new(listener.local_addr().unwrap(), Duration::from_secs(1));
@@ -79,15 +82,15 @@ async fn bounded_recovery_replays_from_the_newest_valid_prior_snapshot() {
     assert_eq!(recovered.canonical_state_hash, state_hash(b"revision-1"));
     server.await.unwrap();
 
-    let stored_payload: Vec<u8> =
-        sqlx::query_scalar("SELECT payload FROM game_snapshots WHERE game_id=$1 AND revision=1")
-            .bind(game)
-            .fetch_one(&repository.pool)
-            .await
-            .unwrap();
+    let stored_payload: Vec<u8> = sqlx::query_scalar(
+        "SELECT payload FROM game_snapshot_blobs WHERE game_id=$1 AND revision=1",
+    )
+    .bind(game)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
     assert_eq!(
-        stored_payload,
-        vec![0_u8],
+        stored_payload, invalid_zstd,
         "reconstruction must be read-only"
     );
 
@@ -135,15 +138,15 @@ async fn bounded_recovery_replays_from_the_newest_valid_prior_snapshot() {
     .await
     .unwrap();
     assert_eq!(recovered_outbox, 1);
-    let old_payload: Vec<u8> =
-        sqlx::query_scalar("SELECT payload FROM game_snapshots WHERE game_id=$1 AND revision=1")
-            .bind(game)
-            .fetch_one(&repository.pool)
-            .await
-            .unwrap();
+    let old_payload: Vec<u8> = sqlx::query_scalar(
+        "SELECT payload FROM game_snapshot_blobs WHERE game_id=$1 AND revision=1",
+    )
+    .bind(game)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
     assert_eq!(
-        old_payload,
-        vec![0_u8],
+        old_payload, invalid_zstd,
         "damaged history must remain immutable"
     );
     assert!(matches!(

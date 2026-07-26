@@ -36,6 +36,7 @@ use crate::{
     MAX_SNAPSHOT_BYTES, PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
+pub use retention::{SnapshotCompactionReport, SnapshotRetentionPolicy};
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
 
 fn stored_snapshot(snapshot: &[u8]) -> Result<StoredSnapshot, CommitError> {
@@ -160,8 +161,10 @@ mod reconciliation;
 mod recovery;
 mod religion;
 mod research;
+mod retention;
 mod security;
 mod snapshot_codec;
+mod snapshot_storage;
 mod spectators;
 mod trade;
 mod unit_actions;
@@ -239,7 +242,7 @@ impl PostgresGameRepository {
     /// to client state or silently rewriting history.
     pub async fn validate_canonical_head(&self, game_id: Uuid) -> Result<(), CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision WHERE g.id=$1",
         )
         .bind(game_id)
         .fetch_optional(&self.pool)
@@ -300,21 +303,15 @@ impl PostgresGameRepository {
         .execute(&mut **tx)
         .await
         .map_err(CommitError::storage)?;
-        sqlx::query(
-            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, 0, $2, $3, $4, $5, $6, $7, $8, $9)",
+        snapshot_storage::insert_snapshot(
+            tx,
+            game.game_id,
+            0,
+            &engine_build,
+            &game.ruleset_manifest_hash,
+            &stored,
         )
-        .bind(game.game_id)
-        .bind(engine_build)
-        .bind(&game.ruleset_manifest_hash)
-        .bind(stored.codec)
-        .bind(stored.compressed_size)
-        .bind(stored.uncompressed_size)
-        .bind(&stored.canonical_state_hash)
-        .bind(&stored.payload_hash)
-        .bind(&stored.payload)
-        .execute(&mut **tx)
-        .await
-        .map_err(CommitError::storage)?;
+        .await?;
         sqlx::query(
             "INSERT INTO game_revisions (game_id, revision, parent_revision, command_id, snapshot_revision, canonical_state_hash, revision_kind) VALUES ($1, 0, NULL, NULL, 0, $2, 'genesis')",
         )
@@ -526,22 +523,15 @@ impl PostgresGameRepository {
         let command_json =
             serde_json::to_value(&envelope).expect("command envelope is serializable");
 
-        sqlx::query(
-            "INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        snapshot_storage::insert_snapshot(
+            &mut tx,
+            envelope.game_id,
+            next_revision_i64,
+            &engine_build,
+            &manifest_hash,
+            &stored,
         )
-        .bind(envelope.game_id)
-        .bind(next_revision_i64)
-        .bind(engine_build)
-        .bind(manifest_hash)
-        .bind(stored.codec)
-        .bind(stored.compressed_size)
-        .bind(stored.uncompressed_size)
-        .bind(&stored.canonical_state_hash)
-        .bind(&stored.payload_hash)
-        .bind(&stored.payload)
-        .execute(&mut *tx)
-        .await
-        .map_err(CommitError::storage)?;
+        .await?;
         sqlx::query(
             "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, server_time_millis, replay_operation, payload) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         )

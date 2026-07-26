@@ -17,6 +17,8 @@ mod reconciliation;
 mod recovery;
 #[path = "replica_fault_integration_tests.rs"]
 mod replica_faults;
+#[path = "retention_integration_tests.rs"]
+mod retention;
 #[path = "snapshot_integration_tests.rs"]
 mod snapshots;
 

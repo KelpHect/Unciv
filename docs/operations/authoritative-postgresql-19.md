@@ -59,6 +59,9 @@ does not apply migrations, quarantine games, or perform repairs:
 cargo run --manifest-path authoritative-server/Cargo.toml --bin unciv-v3-reconcile
 ```
 
+See `authoritative-snapshot-retention.md` for the dry-run-first snapshot
+payload compaction workflow. Run reconciliation after every applied batch.
+
 Set `UNCIV_V3_DATABASE_URL` outside source control before running it. Exit code
 `0` means no findings, `2` means the JSON report contains findings, and `1`
 means configuration, connection, or query failure. Treat a truncated report as

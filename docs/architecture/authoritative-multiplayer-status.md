@@ -1,5 +1,51 @@
 # Authoritative multiplayer v3 status
 
+## Immutable-history snapshot payload retention
+
+Implemented on 2026-07-26:
+
+- Migration `0017_snapshot_payload_retention.sql` separates immutable snapshot
+  identity, codec, size, canonical hash, and payload-hash metadata from retained
+  compressed payload blobs. Composite PostgreSQL constraints bind every blob
+  to its exact metadata and enforce its declared compressed size.
+- New genesis, command, and recovery snapshots insert metadata and bytes in the
+  same transaction. Historical revisions, command journals, recovery events,
+  outbox/audit evidence, and both canonical and payload hashes are never
+  deleted or rewritten by compaction.
+- Added a game-lock-serialized retention policy. It always protects genesis,
+  the current head, every recovery revision, every completed turn, at least two
+  recent revisions, and configurable long-term checkpoints. Defaults retain 64
+  recent revisions and every 100th revision.
+- Added dry-run-first `unciv-v3-compact`. It reports retained/eligible payload
+  counts and reclaimable bytes; `--apply` atomically marks selected metadata
+  and removes only corresponding blob rows. Reconciliation accepts intentional
+  compaction but reports a retained metadata row whose blob is missing.
+- Added `docs/operations/authoritative-snapshot-retention.md` with exact preview,
+  apply, reconciliation, backup, and restore guidance.
+
+Verification on 2026-07-26:
+
+- The 12-revision PostgreSQL fixture protects genesis, turn snapshots,
+  long-term checkpoints, recent revisions, and head while compacting seven
+  ordinary payloads. It proves dry-run makes no change, the canonical head
+  remains readable, every revision and command remains, reconciliation stays
+  clean, and a duplicate command whose original snapshot payload was compacted
+  still returns its original accepted revision.
+- `cargo test --all-features` passes 140 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 22 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- All 22 serialized PostgreSQL integration and replica-fault tests pass in
+  7.33 seconds against only the pinned PostgreSQL 19 Beta 2 digest. The
+  disposable database was removed.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1099 JVM/server cases: 1086 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Every substantive Rust source remains below the 800-line guardrail; the
+  largest is 796 lines and the retention implementation is isolated in a
+  focused module.
+
 ## Bounded public and worker protocol execution
 
 Implemented on 2026-07-26:

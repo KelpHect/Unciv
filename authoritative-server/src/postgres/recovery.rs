@@ -61,11 +61,13 @@ impl PostgresGameRepository {
             .map_err(|_| CommitError::RecoveryEvidenceMissing)?;
 
         let candidates = sqlx::query(
-            "SELECT s.revision, s.payload, s.codec, s.compressed_size,
+            "SELECT s.revision, b.payload, s.codec, s.compressed_size,
                     s.uncompressed_size, s.protocol_version, s.validation_status,
                     s.payload_hash, s.canonical_state_hash,
                     r.canonical_state_hash AS revision_state_hash
              FROM game_snapshots s
+             JOIN game_snapshot_blobs b
+               ON b.game_id=s.game_id AND b.revision=s.revision
              JOIN game_revisions r
                ON r.game_id=s.game_id AND r.revision=s.revision
              WHERE s.game_id=$1 AND s.revision<$2
@@ -291,26 +293,15 @@ impl PostgresGameRepository {
         let manifest_hash: String = game.get("ruleset_manifest_hash");
         let engine_build: String = game.get("engine_build");
 
-        sqlx::query(
-            "INSERT INTO game_snapshots
-             (game_id, revision, engine_build, ruleset_manifest_hash, codec,
-              compressed_size, uncompressed_size, canonical_state_hash,
-              payload_hash, payload)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        snapshot_storage::insert_snapshot(
+            &mut tx,
+            recovered.game_id,
+            revision_i64,
+            &engine_build,
+            &manifest_hash,
+            &stored,
         )
-        .bind(recovered.game_id)
-        .bind(revision_i64)
-        .bind(engine_build)
-        .bind(manifest_hash)
-        .bind(stored.codec)
-        .bind(stored.compressed_size)
-        .bind(stored.uncompressed_size)
-        .bind(&stored.canonical_state_hash)
-        .bind(&stored.payload_hash)
-        .bind(&stored.payload)
-        .execute(&mut *tx)
-        .await
-        .map_err(CommitError::storage)?;
+        .await?;
         sqlx::query(
             "INSERT INTO game_revisions
              (game_id, revision, parent_revision, command_id, snapshot_revision,

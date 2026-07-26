@@ -11,7 +11,7 @@ async fn corrupt_canonical_snapshot_quarantines_game_without_advancing_head() {
     repository.validate_canonical_head(game).await.unwrap();
 
     let stored: (String, i64, i64, String, Vec<u8>) = sqlx::query_as(
-        "SELECT codec, compressed_size, uncompressed_size, canonical_state_hash, payload FROM game_snapshots WHERE game_id=$1 AND revision=0",
+        "SELECT s.codec, s.compressed_size, s.uncompressed_size, s.canonical_state_hash, b.payload FROM game_snapshots s JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision WHERE s.game_id=$1 AND s.revision=0",
     )
     .bind(game)
     .fetch_one(&repository.pool)
@@ -22,11 +22,10 @@ async fn corrupt_canonical_snapshot_quarantines_game_without_advancing_head() {
     assert_eq!(stored.2, b"revision-0".len() as i64);
     assert_eq!(stored.3, state_hash(b"revision-0"));
 
-    let invalid_zstd = vec![0_u8];
-    sqlx::query("UPDATE game_snapshots SET payload=$2, compressed_size=1, payload_hash=$3 WHERE game_id=$1 AND revision=0")
+    let invalid_zstd = vec![0_u8; stored.1 as usize];
+    sqlx::query("UPDATE game_snapshot_blobs SET payload=$2 WHERE game_id=$1 AND revision=0")
         .bind(game)
         .bind(&invalid_zstd)
-        .bind(state_hash(&invalid_zstd))
         .execute(&repository.pool)
         .await
         .unwrap();

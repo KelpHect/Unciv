@@ -9,6 +9,7 @@ const MAX_REPORTED_FINDINGS: usize = 1_000;
 pub enum ReconciliationKind {
     InvalidHead,
     MissingSnapshot,
+    MissingSnapshotPayload,
     OrphanSnapshot,
     BrokenRevisionChain,
     MissingRevisionCommand,
@@ -30,6 +31,7 @@ impl ReconciliationKind {
         match value {
             "invalid_head" => Self::InvalidHead,
             "missing_snapshot" => Self::MissingSnapshot,
+            "missing_snapshot_payload" => Self::MissingSnapshotPayload,
             "orphan_snapshot" => Self::OrphanSnapshot,
             "broken_revision_chain" => Self::BrokenRevisionChain,
             "missing_revision_command" => Self::MissingRevisionCommand,
@@ -102,12 +104,20 @@ impl PostgresGameRepository {
             FROM games g
             LEFT JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
             LEFT JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.snapshot_revision
-            WHERE r.game_id IS NULL OR s.game_id IS NULL OR r.snapshot_revision<>g.head_revision
+            LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
+            WHERE r.game_id IS NULL OR s.game_id IS NULL OR b.game_id IS NULL
+               OR r.snapshot_revision<>g.head_revision
             UNION ALL
             SELECT 'missing_snapshot', r.game_id, r.revision, 'revision references no snapshot'
             FROM game_revisions r LEFT JOIN game_snapshots s
               ON s.game_id=r.game_id AND s.revision=r.snapshot_revision
             WHERE s.game_id IS NULL
+            UNION ALL
+            SELECT 'missing_snapshot_payload', s.game_id, s.revision,
+                   'retained snapshot metadata has no payload blob'
+            FROM game_snapshots s LEFT JOIN game_snapshot_blobs b
+              ON b.game_id=s.game_id AND b.revision=s.revision
+            WHERE s.payload_retention_status='retained' AND b.game_id IS NULL
             UNION ALL
             SELECT 'orphan_snapshot', s.game_id, s.revision, 'snapshot has no matching revision'
             FROM game_snapshots s LEFT JOIN game_revisions r
@@ -193,7 +203,7 @@ impl PostgresGameRepository {
         }
 
         let mut stored = sqlx::query(
-            "SELECT s.game_id, s.revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash, r.canonical_state_hash AS revision_state_hash FROM game_snapshots s LEFT JOIN game_revisions r ON r.game_id=s.game_id AND r.snapshot_revision=s.revision ORDER BY s.game_id, s.revision",
+            "SELECT s.game_id, s.revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash, r.canonical_state_hash AS revision_state_hash FROM game_snapshots s JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision LEFT JOIN game_revisions r ON r.game_id=s.game_id AND r.snapshot_revision=s.revision WHERE s.payload_retention_status='retained' ORDER BY s.game_id, s.revision",
         )
         .fetch(&self.pool);
         while let Some(row) = stored.try_next().await.map_err(CommitError::storage)? {

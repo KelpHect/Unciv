@@ -11,7 +11,7 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<WorkerCommandState, CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, s.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .fetch_optional(&self.pool)

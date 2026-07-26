@@ -39,7 +39,12 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .execute(&repository.pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload, protocol_version, validation_status) SELECT game_id, 99, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, payload, protocol_version, validation_status FROM game_snapshots WHERE game_id=$1 AND revision=0")
+    sqlx::query("INSERT INTO game_snapshots (game_id, revision, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, protocol_version, validation_status) SELECT game_id, 99, engine_build, ruleset_manifest_hash, codec, compressed_size, uncompressed_size, canonical_state_hash, payload_hash, protocol_version, validation_status FROM game_snapshots WHERE game_id=$1 AND revision=0")
+        .bind(game)
+        .execute(&repository.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO game_snapshot_blobs (game_id, revision, compressed_size, payload_hash, payload) SELECT game_id, 99, compressed_size, payload_hash, payload FROM game_snapshot_blobs WHERE game_id=$1 AND revision=0")
         .bind(game)
         .execute(&repository.pool)
         .await
@@ -125,11 +130,17 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
     .execute(&repository.pool)
     .await
     .unwrap();
-    let invalid_zstd = vec![0_u8];
-    sqlx::query("UPDATE game_snapshots SET payload=$2, compressed_size=1, payload_hash=$3 WHERE game_id=$1 AND revision=1")
+    let compressed_size: i64 = sqlx::query_scalar(
+        "SELECT compressed_size FROM game_snapshots WHERE game_id=$1 AND revision=1",
+    )
+    .bind(game)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    let invalid_zstd = vec![0_u8; compressed_size as usize];
+    sqlx::query("UPDATE game_snapshot_blobs SET payload=$2 WHERE game_id=$1 AND revision=1")
         .bind(game)
         .bind(&invalid_zstd)
-        .bind(state_hash(&invalid_zstd))
         .execute(&repository.pool)
         .await
         .unwrap();

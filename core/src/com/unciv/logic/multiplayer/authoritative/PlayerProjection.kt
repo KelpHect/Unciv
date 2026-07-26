@@ -41,7 +41,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 55
+        const val CURRENT_PROJECTION_VERSION = 56
     }
 }
 
@@ -219,6 +219,7 @@ data class ProjectedCity(
     val isPuppet: Boolean = false,
     val isBeingRazed: Boolean = false,
     val availableGovernanceActions: List<CityGovernanceAction> = emptyList(),
+    val sellableBuildings: List<String> = emptyList(),
     val bombardTargets: List<ProjectedBombardTarget> = emptyList(),
 )
 
@@ -564,6 +565,7 @@ object PlayerProjectionBuilder {
                     isPuppet = it.isPuppet,
                     isBeingRazed = it.isBeingRazed,
                     availableGovernanceActions = CityGovernanceExecutor.availableActions(it),
+                    sellableBuildings = CityEconomyProjection.sellableBuildings(it),
                     bombardTargets = CombatTargetProjection.bombardTargets(it, canIssueTurnCommands),
                 )
             }.sortedBy { it.id },

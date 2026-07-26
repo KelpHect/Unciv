@@ -169,6 +169,22 @@ internal object CityEconomyProjection {
         .take(MAX_TILES)
         .toList()
 
+    fun sellableBuildings(city: City): List<String> {
+        val canSell = city.civ.gameInfo.currentPlayer == city.civ.civID &&
+            !city.isPuppet &&
+            (!city.hasSoldBuildingThisTurn || city.civ.gameInfo.gameParameters.godMode)
+        if (!canSell) return emptyList()
+        return city.cityConstructions.getBuiltBuildings()
+            .filter { building ->
+                building.isSellable() &&
+                    !city.civ.civConstructions.hasFreeBuilding(city, building)
+            }
+            .map { it.name }
+            .sorted()
+            .take(MAX_OPTIONS)
+            .toList()
+    }
+
     fun tilePurchases(city: City): List<ProjectedCityTilePurchase> = city.tilesInRange.asSequence()
         .filter { it.isExplored(city.civ) && city.expansion.canBuyTile(it) }
         .map { tile ->

@@ -5074,6 +5074,72 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Projection v56 and authoritative city controls
+
+Implemented on 2026-07-26:
+
+- The city-control audit found that `SellBuilding` accepted any bounded
+  building name because the player projection had no legal sale list, and
+  `SetCityGovernance` checked city ownership but not the projected action.
+  Both client-bus gaps are closed: invented building and governance identities
+  now fail before transport.
+- Projection v56 adds `sellableBuildings`, derived inside the Kotlin worker
+  from canonical built buildings, sellability, free-building ownership,
+  puppet state, the per-turn sale limit, god mode, and current-turn authority.
+  Refund values remain private and are still calculated only during canonical
+  worker execution.
+- Rust independently enforces a bounded, sorted, unique, nonblank building
+  allowlist and rejects sellable/governance actions outside the actor's turn.
+  The v56 shared fixture exercises the field through exact Kotlin/Rust semantic
+  round-trip and generated OpenAPI.
+- The projection-only world now renders and submits affordable single/ring tile
+  purchases, assignable tile states, specialist mode and bounded counts,
+  citizen reset/growth/focus controls, sellable buildings, governance actions,
+  and pending captured-city dispositions. Every controller method requires the
+  exact current projected identity before invoking its typed authenticated
+  session operation.
+- City controls live in a focused `AuthoritativeCityControlController` and
+  `AuthoritativeCityControlPanel`. Session-to-command wiring for both city
+  modules moved to `AuthoritativeWorldSessionActions`, shrinking the production
+  world screen instead of accumulating bootstrap and routing logic there.
+
+Verification on 2026-07-26:
+
+- Canonical Kotlin tests prove a built sellable building appears only on the
+  actor's current turn and disappears after the per-turn sale or for a puppet.
+  Command-bus tests prove invented sale/governance identities never reach
+  transport. Controller tests cover every new projected input family,
+  out-of-range/unadvertised rejection, and ambiguous retry without local state
+  mutation.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1024 JVM/server cases: 1011 executed, 13 intentional skips, zero
+  failures, and zero errors. Desktop compilation passes in the same run.
+- `cargo test --lib` passes 118 active tests with 21 database tests explicitly
+  gated. Rust semantic tests reject duplicate/blank and out-of-turn
+  sellable-building disclosure. `cargo test --bin
+  unciv-authoritative-server` passes all 10 HTTP/OpenAPI tests.
+- All 21 serialized PostgreSQL integration/fault tests pass in 7.31 seconds
+  against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The disposable `unciv-v3-projection-v56-test` container was removed and
+  verified absent.
+- `cargo fmt --all`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
+  parity, and `git diff --check` pass.
+- The first focused test compile used a suspend assertion helper unavailable in
+  that test class. It was replaced with explicit coroutine-safe exception
+  capture and the focused and broad suites were rerun cleanly. No compile,
+  test, format, Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust façades remain thin (`main.rs` 6 lines, `lib.rs` 49 lines), and every
+  Rust source remains below 800 lines (largest: `worker/protocol.rs`, 796).
+  The world screen is 273 lines; the extracted city-control controller, panel,
+  and session adapter are 137, 150, and 80 lines.
+
+Projection-only city interaction now covers the inventoried city controls
+without canonical client state. Unit action surfaces, diplomacy/votes/trades,
+religion, espionage/events, combat, and other remaining world families stay
+explicitly tracked.
+
 ## Projection-only production queues and purchases
 
 Implemented on 2026-07-26:

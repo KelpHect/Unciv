@@ -12013,6 +12013,7 @@
           "isPuppet",
           "isBeingRazed",
           "availableGovernanceActions",
+          "sellableBuildings",
           "bombardTargets"
         ],
         "properties": {
@@ -12091,6 +12092,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CitizenFocus"
+            }
+          },
+          "sellableBuildings": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "specialists": {

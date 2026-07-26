@@ -189,14 +189,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   stale names/indices, unavailable currencies, disallowed purchases, and
   unadvertised tiles before transport; ambiguous retries retain the unchanged
   projection and reuse the session's pending command identity.
+- [x] Expose authoritative city tiles, citizens, specialists, governance,
+  dispositions, and building sales in the projection-only world. Projection
+  v56 adds a canonical turn-scoped sellable-building allowlist; the command bus
+  now rejects unprojected building and governance identities. The UI submits
+  only affordable projected tile/ring purchases, assignable tile states,
+  bounded specialist counts, projected focus choices, exact governance and
+  captured-city disposition actions, and retry-stable toggles/resets.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
-  projected city tile buying/citizens/governance/building sales, unit,
-  diplomacy, religion, trade, combat, popup/choice, history/event, and
-  remaining end-turn-blocker interaction surfaces before this item can be
-  checked.
+  projected unit, diplomacy, religion, trade, combat, popup/choice,
+  history/event, and remaining end-turn-blocker interaction surfaces before
+  this item can be checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -479,8 +485,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1019 JVM/server tests, 13 intentional skips).
-- Rust passes 117 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
+  passes (1024 JVM/server tests, 13 intentional skips).
+- Rust passes 118 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI

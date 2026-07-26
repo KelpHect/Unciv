@@ -449,6 +449,10 @@ class AuthoritativeWorldControllerTests {
                     "AuthoritativeCityEconomyController.kt",
             ),
             sourceFile(
+                "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                    "AuthoritativeCityControlController.kt",
+            ),
+            sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldScreen.kt",
             ),
@@ -459,6 +463,14 @@ class AuthoritativeWorldControllerTests {
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeCityEconomyPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeCityControlPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeWorldSessionActions.kt",
             ),
         ).joinToString("\n") { it.readText() }
 
@@ -572,7 +584,7 @@ class AuthoritativeWorldControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v55.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v56.fixture.json") }
         .first { it.isFile }
 
     private fun sourceFile(path: String): File = generateSequence(

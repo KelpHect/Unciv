@@ -394,6 +394,26 @@ impl PlayerProjection {
                 && tile_states_valid
                 && tile_purchases_valid
                 && tile_batch_purchases_valid
+                && city.sellable_buildings.len() <= MAX_PROJECTED_CHOICES
+                && city
+                    .sellable_buildings
+                    .iter()
+                    .all(|name| !name.is_empty() && name.chars().count() <= 128)
+                && city
+                    .sellable_buildings
+                    .windows(2)
+                    .all(|pair| pair[0] < pair[1])
+                && (self.is_current_turn || city.sellable_buildings.is_empty())
+                && (!city.is_puppet || city.sellable_buildings.is_empty())
+                && city.available_governance_actions.len() <= 3
+                && city
+                    .available_governance_actions
+                    .iter()
+                    .enumerate()
+                    .all(|(index, action)| {
+                        !city.available_governance_actions[index + 1..].contains(action)
+                    })
+                && (self.is_current_turn || city.available_governance_actions.is_empty())
         })
     }
 

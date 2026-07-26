@@ -1132,11 +1132,10 @@ class AuthoritativeGameCommandBus(
 
     suspend fun sellBuilding(cityId: String, buildingName: String) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownCities.any { it.id == cityId }) {
-            "City is absent from the current player projection"
-        }
-        require(buildingName.isNotBlank() && buildingName.length <= 128) {
-            "Building name is invalid"
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(buildingName in city.sellableBuildings) {
+            "Building sale is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.SellBuilding(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,
@@ -1146,8 +1145,10 @@ class AuthoritativeGameCommandBus(
 
     suspend fun setCityGovernance(cityId: String, action: CityGovernanceAction) = mutex.withLock {
         val current = requireSynchronized()
-        require(current.projection.ownCities.any { it.id == cityId }) {
-            "City is absent from the current player projection"
+        val city = current.projection.ownCities.singleOrNull { it.id == cityId }
+            ?: error("City is absent from the current player projection")
+        require(action in city.availableGovernanceActions) {
+            "City governance action is absent from the current player projection"
         }
         submitLocked(PendingAuthoritativeCommand.SetCityGovernance(
             commandIdFactory(), current.committedRevision, current.canonicalStateHash,

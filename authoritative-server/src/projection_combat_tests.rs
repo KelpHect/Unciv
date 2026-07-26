@@ -5,7 +5,7 @@ use crate::projection::{
 
 #[test]
 fn combat_metadata_rejects_hidden_malformed_foreign_and_out_of_turn_values() {
-    let fixture = include_str!("../../protocol/player-projection-v55.fixture.json");
+    let fixture = include_str!("../../protocol/player-projection-v56.fixture.json");
     let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
     let mut hidden_attack = projection.clone();

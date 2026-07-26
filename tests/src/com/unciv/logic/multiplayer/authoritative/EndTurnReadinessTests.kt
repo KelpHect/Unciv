@@ -38,6 +38,34 @@ class EndTurnReadinessTests {
     }
 
     @Test
+    fun sellableBuildingProjectionIsCanonicalAndTurnScoped() {
+        val fixture = fixture()
+        val city = fixture.actor.cities.single()
+        city.cityConstructions.addBuilding("Monument")
+
+        assertEquals(
+            listOf("Monument"),
+            fixture.engine.playerProjection(
+                fixture.game, fixture.actor.civID,
+            ).ownCities.single().sellableBuildings,
+        )
+
+        city.hasSoldBuildingThisTurn = true
+        assertTrue(
+            fixture.engine.playerProjection(
+                fixture.game, fixture.actor.civID,
+            ).ownCities.single().sellableBuildings.isEmpty(),
+        )
+        city.hasSoldBuildingThisTurn = false
+        city.isPuppet = true
+        assertTrue(
+            fixture.engine.playerProjection(
+                fixture.game, fixture.actor.civID,
+            ).ownCities.single().sellableBuildings.isEmpty(),
+        )
+    }
+
+    @Test
     fun policyAndPantheonBlockersClearOnlyThroughCanonicalCommands() {
         val policyFixture = fixture()
         policyFixture.actor.policies.freePolicies = 1

@@ -1316,7 +1316,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun buildingSaleSendsOnlyCanonicalIdentityIntent() = runBlocking {
-        val initial = projection(3, "hash-3", cityQueue = emptyList())
+        val initial = projection(
+            3, "hash-3", cityQueue = emptyList(),
+            sellableBuildings = listOf("Monument"),
+        )
         val committed = projection(4, "hash-4", cityQueue = emptyList())
         val transport = FakeTransport(initial).apply {
             onSellBuilding = { request ->
@@ -1342,7 +1345,10 @@ class AuthoritativeGameCommandBusTests {
 
     @Test
     fun cityGovernanceSendsAClosedActionWithoutRuleClaims() = runBlocking {
-        val initial = projection(3, "hash-3", cityQueue = emptyList())
+        val initial = projection(
+            3, "hash-3", cityQueue = emptyList(),
+            governanceActions = listOf(CityGovernanceAction.StartRazing),
+        )
         val committed = projection(4, "hash-4", cityQueue = emptyList())
         val transport = FakeTransport(initial).apply {
             onSetCityGovernance = { request ->
@@ -1366,6 +1372,30 @@ class AuthoritativeGameCommandBusTests {
         assertTrue(!encoded.contains("can_destroy"))
         assertTrue(!encoded.contains("may_annex"))
         assertTrue(!encoded.contains("is_puppet"))
+    }
+
+    @Test
+    fun unprojectedBuildingSaleAndGovernanceNeverReachTransport() = runBlocking {
+        val transport = FakeTransport(projection(3, "hash-3", cityQueue = emptyList()))
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+
+        var saleRejected = false
+        try {
+            bus.sellBuilding("city-1", "Secret Building")
+        } catch (_: IllegalArgumentException) {
+            saleRejected = true
+        }
+        var governanceRejected = false
+        try {
+            bus.setCityGovernance("city-1", CityGovernanceAction.StartRazing)
+        } catch (_: IllegalArgumentException) {
+            governanceRejected = true
+        }
+        assertTrue(saleRejected)
+        assertTrue(governanceRejected)
+        assertTrue(transport.sellBuildingRequests.isEmpty())
+        assertTrue(transport.cityGovernanceRequests.isEmpty())
     }
 
     @Test
@@ -1781,6 +1811,8 @@ class AuthoritativeGameCommandBusTests {
         diplomaticVoteCandidates: List<String> = emptyList(),
         selectableGreatPeople: List<String> = emptyList(),
         tileBatchPurchases: List<ProjectedCityTileBatchPurchase> = emptyList(),
+        sellableBuildings: List<String> = emptyList(),
+        governanceActions: List<CityGovernanceAction> = emptyList(),
     ) = ApiV3GameProjection(
         gameId = gameId,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
@@ -1857,6 +1889,8 @@ class AuthoritativeGameCommandBusTests {
                 avoidGrowth = avoidGrowth,
                 citizenFocus = citizenFocus,
                 selectableCitizenFocuses = selectableCitizenFocuses,
+                sellableBuildings = sellableBuildings,
+                availableGovernanceActions = governanceActions,
             )),
             ownUnits = ownUnits,
             exploredTiles = exploredTiles,

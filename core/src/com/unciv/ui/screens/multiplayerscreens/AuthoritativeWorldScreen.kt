@@ -4,7 +4,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameProjection
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCityEconomyActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldController
@@ -63,52 +62,8 @@ class AuthoritativeWorldScreen(
         acknowledgeResearchCompletion = { promptId ->
             session.acknowledgeResearchCompletionIfOpen(gameSummary.gameId, promptId)
         },
-        cityEconomyActions = AuthoritativeCityEconomyActions(
-            queue = { cityId, construction ->
-                session.queueConstructionIfOpen(gameSummary.gameId, cityId, construction)
-            },
-            queueAtTile = { cityId, construction, x, y ->
-                session.queueConstructionAtTileIfOpen(
-                    gameSummary.gameId, cityId, construction, x, y,
-                )
-            },
-            setPerpetual = { cityId, construction ->
-                session.setPerpetualConstructionIfOpen(
-                    gameSummary.gameId, cityId, construction,
-                )
-            },
-            remove = { cityId, index, construction ->
-                session.removeConstructionIfOpen(
-                    gameSummary.gameId, cityId, index, construction,
-                )
-            },
-            move = { cityId, from, to, construction ->
-                session.moveConstructionIfOpen(
-                    gameSummary.gameId, cityId, from, to, construction,
-                )
-            },
-            manage = { cityId, construction, index, action ->
-                session.manageConstructionQueuesIfOpen(
-                    gameSummary.gameId, cityId, construction, index, action,
-                )
-            },
-            purchase = { cityId, construction, currency, index ->
-                session.purchaseConstructionIfOpen(
-                    gameSummary.gameId, cityId, construction, currency, index,
-                )
-            },
-            purchaseAtTile = { cityId, construction, currency, x, y, index ->
-                session.purchaseConstructionAtTileIfOpen(
-                    gameSummary.gameId,
-                    cityId,
-                    construction,
-                    currency,
-                    x,
-                    y,
-                    index,
-                )
-            },
-        ),
+        cityEconomyActions = authoritativeCityEconomyActions(session, gameSummary.gameId),
+        cityControlActions = authoritativeCityControlActions(session, gameSummary.gameId),
     )
 
     private var centerX = initialCenter().first

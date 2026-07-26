@@ -2,7 +2,7 @@ use crate::projection::PlayerProjection;
 
 fn fixture() -> PlayerProjection {
     serde_json::from_str(include_str!(
-        "../../protocol/player-projection-v55.fixture.json"
+        "../../protocol/player-projection-v56.fixture.json"
     ))
     .expect("projection-v51 fixture should deserialize")
 }
@@ -93,5 +93,30 @@ fn rejects_perpetual_construction_with_ordinary_state() {
         .expect("fixture perpetual construction");
     perpetual.production_cost = Some(1);
     perpetual.estimated_turns = Some(1);
+    assert!(!projection.city_economy_is_consistent());
+}
+
+#[test]
+fn rejects_malformed_sellable_building_allowlists() {
+    let mut projection = fixture();
+    projection.own_cities[0]
+        .sellable_buildings
+        .push("Monument".into());
+    assert!(!projection.city_economy_is_consistent());
+
+    let mut projection = fixture();
+    projection.own_cities[0].sellable_buildings[0].clear();
+    assert!(!projection.city_economy_is_consistent());
+
+    let mut projection = fixture();
+    projection.is_current_turn = false;
+    projection.own_cities[0]
+        .available_governance_actions
+        .clear();
+    assert!(!projection.city_economy_is_consistent());
+
+    let mut projection = fixture();
+    projection.is_current_turn = false;
+    projection.own_cities[0].sellable_buildings.clear();
     assert!(!projection.city_economy_is_consistent());
 }

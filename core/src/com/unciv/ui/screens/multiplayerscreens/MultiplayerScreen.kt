@@ -9,6 +9,7 @@ import com.unciv.logic.multiplayer.MultiplayerGamePreview
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinator
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.RulesetCache
@@ -41,6 +42,8 @@ class MultiplayerScreen : PickerScreen() {
     private var selectedAuthoritativeGame: ApiV3GameSummary? = null
     private val authoritativeDirectory = game.onlineMultiplayer.authoritativeSession
         ?.let(::AuthoritativeGameDirectory)
+    private val authoritativeInvitations = game.onlineMultiplayer.authoritativeSession
+        ?.let(::AuthoritativeInvitationCoordinator)
 
     private val copyGameIdButton = createCopyGameIdButton()
     private val resignButton = createResignButton()
@@ -48,12 +51,15 @@ class MultiplayerScreen : PickerScreen() {
     private val skipTurnButton = createSkipTurnButton()
     private val deleteButton = createDeleteButton()
     private val renameButton = createRenameButton()
+    private val invitePlayerButton = createInvitePlayerButton()
 
-    private val gameSpecificButtons = listOf(copyGameIdButton, resignButton, deleteButton, renameButton)
+    private val gameSpecificButtons =
+        listOf(copyGameIdButton, resignButton, deleteButton, renameButton, invitePlayerButton)
 
     private val addGameButton = createAddGameButton()
     private val copyUserIdButton = createCopyUserIdButton()
     private val friendsListButton = createFriendsListButton()
+    private val invitationsButton = createInvitationsButton()
     private val refreshButton = createRefreshButton()
 
     val gameList = GameList(::selectGame)
@@ -113,6 +119,7 @@ class MultiplayerScreen : PickerScreen() {
         val generalActions = Table().apply { defaults().pad(10f) }
         generalActions.add(copyUserIdButton).row()
         generalActions.add(addGameButton).row()
+        if (authoritativeInvitations != null) generalActions.add(invitationsButton).row()
         generalActions.add(friendsListButton).row()
         generalActions.add(refreshButton).row()
         return generalActions
@@ -121,6 +128,7 @@ class MultiplayerScreen : PickerScreen() {
     private fun getGameSpecificActionsTable(): Table {
         val gameSpecificActions = Table().apply { defaults().pad(10f) }
         gameSpecificActions.add(copyGameIdButton).row()
+        gameSpecificActions.add(invitePlayerButton).row()
         gameSpecificActions.add(renameButton).row()
         gameSpecificActions.add(skipTurnButton).row()
         gameSpecificActions.add(resignButton).row()
@@ -133,6 +141,26 @@ class MultiplayerScreen : PickerScreen() {
         val btn = "Refresh list".toTextButton()
         btn.onClick { refreshGameLists() }
         return btn
+    }
+
+    private fun createInvitationsButton(): TextButton {
+        val button = "Server invitations".toTextButton()
+        button.onClick {
+            val coordinator = authoritativeInvitations ?: return@onClick
+            AuthoritativeInvitationInboxPopup(this, coordinator, ::refreshGameLists)
+                .openAndRefresh()
+        }
+        return button
+    }
+
+    private fun createInvitePlayerButton(): TextButton {
+        val button = "Invite player account".toTextButton().apply { disable() }
+        button.onClick {
+            val selected = selectedAuthoritativeGame ?: return@onClick
+            val coordinator = authoritativeInvitations ?: return@onClick
+            AuthoritativeInvitePlayerPopup(this, coordinator, selected.gameId).open()
+        }
+        return button
     }
 
     private fun refreshGameLists() {
@@ -202,7 +230,10 @@ class MultiplayerScreen : PickerScreen() {
     }
 
     private fun createAddGameButton(): TextButton {
-        val btn = "Add multiplayer game".toTextButton()
+        val label = if (authoritativeDirectory == null)
+            "Add multiplayer game"
+        else "Add legacy saved game"
+        val btn = label.toTextButton()
         btn.onClick {
             game.pushScreen(AddMultiplayerGameScreen(this))
         }
@@ -530,6 +561,7 @@ class MultiplayerScreen : PickerScreen() {
         rightSideButton.setText("Join game".tr())
 
         for (button in gameSpecificButtons) button.enable()
+        invitePlayerButton.disable()
 
         val preview = multiplayerGame.preview
         
@@ -563,6 +595,11 @@ class MultiplayerScreen : PickerScreen() {
         selectedGame = null
         selectedAuthoritativeGame = summary
         for (button in gameSpecificButtons) button.disable()
+        if (
+            summary.role == "owner" &&
+            summary.lifecycleStatus == "active" &&
+            summary.available
+        ) invitePlayerButton.enable()
         skipTurnButton.isVisible = false
         forceResignButton.isVisible = false
         rightSideButton.setText("Open server projection".tr())

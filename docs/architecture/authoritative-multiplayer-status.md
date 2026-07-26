@@ -5108,7 +5108,7 @@ Verification on 2026-07-26:
 - `./gradlew :desktop:compileKotlin --no-parallel` passes. The Android project
   is conditionally excluded by `settings.gradle.kts` because this checkout has
   neither `sdk.dir` nor `ANDROID_HOME`; no Android compile is claimed.
-- `git diff --check` passes. `MultiplayerScreen.kt` is 524 lines and the new
+- `git diff --check` passes. `MultiplayerScreen.kt` is 578 lines and the new
   directory implementation is 162 lines, both within the repository's
   proactive split guidance.
 - No compile or test failure is deferred. The failed intermediate compile/test
@@ -5118,6 +5118,47 @@ Verification on 2026-07-26:
   compile command also named the absent conditional Android project; project
   discovery confirmed the SDK-gated exclusion and the valid desktop target
   then passed.
+
+## Production invitation and player-join UI
+
+Implemented on 2026-07-26:
+
+- The API-v3 multiplayer screen now exposes a bounded account invitation inbox.
+  It lists only target-scoped invitations returned by the authenticated server,
+  rejects duplicate invitation/game identities, and never joins from a
+  user-entered game ID.
+- Accepting an invitation submits the server-provided revision and canonical
+  hash through the existing join command. An exact ambiguous retry retains one
+  command ID; refreshing a stale invitation to a new revision/hash rotates the
+  command identity before the user retries. Successful acceptance refreshes the
+  account-backed game directory.
+- Owners of active, available games receive an invitation action that accepts
+  an account username. Its operation ID remains stable across an exact failed
+  network retry and is discarded after confirmed success. The action is
+  disabled for players, spectators, admins, closed/archived games, unavailable
+  games, and legacy saved-game selections.
+- With API v3 installed, the old user-entered game-ID action is explicitly
+  labeled `Add legacy saved game`; it remains available solely for the
+  preserved legacy multiplayer path.
+- Retry bookkeeping is protected by a coroutine mutex because inbox refresh,
+  acceptance, and owner invitation requests execute on background workers.
+
+Verification on 2026-07-26:
+
+- Focused
+  `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinatorTests" --no-parallel`
+  passes all 4 tests. They prove exact acceptance and owner-invitation retries
+  reuse their IDs, refreshed stale invitation meaning rotates its command ID,
+  and duplicate-game inbox data fails closed.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes. The test reports contain 999 JVM/server cases: 986 executed,
+  13 intentional skips, zero failures, and zero errors; the desktop client
+  compiles in the same run.
+- `git diff --check` passes. `MultiplayerScreen.kt` remains 615 lines; the
+  coordinator and popup modules are 135 and 128 lines respectively.
+- No source, compile, test, or formatting error is deferred. Android remains
+  unclaimed because the SDK-gated Android Gradle project is absent from this
+  checkout, as recorded in the preceding discovery milestone.
 
 ## Packaged-worker fresh-process parity
 

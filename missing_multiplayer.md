@@ -259,10 +259,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: membership and game administration
 
-- [ ] Wire the production player-setup UI to owner-authorized invitations,
+- [x] Wire the production player-setup UI to owner-authorized invitations,
   target-scoped invitation discovery, stale-invitation refresh, and acceptance.
   Durable backend policy, retry IDs, atomic consumption, and multi-revision
   joins are implemented; knowledge of a game ID alone no longer authorizes join.
+  The multiplayer screen now exposes an account inbox and owner-only invite
+  action, binds retry IDs to exact request meaning, rotates acceptance identity
+  after a refreshed revision/hash, refreshes membership after joining, and
+  labels the old game-ID add action as legacy-only whenever v3 is installed.
 - [ ] Wire production administration UI for owner kick, ownership transfer,
   close, and archive, including confirmation, retry with the same operation ID,
   status display, and clear handling when ownership changes remotely. The API,
@@ -439,7 +443,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-parallel` passes (995 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-parallel` passes (999 JVM/server tests,
   13 intentional skips).
 - Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 20 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

@@ -138,7 +138,10 @@ class AuthoritativeMultiplayerSession(
         check(metadata.committedRevision == 0L) {
             "A newly created API v3 game did not return revision zero"
         }
-        return AuthoritativeGameCreation(metadata, openGame(metadata.gameId))
+        val openedBus = mutex.withLock {
+            if (metadata.gameId in openedGameIds) games[metadata.gameId] else null
+        }
+        return AuthoritativeGameCreation(metadata, openedBus ?: openGame(metadata.gameId))
     }
 
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {

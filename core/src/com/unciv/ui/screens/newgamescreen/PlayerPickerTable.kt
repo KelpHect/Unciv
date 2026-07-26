@@ -12,6 +12,8 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.PlayerType.AI
 import com.unciv.logic.civilization.PlayerType.Human
 import com.unciv.logic.multiplayer.FriendList
+import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
+import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
@@ -86,6 +88,7 @@ class PlayerPickerTable(
      */
     fun update(desiredCiv: String = "") {
         playerListTable.clear()
+        normalizeAuthoritativePlayers()
         val gameBasics = previousScreen.ruleset // the mod picking changes this ruleset
 
         reassignRemovedModReferences()
@@ -198,6 +201,7 @@ class PlayerPickerTable(
         fun updatePlayerTypeButtonEnabled() {
             // This could be written much shorter with logical operators - I think this is readable
             playerTypeTextButton.isEnabled = when {
+                usesAuthoritativeCreation() -> false
                 // Can always change AI to Human
                 player.playerType == PlayerType.AI -> true
                 // we cannot change Spectator player to AI type, robots not allowed to spectate :(
@@ -210,7 +214,7 @@ class PlayerPickerTable(
         updatePlayerTypeButtonEnabled()
 
         nationTable.onClick {
-            if (locked) return@onClick
+            if (locked || usesAuthoritativeCreation()) return@onClick
             val noRandom = noRandom ||
                     gameParameters.randomNumberOfPlayers && player.playerType == PlayerType.AI
             popupNationPicker(player, noRandom)
@@ -231,10 +235,34 @@ class PlayerPickerTable(
             ).pad(5f).right()
         }
 
-        if (gameParameters.isOnlineMultiplayer && player.playerType == PlayerType.Human)
+        if (gameParameters.isOnlineMultiplayer &&
+            !usesAuthoritativeCreation() &&
+            player.playerType == PlayerType.Human
+        )
             playerTable.addPlayerTableMultiplayerControls(player)
 
         return playerTable
+    }
+
+    private fun usesAuthoritativeCreation() =
+        multiplayerCreationRoute(
+            gameParameters.isOnlineMultiplayer,
+            previousScreen is NewGameScreen &&
+                UncivGame.Current.onlineMultiplayer.authoritativeSession != null,
+        ) == MultiplayerCreationRoute.AuthoritativeApiV3
+
+    private fun normalizeAuthoritativePlayers() {
+        if (!usesAuthoritativeCreation()) return
+        gameParameters.players.removeAll { it.chosenCiv == Constants.spectator }
+        if (gameParameters.players.isEmpty())
+            gameParameters.players += Player(Constants.random, PlayerType.Human)
+        val owner = gameParameters.players.firstOrNull { it.playerType == PlayerType.Human }
+            ?: gameParameters.players.first()
+        for (player in gameParameters.players) {
+            player.chosenCiv = Constants.random
+            player.playerId = ""
+            player.playerType = if (player === owner) PlayerType.Human else PlayerType.AI
+        }
     }
 
     private fun Table.addPlayerTableMultiplayerControls(player: Player) {

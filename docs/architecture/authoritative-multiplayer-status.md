@@ -5111,6 +5111,54 @@ Verification on 2026-07-26:
   turn, controlled process fault, and release digest/compatibility bundle remain
   explicitly unchecked in `missing_multiplayer.md`.
 
+## Production-screen authoritative creation boundary
+
+Implemented on 2026-07-26:
+
+- `NewGameScreen` now selects one closed creation route: local, explicit legacy
+  API v2, or authoritative API v3. The route is authoritative only when online
+  play is selected and the platform has explicitly installed an API-v3 session,
+  preserving offline/hotseat and existing legacy behavior behind a tested
+  boundary.
+- The authoritative branch runs before scenario loading and `GameStarter`.
+  It converts only the bounded generated-map setup, resolves the exact installed
+  ruleset manifest through the authenticated session, and invokes retry-safe
+  server creation. It never constructs, uploads, or autosaves canonical
+  `GameInfo` state on the client.
+- One typed retry-state object binds the caller operation UUID to the exact base
+  ruleset, mod set, and bounded setup. Lost-response retries and screen
+  recreation reuse that UUID; changing any meaning rotates it before another
+  request, preventing changed-content idempotency reuse.
+- Authoritative setup UI normalizes civilization slots to one authenticated
+  owner plus AI slots, removes legacy player UUID fields and explicit
+  civilization/spectator selection, disables public spectators and client
+  nation pools, and rejects god mode or unrepresented advanced map-generation
+  values. The server remains the only source of seed, civilization assignment,
+  legality, and revision-zero state.
+- An exact creation retry now returns the already-open synchronized command bus
+  without a redundant projection fetch.
+
+Verification on 2026-07-26:
+
+- Focused setup/session tests prove local, legacy-v2, and authoritative-v3 route
+  selection; fail-closed setup mapping; meaning-stable versus changed-meaning
+  operation IDs; exact repeated creation input; and reuse of the opened
+  revision-zero command bus.
+- `./gradlew :tests:test :server:test --no-parallel` completes 988 JVM/server
+  cases: 975 pass and 13 are intentionally skipped, with no failures or errors.
+  The 981 core/game cases and 7 server cases include the dedicated
+  packaged-worker parity gate.
+- The first compile after extracting the authoritative UI helper found two
+  GL-thread calls that required the explicit dispatcher. The first retry-state
+  test compile found a missing JUnit import, and the first repeated-creation
+  assertion exposed the redundant projection refresh. Each issue was fixed and
+  the focused tests plus both complete suites were rerun cleanly; no compile,
+  test, or cleanup error remains deferred.
+- This does not claim the complete production lifecycle. Secure platform token
+  stores and default session installation, account/login UI, authoritative game
+  discovery/lobby entry, and projection-only world rendering remain explicitly
+  unchecked in `missing_multiplayer.md`.
+
 ## Bounded journal recovery and immutable publication
 
 Implemented on 2026-07-26:

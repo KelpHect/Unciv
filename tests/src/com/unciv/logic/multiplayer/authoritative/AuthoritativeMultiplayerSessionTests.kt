@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -180,11 +181,22 @@ class AuthoritativeMultiplayerSessionTests {
             setup,
             CREATION_ID,
         )
+        val retried = session.createAuthoritativeGame(
+            "Civ V - Vanilla",
+            emptySet(),
+            setup,
+            CREATION_ID,
+        )
 
         assertEquals(
-            listOf(Triple(CREATION_ID, "a".repeat(64), setup)),
+            listOf(
+                Triple(CREATION_ID, "a".repeat(64), setup),
+                Triple(CREATION_ID, "a".repeat(64), setup),
+            ),
             transport.createdGames,
         )
+        assertEquals(created.metadata, retried.metadata)
+        assertEquals(created.commandBus, retried.commandBus)
         assertEquals(0, created.metadata.committedRevision)
         assertTrue(session.isGameOpen(created.metadata.gameId))
         assertEquals(
@@ -193,7 +205,36 @@ class AuthoritativeMultiplayerSessionTests {
                 .current.committedRevision,
         )
         assertEquals(1, transport.projectionCalls)
+        session.openGame(created.metadata.gameId)
+        assertEquals(2, transport.projectionCalls)
         session.close()
+    }
+
+    @Test
+    fun authoritativeCreationRetryIdentityIsStableOnlyForTheSameMeaning() {
+        val ids = ArrayDeque(
+            listOf(
+                "00000000-0000-0000-0000-000000000010",
+                "00000000-0000-0000-0000-000000000011",
+                "00000000-0000-0000-0000-000000000012",
+            ),
+        )
+        val state = AuthoritativeCreationRetryState { ids.removeFirst() }
+        val original = AuthoritativeCreationMeaning(
+            "Civ V - Vanilla",
+            setOf("Server Mod"),
+            gameSetup(),
+        )
+
+        val first = state.operationIdFor(original)
+        assertEquals(first, state.operationIdFor(original.copy(modNames = linkedSetOf("Server Mod"))))
+        val changedSetup = state.operationIdFor(
+            original.copy(setup = original.setup.copy(maxTurns = original.setup.maxTurns + 1)),
+        )
+        val changedMods = state.operationIdFor(original.copy(modNames = emptySet()))
+
+        assertNotEquals(first, changedSetup)
+        assertNotEquals(changedSetup, changedMods)
     }
 
     @Test

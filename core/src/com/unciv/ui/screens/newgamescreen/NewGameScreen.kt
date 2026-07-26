@@ -15,6 +15,11 @@ import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.MapSaver
 import com.unciv.logic.map.MapGeneratedMainType
 import com.unciv.logic.multiplayer.Multiplayer
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
+import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
+import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
+import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.models.metadata.BaseRuleset
 import com.unciv.models.metadata.GameSetupInfo
@@ -51,7 +56,9 @@ import kotlin.math.floor
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
 class NewGameScreen(
-    defaultGameSetupInfo: GameSetupInfo? = null
+    defaultGameSetupInfo: GameSetupInfo? = null,
+    private val authoritativeCreationRetryState: AuthoritativeCreationRetryState =
+        AuthoritativeCreationRetryState(),
 ): IPreviousScreen, PickerScreen(), RecreateOnResize {
 
     override val gameSetupInfo = defaultGameSetupInfo ?: GameSetupInfo.fromSettings()
@@ -161,19 +168,31 @@ class NewGameScreen(
     // Should be run NOT on main thread because it contacts MP server and loads maps etc
     fun getErrorMessage(): String? {
         if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
-            if (!checkConnectionToMultiplayerServer())
-                return if (Multiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
-                    else "Couldn't connect to Dropbox!"
-
-            for (player in gameSetupInfo.gameParameters.players.filter { it.playerType == PlayerType.Human }) {
-                if (!(IdChecker.checkAndReturnPlayerUuid(player.playerId)?.playerID?.isUUID() ?: false)) {
-                    return "Invalid player ID!"
+            if (usesAuthoritativeCreation()) {
+                val humanPlayers = gameSetupInfo.gameParameters.players.count {
+                    it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
                 }
-            }
+                if (humanPlayers != 1) {
+                    return "API v3 creates the authenticated owner first; invite other players after creation."
+                }
+                runCatching { ApiV3GameSetup.from(gameSetupInfo) }
+                    .exceptionOrNull()
+                    ?.let { return it.message ?: "This setup is not supported by API v3." }
+            } else {
+                if (!checkConnectionToMultiplayerServer())
+                    return if (Multiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
+                        else "Couldn't connect to Dropbox!"
 
-            if (!gameSetupInfo.gameParameters.anyoneCanSpectate) {
-                if (gameSetupInfo.gameParameters.players.none { it.playerId == UncivGame.Current.settings.multiplayer.getUserId() })
-                    return "You are not allowed to spectate!"
+                for (player in gameSetupInfo.gameParameters.players.filter { it.playerType == PlayerType.Human }) {
+                    if (!(IdChecker.checkAndReturnPlayerUuid(player.playerId)?.playerID?.isUUID() ?: false)) {
+                        return "Invalid player ID!"
+                    }
+                }
+
+                if (!gameSetupInfo.gameParameters.anyoneCanSpectate) {
+                    if (gameSetupInfo.gameParameters.players.none { it.playerId == UncivGame.Current.settings.multiplayer.getUserId() })
+                        return "You are not allowed to spectate!"
+                }
             }
         }
 
@@ -300,6 +319,11 @@ class NewGameScreen(
             ImageGetter.setNewRuleset(ruleset) // To build the temp atlases
         }
 
+        if (usesAuthoritativeCreation()) {
+            startAuthoritativeGame(popup)
+            return@coroutineScope
+        }
+
         val newGame:GameInfo
         try {
             val selectedScenario = mapOptionsTable.getSelectedScenario()
@@ -400,6 +424,53 @@ class NewGameScreen(
         }
     }
 
+    private fun usesAuthoritativeCreation() =
+        multiplayerCreationRoute(
+            gameSetupInfo.gameParameters.isOnlineMultiplayer,
+            game.onlineMultiplayer.authoritativeSession != null,
+        ) == MultiplayerCreationRoute.AuthoritativeApiV3
+
+    private suspend fun startAuthoritativeGame(popup: Popup) {
+        try {
+            val session = requireNotNull(game.onlineMultiplayer.authoritativeSession) {
+                "API v3 session is not installed"
+            }
+            val setup = ApiV3GameSetup.from(gameSetupInfo)
+            val meaning = AuthoritativeCreationMeaning(
+                gameSetupInfo.gameParameters.baseRuleset,
+                gameSetupInfo.gameParameters.mods,
+                setup,
+            )
+            val creation = session.createAuthoritativeGame(
+                meaning.baseRulesetName,
+                meaning.modNames,
+                meaning.setup,
+                authoritativeCreationRetryState.operationIdFor(meaning),
+            )
+            Concurrency.runOnGLThread {
+                Gdx.app.clipboard.contents = creation.metadata.gameId
+                popup.reuseWith(
+                    "Game created by the authoritative server.\nGame ID copied to clipboard.",
+                    true,
+                )
+                rightSideButton.enable()
+                rightSideButton.setText("Start game!".tr())
+                Gdx.input.inputProcessor = stage
+            }
+        } catch (exception: Exception) {
+            Log.error("Error while creating authoritative game", exception)
+            Concurrency.runOnGLThread {
+                popup.reuseWith(
+                    exception.message ?: "Could not create game on the authoritative server.",
+                    true,
+                )
+                rightSideButton.enable()
+                rightSideButton.setText("Start game!".tr())
+                Gdx.input.inputProcessor = stage
+            }
+        }
+    }
+
     /** Updates our local [ruleset] from [gameSetupInfo], guarding against exceptions.
      *
      *  Note: The options reset on failure is not propagated automatically to the Widgets -
@@ -453,5 +524,6 @@ class NewGameScreen(
         newGameOptionsTable.update()
     }
 
-    override fun recreate(): BaseScreen = NewGameScreen(gameSetupInfo)
+    override fun recreate(): BaseScreen =
+        NewGameScreen(gameSetupInfo, authoritativeCreationRetryState)
 }

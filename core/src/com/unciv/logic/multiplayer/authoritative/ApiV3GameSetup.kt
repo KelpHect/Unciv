@@ -1,8 +1,12 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.Constants
+import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapShape
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.MapType
+import com.unciv.logic.map.MirroringType
 import com.unciv.logic.map.mapgenerator.MapResourceSetting
 import com.unciv.models.metadata.GameSetupInfo
 import kotlinx.serialization.SerialName
@@ -93,6 +97,39 @@ data class ApiV3GameSetup(
             }
             require(map.name.isEmpty()) {
                 "API v3 setup currently supports generated maps only"
+            }
+            require(game.players.count { it.playerType == PlayerType.Human } == 1) {
+                "API v3 creates one authenticated owner; invite other players after creation"
+            }
+            require(game.players.none { it.chosenCiv == Constants.spectator }) {
+                "API v3 spectators are invited after game creation"
+            }
+            require(game.players.all { it.chosenCiv == Constants.random }) {
+                "API v3 assigns civilizations on the server"
+            }
+            require(!game.enableRandomNationsPool && game.randomNationsPool.isEmpty()) {
+                "API v3 does not accept a client-selected nation pool"
+            }
+            require(!game.anyoneCanSpectate) {
+                "API v3 spectators require an owner invitation"
+            }
+            require(!game.godMode) {
+                "API v3 does not support client god mode"
+            }
+            val defaultMap = MapParameters()
+            require(
+                map.mirroring == MirroringType.none &&
+                    map.tilesPerBiomeArea == defaultMap.tilesPerBiomeArea &&
+                    map.maxCoastExtension == defaultMap.maxCoastExtension &&
+                    map.elevationExponent == defaultMap.elevationExponent &&
+                    map.temperatureintensity == defaultMap.temperatureintensity &&
+                    map.temperatureShift == defaultMap.temperatureShift &&
+                    map.vegetationRichness == defaultMap.vegetationRichness &&
+                    map.rareFeaturesRichness == defaultMap.rareFeaturesRichness &&
+                    map.resourceRichness == defaultMap.resourceRichness &&
+                    map.waterThreshold == defaultMap.waterThreshold
+            ) {
+                "API v3 does not accept client-authored advanced map generation values"
             }
             return ApiV3GameSetup(
                 difficulty = game.difficulty,

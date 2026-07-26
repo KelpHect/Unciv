@@ -9,6 +9,8 @@ import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
 import com.unciv.UncivGame
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
+import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.Player
 import com.unciv.models.ruleset.Ruleset
@@ -74,6 +76,11 @@ class GameOptionsTable(
 
     fun update() {
         clear()
+        if (usesAuthoritativeCreation()) {
+            gameParameters.anyoneCanSpectate = false
+            gameParameters.enableRandomNationsPool = false
+            gameParameters.randomNationsPool.clear()
+        }
 
         // Mods may have changed (e.g. custom map selection)
         modCheckboxes.updateSelection()
@@ -110,7 +117,8 @@ class GameOptionsTable(
         val selectBoxTable = Table()
         checkboxTable.addIsOnlineMultiplayerCheckbox()
         if (gameParameters.isOnlineMultiplayer){
-            checkboxTable.addAnyoneCanSpectateCheckbox()
+            if (!usesAuthoritativeCreation())
+                checkboxTable.addAnyoneCanSpectateCheckbox()
             selectBoxTable.addDurationSelectBox("Time until skip turn:", GameParameters::minutesUntilSkipTurn, 1, 0, 0)
             selectBoxTable.addDurationSelectBox("Total time to play:", GameParameters::minutesUntilForceResign, 3, 0, 0)
             selectBoxTable.addDurationSelectBox("Time recovered per turn:", GameParameters::minutesRecoveredPerTurn, 3, 0, 0)
@@ -195,11 +203,18 @@ class GameOptionsTable(
             { shouldUseMultiplayer ->
                 gameParameters.isOnlineMultiplayer = shouldUseMultiplayer
                 updatePlayerPickerTable("")
-                if (shouldUseMultiplayer) {
+                if (shouldUseMultiplayer && !usesAuthoritativeCreation()) {
                     MultiplayerHelpers.showDropboxWarning(previousScreen as BaseScreen)
                 }
                 update()
             }
+
+    private fun usesAuthoritativeCreation() =
+        multiplayerCreationRoute(
+            gameParameters.isOnlineMultiplayer,
+            previousScreen is NewGameScreen &&
+                UncivGame.Current.onlineMultiplayer.authoritativeSession != null,
+        ) == MultiplayerCreationRoute.AuthoritativeApiV3
 
     private fun Table.addAnyoneCanSpectateCheckbox() =
             addCheckbox("Allow anyone to spectate", gameParameters.anyoneCanSpectate)

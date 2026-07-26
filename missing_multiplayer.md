@@ -95,6 +95,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   process-boundary parity through that packaged artifact. Independent fresh
   JVMs produce byte-identical snapshots and hashes for seeded creation with
   city-states and for replayable player assignment from that snapshot.
+- [x] Add an explicit production new-game creation boundary. With an installed
+  authenticated API-v3 session, `NewGameScreen` now submits bounded setup
+  directly to server creation before any local `GameStarter` call, retains one
+  meaning-bound operation ID across exact retries and screen recreation, and
+  never uploads or autosaves a client-created canonical game. Offline and
+  explicit legacy API-v2 creation routes remain separate and tested.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -132,13 +138,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   rolls back completely so the same operation can be retried.
 - [ ] Make v3 the complete production game lifecycle, not an explicitly opened
   opt-in path. New online games must be created by the v3 server and must never
-  be created locally and uploaded.
+  be created locally and uploaded. The installed-session route now satisfies
+  that invariant, but production still needs to install/restore the secure v3
+  session by default and retire new legacy-v2 game creation without breaking
+  existing legacy games.
 - [ ] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero projection. The
-  bounded DTO, manifest resolver, durable creation idempotency, and session
-  creation/opening lifecycle are implemented; the production screen must retain
-  one operation ID across retries and route through that lifecycle.
+  production screen now uses that lifecycle whenever a v3 session is installed,
+  strips legacy player IDs and explicit civilization/public-spectator choices,
+  rejects unsupported client nation pools, god mode, and advanced map values,
+  and retains an operation ID only while setup meaning is unchanged. Secure
+  default session/account installation and transition from the returned
+  revision-zero projection into a projection-only lobby/world remain.
 - [ ] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save.

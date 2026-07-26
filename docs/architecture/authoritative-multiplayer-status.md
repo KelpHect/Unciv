@@ -6933,6 +6933,38 @@ Focused verification on 2026-07-26:
   1,129 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker turn-decision parity batch
+
+Implemented on 2026-07-26:
+
+- Added a Gods & Kings two-fresh-JVM scenario for diplomatic-victory voting,
+  free great-person selection, and pantheon belief selection. It creates the
+  canonical pending conditions, then submits only identifiers exposed by the
+  authenticated player's private projection.
+- The final state proves the vote was recorded, the projected land great person
+  was placed and consumed its credit, the projected belief was adopted, and
+  all three mandatory-turn prompts disappeared.
+- The first cross-process run found a real engine defect: the one-time unit-name
+  trigger used Kotlin's process-local default random source, so otherwise
+  identical great-person commands selected different historical names.
+  `UniqueTriggerActivation` now uses its existing state-derived RNG for that
+  shuffle. This preserves random-looking single-player behavior while making
+  authoritative replay deterministic from canonical state.
+- All seven complete responses and intermediate snapshots/hashes are now
+  byte-identical across independent packaged JVMs. Fresh-process evidence
+  covers 51 of 86 sealed operations; 35 remain in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerTurnDecisionParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,130 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

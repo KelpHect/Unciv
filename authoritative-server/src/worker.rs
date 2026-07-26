@@ -24,6 +24,7 @@ mod game_setup;
 mod great_people;
 mod instant_improvements;
 mod intents;
+mod json_limits;
 mod lifecycle;
 mod major_diplomacy;
 mod manifest;

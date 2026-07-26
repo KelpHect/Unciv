@@ -1,5 +1,52 @@
 # Authoritative multiplayer v3 status
 
+## Bounded public and worker protocol execution
+
+Implemented on 2026-07-26:
+
+- Added one fail-closed public boundary policy before all API-v3 handlers.
+  Requests are limited to 8 KiB bodies, 2 KiB URIs, 64 headers, 8 KiB per
+  header value, JSON depth 16, 1 KiB strings and keys, 128 entries per
+  collection, and 512 total JSON nodes. Malformed or structurally excessive
+  JSON is rejected before typed extraction or command execution.
+- Added a 40-second deadline around every public handler and a 16 MiB maximum
+  serialized response body. Timeouts return the stable `request_timeout`
+  response and drop the handler future; idempotency and revision CAS continue
+  to make any client retry safe.
+- WebSocket upgrade configuration caps inbound messages and frames at 4 KiB,
+  the read buffer at 4 KiB, and the write buffer at 64 KiB. Revision frames
+  remain compact hints; HTTP remains the recovery and source-of-truth path.
+- Retained the stricter 30-second combined worker connect/write/read deadline
+  and proved that expiry drops the private socket. Rust now validates every
+  outbound request and inbound response frame for the existing 16 MiB byte
+  limit plus depth 64, 65,536 entries per collection, 262,144 nodes, and
+  bounded keys before typed deserialization.
+- Added matching byte, depth, collection, and node validation to the private
+  Kotlin worker before request deserialization. Worker responses pass the same
+  validation and 16 MiB frame limit before the length prefix is written.
+- Kept the implementation isolated in descriptive
+  `api/boundary_limits.rs` and `worker/json_limits.rs` modules; API and worker
+  façades contain declarations and middleware wiring only.
+
+Verification on 2026-07-26:
+
+- Boundary tests cover oversized bodies, URIs, headers, JSON strings,
+  collections, nesting, responses, public handler cancellation, worker socket
+  cancellation, and Kotlin inbound/outbound structural validation.
+- `cargo test --all-features` passes 139 active Rust library tests and all 16
+  HTTP/OpenAPI tests; 21 database-only tests are intentionally ignored in that
+  command. `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- All 21 serialized PostgreSQL integration and replica-fault tests pass in
+  7.12 seconds against only the pinned PostgreSQL 19 Beta 2 digest. The
+  disposable database was removed.
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel --console=plain` passes. The retained
+  reports contain 1099 JVM/server cases: 1086 executed, 13 intentional skips,
+  zero failures, and zero errors.
+- Every substantive Rust source remains below the 800-line guardrail; the
+  largest is 796 lines and `worker.rs` is 795.
+
 ## Deterministic protocol and persistence property testing
 
 Implemented on 2026-07-26:

@@ -38,12 +38,68 @@ import java.util.UUID
 object EngineWorkerProtocol {
     const val VERSION = 1
     const val maxFrameBytes = 16 * 1024 * 1024
+    private const val maxJsonDepth = 64
+    private const val maxJsonCollectionItems = 65_536
+    private const val maxJsonNodes = 262_144
     val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
     fun decodeRequest(frameSize: Int, payload: ByteArray): WorkerRequest {
         require(frameSize in 1..maxFrameBytes) { "Invalid frame length" }
         require(payload.size == frameSize) { "Incomplete worker frame" }
+        validateJsonFrame(payload)
         return json.decodeFromString(payload.decodeToString())
+    }
+
+    fun validateJsonFrame(payload: ByteArray) {
+        require(payload.isNotEmpty() && payload.size <= maxFrameBytes) { "Invalid frame length" }
+        val collectionItems = IntArray(maxJsonDepth)
+        var depth = 0
+        var nodes = 0
+        var stringBytes = 0
+        var inString = false
+        var escaped = false
+        payload.forEach { byte ->
+            val character = byte.toInt().toChar()
+            if (inString) {
+                stringBytes++
+                require(stringBytes <= maxFrameBytes) { "JSON string limit exceeded" }
+                if (escaped) {
+                    escaped = false
+                } else if (character == '\\') {
+                    escaped = true
+                } else if (character == '"') {
+                    inString = false
+                }
+                return@forEach
+            }
+            when (character) {
+                '"' -> {
+                    inString = true
+                    stringBytes = 0
+                    nodes++
+                }
+                '{', '[' -> {
+                    require(depth < maxJsonDepth) { "JSON depth limit exceeded" }
+                    collectionItems[depth] = 1
+                    depth++
+                    nodes++
+                }
+                '}', ']' -> {
+                    require(depth > 0) { "Malformed JSON structure" }
+                    depth--
+                }
+                ',' -> {
+                    require(depth > 0) { "Malformed JSON structure" }
+                    collectionItems[depth - 1]++
+                    require(collectionItems[depth - 1] <= maxJsonCollectionItems) {
+                        "JSON collection limit exceeded"
+                    }
+                }
+                ':' -> nodes++
+            }
+            require(nodes <= maxJsonNodes) { "JSON node limit exceeded" }
+        }
+        require(!inString && depth == 0) { "Incomplete JSON structure" }
     }
 }
 
@@ -1437,7 +1493,10 @@ class LoopbackEngineWorkerServer(private val worker: AuthoritativeEngineWorker =
         val frameSize = input.readInt()
         require(frameSize in 1..EngineWorkerProtocol.maxFrameBytes) { "Invalid frame length" }
         val request = EngineWorkerProtocol.decodeRequest(frameSize, input.readNBytes(frameSize))
-        val response = EngineWorkerProtocol.json.encodeToString(WorkerResponse.serializer(), worker.execute(request)).encodeToByteArray()
+        val response = EngineWorkerProtocol.json
+            .encodeToString(WorkerResponse.serializer(), worker.execute(request))
+            .encodeToByteArray()
+        EngineWorkerProtocol.validateJsonFrame(response)
         output.writeInt(response.size)
         output.write(response)
         output.flush()

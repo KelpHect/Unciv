@@ -5,6 +5,7 @@ use tokio::{
     time::timeout,
 };
 
+use super::json_limits::validate_worker_json;
 use super::*;
 
 impl EngineWorkerClient {
@@ -93,6 +94,7 @@ impl EngineWorkerClient {
         if payload.len() > MAX_FRAME_BYTES {
             return Err(WorkerClientError::FrameTooLarge);
         }
+        validate_worker_json(&payload)?;
         let response = timeout(self.request_timeout, async {
             let mut stream = TcpStream::connect(self.address)
                 .await
@@ -134,7 +136,8 @@ fn valid_frame_size(size: usize) -> bool {
 }
 
 fn decode_worker_response(payload: &[u8]) -> Result<WorkerResponse, WorkerClientError> {
-    serde_json::from_slice(payload).map_err(|_| WorkerClientError::Transport)
+    let value = validate_worker_json(payload)?;
+    serde_json::from_value(value).map_err(|_| WorkerClientError::Transport)
 }
 
 fn validate_worker_response(response: WorkerResponse) -> Result<WorkerResponse, WorkerClientError> {
@@ -155,8 +158,34 @@ mod property_tests {
     use proptest::prelude::*;
     use proptest::test_runner::RngSeed;
     use serde_json::json;
+    use tokio::{io::AsyncReadExt, net::TcpListener};
 
     use super::*;
+
+    #[tokio::test]
+    async fn worker_deadline_cancels_the_connection_without_waiting_for_a_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let size = stream.read_u32().await.unwrap() as usize;
+            let mut request = vec![0; size];
+            stream.read_exact(&mut request).await.unwrap();
+            let mut byte = [0_u8; 1];
+            tokio::time::timeout(Duration::from_secs(1), stream.read(&mut byte))
+                .await
+                .unwrap()
+                .unwrap()
+        });
+        let result = EngineWorkerClient::new(address, Duration::from_millis(10))
+            .execute_request(json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "operation": {"type": "handshake"},
+            }))
+            .await;
+        assert!(matches!(result, Err(WorkerClientError::Transport)));
+        assert_eq!(server.await.unwrap(), 0);
+    }
 
     proptest! {
         #![proptest_config(ProptestConfig {

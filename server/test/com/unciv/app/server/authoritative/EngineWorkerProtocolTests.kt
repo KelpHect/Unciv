@@ -14,6 +14,7 @@ import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
@@ -30,6 +31,30 @@ import java.util.Random
 import java.util.concurrent.TimeUnit
 
 class EngineWorkerProtocolTests {
+    @Test
+    fun workerJsonDepthAndCollectionLimitsFailBeforeDeserialization() {
+        val deep = "${"[".repeat(EngineWorkerProtocolTestLimits.maxJsonDepth + 1)}0${
+            "]".repeat(EngineWorkerProtocolTestLimits.maxJsonDepth + 1)
+        }".encodeToByteArray()
+        assertThrows(IllegalArgumentException::class.java) {
+            EngineWorkerProtocol.validateJsonFrame(deep)
+        }
+        val oversizedCollection = buildString {
+            append('[')
+            repeat(EngineWorkerProtocolTestLimits.maxJsonCollectionItems + 1) { index ->
+                if (index > 0) append(',')
+                append('0')
+            }
+            append(']')
+        }.encodeToByteArray()
+        assertThrows(IllegalArgumentException::class.java) {
+            EngineWorkerProtocol.validateJsonFrame(oversizedCollection)
+        }
+        EngineWorkerProtocol.validateJsonFrame(
+            """{"protocolVersion":1,"operation":{"type":"handshake"}}""".encodeToByteArray(),
+        )
+    }
+
     @Test
     fun seededMalformedFramesRequestsSnapshotsAndManifestsFailClosed() {
         val random = Random(0x554E434956L)
@@ -487,4 +512,9 @@ class EngineWorkerProtocolTests {
             RulesetCache.loadRulesets(consoleMode = true, noMods = true)
         }
     }
+}
+
+private object EngineWorkerProtocolTestLimits {
+    const val maxJsonDepth = 64
+    const val maxJsonCollectionItems = 65_536
 }

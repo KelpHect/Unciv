@@ -495,7 +495,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   length-prefixed worker frames, projection serialization, revision transitions,
   idempotency-key reuse with changed content, decompression, and save/ruleset
   deserialization limits.
-- [ ] Add request/response size, JSON depth/string/collection, timeout, and
+- [x] Add request/response size, JSON depth/string/collection, timeout, and
   cancellation limits at every public and worker boundary.
 
 ## P1: worker isolation and deterministic execution

@@ -1,5 +1,8 @@
 use super::*;
 
+const MAX_WEBSOCKET_MESSAGE_BYTES: usize = 4 * 1024;
+const MAX_WEBSOCKET_WRITE_BUFFER_BYTES: usize = 64 * 1024;
+
 #[utoipa::path(
     get,
     path = "/api/v3/notifications",
@@ -16,7 +19,13 @@ pub(super) async fn websocket_notifications(
 ) -> Result<Response, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
     let receiver = state.notifications.subscribe(actor.id).await;
-    Ok(websocket.on_upgrade(move |socket| serve_websocket(socket, receiver)))
+    Ok(websocket
+        .read_buffer_size(MAX_WEBSOCKET_MESSAGE_BYTES)
+        .write_buffer_size(1_024)
+        .max_write_buffer_size(MAX_WEBSOCKET_WRITE_BUFFER_BYTES)
+        .max_message_size(MAX_WEBSOCKET_MESSAGE_BYTES)
+        .max_frame_size(MAX_WEBSOCKET_MESSAGE_BYTES)
+        .on_upgrade(move |socket| serve_websocket(socket, receiver)))
 }
 
 pub(super) async fn serve_websocket(

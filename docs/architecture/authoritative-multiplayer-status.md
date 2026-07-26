@@ -6760,6 +6760,40 @@ Focused verification on 2026-07-26:
 - The new scenario remains under 250 lines and no production façade or gameplay
   module changed.
 
+## Packaged-worker research and policy parity batch
+
+Implemented on 2026-07-26:
+
+- Added a two-fresh-JVM research/policy scenario that first builds a canonical
+  research path through the typed worker command, then chooses a legal queue
+  edit from the returned private player projection.
+- Deterministic fixture prerequisites add one free technology, one free policy,
+  and one research-completion alert. The subsequent free technology, policy,
+  and opaque completion prompt are selected only from worker projection and
+  submitted through their closed typed operations.
+- The final player projection proves the technology and policy were committed
+  and the acknowledged completion prompt was removed. Every full response and
+  intermediate canonical snapshot/hash is byte-identical across independent
+  packaged JVMs.
+- Fresh-process evidence now covers 35 of 86 sealed worker operations; the
+  remaining 51 retain explicit `InProcessOnly` classifications.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerResearchPolicyParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,123 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- Queue entry/action, free technology, policy, and completion prompt identity
+  are all projection-derived; no client-authored research dependency, policy
+  eligibility, or prompt identity enters the worker request.
+- The new test is a descriptive module under 160 lines and no production
+  façade or gameplay module changed.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

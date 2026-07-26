@@ -7,6 +7,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeUnitOrderActions
 import com.unciv.logic.multiplayer.authoritative.AuthoritativePromptActions
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeSpyActions
 
 internal fun authoritativeCityEconomyActions(
     session: AuthoritativeMultiplayerSession,
@@ -165,5 +166,17 @@ internal fun authoritativePromptActions(
     },
     respondToCityState = { promptId, response ->
         session.respondToCityStateProtectionPromptIfOpen(gameId, promptId, response)
+    },
+)
+
+internal fun authoritativeSpyActions(
+    session: AuthoritativeMultiplayerSession,
+    gameId: String,
+) = AuthoritativeSpyActions(
+    move = { spyName, cityId ->
+        session.moveSpyIfOpen(gameId, spyName, cityId)
+    },
+    setCoup = { spyName, enabled ->
+        session.setSpyCoupIfOpen(gameId, spyName, enabled)
     },
 )

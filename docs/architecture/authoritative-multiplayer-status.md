@@ -1,5 +1,47 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only spy controls
+
+Implemented on 2026-07-26:
+
+- The production projection-only world now renders every owned spy's projected
+  rank, action, remaining turns, exact available city IDs, hideout
+  availability, and coup stage/cancel capability. A visible `move_spies`
+  blocker directs the player to these controls.
+- `AuthoritativeSpyController` requires the actor's current turn, an exact
+  projected spy name, and either a projected destination/hideout capability or
+  the matching coup capability before typed submission. It never derives city
+  visibility, spy occupancy, coup odds, progress, or outcomes.
+- The client command bus previously relied on the private worker to reject
+  out-of-turn spy movement and coup changes. Both operations now fail before
+  transport when the latest projection is not the actor's current turn; the
+  worker independently retains the same canonical check.
+- `AuthoritativeSpyPanel` and the focused session adapter route exact move and
+  coup operations without `GameInfo`, legacy espionage screens, or local turn
+  state. All progress and deterministic/random spy outcomes remain private
+  worker-owned state.
+- Deterministic tests cover hideout and city movement, coup stage/cancel,
+  invented destination, unavailable action, missing spy, out-of-turn
+  rejection, and response-uncertain retry without projection mutation. A
+  direct command-bus test proves out-of-turn movement never reaches transport.
+
+Verification on 2026-07-26:
+
+- Focused spy/controller, command-bus, session, world-boundary, and desktop
+  compilation gates pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1041 JVM/server cases: 1028 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes. The controller and panel are 46 and 61 lines; the
+  focused session adapter and production world screen remain 182 and 278 lines.
+  This milestone changes no Rust, wire schema, OpenAPI, persistence, or
+  PostgreSQL behavior.
+- No compile, test, formatting, contract, database, or cleanup error remains
+  deferred.
+
+Every pending-turn action family except religion identity/belief selection now
+has a projection-only production input path.
+
 ## Projection-only votes, selections, events, and prompts
 
 Implemented on 2026-07-26:

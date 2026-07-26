@@ -1514,6 +1514,36 @@ class AuthoritativeGameCommandBusTests {
         Unit
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun spyMovementRejectsOutOfTurnProjectionBeforeTransport() = runBlocking {
+        val base = projection(7, "hash-7")
+        val spy = ProjectedSpy(
+            name = "Agent A",
+            rank = 1,
+            cityId = "city-rome",
+            civilizationId = "Rome",
+            action = ProjectedSpyAction.Surveillance,
+            turnsRemaining = 3,
+            availableCityIds = listOf("city-athens"),
+            canMoveToHideout = true,
+            canStageCoup = false,
+            canCancelCoup = false,
+        )
+        val bus = AuthoritativeGameCommandBus(
+            gameId,
+            FakeTransport(base.copy(
+                projection = base.projection.copy(
+                    isCurrentTurn = false,
+                    spies = listOf(spy),
+                ),
+            )),
+        )
+        bus.refresh()
+
+        bus.moveSpy(spy.name, null)
+        Unit
+    }
+
     @Test
     fun religiousUnitActionIsBoundToTheOwnedProjectedUnitAndClosedAction() = runBlocking {
         val initial = projection(

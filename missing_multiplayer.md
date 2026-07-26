@@ -220,14 +220,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   choices use opaque prompt/choice IDs; ordinary diplomacy accepts/declines
   only friendship/demand prompts; protected-city-state prompts expose only
   their exact response enum. Wrong prompt kinds now fail in the command bus.
+- [x] Expose authoritative spy assignment and coup controls in the
+  projection-only world. Every owned spy displays only worker-projected city
+  destinations, hideout availability, and coup stage/cancel capabilities.
+  Invented destinations, unavailable state changes, and all out-of-turn spy
+  commands fail before transport; `move_spies` now has production UI.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect. The projection-only foundation and first
   movement/end-turn routes are complete; production still needs the remaining
   projected posture/route/improvement/upgrade and other unit controls,
-  diplomacy actions, belief/religion identity choices, trade, espionage,
-  history/events, and remaining end-turn-blocker interaction surfaces before
-  this item can be checked.
+  diplomacy actions, belief/religion identity choices, trade, history/events,
+  and remaining non-blocking interaction surfaces before this item can be
+  checked.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -237,7 +242,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   player-authored online mutation must either use a closed typed v3 operation or
   be explicitly classified as client-local presentation.
 - [ ] Complete all remaining end-turn prerequisites so a legal player cannot be
-  permanently blocked by a choice that v3 cannot submit or render.
+  permanently blocked by a choice that v3 cannot submit or render. Religion
+  identity/belief selection is now the only known pending-action family without
+  production projection-only UI.
 
 ## P0: partial gameplay and projection families
 
@@ -513,7 +520,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1037 JVM/server tests, 13 intentional skips).
+  passes (1041 JVM/server tests, 13 intentional skips).
 - Rust passes 118 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

@@ -1438,6 +1438,9 @@ class AuthoritativeGameCommandBus(
 
     suspend fun moveSpy(spyName: String, cityId: String?) = mutex.withLock {
         val current = requireSynchronized()
+        require(current.projection.isCurrentTurn) {
+            "Spy controls are unavailable outside the current turn"
+        }
         val spy = current.projection.spies.singleOrNull { it.name == spyName }
             ?: error("Spy is absent from the current player projection")
         require(if (cityId == null) spy.canMoveToHideout else cityId in spy.availableCityIds) {
@@ -1448,6 +1451,9 @@ class AuthoritativeGameCommandBus(
 
     suspend fun setSpyCoup(spyName: String, enabled: Boolean) = mutex.withLock {
         val current = requireSynchronized()
+        require(current.projection.isCurrentTurn) {
+            "Spy controls are unavailable outside the current turn"
+        }
         val spy = current.projection.spies.singleOrNull { it.name == spyName }
             ?: error("Spy is absent from the current player projection")
         require(if (enabled) spy.canStageCoup else spy.canCancelCoup) { "Spy coup action is absent from the current player projection" }

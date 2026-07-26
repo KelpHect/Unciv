@@ -40,6 +40,8 @@ class AuthoritativeWorldController(
         AuthoritativeUnitOrderActions.Unavailable,
     promptActions: AuthoritativePromptActions =
         AuthoritativePromptActions.Unavailable,
+    spyActions: AuthoritativeSpyActions =
+        AuthoritativeSpyActions.Unavailable,
 ) {
     var current: ApiV3GameProjection = initial
         private set
@@ -84,6 +86,11 @@ class AuthoritativeWorldController(
         projection = { projection },
         submit = ::submit,
         actions = promptActions,
+    )
+    val spies = AuthoritativeSpyController(
+        projection = { projection },
+        submit = ::submit,
+        actions = spyActions,
     )
 
     fun selectUnit(unitId: Int) {

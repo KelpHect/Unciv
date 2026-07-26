@@ -7030,6 +7030,35 @@ Focused verification on 2026-07-26:
   1,132 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker major-diplomacy parity batch
+
+Implemented on 2026-07-26:
+
+- Added a deterministic two-account scenario covering all five
+  major-civilization diplomacy operations: offer friendship, respond to its
+  prompt, make a diplomatic demand, denounce, and declare war.
+- The first player selects only a partner and demand advertised by its private
+  projection; the second player submits only the exact projected prompt ID.
+  The worker derives all relationship eligibility, prompt identity, accepted
+  demand consequences, denouncement effects, and war state.
+- Separate prepared games keep the friendship, demand, and hostile-action
+  preconditions independent. Canonical snapshots prove the accepted friendship
+  flag, the accepted demand flag, and the final war state.
+- All fourteen complete responses and intermediate snapshots/hashes are
+  byte-identical across independent packaged JVMs. Fresh-process evidence now
+  covers 66 of 86 sealed operations; 20 remain in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerMajorDiplomacyParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,133 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

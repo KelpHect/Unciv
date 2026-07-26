@@ -58,11 +58,14 @@ impl PostgresGameRepository {
         OsRng
             .try_fill_bytes(&mut seed_bytes)
             .map_err(|_| CommitError::Storage)?;
+        let server_seed = i64::from_be_bytes(seed_bytes);
+        let game_id = Uuid::new_v4();
         let created = worker
             .create_game(
                 &owner_account_id.to_string(),
                 &manifest,
-                i64::from_be_bytes(seed_bytes),
+                &game_id.to_string(),
+                server_seed,
                 &setup,
             )
             .await
@@ -75,7 +78,6 @@ impl PostgresGameRepository {
             return Err(CommitError::InvalidSnapshotHash);
         }
 
-        let game_id = Uuid::new_v4();
         self.create_game_in_transaction(
             &mut tx,
             NewGame {
@@ -88,12 +90,14 @@ impl PostgresGameRepository {
         )
         .await?;
         sqlx::query(
-            "INSERT INTO game_creation_operations (operation_id, actor_account_id, request, game_id) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO game_creation_operations (operation_id, actor_account_id, request, game_id, server_seed, server_time_millis) VALUES ($1, $2, $3, $4, $5, $6)",
         )
         .bind(operation_id)
         .bind(owner_account_id)
         .bind(request)
         .bind(game_id)
+        .bind(server_seed)
+        .bind(proposal.server_time_millis)
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;

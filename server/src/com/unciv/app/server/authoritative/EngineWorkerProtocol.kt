@@ -31,6 +31,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+import java.util.UUID
 
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
@@ -43,6 +44,7 @@ object EngineWorkerProtocol {
 @Serializable
 data class WorkerRequest(
     val protocolVersion: Int,
+    val serverTimeMillis: Long? = null,
     val actorId: String? = null,
     val rulesetManifest: WorkerRulesetManifest? = null,
     val operation: WorkerOperation,
@@ -69,6 +71,7 @@ sealed interface WorkerOperation {
      * shared GameStarter to create canonical revision zero. */
     @Serializable @SerialName("create_game")
     data class CreateGame(
+        val gameId: String,
         val serverSeed: Long,
         val setup: WorkerGameSetup,
     ) : WorkerOperation
@@ -600,6 +603,7 @@ sealed interface WorkerOperation {
 @Serializable
 data class WorkerResponse(
     val protocolVersion: Int = EngineWorkerProtocol.VERSION,
+    val serverTimeMillis: Long? = null,
     val engineBuild: String? = null,
     val installedRulesets: List<WorkerRuleset>? = null,
     val snapshot: String? = null,
@@ -621,15 +625,23 @@ class AuthoritativeEngineWorker {
             installedRulesets = InstalledRulesetCatalog.all(),
         )
         val actorId = requireNotNull(request.actorId) { "Execution requires an authenticated actor" }
+        val serverTimeMillis = requireNotNull(request.serverTimeMillis) {
+            "Execution requires a server-controlled timestamp"
+        }
         val manifest = requireNotNull(request.rulesetManifest) { "Execution requires a ruleset manifest" }
         InstalledRulesetCatalog.requireAvailable(manifest)
         val engine = HeadlessGameEngine(GameExecutionContext.authoritative(
             actorId = actorId,
             rulesetManifest = manifest.toCore(),
+            canonicalGameId = (request.operation as? WorkerOperation.CreateGame)?.gameId,
+            clockMillis = { serverTimeMillis },
         ))
         when (val operation = request.operation) {
             WorkerOperation.Handshake -> error("Handshake was not handled")
             is WorkerOperation.CreateGame -> {
+                require(UUID.fromString(operation.gameId).toString() == operation.gameId.lowercase()) {
+                    "Canonical game ID must be a normalized UUID"
+                }
                 val setup = operation.setup.materialize(manifest, actorId, operation.serverSeed)
                 val owner = setup.gameParameters.players.firstOrNull()
                     ?: error("Game setup requires at least one player")
@@ -1316,7 +1328,7 @@ class AuthoritativeEngineWorker {
                 val game = engine.loadSnapshot(operation.snapshot)
                 WorkerResponse(spectatorProjection = engine.spectatorProjection(game))
             }
-        }
+        }.copy(serverTimeMillis = serverTimeMillis)
     } catch (exception: Exception) {
         WorkerResponse(error = WorkerError("engine_rejected", exception.message ?: "Engine execution failed"))
     }

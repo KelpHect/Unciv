@@ -119,12 +119,14 @@ mod tests {
             minutes_recovered_per_turn: 1_440,
         };
         let value = serde_json::to_value(WorkerOperation::CreateGame {
+            game_id: "00000000-0000-4000-8000-000000000001",
             server_seed: 42,
             setup: &setup,
         })
         .unwrap();
 
         assert_eq!(value["type"], "create_game");
+        assert_eq!(value["gameId"], "00000000-0000-4000-8000-000000000001");
         assert_eq!(value["serverSeed"], 42);
         assert_eq!(value["setup"]["majorCivilizations"], 4);
         assert_eq!(value["setup"]["mapType"], "pangaea");

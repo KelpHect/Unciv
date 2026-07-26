@@ -438,6 +438,7 @@ pub struct CommitProposal {
     pub previous_revision: u64,
     pub snapshot: Vec<u8>,
     pub canonical_state_hash: String,
+    pub server_time_millis: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]

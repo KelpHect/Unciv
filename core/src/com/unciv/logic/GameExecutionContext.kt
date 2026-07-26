@@ -9,6 +9,7 @@ package com.unciv.logic
  */
 data class GameExecutionContext(
     val actorId: String? = null,
+    val canonicalGameId: String? = null,
     val clockMillis: () -> Long = System::currentTimeMillis,
     val persistLocalSettings: Boolean = true,
     val allowUiSideEffects: Boolean = true,
@@ -21,10 +22,12 @@ data class GameExecutionContext(
         fun authoritative(
             actorId: String,
             rulesetManifest: RulesetManifest,
+            canonicalGameId: String? = null,
             clockMillis: () -> Long = System::currentTimeMillis,
             featureFlags: Set<String> = emptySet(),
         ) = GameExecutionContext(
             actorId = actorId,
+            canonicalGameId = canonicalGameId,
             clockMillis = clockMillis,
             persistLocalSettings = false,
             allowUiSideEffects = false,

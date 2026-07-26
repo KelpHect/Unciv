@@ -73,6 +73,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   identity. New normal, join, resignation, and kick commits retain the actor
   even after membership deletion; reconciliation reports older or
   damaged rows whose actor cannot be reconstructed instead of guessing.
+- [x] Persist server-owned replay context for new history: every committed
+  command journals the Rust-selected execution time, and every revision-zero
+  creation operation retains its OS-backed seed, execution time, and canonical
+  game UUID. The worker must echo the control-plane time and cannot replace it.
+  Reconciliation reports legacy or damaged rows missing these inputs.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -234,9 +239,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Implement bounded recovery from the newest valid prior immutable snapshot
   plus journal replay. Current corrupt-head handling quarantines the game but
   does not reconstruct it. New journal entries retain the public command,
-  authenticated account, and immutable executing civilization needed for safe
-  replay; pre-migration rows without that identity fail reconciliation and
-  require operator-supplied recovery evidence.
+  authenticated account, immutable executing civilization, and server
+  execution time needed for safe replay; revision-zero operations retain their
+  seed, time, and canonical UUID. Pre-migration rows without that context fail
+  reconciliation and require operator-supplied recovery evidence. Finish
+  replacing ambient Kotlin randomness in map/game creation, then add
+  byte-identical fresh-process replay and publish recovery as a new immutable
+  revision.
 - [ ] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [ ] Add reviewed, dry-run-first repair workflows for reconciliation findings.

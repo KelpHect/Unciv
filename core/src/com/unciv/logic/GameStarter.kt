@@ -48,6 +48,7 @@ class GameStarter private constructor(
     }
 
     private val gameInfo = GameInfo().apply {
+        executionContext.canonicalGameId?.let { gameId = it }
         currentTurnStartTime = executionContext.clockMillis()
     }
     private val rng = GameContext(gameInfo = gameInfo).stateBasedRandom("GameStarter")
@@ -264,14 +265,14 @@ class GameStarter private constructor(
                 ruleset.nations.asSequence().map { it.value }
                     .filter { it.isMajorCiv && !it.hasUnique(UniqueType.WillNotBeChosenForNewGames) }
             ).filter { it.name !in selectedPlayerNames }
-            .shuffled().let { ArrayDeque(it.toList()) }
+            .shuffled(rng).let { ArrayDeque(it.toList()) }
 
         val civNamesWithStartingLocations =
             if (existingMap) gameInfo.tileMap.startingLocationsByNation.keys
             else emptySet()
         @LocalState val presetRandomNationsPool = randomNationsPool
             .filter { it.name in civNamesWithStartingLocations }
-            .shuffled().let { ArrayDeque(it) }
+            .shuffled(rng).let { ArrayDeque(it) }
         randomNationsPool.removeAll(presetRandomNationsPool)
 
         // At this point the civ names in newGameParameters.players, randomNationsPool and presetRandomNationsPool
@@ -295,7 +296,7 @@ class GameStarter private constructor(
                 val extraPlayers = newGameParameters.players.size - desiredNumberOfPlayers
                 selectedAIToSkip = newGameParameters.players
                     .filter { it.playerType === PlayerType.AI }
-                    .shuffled()
+                    .shuffled(rng)
                     .sortedByDescending { it.chosenCiv == Constants.random }
                     .subList(0, extraPlayers)
             }
@@ -326,7 +327,7 @@ class GameStarter private constructor(
         val otherPlayers = chosenPlayers.filterNot { it.chosenCiv == Constants.spectator }.toMutableList()
 
         // Shuffle Major Civs
-        if (newGameParameters.shufflePlayerOrder) otherPlayers.shuffle()
+        if (newGameParameters.shufflePlayerOrder) otherPlayers.shuffle(rng)
 
         chosenPlayers.clear()
         chosenPlayers.addAll(spectators)

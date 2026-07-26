@@ -34,6 +34,7 @@ fn proposal(previous_revision: u64, snapshot: &[u8]) -> CommitProposal {
         previous_revision,
         snapshot: snapshot.to_vec(),
         canonical_state_hash: state_hash(snapshot),
+        server_time_millis: 0,
     }
 }
 
@@ -663,6 +664,7 @@ async fn oversized_snapshot_is_rejected_before_commit() {
                 previous_revision: 0,
                 canonical_state_hash: String::new(),
                 snapshot: oversized,
+                server_time_millis: 0,
             },
         )
         .await;

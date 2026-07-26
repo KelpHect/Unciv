@@ -71,6 +71,7 @@ fn proposal(previous_revision: u64, snapshot: &[u8]) -> CommitProposal {
         previous_revision,
         snapshot: snapshot.to_vec(),
         canonical_state_hash: state_hash(snapshot),
+        server_time_millis: 0,
     }
 }
 
@@ -140,15 +141,18 @@ async fn postgres_commit_is_atomic_idempotent_and_stale_safe() {
             .await
             .unwrap();
     assert_eq!(outbox_count, 1);
-    let journal_actor: (String, bool) = sqlx::query_as(
-        "SELECT actor_civilization_id, replay_identity_available FROM game_commands WHERE game_id=$1 AND command_id=$2",
+    let journal_actor: (String, bool, i64, bool) = sqlx::query_as(
+        "SELECT actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available FROM game_commands WHERE game_id=$1 AND command_id=$2",
     )
     .bind(game)
     .bind(command_id)
     .fetch_one(&repository.pool)
     .await
     .unwrap();
-    assert_eq!(journal_actor, ("test-civilization".to_owned(), true));
+    assert_eq!(
+        journal_actor,
+        ("test-civilization".to_owned(), true, 0, true)
+    );
 }
 
 #[tokio::test]

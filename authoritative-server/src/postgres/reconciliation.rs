@@ -13,6 +13,8 @@ pub enum ReconciliationKind {
     BrokenRevisionChain,
     MissingRevisionCommand,
     MissingCommandActor,
+    MissingCommandTime,
+    MissingCreationReplayContext,
     OrphanCommand,
     MissingCommitOutbox,
     OrphanCommitOutbox,
@@ -31,6 +33,8 @@ impl ReconciliationKind {
             "broken_revision_chain" => Self::BrokenRevisionChain,
             "missing_revision_command" => Self::MissingRevisionCommand,
             "missing_command_actor" => Self::MissingCommandActor,
+            "missing_command_time" => Self::MissingCommandTime,
+            "missing_creation_replay_context" => Self::MissingCreationReplayContext,
             "orphan_command" => Self::OrphanCommand,
             "missing_commit_outbox" => Self::MissingCommitOutbox,
             "orphan_commit_outbox" => Self::OrphanCommitOutbox,
@@ -128,6 +132,16 @@ impl PostgresGameRepository {
             SELECT 'missing_command_actor', c.game_id, c.revision, 'accepted command has no immutable actor civilization for replay'
             FROM game_commands c
             WHERE NOT c.replay_identity_available OR c.actor_civilization_id IS NULL
+            UNION ALL
+            SELECT 'missing_command_time', c.game_id, c.revision, 'accepted command has no server execution timestamp for replay'
+            FROM game_commands c
+            WHERE NOT c.replay_time_available OR c.server_time_millis IS NULL
+            UNION ALL
+            SELECT 'missing_creation_replay_context', operation.game_id, 0, 'game creation has no retained server seed or execution timestamp for replay'
+            FROM game_creation_operations operation
+            WHERE NOT operation.replay_context_available
+               OR operation.server_seed IS NULL
+               OR operation.server_time_millis IS NULL
             UNION ALL
             SELECT 'missing_commit_outbox', r.game_id, r.revision, 'revision does not have exactly one commit outbox event'
             FROM game_revisions r

@@ -540,13 +540,14 @@ impl PostgresGameRepository {
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
-            "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, payload) VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, server_time_millis, payload) VALUES ($1, $2, $3, $4, $5, $6, $7)",
         )
         .bind(envelope.game_id)
         .bind(envelope.command_id)
         .bind(next_revision_i64)
         .bind(actor_account_id)
         .bind(actor_civilization_id)
+        .bind(proposal.server_time_millis)
         .bind(command_json)
         .execute(&mut *tx)
         .await

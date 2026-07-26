@@ -24,6 +24,8 @@ pub struct WorkerRuleset {
 pub(super) struct WorkerRequest<'a> {
     pub(super) protocol_version: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) server_time_millis: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) actor_id: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) ruleset_manifest: Option<&'a WorkerManifest>,
@@ -35,6 +37,8 @@ pub(super) struct WorkerRequest<'a> {
 pub(super) enum WorkerOperation<'a> {
     Handshake,
     CreateGame {
+        #[serde(rename = "gameId")]
+        game_id: &'a str,
         #[serde(rename = "serverSeed")]
         server_seed: i64,
         setup: &'a super::WorkerGameSetup,
@@ -747,6 +751,7 @@ pub(super) enum WorkerOperation<'a> {
 #[serde(rename_all = "camelCase")]
 pub(super) struct WorkerResponse {
     pub(super) protocol_version: u16,
+    pub(super) server_time_millis: Option<i64>,
     pub(super) engine_build: Option<String>,
     pub(super) installed_rulesets: Option<Vec<WorkerRuleset>>,
     pub(super) snapshot: Option<String>,

@@ -21,16 +21,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn manage_research_queue(
@@ -54,16 +45,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn adopt_policy(
@@ -85,16 +67,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn choose_free_technology(
@@ -116,16 +89,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn acknowledge_research_completion(
@@ -147,16 +111,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 }
 

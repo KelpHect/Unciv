@@ -40,6 +40,7 @@ class EngineWorkerProtocolTests {
         val response = AuthoritativeEngineWorker().execute(
             WorkerRequest(
                 protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
                 actorId = "account-1",
                 rulesetManifest = WorkerRulesetManifest(
                     engineBuild = InstalledRulesetCatalog.engineBuild,
@@ -59,12 +60,14 @@ class EngineWorkerProtocolTests {
         val response = AuthoritativeEngineWorker().execute(
             WorkerRequest(
                 protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
                 actorId = "account-1",
                 rulesetManifest = WorkerRulesetManifest(
                     engineBuild = "not-this-worker",
                     baseRuleset = WorkerRuleset("Civ V - Vanilla", "0".repeat(64)),
                 ),
                 operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000001",
                     1234L,
                     defaultSetup("Civ V - Vanilla"),
                 ),
@@ -93,9 +96,11 @@ class EngineWorkerProtocolTests {
         val response = AuthoritativeEngineWorker().execute(
             WorkerRequest(
                 protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
                 actorId = "account-1",
                 rulesetManifest = manifest,
                 operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000001",
                     987654321L,
                     defaultSetup(baseRuleset.name).copy(
                         majorCivilizations = 2,
@@ -110,8 +115,10 @@ class EngineWorkerProtocolTests {
         )
 
         assertNull(response.error)
+        assertEquals(1_700_000_000_000L, response.serverTimeMillis)
         val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
         assertEquals(987654321L, game.tileMap.mapParameters.seed)
+        assertEquals(1_700_000_000_000L, game.currentTurnStartTime)
         assertEquals(baseRuleset.name, game.gameParameters.baseRuleset)
         assertEquals(2, game.gameParameters.players.size)
         assertEquals(1, game.gameParameters.numberOfCityStates)
@@ -126,6 +133,7 @@ class EngineWorkerProtocolTests {
                 it.civID == requireNotNull(response.actorCivilizationId)
             }.playerId,
         )
+        assertEquals("00000000-0000-4000-8000-000000000001", game.gameId)
     }
 
     @Test
@@ -138,9 +146,11 @@ class EngineWorkerProtocolTests {
         val response = AuthoritativeEngineWorker().execute(
             WorkerRequest(
                 protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
                 actorId = "account-1",
                 rulesetManifest = manifest,
                 operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000001",
                     1234L,
                     defaultSetup(baseRuleset.name).copy(difficulty = "Client invented difficulty"),
                 ),

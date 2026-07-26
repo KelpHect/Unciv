@@ -5074,6 +5074,27 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Durable server replay context
+
+Migration `0013_deterministic_replay_context.sql` makes the server-selected
+execution time part of every new command-journal row and retains the secret
+creation seed and execution time with every new revision-zero operation. Rust
+also chooses the canonical game UUID before invoking `GameStarter`; Kotlin
+injects that UUID before constructing the state-based creation RNG. The private
+worker must echo Rust's timestamp exactly, and Rust rejects a rewritten or
+missing value.
+
+`GameStarter` now supplies its state-based RNG to civilization selection and
+player-order shuffles instead of using ambient Kotlin randomness. Reconciliation
+reports `missing_command_time` and `missing_creation_replay_context` for legacy
+or damaged history and never guesses those inputs.
+
+This milestone does not claim bounded recovery is complete. A repeated-creation
+test exposed additional ambient randomness in map resource and starting-position
+generation. That audit, fresh-process byte-identical fixtures, bounded tail
+execution, and publication of a recovery revision remain explicitly unchecked
+in `missing_multiplayer.md`.
+
 ## Immutable command replay actor identity
 
 Implemented on 2026-07-26:

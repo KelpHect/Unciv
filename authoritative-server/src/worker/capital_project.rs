@@ -20,16 +20,7 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 }
 

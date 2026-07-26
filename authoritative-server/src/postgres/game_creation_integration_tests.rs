@@ -71,6 +71,14 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
             .unwrap(),
         1,
     );
+    let replay_context: (bool, bool, bool) = sqlx::query_as(
+        "SELECT replay_context_available, server_seed IS NOT NULL, server_time_millis IS NOT NULL FROM game_creation_operations WHERE operation_id=$1",
+    )
+    .bind(operation_id)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(replay_context, (true, true, true));
 }
 
 #[tokio::test]
@@ -175,6 +183,9 @@ async fn one_shot_creation_worker(
         let request: serde_json::Value = serde_json::from_slice(&request).unwrap();
         assert_eq!(request["operation"]["type"], "create_game");
         assert!(request["operation"].get("snapshot").is_none());
+        let server_time_millis = request["serverTimeMillis"]
+            .as_i64()
+            .expect("control plane supplies a replayable server timestamp");
 
         let snapshot = "worker-created-revision-zero";
         let canonical_hash = if valid_hash {
@@ -184,6 +195,7 @@ async fn one_shot_creation_worker(
         };
         let response = serde_json::to_vec(&json!({
             "protocolVersion": WORKER_PROTOCOL_VERSION,
+            "serverTimeMillis": server_time_millis,
             "snapshot": snapshot,
             "canonicalStateHash": canonical_hash,
             "actorCivilizationId": "Owner civilization",

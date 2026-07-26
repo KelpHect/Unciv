@@ -59,7 +59,22 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
             .and_then(|error| error.constraint()),
         Some("game_commands_replay_identity_complete")
     );
-    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_identity_available, payload) VALUES ($1, $2, 99, $3, NULL, FALSE, '{}'::jsonb)")
+    let omitted_time = sqlx::query(
+        "INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, payload) VALUES ($1, $2, 98, $3, 'test-civilization', '{}'::jsonb)",
+    )
+    .bind(game)
+    .bind(Uuid::new_v4())
+    .bind(owner)
+    .execute(&repository.pool)
+    .await
+    .unwrap_err();
+    assert_eq!(
+        omitted_time
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_commands_replay_time_complete")
+    );
+    sqlx::query("INSERT INTO game_commands (game_id, command_id, revision, account_id, actor_civilization_id, replay_identity_available, server_time_millis, replay_time_available, payload) VALUES ($1, $2, 99, $3, NULL, FALSE, NULL, FALSE, '{}'::jsonb)")
         .bind(game)
         .bind(Uuid::new_v4())
         .bind(owner)
@@ -71,6 +86,30 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .execute(&repository.pool)
         .await
         .unwrap();
+    let omitted_creation_context = sqlx::query(
+        "INSERT INTO game_creation_operations (operation_id, actor_account_id, request, game_id) VALUES ($1, $2, '{}'::jsonb, $3)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(owner)
+    .bind(game)
+    .execute(&repository.pool)
+    .await
+    .unwrap_err();
+    assert_eq!(
+        omitted_creation_context
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_creation_operations_replay_context_complete")
+    );
+    sqlx::query(
+        "INSERT INTO game_creation_operations (operation_id, actor_account_id, request, game_id, server_seed, server_time_millis, replay_context_available) VALUES ($1, $2, '{}'::jsonb, $3, NULL, NULL, FALSE)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(owner)
+    .bind(game)
+    .execute(&repository.pool)
+    .await
+    .unwrap();
     let invalid_zstd = vec![0_u8];
     sqlx::query("UPDATE game_snapshots SET payload=$2, compressed_size=1, payload_hash=$3 WHERE game_id=$1 AND revision=1")
         .bind(game)
@@ -87,16 +126,16 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
     .await
     .unwrap();
 
-    let before: (i64, i64, i64, i64, Option<String>, String) = sqlx::query_as(
-        "SELECT (SELECT count(*) FROM game_revisions WHERE game_id=$1), (SELECT count(*) FROM game_snapshots WHERE game_id=$1), (SELECT count(*) FROM game_commands WHERE game_id=$1), (SELECT count(*) FROM game_outbox WHERE game_id=$1), unavailable_reason, (SELECT validation_status FROM game_snapshots WHERE game_id=$1 AND revision=1) FROM games WHERE id=$1",
+    let before: (i64, i64, i64, i64, i64, Option<String>, String) = sqlx::query_as(
+        "SELECT (SELECT count(*) FROM game_revisions WHERE game_id=$1), (SELECT count(*) FROM game_snapshots WHERE game_id=$1), (SELECT count(*) FROM game_commands WHERE game_id=$1), (SELECT count(*) FROM game_outbox WHERE game_id=$1), (SELECT count(*) FROM game_creation_operations WHERE game_id=$1), unavailable_reason, (SELECT validation_status FROM game_snapshots WHERE game_id=$1 AND revision=1) FROM games WHERE id=$1",
     )
     .bind(game)
     .fetch_one(&repository.pool)
     .await
     .unwrap();
     let report = repository.reconcile_authoritative_state().await.unwrap();
-    let after: (i64, i64, i64, i64, Option<String>, String) = sqlx::query_as(
-        "SELECT (SELECT count(*) FROM game_revisions WHERE game_id=$1), (SELECT count(*) FROM game_snapshots WHERE game_id=$1), (SELECT count(*) FROM game_commands WHERE game_id=$1), (SELECT count(*) FROM game_outbox WHERE game_id=$1), unavailable_reason, (SELECT validation_status FROM game_snapshots WHERE game_id=$1 AND revision=1) FROM games WHERE id=$1",
+    let after: (i64, i64, i64, i64, i64, Option<String>, String) = sqlx::query_as(
+        "SELECT (SELECT count(*) FROM game_revisions WHERE game_id=$1), (SELECT count(*) FROM game_snapshots WHERE game_id=$1), (SELECT count(*) FROM game_commands WHERE game_id=$1), (SELECT count(*) FROM game_outbox WHERE game_id=$1), (SELECT count(*) FROM game_creation_operations WHERE game_id=$1), unavailable_reason, (SELECT validation_status FROM game_snapshots WHERE game_id=$1 AND revision=1) FROM games WHERE id=$1",
     )
     .bind(game)
     .fetch_one(&repository.pool)
@@ -113,6 +152,8 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         ReconciliationKind::BrokenRevisionChain,
         ReconciliationKind::MissingRevisionCommand,
         ReconciliationKind::MissingCommandActor,
+        ReconciliationKind::MissingCommandTime,
+        ReconciliationKind::MissingCreationReplayContext,
         ReconciliationKind::OrphanCommand,
         ReconciliationKind::MissingCommitOutbox,
         ReconciliationKind::OrphanCommitOutbox,

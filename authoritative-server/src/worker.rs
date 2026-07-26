@@ -1,7 +1,10 @@
 //! Private Kotlin worker client. It sends typed intents and accepts only a
 //! worker-produced snapshot/hash; it contains no Unciv rules.
 
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::SocketAddr,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use thiserror::Error;
 use tokio::{
@@ -113,7 +116,18 @@ fn commit_proposal(
         canonical_state_hash: response
             .canonical_state_hash
             .ok_or(WorkerClientError::Incomplete)?,
+        server_time_millis: response
+            .server_time_millis
+            .ok_or(WorkerClientError::Incomplete)?,
     })
+}
+
+fn server_time_millis() -> Result<i64, WorkerClientError> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| WorkerClientError::Transport)?
+        .as_millis();
+    i64::try_from(millis).map_err(|_| WorkerClientError::Transport)
 }
 
 impl EngineWorkerClient {
@@ -310,22 +324,14 @@ impl EngineWorkerClient {
                 },
             )
             .await?;
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        commit_proposal(previous_revision, response)
     }
 
     pub async fn handshake(&self) -> Result<WorkerCapabilities, WorkerClientError> {
         let response = self
             .execute_request(WorkerRequest {
                 protocol_version: WORKER_PROTOCOL_VERSION,
+                server_time_millis: None,
                 actor_id: None,
                 ruleset_manifest: None,
                 operation: WorkerOperation::Handshake,
@@ -389,20 +395,13 @@ impl EngineWorkerClient {
                 WorkerOperation::AssignPlayer { snapshot },
             )
             .await?;
+        let civilization_id = response
+            .actor_civilization_id
+            .clone()
+            .ok_or(WorkerClientError::Incomplete)?;
         Ok(AssignedPlayer {
-            proposal: CommitProposal {
-                previous_revision,
-                snapshot: response
-                    .snapshot
-                    .ok_or(WorkerClientError::Incomplete)?
-                    .into_bytes(),
-                canonical_state_hash: response
-                    .canonical_state_hash
-                    .ok_or(WorkerClientError::Incomplete)?,
-            },
-            civilization_id: response
-                .actor_civilization_id
-                .ok_or(WorkerClientError::Incomplete)?,
+            proposal: commit_proposal(previous_revision, response)?,
+            civilization_id,
         })
     }
 
@@ -421,71 +420,17 @@ impl EngineWorkerClient {
         snapshot: &str,
         actor_civilization_id: &str,
     ) -> Result<CommitProposal, WorkerClientError> {
-        let request = WorkerRequest {
-            protocol_version: WORKER_PROTOCOL_VERSION,
-            actor_id: Some(actor_id),
-            ruleset_manifest: Some(manifest),
-            operation: WorkerOperation::EndTurn {
-                snapshot,
-                actor_civilization_id,
-            },
-        };
-        let payload = serde_json::to_vec(&request).map_err(|_| WorkerClientError::Transport)?;
-        if payload.len() > MAX_FRAME_BYTES {
-            return Err(WorkerClientError::FrameTooLarge);
-        }
-        let response = timeout(self.request_timeout, async {
-            let mut stream = TcpStream::connect(self.address)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_u32(payload.len() as u32)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .write_all(&payload)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            stream
-                .flush()
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            let size = stream
-                .read_u32()
-                .await
-                .map_err(|_| WorkerClientError::Transport)? as usize;
-            if !(1..=MAX_FRAME_BYTES).contains(&size) {
-                return Err(WorkerClientError::FrameTooLarge);
-            }
-            let mut response = vec![0; size];
-            stream
-                .read_exact(&mut response)
-                .await
-                .map_err(|_| WorkerClientError::Transport)?;
-            serde_json::from_slice::<WorkerResponse>(&response)
-                .map_err(|_| WorkerClientError::Transport)
-        })
-        .await
-        .map_err(|_| WorkerClientError::Transport)??;
-        if response.protocol_version != WORKER_PROTOCOL_VERSION {
-            return Err(WorkerClientError::Protocol);
-        }
-        if let Some(error) = response.error {
-            return Err(WorkerClientError::Rejected(format!(
-                "{}: {}",
-                error.code, error.message
-            )));
-        }
-        Ok(CommitProposal {
-            previous_revision,
-            snapshot: response
-                .snapshot
-                .ok_or(WorkerClientError::Incomplete)?
-                .into_bytes(),
-            canonical_state_hash: response
-                .canonical_state_hash
-                .ok_or(WorkerClientError::Incomplete)?,
-        })
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::EndTurn {
+                    snapshot,
+                    actor_civilization_id,
+                },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
     }
 
     /// Asks the Kotlin worker to create revision zero through `GameStarter`.
@@ -495,6 +440,7 @@ impl EngineWorkerClient {
         &self,
         actor_id: &str,
         manifest: &WorkerManifest,
+        game_id: &str,
         server_seed: i64,
         setup: &WorkerGameSetup,
     ) -> Result<CreatedGame, WorkerClientError> {
@@ -502,23 +448,20 @@ impl EngineWorkerClient {
             .execute(
                 actor_id,
                 manifest,
-                WorkerOperation::CreateGame { server_seed, setup },
+                WorkerOperation::CreateGame {
+                    game_id,
+                    server_seed,
+                    setup,
+                },
             )
             .await?;
+        let owner_civilization_id = response
+            .actor_civilization_id
+            .clone()
+            .ok_or(WorkerClientError::Incomplete)?;
         Ok(CreatedGame {
-            proposal: CommitProposal {
-                previous_revision: 0,
-                snapshot: response
-                    .snapshot
-                    .ok_or(WorkerClientError::Incomplete)?
-                    .into_bytes(),
-                canonical_state_hash: response
-                    .canonical_state_hash
-                    .ok_or(WorkerClientError::Incomplete)?,
-            },
-            owner_civilization_id: response
-                .actor_civilization_id
-                .ok_or(WorkerClientError::Incomplete)?,
+            proposal: commit_proposal(0, response)?,
+            owner_civilization_id,
         })
     }
 
@@ -528,13 +471,19 @@ impl EngineWorkerClient {
         manifest: &WorkerManifest,
         operation: WorkerOperation<'_>,
     ) -> Result<WorkerResponse, WorkerClientError> {
+        let server_time_millis = server_time_millis()?;
         let request = WorkerRequest {
             protocol_version: WORKER_PROTOCOL_VERSION,
+            server_time_millis: Some(server_time_millis),
             actor_id: Some(actor_id),
             ruleset_manifest: Some(manifest),
             operation,
         };
-        self.execute_request(request).await
+        let response = self.execute_request(request).await?;
+        if response.server_time_millis != Some(server_time_millis) {
+            return Err(WorkerClientError::Protocol);
+        }
+        Ok(response)
     }
 
     async fn execute_request(
@@ -631,6 +580,40 @@ mod tests {
             .unwrap();
         assert_eq!(capabilities.engine_build, "4.21.1");
         assert_eq!(capabilities.installed_rulesets.len(), 1);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn worker_cannot_rewrite_the_control_plane_timestamp() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let size = stream.read_u32().await.unwrap() as usize;
+            let mut request = vec![0; size];
+            stream.read_exact(&mut request).await.unwrap();
+            let request: Value = serde_json::from_slice(&request).unwrap();
+            let supplied = request["serverTimeMillis"].as_i64().unwrap();
+            let response = serde_json::to_vec(&serde_json::json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": supplied + 1,
+            }))
+            .unwrap();
+            stream.write_u32(response.len() as u32).await.unwrap();
+            stream.write_all(&response).await.unwrap();
+        });
+        let manifest = WorkerManifest {
+            engine_build: "engine-1".to_owned(),
+            base_ruleset: WorkerRuleset {
+                name: "Base".to_owned(),
+                sha256: "a".repeat(64),
+            },
+            mods: Vec::new(),
+        };
+        let result = EngineWorkerClient::new(address, Duration::from_secs(1))
+            .execute("account-1", &manifest, WorkerOperation::Handshake)
+            .await;
+        assert!(matches!(result, Err(WorkerClientError::Protocol)));
         server.await.unwrap();
     }
 

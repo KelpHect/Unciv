@@ -29,6 +29,7 @@ pub(super) async fn create_game(
         return Err(ApiError::bad_request("invalid_ruleset_manifest_hash"));
     }
     let game_id = uuid::Uuid::new_v4();
+    let setup = request.setup.validate()?;
     state
         .repository
         .create_authoritative_game(
@@ -36,6 +37,7 @@ pub(super) async fn create_game(
             actor.id,
             game_id,
             request.ruleset_manifest_hash,
+            setup,
         )
         .await
         .map_err(game_error)?;

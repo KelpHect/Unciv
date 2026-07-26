@@ -21,7 +21,6 @@ import com.unciv.logic.multiplayer.authoritative.GreatPersonUnitAction
 import com.unciv.logic.multiplayer.authoritative.UnitPosture
 import com.unciv.logic.map.HexCoord
 import com.unciv.json.json
-import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.ruleset.RulesetCache
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -69,7 +68,10 @@ sealed interface WorkerOperation {
     /** A setup intent, never a client-created GameInfo. The worker invokes the
      * shared GameStarter to create canonical revision zero. */
     @Serializable @SerialName("create_game")
-    data class CreateGame(val serverSeed: Long) : WorkerOperation
+    data class CreateGame(
+        val serverSeed: Long,
+        val setup: WorkerGameSetup,
+    ) : WorkerOperation
 
     @Serializable @SerialName("assign_player")
     data class AssignPlayer(val snapshot: String) : WorkerOperation
@@ -628,24 +630,15 @@ class AuthoritativeEngineWorker {
         when (val operation = request.operation) {
             WorkerOperation.Handshake -> error("Handshake was not handled")
             is WorkerOperation.CreateGame -> {
-                val setup = GameSetupInfo()
-                setup.mapParameters.seed = operation.serverSeed
-                setup.gameParameters.isOnlineMultiplayer = true
-                setup.gameParameters.multiplayerServerUrl = null
-                setup.gameParameters.baseRuleset = manifest.baseRuleset.name
-                setup.gameParameters.mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
-                setup.mapParameters.baseRuleset = manifest.baseRuleset.name
-                setup.mapParameters.mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
+                val setup = operation.setup.materialize(manifest, actorId, operation.serverSeed)
                 val owner = setup.gameParameters.players.firstOrNull()
                     ?: error("Game setup requires at least one player")
-                owner.playerType = com.unciv.logic.civilization.PlayerType.Human
                 require(setup.gameParameters.baseRuleset == manifest.baseRuleset.name) {
                     "Setup base ruleset does not match the pinned manifest"
                 }
                 require(setup.gameParameters.mods == manifest.mods.map { it.name }.toSet()) {
                     "Setup mods do not match the pinned manifest"
                 }
-                owner.playerId = actorId
                 val result = engine.createGame(setup)
                 val ownerCivilization = result.game.civilizations.singleOrNull {
                     it.playerId == actorId

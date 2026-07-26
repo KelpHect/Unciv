@@ -64,7 +64,10 @@ class EngineWorkerProtocolTests {
                     engineBuild = "not-this-worker",
                     baseRuleset = WorkerRuleset("Civ V - Vanilla", "0".repeat(64)),
                 ),
-                operation = WorkerOperation.CreateGame(1234L),
+                operation = WorkerOperation.CreateGame(
+                    1234L,
+                    defaultSetup("Civ V - Vanilla"),
+                ),
             ),
         )
 
@@ -92,7 +95,17 @@ class EngineWorkerProtocolTests {
                 protocolVersion = EngineWorkerProtocol.VERSION,
                 actorId = "account-1",
                 rulesetManifest = manifest,
-                operation = WorkerOperation.CreateGame(987654321L),
+                operation = WorkerOperation.CreateGame(
+                    987654321L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 2,
+                        cityStates = 1,
+                        mapShape = GeneratedMapShape.Rectangular,
+                        mapSize = GeneratedMapSize.Tiny,
+                        barbarians = BarbarianMode.Disabled,
+                        noRuins = true,
+                    ),
+                ),
             ),
         )
 
@@ -100,6 +113,12 @@ class EngineWorkerProtocolTests {
         val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
         assertEquals(987654321L, game.tileMap.mapParameters.seed)
         assertEquals(baseRuleset.name, game.gameParameters.baseRuleset)
+        assertEquals(2, game.gameParameters.players.size)
+        assertEquals(1, game.gameParameters.numberOfCityStates)
+        assertTrue(game.gameParameters.noBarbarians)
+        assertTrue(game.tileMap.mapParameters.noRuins)
+        assertEquals("Rectangular", game.tileMap.mapParameters.shape)
+        assertEquals("Tiny", game.tileMap.mapParameters.mapSize.name)
         assertTrue(game.gameParameters.isOnlineMultiplayer)
         assertEquals(
             "account-1",
@@ -107,6 +126,30 @@ class EngineWorkerProtocolTests {
                 it.civID == requireNotNull(response.actorCivilizationId)
             }.playerId,
         )
+    }
+
+    @Test
+    fun createGameRejectsSetupChoicesOutsidePinnedRuleset() {
+        val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = baseRuleset,
+        )
+        val response = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                actorId = "account-1",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(
+                    1234L,
+                    defaultSetup(baseRuleset.name).copy(difficulty = "Client invented difficulty"),
+                ),
+            ),
+        )
+
+        assertEquals("engine_rejected", response.error?.code)
+        assertTrue(response.error?.message?.contains("Difficulty") == true)
+        assertNull(response.snapshot)
     }
 
     @Test
@@ -135,6 +178,41 @@ class EngineWorkerProtocolTests {
     }
 
     companion object {
+        private fun defaultSetup(baseRulesetName: String): WorkerGameSetup {
+            val ruleset = requireNotNull(RulesetCache[baseRulesetName])
+            return WorkerGameSetup(
+                difficulty = ruleset.difficulties.keys.first(),
+                speed = ruleset.speeds.keys.first(),
+                startingEra = ruleset.eras.keys.first(),
+                victoryTypes = ruleset.victories.values
+                    .filterNot { it.hiddenInVictoryScreen }
+                    .map { it.name }
+                    .sorted(),
+                majorCivilizations = 4,
+                cityStates = minOf(6, ruleset.nations.values.count { it.isCityState }),
+                maxTurns = 500,
+                mapType = GeneratedMapType.Pangaea,
+                mapShape = GeneratedMapShape.Hexagonal,
+                mapSize = GeneratedMapSize.Medium,
+                mapResources = MapResourceDensity.Default,
+                barbarians = BarbarianMode.Normal,
+                oneCityChallenge = false,
+                nuclearWeaponsEnabled = true,
+                espionageEnabled = true,
+                noStartBias = false,
+                shufflePlayerOrder = false,
+                noCityRazing = false,
+                worldWrap = false,
+                strategicBalance = false,
+                legendaryStart = false,
+                noRuins = false,
+                noNaturalWonders = false,
+                minutesUntilSkipTurn = 1_440,
+                minutesUntilForceResign = 4_320,
+                minutesRecoveredPerTurn = 1_440,
+            )
+        }
+
         @JvmStatic
         @BeforeClass
         fun loadInstalledRulesets() {

@@ -22,6 +22,7 @@ mod city_tiles;
 mod diplomacy;
 mod espionage;
 mod event_choices;
+mod game_setup;
 mod great_people;
 mod instant_improvements;
 mod intents;
@@ -41,6 +42,10 @@ mod unit_triggers;
 pub use city_state::{
     CityStateGoldGiftIntent, CityStateImprovementGiftIntent, CityStateProtectionIntent,
     CityStateTributeIntent,
+};
+pub use game_setup::{
+    BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
+    WorkerGameSetup,
 };
 pub use intents::{
     AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,
@@ -491,12 +496,13 @@ impl EngineWorkerClient {
         actor_id: &str,
         manifest: &WorkerManifest,
         server_seed: i64,
+        setup: &WorkerGameSetup,
     ) -> Result<CreatedGame, WorkerClientError> {
         let response = self
             .execute(
                 actor_id,
                 manifest,
-                WorkerOperation::CreateGame { server_seed },
+                WorkerOperation::CreateGame { server_seed, setup },
             )
             .await?;
         Ok(CreatedGame {
@@ -626,16 +632,6 @@ mod tests {
         assert_eq!(capabilities.engine_build, "4.21.1");
         assert_eq!(capabilities.installed_rulesets.len(), 1);
         server.await.unwrap();
-    }
-
-    #[test]
-    fn create_game_operation_contains_only_the_server_seed() {
-        let value = serde_json::to_value(WorkerOperation::CreateGame { server_seed: 42 }).unwrap();
-
-        assert_eq!(value["type"], "create_game");
-        assert_eq!(value["serverSeed"], 42);
-        assert!(value.get("setup").is_none());
-        assert!(value.get("snapshot").is_none());
     }
 
     #[test]

@@ -153,11 +153,14 @@ class ApiV3Client(
         if (!response.status.isSuccess()) throw response.toApiException()
     }
 
-    override suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata =
+    override suspend fun createGame(
+        rulesetManifestHash: String,
+        setup: ApiV3GameSetup,
+    ): ApiV3GameMetadata =
         decode(client.post("api/v3/games") {
             authenticate()
             contentType(ContentType.Application.Json)
-            setBody(ApiV3CreateGameRequest(rulesetManifestHash))
+            setBody(ApiV3CreateGameRequest(rulesetManifestHash, setup))
         })
 
     override suspend fun joinGame(

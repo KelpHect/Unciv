@@ -5074,6 +5074,60 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Bounded authoritative generated-game setup
+
+API-v3 game creation now requires a closed setup object rather than silently
+using worker defaults. The public schema accepts only predefined generated map
+types, shapes, sizes and resource densities; a closed barbarian mode; bounded
+fixed major/city-state counts, maximum turns and multiplayer timers; bounded
+sorted victory identities; ruleset-derived difficulty, speed and era names;
+and explicit gameplay/map toggles. Victory identities must also be distinct.
+Unknown fields and enums, client seeds,
+custom/scenario map payloads, arbitrary player records, raw setup JSON,
+snapshots, and `GameInfo` remain outside the contract.
+
+Rust validates structural and resource bounds before worker execution, then
+adds the independent OS-backed secret seed. The private Kotlin worker repeats
+all numeric/order checks, derives the exact installed combined ruleset from the
+pinned manifest, verifies every named choice and available civilization count,
+constructs `GameSetupInfo`, assigns only the authenticated owner as human, and
+runs shared `GameStarter`. The API-v3 Kotlin client converts supported local
+setup state into the typed request; its authenticated session resolves one
+exact manifest, creates revision zero, fetches the first projection, and opens
+the command bus. Production `NewGameScreen` routing and retry-safe resource
+creation remain separate P0 gaps.
+
+Verification on 2026-07-26:
+
+- Focused worker tests prove the server seed and representative bounded setup
+  choices become canonical state, while a client-invented difficulty is
+  rejected before snapshot creation. The Rust wire test proves the private
+  operation contains only typed setup plus `serverSeed`, with no manifest hash
+  claim or snapshot.
+- Focused session tests prove creation requires authentication, resolves the
+  exact installed manifest, submits the setup, requires revision zero, fetches
+  the authoritative projection, and opens the command bus.
+- `./gradlew :tests:test :server:test --no-parallel` passes 983 JVM/server tests
+  with 13 intentional skips and no failures or errors.
+- Rust passes 112 active library tests and all 10 HTTP/OpenAPI tests.
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and regenerated
+  OpenAPI parity pass.
+- All 18 serialized PostgreSQL integration and controlled replica-fault tests
+  pass in 6.84 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The fresh disposable container was removed and verified absent.
+- The expected first HTTP run exposed stale checked-in OpenAPI. The first
+  regeneration command omitted the required binary selector in a multi-binary
+  crate; the corrected explicit command regenerated the schema and all 10
+  HTTP/OpenAPI tests passed. The architecture review also caught `worker.rs` at
+  813 lines after adding the wire fixture; that test moved into the focused
+  `worker/game_setup.rs` module before final verification. No compile, test,
+  format, Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). The largest Rust source is 789 lines, below the 800-line
+  guardrail.
+
 ## Authenticated ruleset-manifest discovery
 
 The production creation path can now discover the server-approved ruleset

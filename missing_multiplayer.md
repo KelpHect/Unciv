@@ -80,19 +80,35 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   map seed that is not derivable from the public game UUID; the private
   protocol carries only that typed seed, and Kotlin constructs default
   `GameSetupInfo` from the pinned manifest before assigning the authenticated
-  owner. Bounded setup choices and production UI routing remain part of the
-  unchecked lifecycle items below.
+  owner. Production UI routing remains part of the unchecked lifecycle items
+  below.
 - [x] Add authenticated, bounded ruleset-manifest discovery and exact client
   resolution. The public API pages only content identities and hashes, validates
   persisted manifest integrity, and never exposes raw manifest JSON or ruleset
   bytes. The Kotlin client resolves an exact base-ruleset and mod-name set and
   fails closed on no match, ambiguity, malformed cursors, or repeated pages.
+- [x] Add a closed, bounded generated-game setup contract across the public
+  API, Rust-to-worker wire, Kotlin client/session, and private worker. It covers
+  ruleset-derived difficulty/speed/era/victories; fixed major/city-state counts;
+  predefined map generation, size, shape and resources; distinct bounded
+  victory identities; gameplay toggles; and
+  multiplayer timers. Rust bounds the request, Kotlin independently validates
+  every named choice against the pinned ruleset, and only the control plane
+  supplies the secret map seed. The authenticated session resolves the exact
+  manifest, creates revision zero, fetches its projection, and opens the
+  command bus.
+- [ ] Make game creation retry-safe with a caller-stable creation operation ID
+  bound durably to the authenticated account and exact manifest/setup meaning.
+  A lost create response must return the original game rather than create a
+  second canonical game, and changed reuse must fail closed.
 - [ ] Make v3 the complete production game lifecycle, not an explicitly opened
   opt-in path. New online games must be created by the v3 server and must never
   be created locally and uploaded.
 - [ ] Migrate the new-game UI to bounded server setup choices, server-owned
-  seed/randomness, ruleset-manifest selection, progress/error handling, and the
-  returned revision-zero projection.
+  seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
+  progress/error handling, and the returned revision-zero projection. The
+  bounded DTO, manifest resolver, and session creation/opening lifecycle are
+  implemented; production screen routing is not.
 - [ ] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save.
@@ -358,9 +374,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-parallel` passes (981 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-parallel` passes (983 JVM/server tests,
   13 intentional skips).
-- Rust passes 112 active library tests and 8 HTTP/OpenAPI tests; 18 serialized
+- Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 18 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI

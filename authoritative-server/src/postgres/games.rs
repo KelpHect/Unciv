@@ -11,6 +11,7 @@ impl PostgresGameRepository {
         owner_account_id: Uuid,
         game_id: Uuid,
         ruleset_manifest_hash: String,
+        setup: crate::worker::WorkerGameSetup,
     ) -> Result<(), CommitError> {
         let manifest: serde_json::Value =
             sqlx::query_scalar("SELECT manifest FROM ruleset_manifests WHERE hash = $1")
@@ -30,7 +31,12 @@ impl PostgresGameRepository {
             .map_err(|_| CommitError::Storage)?;
         let server_seed = i64::from_be_bytes(seed_bytes);
         let created = worker
-            .create_game(&owner_account_id.to_string(), &manifest, server_seed)
+            .create_game(
+                &owner_account_id.to_string(),
+                &manifest,
+                server_seed,
+                &setup,
+            )
             .await
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
         let proposal = created.proposal;

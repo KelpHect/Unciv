@@ -9780,6 +9780,14 @@
         },
         "additionalProperties": false
       },
+      "BarbarianMode": {
+        "type": "string",
+        "enum": [
+          "disabled",
+          "normal",
+          "raging"
+        ]
+      },
       "BombardWithCityRequest": {
         "type": "object",
         "required": [
@@ -10483,11 +10491,142 @@
       "CreateGameRequest": {
         "type": "object",
         "required": [
-          "ruleset_manifest_hash"
+          "ruleset_manifest_hash",
+          "setup"
         ],
         "properties": {
           "ruleset_manifest_hash": {
             "type": "string"
+          },
+          "setup": {
+            "$ref": "#/components/schemas/CreateGameSetupRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateGameSetupRequest": {
+        "type": "object",
+        "required": [
+          "difficulty",
+          "speed",
+          "starting_era",
+          "victory_types",
+          "major_civilizations",
+          "city_states",
+          "max_turns",
+          "map_type",
+          "map_shape",
+          "map_size",
+          "map_resources",
+          "barbarians",
+          "one_city_challenge",
+          "nuclear_weapons_enabled",
+          "espionage_enabled",
+          "no_start_bias",
+          "shuffle_player_order",
+          "no_city_razing",
+          "world_wrap",
+          "strategic_balance",
+          "legendary_start",
+          "no_ruins",
+          "no_natural_wonders",
+          "minutes_until_skip_turn",
+          "minutes_until_force_resign",
+          "minutes_recovered_per_turn"
+        ],
+        "properties": {
+          "barbarians": {
+            "$ref": "#/components/schemas/BarbarianMode"
+          },
+          "city_states": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "difficulty": {
+            "type": "string"
+          },
+          "espionage_enabled": {
+            "type": "boolean"
+          },
+          "legendary_start": {
+            "type": "boolean"
+          },
+          "major_civilizations": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "map_resources": {
+            "$ref": "#/components/schemas/MapResourceDensity"
+          },
+          "map_shape": {
+            "$ref": "#/components/schemas/GeneratedMapShape"
+          },
+          "map_size": {
+            "$ref": "#/components/schemas/GeneratedMapSize"
+          },
+          "map_type": {
+            "$ref": "#/components/schemas/GeneratedMapType"
+          },
+          "max_turns": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minutes_recovered_per_turn": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minutes_until_force_resign": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minutes_until_skip_turn": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "no_city_razing": {
+            "type": "boolean"
+          },
+          "no_natural_wonders": {
+            "type": "boolean"
+          },
+          "no_ruins": {
+            "type": "boolean"
+          },
+          "no_start_bias": {
+            "type": "boolean"
+          },
+          "nuclear_weapons_enabled": {
+            "type": "boolean"
+          },
+          "one_city_challenge": {
+            "type": "boolean"
+          },
+          "shuffle_player_order": {
+            "type": "boolean"
+          },
+          "speed": {
+            "type": "string"
+          },
+          "starting_era": {
+            "type": "string"
+          },
+          "strategic_balance": {
+            "type": "boolean"
+          },
+          "victory_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "world_wrap": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -10931,6 +11070,42 @@
           }
         }
       },
+      "GeneratedMapShape": {
+        "type": "string",
+        "enum": [
+          "rectangular",
+          "hexagonal",
+          "flat_earth"
+        ]
+      },
+      "GeneratedMapSize": {
+        "type": "string",
+        "enum": [
+          "tiny",
+          "small",
+          "medium",
+          "large",
+          "huge"
+        ]
+      },
+      "GeneratedMapType": {
+        "type": "string",
+        "enum": [
+          "pangaea",
+          "small_continents",
+          "perlin",
+          "fractal",
+          "continent_and_islands",
+          "archipelago",
+          "two_continents",
+          "three_continents",
+          "inner_sea",
+          "lakes",
+          "four_corners",
+          "spiral",
+          "boreal"
+        ]
+      },
       "GiftUnitRequest": {
         "type": "object",
         "required": [
@@ -11197,6 +11372,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "MapResourceDensity": {
+        "type": "string",
+        "enum": [
+          "sparse",
+          "default",
+          "abundant"
+        ]
       },
       "MoveConstructionRequest": {
         "type": "object",

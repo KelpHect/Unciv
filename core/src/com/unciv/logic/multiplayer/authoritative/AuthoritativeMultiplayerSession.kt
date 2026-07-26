@@ -122,6 +122,20 @@ class AuthoritativeMultiplayerSession(
         return RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
     }
 
+    suspend fun createAuthoritativeGame(
+        baseRulesetName: String,
+        modNames: Set<String>,
+        setup: ApiV3GameSetup,
+    ): AuthoritativeGameCreation {
+        requireAuthenticated()
+        val manifest = RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
+        val metadata = transport.createGame(manifest.manifestHash, setup)
+        check(metadata.committedRevision == 0L) {
+            "A newly created API v3 game did not return revision zero"
+        }
+        return AuthoritativeGameCreation(metadata, openGame(metadata.gameId))
+    }
+
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {
         requireAuthenticated()
         return transport.listPlayerInvitations()

@@ -19,7 +19,10 @@ interface ApiV3Transport {
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
     suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)
-    suspend fun createGame(rulesetManifestHash: String): ApiV3GameMetadata
+    suspend fun createGame(
+        rulesetManifestHash: String,
+        setup: ApiV3GameSetup,
+    ): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection
     suspend fun spectatorProjection(gameId: String): ApiV3SpectatorGameProjection

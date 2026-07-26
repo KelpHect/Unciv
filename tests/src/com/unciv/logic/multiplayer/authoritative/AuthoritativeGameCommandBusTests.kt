@@ -2114,7 +2114,10 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun listGames(after: String?, limit: Int) = ApiV3GamePage(emptyList())
         override suspend fun listPlayerInvitations() = emptyList<ApiV3PlayerInvitation>()
         override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) = Unit
-        override suspend fun createGame(rulesetManifestHash: String) =
+        override suspend fun createGame(
+            rulesetManifestHash: String,
+            setup: ApiV3GameSetup,
+        ) =
             ApiV3GameMetadata(gameId, 0, "hash-0", "owner", "Rome")
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest) =
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")

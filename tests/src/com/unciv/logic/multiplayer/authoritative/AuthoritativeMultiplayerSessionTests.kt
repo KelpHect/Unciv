@@ -146,6 +146,40 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun authoritativeCreationResolvesContentSubmitsBoundedSetupAndOpensRevisionZero() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = projection(0, "hash-0")
+            manifestPages[null] = ApiV3RulesetManifestPage(
+                listOf(manifest("a", "Civ V - Vanilla", emptyList())),
+            )
+        }
+        val session = session(transport)
+        val setup = gameSetup()
+        assertThrows<IllegalStateException> {
+            session.createAuthoritativeGame("Civ V - Vanilla", emptySet(), setup)
+        }
+        session.restore()
+
+        val created = session.createAuthoritativeGame(
+            "Civ V - Vanilla",
+            emptySet(),
+            setup,
+        )
+
+        assertEquals(listOf("a".repeat(64) to setup), transport.createdGames)
+        assertEquals(0, created.metadata.committedRevision)
+        assertTrue(session.isGameOpen(created.metadata.gameId))
+        assertEquals(
+            0,
+            (created.commandBus.state as AuthoritativeSyncState.Synchronized)
+                .current.committedRevision,
+        )
+        assertEquals(1, transport.projectionCalls)
+        session.close()
+    }
+
+    @Test
     fun playerInvitationsPreserveServerRevisionAndCallerStableIds() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -1396,6 +1430,7 @@ class AuthoritativeMultiplayerSessionTests {
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val manifestListCalls = mutableListOf<String?>()
         val manifestPages = mutableMapOf<String?, ApiV3RulesetManifestPage>()
+        val createdGames = mutableListOf<Pair<String, ApiV3GameSetup>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
@@ -1451,8 +1486,13 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {
             playerInvitationRequests += Triple(gameId, request.invitationId, request.username)
         }
-        override suspend fun createGame(rulesetManifestHash: String) =
-            ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
+        override suspend fun createGame(
+            rulesetManifestHash: String,
+            setup: ApiV3GameSetup,
+        ): ApiV3GameMetadata {
+            createdGames += rulesetManifestHash to setup
+            return ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
+        }
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted {
             joinRequests += Triple(gameId, request.commandId, request.expectedRevision)
             joinObservedHashes += request.clientObservedStateHash
@@ -2320,5 +2360,34 @@ class AuthoritativeMultiplayerSessionTests {
     companion object {
         private const val GAME_ID = "00000000-0000-0000-0000-000000000001"
         private const val NEXT_GAME_ID = "00000000-0000-0000-0000-000000000002"
+
+        private fun gameSetup() = ApiV3GameSetup(
+            difficulty = "Prince",
+            speed = "Standard",
+            startingEra = "Ancient era",
+            victoryTypes = listOf("Domination", "Scientific"),
+            majorCivilizations = 4,
+            cityStates = 6,
+            maxTurns = 500,
+            mapType = ApiV3GeneratedMapType.Pangaea,
+            mapShape = ApiV3GeneratedMapShape.Hexagonal,
+            mapSize = ApiV3GeneratedMapSize.Medium,
+            mapResources = ApiV3MapResourceDensity.Default,
+            barbarians = ApiV3BarbarianMode.Normal,
+            oneCityChallenge = false,
+            nuclearWeaponsEnabled = true,
+            espionageEnabled = true,
+            noStartBias = false,
+            shufflePlayerOrder = false,
+            noCityRazing = false,
+            worldWrap = false,
+            strategicBalance = false,
+            legendaryStart = false,
+            noRuins = false,
+            noNaturalWonders = false,
+            minutesUntilSkipTurn = 1_440,
+            minutesUntilForceResign = 4_320,
+            minutesRecoveredPerTurn = 1_440,
+        )
     }
 }

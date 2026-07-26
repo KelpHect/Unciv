@@ -37,6 +37,7 @@ pub(super) enum WorkerOperation<'a> {
     CreateGame {
         #[serde(rename = "serverSeed")]
         server_seed: i64,
+        setup: &'a super::WorkerGameSetup,
     },
     AssignPlayer {
         snapshot: &'a str,

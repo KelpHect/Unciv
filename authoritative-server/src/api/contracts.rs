@@ -56,6 +56,7 @@ pub(super) struct ConfirmPasswordRequest {
 #[serde(deny_unknown_fields)]
 pub(super) struct CreateGameRequest {
     pub(super) ruleset_manifest_hash: String,
+    pub(super) setup: CreateGameSetupRequest,
 }
 
 #[derive(Serialize, ToSchema)]

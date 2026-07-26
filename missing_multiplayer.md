@@ -86,12 +86,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   including ideology, while Rust rejects duplicate, reordered, oversized, or
   malformed branch disclosure. The opened-v3 picker submits only names from
   the actor's projected selectable set and never mutates policies locally.
-- [ ] Re-audit the `EndTurn` readiness list after the above work and prove that
-  every blocking action has a player-scoped projection and authoritative
-  resolution command. The transient move-spies reminder has been removed from
-  canonical readiness; projected construction, research, policy, religion,
-  diplomatic-vote, and great-person blockers remain enforced. Continue this
-  audit as the projection-only UI replaces local prompt/result flows.
+- [x] Re-audit the `EndTurn` readiness list and prove that every canonical
+  blocker has a player-scoped projection and authoritative resolution command.
+  Construction, technology/free-tech, policy/ideology, pantheon, religion
+  founding, enhancement, reform, diplomatic voting/abstention, and
+  great-person selection are covered. `EndTurn` rejects every unresolved
+  blocker without changing canonical state, and focused tests clear each only
+  through its Kotlin worker command. Rust rejects duplicate, reordered,
+  legacy `move_spies`, or blocker projections without a matching choice.
+  Transient idle-unit and spy-movement reminders remain client-local.
 
 ## P0: membership and game administration
 

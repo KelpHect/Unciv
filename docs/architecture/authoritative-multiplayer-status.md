@@ -4768,3 +4768,54 @@ Verification on 2026-07-26:
   43 lines). The new semantic test lives in the focused
   `projection_policy_tests.rs` module; the largest Rust source remains below
   the 800-line guardrail.
+
+## Canonical end-turn readiness audit
+
+The canonical readiness list has been re-audited after completing research and
+policy/ideology control. It contains only state-changing or one-shot choices
+that must be resolved before turn advancement:
+
+| Blocker | Player-scoped projection | Authoritative resolution |
+| --- | --- | --- |
+| Construction | Empty non-puppet city queue plus queueable construction options | `QueueConstruction`, tile-targeted queueing, or perpetual construction |
+| Technology/free technology | Research targets, queue metadata, and free-tech choices | `SetResearchPath` or `ChooseFreeTechnology` |
+| Policy/ideology | Exact selectable policy names | `AdoptPolicy` |
+| Pantheon/founding/enhancement/reform | Required belief-slot types, eligible beliefs, and founding identity choices | `ChooseReligiousBeliefs` |
+| Diplomatic vote | Eligible candidates; null remains explicit abstention | `CastDiplomaticVote` |
+| Great person | Exact placeable unit names | `ChooseGreatPerson` |
+
+`HeadlessGameEngine.endTurn` re-derives this list from canonical state and
+rejects the command before automated orders or `GameInfo.nextTurn` when any
+entry remains. Idle-unit, automation, and spy-movement reminders are
+presentation conveniences and cannot block canonical v3 advancement. Rust now
+rejects duplicate, reordered, legacy `move_spies`, or unresolvable readiness
+lists before serving a worker projection.
+
+Verification on 2026-07-26:
+
+- A focused Kotlin matrix proves every blocker above, including all four
+  religious modes, rejects `EndTurn` without changing the canonical hash or
+  current player and disappears only after its authoritative worker command.
+- A focused Rust semantic test proves the closed blocker list is ordered,
+  unique, excludes the retired spy reminder, and has matching projected choices.
+- `./gradlew :tests:test :server:test --no-daemon` passes 965 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 103 active library tests and
+  all 7 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, and warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings` pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55490. The disposable `--rm` container was stopped and verified
+  absent.
+- The diplomatic-vote fixture initially lacked another living major
+  civilization and therefore correctly produced no blocker. A first attempt
+  placed that civilization inside tutorial contact range, exposing a headless
+  UI side effect; the final legal fixture places its living unit outside
+  contact range. The full affected matrix and broad gates reran cleanly, with
+  no error deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  45 lines). Readiness validation and its focused test remain separate from
+  bootstrap code; the largest Rust source remains below 800 lines.

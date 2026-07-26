@@ -76,6 +76,47 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn turn_readiness_is_consistent(&self) -> bool {
+        self.pending_turn_actions.len() <= 9
+            && self
+                .pending_turn_actions
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
+            && self.pending_turn_actions.iter().all(|action| match action {
+                crate::projection::PendingEndTurnAction::PickConstruction => {
+                    self.own_cities.iter().any(|city| {
+                        !city.is_puppet
+                            && city.construction_queue.is_empty()
+                            && city
+                                .construction_options
+                                .iter()
+                                .any(|option| option.queueable)
+                    })
+                }
+                crate::projection::PendingEndTurnAction::PickTechnology => {
+                    !self.research.selectable_targets.is_empty()
+                        || !self.research.free_technology_choices.is_empty()
+                }
+                crate::projection::PendingEndTurnAction::PickPolicy => {
+                    !self.policies.selectable_policies.is_empty()
+                }
+                crate::projection::PendingEndTurnAction::MoveSpies => false,
+                crate::projection::PendingEndTurnAction::FoundOrExpandPantheon
+                | crate::projection::PendingEndTurnAction::FoundReligion
+                | crate::projection::PendingEndTurnAction::EnhanceReligion
+                | crate::projection::PendingEndTurnAction::ReformReligion => {
+                    self.religion_choice.as_ref().is_some_and(|choice| {
+                        !choice.required_belief_types.is_empty()
+                            && !choice.available_beliefs.is_empty()
+                    })
+                }
+                crate::projection::PendingEndTurnAction::CastDiplomaticVote => true,
+                crate::projection::PendingEndTurnAction::PickGreatPerson => {
+                    !self.selectable_great_people.is_empty()
+                }
+            })
+    }
+
     pub fn diplomacy_is_consistent(&self) -> bool {
         self.diplomacy_partners.len() <= MAX_PROJECTED_CHOICES
             && self

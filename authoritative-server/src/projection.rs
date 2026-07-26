@@ -389,7 +389,7 @@ pub struct ProjectedPolicies {
     pub selectable_policies: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum PendingEndTurnAction {
     PickConstruction,

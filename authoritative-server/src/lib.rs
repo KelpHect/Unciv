@@ -13,6 +13,8 @@ mod projection_combat_tests;
 mod projection_escort_tests;
 #[cfg(test)]
 mod projection_policy_tests;
+#[cfg(test)]
+mod projection_turn_readiness_tests;
 mod projection_validation;
 mod projection_wonder_events;
 #[cfg(test)]

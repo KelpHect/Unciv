@@ -599,11 +599,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 86 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 41 operations: handshake, game creation,
+  Fresh packaged-JVM evidence covers 44 operations: handshake, game creation,
   player assignment, self/force resignation, owner kick, research selection,
   end turn with all AI, unit movement,
   durable movement-toward and cancellation, exploration/automation transitions,
   promotion and saved city defaults, batch upgrades, renaming, posture, disband,
+  tile-improvement start/cancel, road connection orders, friendly unit swaps,
   city founding, player/spectator projection,
   ordinary construction queueing, adjacent queue movement, exact queue removal,
   queue-context management, specialist assignment/mode, tile locking, citizen
@@ -613,7 +614,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Stateful unit and city scenarios compare every full response across two
   independent JVMs. Changed canonical combat state, forged actor, and
   changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. The other 45 operations plus additional random
+  time remain replay-critical. The other 42 operations plus additional random
   setup/combat/event/AI branches still need fresh-process fixtures, so this item
   remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust

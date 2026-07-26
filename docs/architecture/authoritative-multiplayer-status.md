@@ -6868,6 +6868,38 @@ Focused verification on 2026-07-26:
   1,127 JVM/server tests with 14 intentional skips and no failures or errors,
   plus Android release lint, the debug APK, and desktop packaging.
 
+## Packaged-worker unit construction parity batch
+
+Implemented on 2026-07-26:
+
+- Added a projection-driven two-fresh-JVM scenario for tile-improvement
+  start/cancel, long-distance road connection, and friendly unit swapping.
+- Every improvement name, optional queued improvement, road destination, and
+  swap destination submitted to the worker comes from the authenticated
+  player's private projection. Canonical build legality, pathfinding,
+  automation, movement cost, and unit placement remain Kotlin-engine decisions.
+- The final projection proves cancellation cleared the improvement queue and
+  both stable unit IDs exchanged their exact coordinates. Every one of the ten
+  complete responses and intermediate snapshots/hashes is byte-identical
+  across independent packaged JVMs.
+- Fresh-process evidence now covers 44 of 86 sealed operations; 42 remain
+  explicitly classified as in-process-only debt.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitConstructionParityTests
+  --no-parallel --console=plain` passes all three focused tests.
+- The initial fixture used hash-backed visible-tile iteration and the parity
+  harness correctly rejected different setup coordinates between runs.
+  Coordinate sorting removed that fixture nondeterminism before the clean
+  rerun; no production behavior was weakened or bypassed.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,128 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

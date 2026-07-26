@@ -99,6 +99,38 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun apiV3DecisionsExistOnlyInProjectionWorldRouting() {
+        for (legacyPicker in listOf(
+            "TechPickerScreen.kt",
+            "PolicyPickerScreen.kt",
+            "DiplomaticVotePickerScreen.kt",
+        )) {
+            val source = sourceFile(
+                "core/src/com/unciv/ui/screens/pickerscreens/$legacyPicker",
+            ).readText()
+
+            assertFalse("$legacyPicker must not inspect API-v3 sessions", source.contains("authoritativeSession"))
+            assertFalse("$legacyPicker must not submit API-v3 commands", source.contains("IfOpen("))
+            assertFalse("$legacyPicker must not handle API-v3 outcomes", source.contains("AuthoritativeCommandOutcome"))
+        }
+
+        val decisions = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeWorldDecisions.kt",
+        ).readText()
+        val prompts = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativePromptPanel.kt",
+        ).readText()
+
+        assertTrue(decisions.contains("controller.selectResearch("))
+        assertTrue(decisions.contains("controller.manageResearchQueue("))
+        assertTrue(decisions.contains("controller::chooseProjectedFreeTechnology"))
+        assertTrue(decisions.contains("controller::adoptProjectedPolicy"))
+        assertTrue(prompts.contains("controller.castDiplomaticVote("))
+    }
+
+    @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +

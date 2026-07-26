@@ -8,9 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Cell
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.utils.Align
-import com.unciv.GUI
 import com.unciv.logic.civilization.Civilization
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Policy
@@ -35,11 +33,8 @@ import com.unciv.ui.components.widgets.BorderedTable
 import com.unciv.ui.components.widgets.ColorMarkupLabel
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ConfirmPopup
-import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
-import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -165,9 +160,6 @@ class PolicyPickerScreen(
 
     private val policyNameToButton = HashMap<String, PolicyButton>()
     private var selectedPolicyButton: PolicyButton? = null
-
-    private fun isAuthoritativeGame() = viewingCiv.gameInfo.gameParameters.isOnlineMultiplayer &&
-        game.onlineMultiplayer.authoritativeSession?.isGameOpen(viewingCiv.gameInfo.gameId) == true
 
     init {
         val branchToGroup = HashMap<String, BranchGroup>()
@@ -651,11 +643,8 @@ class PolicyPickerScreen(
                     this,
                     "Are you sure you want to adopt [${branch.name}]?",
                     "Adopt", true, action = {
-                        if (isAuthoritativeGame()) submitAuthoritativePolicy(branch)
-                        else {
-                            viewingCiv.policies.adopt(branch, false)
-                            game.replaceCurrentScreen(recreate())
-                        }
+                        viewingCiv.policies.adopt(branch, false)
+                        game.replaceCurrentScreen(recreate())
                     }
                 ).open(force = true)
         }
@@ -677,66 +666,12 @@ class PolicyPickerScreen(
         // Evil people clicking on buttons too fast to confuse the screen - #4977
         if (!policy.isPickable(viewingCiv, canChangeState)) return
 
-        if (isAuthoritativeGame()) {
-            submitAuthoritativePolicy(policy)
-            return
-        }
-
         viewingCiv.policies.adopt(policy)
 
         // If we've moved to another screen in the meantime (great person pick, victory screen) ignore this
         // update policies
         if (game.screen !is PolicyPickerScreen) game.popScreen()
         else game.replaceCurrentScreen(recreate())
-    }
-
-    private fun submitAuthoritativePolicy(policy: Policy) {
-        rightSideButton.disable()
-        Concurrency.runOnNonDaemonThreadPool("Adopt authoritative policy") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.adoptPolicyIfOpen(
-                    viewingCiv.gameInfo.gameId,
-                    policy.name,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    rightSideButton.enable()
-                    ToastPopup(
-                        "Could not submit authoritative policy: [${ex.message ?: "Unknown"}]",
-                        this@PolicyPickerScreen,
-                    )
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                if (outcome == null) {
-                    rightSideButton.enable()
-                    ToastPopup("Authoritative game was closed before the policy could be submitted", this@PolicyPickerScreen)
-                    return@runOnGLThread
-                }
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        viewingCiv.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Policy committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        viewingCiv.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - policy was not submitted", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        rightSideButton.enable()
-                        ToastPopup("Server rejected policy: [${outcome.code}]", this@PolicyPickerScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        rightSideButton.enable()
-                        ToastPopup("Server response was lost - retry will use the same command", this@PolicyPickerScreen)
-                    }
-                }
-            }
-        }
     }
 
     override fun recreate(): BaseScreen {

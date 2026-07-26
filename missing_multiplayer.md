@@ -258,9 +258,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   explicit projection/session routes with source-level regression tests. The
   legacy `WorldScreen` prompt/end-turn interceptor has also been removed, so
   local clone/advance/upload behavior is now explicitly legacy-only. The
-  remaining work is removal or hard classification of historical
-  legacy-shaped city, unit, diplomacy, religion, espionage, and alert
-  interceptors that key API-v3 behavior to an open command bus.
+  historical API-v3 research, policy, and diplomatic-vote branches have also
+  been removed from their canonical-`GameInfo` picker screens; production v3
+  uses only projection-world controllers for those decisions. The remaining
+  work is removal or hard classification of historical legacy-shaped city,
+  unit, diplomacy, religion, espionage, and alert interceptors that key API-v3
+  behavior to an open command bus.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or
@@ -337,16 +340,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   v49 adds closed move-to-top/up/down/end and remove actions to each exact queue
   entry. The Kotlin worker derives and validates the complete prerequisite-safe
   proposal; the client cannot submit a queue, actor, legality, or result. The
-  picker exposes only the actions advertised by the cached projection and
-  reconciles after the server commit. Ordinary versus free-tech picker mode is
-  also selected from the cached authoritative projection.
+  projection-only world exposes only actions advertised by the immutable
+  server projection and reconciles after the server commit. The legacy
+  canonical-`GameInfo` tech picker contains no API-v3 session or command path.
 - [x] Policies and ideology: ideology branches, tenets, and arbitrary
   mod-defined policy choices use the existing closed `AdoptPolicy` operation
   and shared canonical `PolicyManager` rules. Projection v50 additionally
   exposes each known major civilization's sorted public adopted branch names,
   including ideology, while Rust rejects duplicate, reordered, oversized, or
-  malformed branch disclosure. The opened-v3 picker submits only names from
-  the actor's projected selectable set and never mutates policies locally.
+  malformed branch disclosure. The projection-only world submits only names
+  from the actor's projected selectable set and never mutates policies
+  locally; the legacy policy picker contains no API-v3 session or command path.
 - [x] Re-audit the `EndTurn` readiness list and prove that every canonical
   blocker has a player-scoped projection and authoritative resolution command.
   Construction, technology/free-tech, policy/ideology, pantheon, religion
@@ -550,7 +554,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
-  passes (1051 JVM/server tests, 13 intentional skips).
+  passes (1065 JVM/server cases: 1052 executed, 13 intentional skips).
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors

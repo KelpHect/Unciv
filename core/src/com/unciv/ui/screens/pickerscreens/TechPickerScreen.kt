@@ -11,9 +11,6 @@ import com.unciv.Constants
 import com.unciv.GUI
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.TechManager
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.ProjectedResearch
-import com.unciv.logic.multiplayer.authoritative.ResearchQueueAction
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.tech.Technology
 import com.unciv.models.ruleset.unique.UniqueType
@@ -30,10 +27,8 @@ import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.input.onRightClick
 import com.unciv.ui.components.input.onDoubleClick
 import com.unciv.ui.images.ImageGetter
-import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 import kotlin.math.abs
 
@@ -43,28 +38,15 @@ class TechPickerScreen(
     centerOnTech: Technology? = null,
 ) : PickerScreen() {
 
-    private val initialAuthoritativeResearch = if (isAuthoritativeGame())
-        game.onlineMultiplayer.authoritativeSession
-            ?.cachedProjectionIfOpen(civInfo.gameInfo.gameId)
-            ?.research
-    else null
-    private val freeTechPick: Boolean = initialAuthoritativeResearch
-        ?.freeTechnologyChoices
-        ?.isNotEmpty()
-        ?: (civInfo.tech.freeTechs != 0)
+    private val freeTechPick: Boolean = civInfo.tech.freeTechs != 0
     private val ruleset = civInfo.gameInfo.ruleset
     private var techNameToButton = HashMap<String, TechButton>()
     private var selectedTech: Technology? = null
     private var civTech: TechManager = civInfo.tech
     private var tempTechsToResearch: ArrayList<String>
-    private var authoritativeAppendSelection = false
-    private var authoritativeResearch: ProjectedResearch? = initialAuthoritativeResearch
     private var lines = NonTransformGroup()
     private var orderIndicators = NonTransformGroup()
     private var eraLabels = ArrayList<Label>()
-
-    private fun isAuthoritativeGame() = civInfo.gameInfo.gameParameters.isOnlineMultiplayer &&
-        game.onlineMultiplayer.authoritativeSession?.isGameOpen(civInfo.gameInfo.gameId) == true
 
     /** We need this to be a separate table, and NOT the topTable, because *inhales*
      * When call setConnectingLines we need to pack() the table so that the lines will align correctly, BUT
@@ -78,7 +60,7 @@ class TechPickerScreen(
     }
 
     // All these are to counter performance problems when updating buttons for all techs.
-    private var researchableTechs = if (isAuthoritativeGame()) hashSetOf() else
+    private var researchableTechs =
         ruleset.technologies.keys.filter { civTech.canBeResearched(it) }.toHashSet()
 
     private val currentTechColor = skinStrings.getUIColor("TechPickerScreen/CurrentTechColor", colorFromRGB(72, 147, 175))
@@ -87,7 +69,7 @@ class TechPickerScreen(
     private val queuedTechColor = skinStrings.getUIColor("TechPickerScreen/QueuedTechColor", colorFromRGB(7*2, 46*2, 43*2))
     private val researchedFutureTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchedFutureTechColor", colorFromRGB(127, 50, 0))
 
-    private val turnsToTech = if (isAuthoritativeGame()) emptyMap() else
+    private val turnsToTech =
         ruleset.technologies.values.associateBy({ it.name }, { civTech.turnsToTech(it.name) })
 
     init {
@@ -112,17 +94,13 @@ class TechPickerScreen(
         rightSideButton.setText(if (freeTechPick) "Pick a free tech".tr() else "Pick a tech".tr())
         rightSideButton.onClick(UncivSound.Paper) { tryExit() }
 
-        loadAuthoritativeResearchProjection()
-
         // per default show current/recent technology,
         // and possibly select it to show description,
         // which is very helpful when just discovered and clicking the notification
         val tech = centerOnTech ?: civInfo.tech.currentTechnology()
         if (tech != null) {
             // select only if there it doesn't mess up tempTechsToResearch
-            if (isAuthoritativeGame())
-                centerOnTechnology(tech)
-            else if (civInfo.tech.isResearched(tech.name) || civInfo.tech.techsToResearch.size <= 1)
+            if (civInfo.tech.isResearched(tech.name) || civInfo.tech.techsToResearch.size <= 1)
                 selectTechnology(tech, queue = false, center = true)
             else centerOnTechnology(tech)
         } else {
@@ -134,172 +112,10 @@ class TechPickerScreen(
         }
     }
 
-    private fun loadAuthoritativeResearchProjection() {
-        if (!isAuthoritativeGame()) return
-        rightSideButton.setText("Loading authoritative research".tr())
-        rightSideButton.disable()
-        Concurrency.runOnNonDaemonThreadPool("Load authoritative research projection") {
-            val projectedResearch = try {
-                game.onlineMultiplayer.authoritativeSession
-                    ?.projectionIfOpen(civInfo.gameInfo.gameId)
-                    ?.research
-            } catch (_: Exception) {
-                null
-            }
-            Concurrency.runOnGLThread {
-                if (projectedResearch == null) {
-                    rightSideButton.setText("Authoritative research unavailable".tr())
-                    rightSideButton.disable()
-                    return@runOnGLThread
-                }
-                authoritativeResearch = projectedResearch
-                tempTechsToResearch = ArrayList(projectedResearch.queue)
-                researchableTechs = if (freeTechPick)
-                    projectedResearch.freeTechnologyChoices.toHashSet()
-                else
-                    (projectedResearch.selectableTargets + projectedResearch.appendableTargets).toHashSet()
-                setButtonsInfo()
-                projectedResearch.queueEntries.forEachIndexed { index, entry ->
-                    val techButton = techNameToButton[entry.technologyName]
-                        ?: return@forEachIndexed
-                    techButton.addContextMenu {
-                        ResearchQueueMenu(stage, techButton, entry.availableActions) { action ->
-                            submitAuthoritativeResearchQueueAction(
-                                entry.technologyName,
-                                index,
-                                action,
-                            )
-                        }
-                    }
-                }
-                selectedTech?.let { selectTechnology(it, authoritativeAppendSelection, center = false) }
-            }
-        }
-    }
-
-    private fun submitAuthoritativeResearchQueueAction(
-        technologyName: String,
-        queueIndex: Int,
-        action: ResearchQueueAction,
-    ) {
-        rightSideButton.disable()
-        Concurrency.runOnNonDaemonThreadPool("Manage authoritative research queue") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.manageResearchQueueIfOpen(
-                    civInfo.gameInfo.gameId,
-                    technologyName,
-                    queueIndex,
-                    action,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    rightSideButton.enable()
-                    ToastPopup(
-                        "Could not manage authoritative research: [${ex.message ?: "Unknown"}]",
-                        this@TechPickerScreen,
-                    )
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        civInfo.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Research queue committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        civInfo.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - research queue was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        rightSideButton.enable()
-                        ToastPopup("Server rejected research queue action: [${outcome.code}]", this@TechPickerScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        rightSideButton.enable()
-                        ToastPopup("Server response was lost - retry will use the same command", this@TechPickerScreen)
-                    }
-                    null -> {
-                        rightSideButton.enable()
-                        ToastPopup("Authoritative game was closed before research changed", this@TechPickerScreen)
-                    }
-                }
-            }
-        }
-    }
-
     override fun getCivilopediaRuleset() = ruleset
 
 
     private fun tryExit() {
-        if (isAuthoritativeGame()) {
-            val technologyName = selectedTech?.name ?: return
-            rightSideButton.disable()
-            Concurrency.runOnNonDaemonThreadPool("Set authoritative technology") {
-                val outcome = try {
-                    if (freeTechPick)
-                        game.onlineMultiplayer.authoritativeSession?.chooseFreeTechnologyIfOpen(
-                            civInfo.gameInfo.gameId,
-                            technologyName,
-                        )
-                    else game.onlineMultiplayer.authoritativeSession?.setResearchPathIfOpen(
-                            civInfo.gameInfo.gameId,
-                            technologyName,
-                            authoritativeAppendSelection,
-                        )
-                } catch (ex: Exception) {
-                    if (ex is CancellationException) throw ex
-                    Concurrency.runOnGLThread {
-                        setButtonsInfo()
-                        rightSideButton.enable()
-                        ToastPopup(
-                            "Could not submit authoritative technology: [${ex.message ?: "Unknown"}]",
-                            this@TechPickerScreen,
-                        )
-                    }
-                    return@runOnNonDaemonThreadPool
-                }
-                Concurrency.runOnGLThread {
-                    if (outcome == null) {
-                        setButtonsInfo()
-                        rightSideButton.enable()
-                        ToastPopup("Authoritative game was closed before the technology could be submitted", this@TechPickerScreen)
-                        return@runOnGLThread
-                    }
-                    when (outcome) {
-                        is AuthoritativeCommandOutcome.Accepted -> {
-                            civInfo.gameInfo.isUpToDate = false
-                            game.settings.addCompletedTutorialTask("Pick technology")
-                            game.popScreen()
-                            ToastPopup(
-                                if (freeTechPick) "Free technology committed by the authoritative server"
-                                else "Research committed by the authoritative server",
-                                GUI.getWorldScreen(),
-                            )
-                        }
-                        is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                            civInfo.gameInfo.isUpToDate = false
-                            game.popScreen()
-                            ToastPopup("Game changed on the server - technology was not submitted", GUI.getWorldScreen())
-                        }
-                        is AuthoritativeCommandOutcome.Rejected -> {
-                            setButtonsInfo()
-                            rightSideButton.enable()
-                            ToastPopup("Server rejected technology: [${outcome.code}]", this@TechPickerScreen)
-                        }
-                        AuthoritativeCommandOutcome.RetryRequired -> {
-                            setButtonsInfo()
-                            rightSideButton.enable()
-                            ToastPopup("Server response was lost - retry will use the same command", this@TechPickerScreen)
-                        }
-                    }
-                }
-            }
-            return
-        }
         finishLocalSelection()
     }
 
@@ -400,9 +216,6 @@ class TechPickerScreen(
     }
 
     private fun setButtonsInfo() {
-        val authoritative = isAuthoritativeGame()
-        val projectedResearch = authoritativeResearch
-        val projectedQueueEntries = projectedResearch?.queueEntries?.associateBy { it.technologyName }.orEmpty()
         for ((techName, techButton) in techNameToButton) {
             val isResearched = isResearchedForDisplay(techName)
             techButton.setButtonColor(when {
@@ -419,14 +232,7 @@ class TechPickerScreen(
                 techButton.text.color = colorFromRGB(154, 98, 16)
             }
 
-            if (authoritative) {
-                val estimate = projectedQueueEntries[techName]?.estimatedTurns
-                techButton.turns.setText(when {
-                    techName !in projectedQueueEntries -> ""
-                    estimate == null -> Fonts.infinity.toString()
-                    else -> estimate.tr()
-                } + if (techName in projectedQueueEntries) "${Fonts.turn}".tr() else "")
-            } else if (!isResearched || techName == Constants.futureTech) {
+            if (!isResearched || techName == Constants.futureTech) {
                 techButton.turns.setText(turnsToTech[techName] + "${Fonts.turn}".tr())
             }
 
@@ -439,8 +245,7 @@ class TechPickerScreen(
     }
 
     private fun isResearchedForDisplay(technologyName: String): Boolean =
-        if (isAuthoritativeGame()) technologyName in authoritativeResearch?.researchedTechnologies.orEmpty()
-        else civTech.isResearched(technologyName)
+        civTech.isResearched(technologyName)
 
     private fun addConnectingLines() {
         techTable.pack() // required for the table to have the button positions set, so topTable.stageToLocalCoordinates will be correct
@@ -590,34 +395,12 @@ class TechPickerScreen(
         if (tech == null)
             return
 
-        if (isAuthoritativeGame() && !freeTechPick)
-            authoritativeAppendSelection = queue
-
         // center on technology
         if (center) centerOnTechnology(tech)
 
         if (freeTechPick) {
-            if (isAuthoritativeGame()) {
-                val freeChoices = authoritativeResearch?.freeTechnologyChoices
-                if (freeChoices == null) {
-                    rightSideButton.setText("Loading authoritative research".tr())
-                    rightSideButton.disable()
-                } else if (tech.name !in freeChoices) {
-                    rightSideButton.setText("Unavailable".tr())
-                    rightSideButton.disable()
-                } else {
-                    pick("Pick [${tech.name}] as free technology".tr())
-                    setButtonsInfo()
-                }
-                return
-            }
             selectTechnologyForFreeTech(tech)
             setButtonsInfo()
-            return
-        }
-
-        if (isAuthoritativeGame()) {
-            selectAuthoritativeTechnology(tech, queue)
             return
         }
 
@@ -673,38 +456,8 @@ class TechPickerScreen(
         setButtonsInfo()
     }
 
-    private fun selectAuthoritativeTechnology(tech: Technology, append: Boolean) {
-        authoritativeAppendSelection = append
-        val research = authoritativeResearch
-        if (research == null) {
-            rightSideButton.setText("Loading authoritative research".tr())
-            rightSideButton.disable()
-            return
-        }
-        val legalTargets = if (append) research.appendableTargets else research.selectableTargets
-        if (tech.name !in legalTargets) {
-            rightSideButton.setText("Unavailable".tr())
-            rightSideButton.disable()
-            return
-        }
-        val action = if (append) "Add [${tech.name}] to research queue" else "Research [${tech.name}]"
-        val queuedEntry = research.queueEntries.singleOrNull { it.technologyName == tech.name }
-        val projectedProgress = if (queuedEntry == null) "" else {
-            val overflow = if (research.currentTechnology == tech.name) research.overflowScience else 0
-            "\n(${queuedEntry.storedScience + overflow}/${queuedEntry.cost})"
-        }
-        pick(action.tr() + projectedProgress)
-        setButtonsInfo()
-    }
-
     @Readonly
     private fun getTechProgressLabel(techs: List<String>): String {
-        authoritativeResearch?.let { research ->
-            val entries = research.queueEntries.filter { it.technologyName in techs }
-            val progress = entries.sumOf { it.storedScience } + research.overflowScience
-            val cost = entries.sumOf { it.cost }
-            return "($progress/$cost)"
-        }
         val progress = techs.sumOf { tech -> civTech.researchOfTech(tech) } + civTech.getOverflowScience()
         val techCost = techs.sumOf { tech -> civInfo.tech.costOfTech(tech) }
         return "(${progress}/${techCost})"

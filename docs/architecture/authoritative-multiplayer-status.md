@@ -1,5 +1,38 @@
 # Authoritative multiplayer v3 status
 
+## Legacy decision-picker authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed the historical API-v3 session, projection, command, and outcome
+  branches from `TechPickerScreen`, `PolicyPickerScreen`, and
+  `DiplomaticVotePickerScreen`. These canonical-`GameInfo` pickers are now
+  explicitly limited to offline, saved, hotseat, and legacy/API-v2 behavior.
+- API-v3 research selection, queue management, free-technology selection,
+  policy adoption, and diplomatic-victory voting remain exclusively in the
+  projection-only world and its focused controller/prompt surfaces.
+- Preserved each legacy picker's direct local behavior without adding a second
+  rules path or allowing an opened command bus to change screen semantics.
+- Source-level routing coverage now rejects API-v3 session lookup, typed
+  command submission, and authoritative outcome handling in all three legacy
+  pickers while proving the corresponding projection-world controller routes
+  remain present.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/world-controller tests and desktop compilation
+  pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1065 JVM/server cases: 1052 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- `git diff --check` passes.
+- No Rust or OpenAPI source changed, and no known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped city, unit,
+  diplomacy, religion, espionage, and alert surfaces; the broad mutation audit
+  remains correctly unchecked until those are removed or explicitly
+  classified.
+
 ## Legacy WorldScreen authority-boundary removal
 
 Implemented on 2026-07-26:

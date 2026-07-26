@@ -1,5 +1,33 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only owner and invited-player lobby transitions
+
+Implemented on 2026-07-26:
+
+- Server-created games now validate the returned owner role, worker-assigned
+  civilization, lifecycle, revision-zero state hash, and synchronized
+  projection before entering `AuthoritativeWorldScreen`. The new-game UI no
+  longer stops at a success popup or requires directory rediscovery.
+- Invitation acceptance now continues through account membership rediscovery,
+  validates the committed join revision/hash and non-empty server-assigned
+  civilization, opens the exact player projection, and transitions directly
+  into the projection-only world.
+- Both paths share a focused `OpenedAuthoritativePlayerGame` boundary. Neither
+  accepts a client civilization identity, constructs `GameInfo`, loads a local
+  multiplayer save, calls `GameStarter`, or uploads canonical state.
+- Deterministic tests reject missing assignments, older membership metadata,
+  same-revision hash disagreement, projection/metadata civilization mismatch,
+  and creation revision mismatch. Production routing tests ensure both UI paths
+  terminate in the projection-only screen.
+
+Verification on 2026-07-26:
+
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1082 JVM/server cases: 1069
+  executed, 13 intentional skips, zero failures, and zero errors.
+- `git diff --check` passes. The new lifecycle modules are 55 and 59 lines;
+  no façade, Rust, worker, persistence, schema, or legacy path changed.
+
 ## API v3 is the sole new-online-game creation path
 
 Implemented on 2026-07-26:

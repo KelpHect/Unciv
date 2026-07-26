@@ -18,6 +18,8 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
 import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
 import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
+import com.unciv.logic.multiplayer.authoritative.openPlayerGame
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.models.metadata.BaseRuleset
 import com.unciv.models.metadata.GameSetupInfo
@@ -43,6 +45,7 @@ import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
+import com.unciv.ui.screens.multiplayerscreens.AuthoritativeWorldScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
@@ -456,15 +459,18 @@ class NewGameScreen(
                 meaning.setup,
                 authoritativeCreationRetryState.operationIdFor(meaning),
             )
+            val opened = creation.openPlayerGame()
             Concurrency.runOnGLThread {
                 Gdx.app.clipboard.contents = creation.metadata.gameId
-                popup.reuseWith(
-                    "Game created by the authoritative server.\nGame ID copied to clipboard.",
-                    true,
+                popup.close()
+                game.pushScreen(
+                    AuthoritativeWorldScreen(
+                        opened.summary,
+                        AuthoritativeGameDirectory(session),
+                        opened.projection,
+                        session,
+                    ),
                 )
-                rightSideButton.enable()
-                rightSideButton.setText("Start game!".tr())
-                Gdx.input.inputProcessor = stage
             }
         } catch (exception: Exception) {
             Log.error("Error while creating authoritative game", exception)

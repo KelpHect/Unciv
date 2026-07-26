@@ -3,7 +3,9 @@ package com.unciv.ui.screens.multiplayerscreens
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.Constants
 import com.unciv.logic.multiplayer.authoritative.ApiV3PlayerInvitation
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationFlow
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinator
+import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativePlayerGame
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
@@ -19,8 +21,8 @@ import com.unciv.utils.launchOnGLThread
 
 class AuthoritativeInvitationInboxPopup(
     private val screen: BaseScreen,
-    private val coordinator: AuthoritativeInvitationCoordinator,
-    private val onAccepted: () -> Unit,
+    private val flow: AuthoritativeInvitationFlow,
+    private val onAccepted: (OpenedAuthoritativePlayerGame) -> Unit,
 ) : Popup(screen) {
     init {
         addGoodSizedLabel(Constants.working)
@@ -34,7 +36,7 @@ class AuthoritativeInvitationInboxPopup(
     private fun refresh() {
         Concurrency.runOnNonDaemonThreadPool("Refresh authoritative invitations") {
             try {
-                val invitations = coordinator.refresh()
+                val invitations = flow.refresh()
                 launchOnGLThread { showInvitations(invitations) }
             } catch (ex: Exception) {
                 val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
@@ -70,12 +72,10 @@ class AuthoritativeInvitationInboxPopup(
         button.disable()
         Concurrency.runOnNonDaemonThreadPool("Accept authoritative invitation") {
             try {
-                coordinator.accept(invitation)
-                val refreshed = coordinator.refresh()
+                val accepted = flow.acceptAndOpen(invitation)
                 launchOnGLThread {
-                    onAccepted()
-                    showInvitations(refreshed)
-                    ToastPopup("Invitation accepted", screen)
+                    close()
+                    onAccepted(accepted)
                 }
             } catch (ex: Exception) {
                 val (message) = LoadGameScreen.getLoadExceptionMessage(ex)

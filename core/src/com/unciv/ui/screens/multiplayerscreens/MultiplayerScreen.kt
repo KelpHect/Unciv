@@ -11,9 +11,11 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinator
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinator
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationFlow
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeResignationCoordinator
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
+import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativePlayerGame
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.translations.tr
@@ -48,6 +50,10 @@ class MultiplayerScreen : PickerScreen() {
         ?.let(::AuthoritativeGameDirectory)
     private val authoritativeInvitations = game.onlineMultiplayer.authoritativeSession
         ?.let(::AuthoritativeInvitationCoordinator)
+    private val authoritativeInvitationFlow =
+        if (authoritativeDirectory != null && authoritativeInvitations != null)
+            AuthoritativeInvitationFlow(authoritativeInvitations, authoritativeDirectory)
+        else null
     private val authoritativeAdministration = game.onlineMultiplayer.authoritativeSession
         ?.let(::AuthoritativeAdministrationCoordinator)
     private val authoritativeResignation = game.onlineMultiplayer.authoritativeSession
@@ -143,7 +149,7 @@ class MultiplayerScreen : PickerScreen() {
         if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.Authenticated)
             generalActions.add(authoritativeLogoutButton).row()
         generalActions.add(addGameButton).row()
-        if (authoritativeInvitations != null) generalActions.add(invitationsButton).row()
+        if (authoritativeInvitationFlow != null) generalActions.add(invitationsButton).row()
         generalActions.add(friendsListButton).row()
         generalActions.add(refreshButton).row()
         return generalActions
@@ -229,11 +235,24 @@ class MultiplayerScreen : PickerScreen() {
     private fun createInvitationsButton(): TextButton {
         val button = "Server invitations".toTextButton()
         button.onClick {
-            val coordinator = authoritativeInvitations ?: return@onClick
-            AuthoritativeInvitationInboxPopup(this, coordinator, ::refreshGameLists)
+            val flow = authoritativeInvitationFlow ?: return@onClick
+            AuthoritativeInvitationInboxPopup(this, flow, ::openAcceptedInvitation)
                 .openAndRefresh()
         }
         return button
+    }
+
+    private fun openAcceptedInvitation(accepted: OpenedAuthoritativePlayerGame) {
+        val directory = authoritativeDirectory ?: return
+        val session = game.onlineMultiplayer.authoritativeSession ?: return
+        game.pushScreen(
+            AuthoritativeWorldScreen(
+                accepted.summary,
+                directory,
+                accepted.projection,
+                session,
+            ),
+        )
     }
 
     private fun createInvitePlayerButton(): TextButton {

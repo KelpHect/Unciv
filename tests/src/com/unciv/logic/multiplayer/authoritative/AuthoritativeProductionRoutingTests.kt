@@ -61,6 +61,24 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun serverCreatedGameTransitionsDirectlyIntoProjectionOnlyWorld() {
+        val newGame = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        ).readText()
+        val creation = newGame.substring(
+            newGame.indexOf("private suspend fun startAuthoritativeGame("),
+            newGame.indexOf("/** Updates our local"),
+        )
+
+        assertTrue(creation.contains("creation.openPlayerGame()"))
+        assertTrue(creation.contains("AuthoritativeWorldScreen("))
+        assertTrue(creation.contains("AuthoritativeGameDirectory(session)"))
+        assertFalse(creation.contains("GameStarter"))
+        assertFalse(creation.contains("GameInfo"))
+        assertFalse(creation.contains("uploadGame"))
+    }
+
+    @Test
     fun productionStartupRestoresOnlyOsProtectedServerScopedCredentials() {
         val game = sourceFile("core/src/com/unciv/UncivGame.kt").readText()
         val platform = sourceFile("core/src/com/unciv/utils/PlatformSpecific.kt").readText()
@@ -98,6 +116,26 @@ class AuthoritativeProductionRoutingTests {
                 routing.indexOf("selectedGame!!"),
         )
         assertTrue(routing.contains("return@onClick"))
+    }
+
+    @Test
+    fun acceptedInvitationTransitionsDirectlyIntoProjectionOnlyWorld() {
+        val inbox = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeInvitationPopups.kt",
+        ).readText()
+        val multiplayer = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+
+        assertTrue(inbox.contains("flow.acceptAndOpen(invitation)"))
+        assertTrue(inbox.contains("onAccepted(accepted)"))
+        assertTrue(multiplayer.contains("private fun openAcceptedInvitation("))
+        assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
+        assertFalse(inbox.contains("GameInfo"))
+        assertFalse(inbox.contains("GameStarter"))
+        assertFalse(inbox.contains("playerId"))
+        assertFalse(inbox.contains("chosenCiv"))
     }
 
     @Test

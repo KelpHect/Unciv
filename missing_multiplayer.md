@@ -162,22 +162,24 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   discover and open existing legacy games, but the new-game screen no longer
   accepts legacy player IDs, probes the file server, shows legacy creation
   controls, constructs a local online `GameInfo`, or uploads a new whole save.
-- [ ] Migrate the new-game UI to bounded server setup choices, server-owned
+- [x] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero projection. The
-  production screen now uses that lifecycle whenever a v3 session is installed,
+  production screen uses that lifecycle whenever a v3 session is installed,
   strips legacy player IDs and explicit civilization/public-spectator choices,
   rejects unsupported client nation pools, god mode, and advanced map values,
-  and retains an operation ID only while setup meaning is unchanged. Default
-  session restoration plus login/register/logout UI now exist and fail closed;
-  transition from the returned revision-zero projection into a projection-only
-  lobby/world remains.
-- [ ] Migrate game discovery, join, civilization assignment, and open-game UI
+  and retains an operation ID only while setup meaning is unchanged. The
+  returned owner membership, server-assigned civilization, revision-zero
+  metadata, and synchronized projection are cross-validated before the screen
+  transitions directly into the projection-only world.
+- [x] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save. Membership discovery and projection
-  reopening now work without local saves; invitation acceptance/player setup
-  UI remains, while an available player membership now transitions from the
-  synchronized projection into the projection-only world.
+  reopening work without local saves. The invitation inbox now accepts the
+  revision-bound command, rediscovers the atomically committed account
+  membership and worker-assigned civilization, validates its revision/hash,
+  and opens the player-scoped projection directly. The client never chooses or
+  uploads a civilization assignment.
 - [x] Add the projection-only world foundation. Projection v54 carries bounded
   explored terrain, terrain features, natural wonders, and only resources the
   actor can reveal. Opening an available player membership now constructs a
@@ -595,7 +597,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :android:assembleDebug :tests:test :server:test
-  :desktop:compileKotlin --no-parallel` passes (1073 JVM/server cases: 1060
+  :desktop:compileKotlin --no-parallel` passes (1082 JVM/server cases: 1069
   executed, 13 intentional skips), and `:android:lintDebug` passes.
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

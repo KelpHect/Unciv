@@ -33,23 +33,15 @@ class SpecialistAllocationTable(private val cityScreen: CityScreen) : Table(Base
             val toggleButton = if (city.manualSpecialists) {
                 "Manual Specialists".toTextButton(smallButtonStyle)
                    .onActivation {
-                       if (cityScreen.isAuthoritativeGame())
-                           cityScreen.submitAuthoritativeManualSpecialists(false)
-                       else {
-                           city.manualSpecialists = false
-                           city.reassignPopulation()
-                           cityScreen.update()
-                       }
+                       city.manualSpecialists = false
+                       city.reassignPopulation()
+                       cityScreen.update()
                    }
             } else {
                 "Auto Specialists".toTextButton(smallButtonStyle)
                     .onActivation {
-                        if (cityScreen.isAuthoritativeGame())
-                            cityScreen.submitAuthoritativeManualSpecialists(true)
-                        else {
-                            city.manualSpecialists = true
-                            update()
-                        }
+                        city.manualSpecialists = true
+                        update()
                     }
             }
             add(toggleButton).colspan(5).row()
@@ -95,14 +87,10 @@ class SpecialistAllocationTable(private val cityScreen: CityScreen) : Table(Base
             .apply { this.setAlignment(Align.center) }
             .surroundWithCircle(30f).apply { circle.color = Color.GREEN.darken(0.2f) }
         assignButton.onClick {
-            if (cityScreen.isAuthoritativeGame())
-                cityScreen.submitAuthoritativeSpecialistCount(specialistName, assignedSpecialists + 1)
-            else {
-                city.population.specialistAllocations.add(specialistName, 1)
-                city.manualSpecialists = true
-                city.cityStats.update()
-                cityScreen.update()
-            }
+            city.population.specialistAllocations.add(specialistName, 1)
+            city.manualSpecialists = true
+            city.cityStats.update()
+            cityScreen.update()
         }
         if (city.population.getFreePopulation() == 0 || !cityScreen.canChangeState)
             assignButton.clear()
@@ -114,14 +102,10 @@ class SpecialistAllocationTable(private val cityScreen: CityScreen) : Table(Base
             .apply { this.setAlignment(Align.center) }
             .surroundWithCircle(30f).apply { circle.color = Color.RED.darken(0.1f) }
         unassignButton.onClick {
-            if (cityScreen.isAuthoritativeGame())
-                cityScreen.submitAuthoritativeSpecialistCount(specialistName, assignedSpecialists - 1)
-            else {
-                city.population.specialistAllocations.add(specialistName, -1)
-                city.manualSpecialists = true
-                city.cityStats.update()
-                cityScreen.update()
-            }
+            city.population.specialistAllocations.add(specialistName, -1)
+            city.manualSpecialists = true
+            city.cityStats.update()
+            cityScreen.update()
         }
 
         if (assignedSpecialists <= 0 || city.isPuppet) unassignButton.isVisible = false

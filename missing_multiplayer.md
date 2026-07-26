@@ -259,6 +259,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   command-bearing top-level projection family now render from the immutable
   server projection. All inputs route through typed authenticated controllers;
   periodic/manual refresh replaces the full validated projection.
+- [x] Remove API-v3 interception from every canonical city screen and its
+  construction context menu. Production v3 city construction, economy,
+  governance, tile, specialist, and citizen controls now exist only in the
+  projection-world city panels; local city mutation remains isolated to
+  offline, saved, hotseat, and legacy/API-v2 screens.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly
@@ -270,10 +275,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   historical API-v3 research, policy, and diplomatic-vote branches have also
   been removed from their canonical-`GameInfo` picker screens; production v3
   uses only projection-world controllers for those decisions. The remaining
-  work is removal or hard classification of historical legacy-shaped city,
-  unit, and alert interceptors that key API-v3 behavior to an open command bus.
-  Great-person, religion, espionage, diplomacy, and trade picker/overview
-  interceptors have also been removed.
+  work is removal or hard classification of historical legacy-shaped unit and
+  alert interceptors that key API-v3 behavior to an open command bus.
+  Great-person, religion, espionage, diplomacy, trade, and city
+  picker/overview/screen interceptors have also been removed.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or

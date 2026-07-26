@@ -3,9 +3,7 @@ package com.unciv.ui.screens.cityscreen
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.Constants
-import com.unciv.GUI
 import com.unciv.logic.city.CityConstructions
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.Religion
 import com.unciv.models.ruleset.Building
@@ -23,11 +21,8 @@ import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.KeyboardBinding
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.popups.Popup
-import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.popups.closeAllPopups
 import com.unciv.ui.screens.basescreen.BaseScreen
-import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 
 /**
  * This class handles everything related to buying constructions. This includes
@@ -36,7 +31,6 @@ import kotlinx.coroutines.CancellationException
 class BuyButtonFactory(val cityScreen: CityScreen) {
 
     private var preferredBuyStat = Stat.Gold  // Used for keyboard buy
-    private var authoritativePurchaseSubmissionInProgress = false
 
     fun hasBuyButtons(construction: IConstruction?): Boolean = getBuyButtons(construction).isNotEmpty()
     
@@ -54,8 +48,6 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
             return null
 
         val city = cityScreen.city
-        if (cityScreen.isAuthoritativeGame())
-            return getAuthoritativeBuyButton(construction, stat)
         val button = "".toTextButton()
 
         if (!isConstructionPurchaseShown(construction, stat)) {
@@ -88,42 +80,7 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         return button
     }
 
-    private fun getAuthoritativeBuyButton(
-        construction: INonPerpetualConstruction,
-        stat: Stat,
-    ): TextButton? {
-        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
-        val purchase = cityScreen.authoritativeProjectedPurchase(
-            construction.name, stat.name, queueIndex,
-        ) ?: return null
-        preferredBuyStat = stat
-        return ("Buy".tr() + " " + purchase.cost.tr() + stat.character).toTextButton().apply {
-            onActivation(binding = KeyboardBinding.BuyConstruction) {
-                disable()
-                buyButtonOnClick(construction, stat)
-            }
-            isEnabled = cityScreen.canChangeState && purchase.allowed
-            labelCell.pad(5f)
-        }
-    }
-
     private fun buyButtonOnClick(construction: INonPerpetualConstruction, stat: Stat = preferredBuyStat) {
-        if (cityScreen.isAuthoritativeGame()) {
-            val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
-            val purchase = cityScreen.authoritativeProjectedPurchase(
-                construction.name, stat.name, queueIndex,
-            ) ?: return
-            if (!purchase.allowed) return
-            if (!purchase.requiresTile) return askToBuyConstruction(construction, stat)
-            if (queueIndex == null)
-                return (construction as? Building)?.let {
-                    cityScreen.startPickTileForCreatesOneImprovement(it, stat, true)
-                } ?: Unit
-            val target = purchase.legalTargets.singleOrNull() ?: return
-            val tile = cityScreen.city.civ.gameInfo.tileMap.getIfTileExistsOrNull(target.x, target.y)
-                ?: return
-            return askToBuyConstruction(construction, stat, tile)
-        }
         if (construction !is Building || !construction.hasCreateOneImprovementUnique())
             return askToBuyConstruction(construction, stat)
         if (cityScreen.selectedQueueEntry < 0)
@@ -146,42 +103,24 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         stat: Stat = preferredBuyStat,
         tile: Tile? = null
     ) {
+        if (!isConstructionPurchaseShown(construction, stat)) return
         val city = cityScreen.city
-        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
-        val projectedPurchase = if (cityScreen.isAuthoritativeGame())
-            cityScreen.authoritativeProjectedPurchase(construction.name, stat.name, queueIndex)
-        else null
-        if (cityScreen.isAuthoritativeGame()) {
-            if (projectedPurchase?.allowed != true) return
-            if (projectedPurchase.requiresTile != (tile != null)) return
-            if (tile != null && projectedPurchase.legalTargets.none {
-                    it.x == tile.position.x && it.y == tile.position.y
-                }) return
-        } else {
-            if (!isConstructionPurchaseShown(construction, stat)) return
-            val constructionStatBuyCost = construction.getStatBuyCost(city, stat)!!
-            if (!city.cityConstructions.isConstructionPurchaseAllowed(
-                    construction, stat, constructionStatBuyCost,
-                )) return
-        }
-        val constructionStatBuyCost = projectedPurchase?.cost
-            ?: construction.getStatBuyCost(city, stat)!!
-        val availableAmount = projectedPurchase?.availableAmount ?: city.getStatReserve(stat)
+        val constructionStatBuyCost = construction.getStatBuyCost(city, stat)!!
+        if (!city.cityConstructions.isConstructionPurchaseAllowed(construction, stat, constructionStatBuyCost)) return
 
         cityScreen.closeAllPopups()
-        ConfirmBuyPopup(construction, stat, constructionStatBuyCost, availableAmount, tile)
+        ConfirmBuyPopup(construction, stat,constructionStatBuyCost, tile)
     }
 
     private inner class ConfirmBuyPopup(
         construction: INonPerpetualConstruction,
         stat: Stat,
         constructionStatBuyCost: Int,
-        availableAmount: Int,
         tile: Tile?
     ) : Popup(cityScreen.stage) {
         init {
             val city = cityScreen.city
-            val balance = availableAmount
+            val balance = city.getStatReserve(stat)
             val majorityReligion = city.religion.getMajorityReligion()
             val yourReligion = city.civ.religionManager.religion
             val isBuyingWithFaithForForeignReligion = construction.hasUnique(UniqueType.ReligiousUnit)
@@ -226,10 +165,6 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         stat: Stat = Stat.Gold,
         tile: Tile? = null
     ) {
-        if (cityScreen.isAuthoritativeGame()) {
-            submitAuthoritativePurchase(construction, stat, tile)
-            return
-        }
         SoundPlayer.play(stat.purchaseSound)
         val city = cityScreen.city
         if (!city.cityConstructions.purchaseConstruction(construction, cityScreen.selectedQueueEntry, false, stat, tile)) {
@@ -254,65 +189,6 @@ class BuyButtonFactory(val cityScreen: CityScreen) {
         }
         cityScreen.city.reassignPopulation()
         cityScreen.update()
-    }
-
-    private fun submitAuthoritativePurchase(
-        construction: INonPerpetualConstruction,
-        stat: Stat,
-        tile: Tile? = null,
-    ) {
-        if (authoritativePurchaseSubmissionInProgress) return
-        authoritativePurchaseSubmissionInProgress = true
-        val city = cityScreen.city
-        val queueIndex = cityScreen.selectedQueueEntry.takeIf { it >= 0 }
-        Concurrency.runOnNonDaemonThreadPool("Purchase authoritative construction") {
-            val outcome = try {
-                val session = cityScreen.game.onlineMultiplayer.authoritativeSession
-                if (tile == null)
-                    session?.purchaseConstructionIfOpen(
-                        city.civ.gameInfo.gameId, city.id, construction.name, stat.name, queueIndex,
-                    )
-                else
-                    session?.purchaseConstructionAtTileIfOpen(
-                        city.civ.gameInfo.gameId, city.id, construction.name, stat.name,
-                        tile.position.x, tile.position.y, queueIndex,
-                    )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativePurchaseSubmissionInProgress = false
-                    ToastPopup("Could not submit purchase: [${ex.message ?: "Unknown"}]", cityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        SoundPlayer.play(stat.purchaseSound)
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.popScreen()
-                        ToastPopup("Purchase committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.popScreen()
-                        ToastPopup("Game changed on the server - purchase was not submitted", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativePurchaseSubmissionInProgress = false
-                        ToastPopup("Server rejected purchase: [${outcome.code}]", cityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativePurchaseSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
-                    }
-                    null -> {
-                        authoritativePurchaseSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before purchase could be submitted", cityScreen)
-                    }
-                }
-            }
-        }
     }
 
 }

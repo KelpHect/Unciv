@@ -29,12 +29,8 @@ class CitizenManagementTable(val cityScreen: CityScreen) : Table(BaseScreen.skin
         if (cityScreen.canCityBeChanged()) {
             resetCell.touchable = Touchable.enabled
             resetCell.onActivation(binding = KeyboardBinding.ResetCitizens) {
-                if (cityScreen.isAuthoritativeGame())
-                    cityScreen.submitAuthoritativeCitizenReset()
-                else {
-                    city.reassignPopulation(true)
-                    cityScreen.update()
-                }
+                city.reassignPopulation(true)
+                cityScreen.update()
             }
         }
         resetCell.background = BaseScreen.skinStrings.getUiBackground(
@@ -49,13 +45,9 @@ class CitizenManagementTable(val cityScreen: CityScreen) : Table(BaseScreen.skin
         if (cityScreen.canCityBeChanged()) {
             avoidCell.touchable = Touchable.enabled
             avoidCell.onActivation(binding = KeyboardBinding.AvoidGrowth) {
-                if (cityScreen.isAuthoritativeGame())
-                    cityScreen.submitAuthoritativeAvoidGrowth(!city.avoidGrowth)
-                else {
-                    city.avoidGrowth = !city.avoidGrowth
-                    city.reassignPopulation()
-                    cityScreen.update()
-                }
+                city.avoidGrowth = !city.avoidGrowth
+                city.reassignPopulation()
+                cityScreen.update()
             }
         }
         avoidCell.background = BaseScreen.skinStrings.getUiBackground(
@@ -86,13 +78,9 @@ class CitizenManagementTable(val cityScreen: CityScreen) : Table(BaseScreen.skin
                 // If we bind both, both are executed - so only add the one here that re-applies the current focus
                 val binding = if (city.getCityFocus() == focus) focus.binding else KeyboardBinding.None
                 cell.onActivation(binding = binding) {
-                    if (cityScreen.isAuthoritativeGame())
-                        cityScreen.submitAuthoritativeCitizenFocus(focus)
-                    else {
-                        city.setCityFocus(focus)
-                        city.reassignPopulation()
-                        cityScreen.update()
-                    }
+                    city.setCityFocus(focus)
+                    city.reassignPopulation()
+                    cityScreen.update()
                 }
             }
             cell.background = BaseScreen.skinStrings.getUiBackground(

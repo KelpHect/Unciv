@@ -5,7 +5,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.utils.Align
 import com.unciv.logic.map.tile.Tile
-import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
 import com.unciv.logic.map.tile.TileDescription
 import com.unciv.models.stats.Stat
 import com.unciv.models.stats.Stats
@@ -62,72 +61,40 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
         innerTable.row()
         innerTable.add(getTileStatsTable(stats)).row()
 
-        val projectedCity = cityScreen.authoritativeProjectedCity()
-        val projectedTilePurchase = projectedCity?.tilePurchases?.singleOrNull {
-            it.x == selectedTile.position.x && it.y == selectedTile.position.y
-        }
-        if (projectedTilePurchase != null ||
-            !cityScreen.isAuthoritativeGame() && city.expansion.canBuyTile(selectedTile)) {
-            val goldCostOfTile = projectedTilePurchase?.goldCost
-                ?: city.expansion.getGoldCostOfTile(selectedTile)
+        if (city.expansion.canBuyTile(selectedTile)) {
+            val goldCostOfTile = city.expansion.getGoldCostOfTile(selectedTile)
             val buyTileButton = "Buy for [$goldCostOfTile] gold".toTextButton()
             buyTileButton.onActivation(binding = KeyboardBinding.BuyTile) {
                 buyTileButton.disable()
                 cityScreen.askToBuyTile(selectedTile)
             }
-            if (!cityScreen.isAuthoritativeGame() ||
-                projectedCity?.tileBatchPurchases?.isNotEmpty() == true)
-                buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
-            buyTileButton.isEnabled = cityScreen.canChangeState &&
-                (projectedTilePurchase?.affordable
-                    ?: city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile))
+            buyTileButton.addContextMenu { TileBuyMenu(buyTileButton) }
+            buyTileButton.isEnabled = cityScreen.canChangeState && city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)
             innerTable.add(buyTileButton).padTop(5f).row()
         }
 
-        val projectedTileState = projectedCity?.tileStates?.singleOrNull {
-            it.x == selectedTile.position.x && it.y == selectedTile.position.y
-        }
-        val projectedCities = cityScreen.authoritativeProjection()?.ownCities.orEmpty()
-        val owningCityName = projectedTileState?.owningCityId?.let { cityId ->
-            projectedCities.singleOrNull { it.id == cityId }?.name
-        } ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.owningCity?.name else null
-        if (owningCityName != null)
-            innerTable.add("Owned by [$owningCityName]".toLabel()).row()
+        if (selectedTile.owningCity != null)
+            innerTable.add("Owned by [${selectedTile.owningCity!!.name}]".toLabel()).row()
 
-        val workingCityName = projectedTileState?.workingCityId?.let { cityId ->
-            projectedCities.singleOrNull { it.id == cityId }?.name
-        } ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.getWorkingCity()?.name else null
-        if (workingCityName != null)
-            innerTable.add("Worked by [$workingCityName]".toLabel()).row()
+        if (selectedTile.getWorkingCity() != null)
+            innerTable.add("Worked by [${selectedTile.getWorkingCity()!!.name}]".toLabel()).row()
 
-        val isWorked = projectedTileState?.worked
-            ?: if (!cityScreen.isAuthoritativeGame()) city.isWorked(selectedTile) else false
-        val isLocked = projectedTileState?.locked
-            ?: if (!cityScreen.isAuthoritativeGame()) selectedTile.isLocked() else false
-        if (isWorked) {
-            if (isLocked) {
+        if (city.isWorked(selectedTile)) {
+            if (selectedTile.isLocked()) {
                 val unlockButton = "Unlock".toTextButton()
                 unlockButton.onClick {
-                    if (cityScreen.isAuthoritativeGame())
-                        cityScreen.submitAuthoritativeCityTileAssignment(selectedTile, CityTileAssignment.Worked)
-                    else {
-                        city.lockedTiles.remove(selectedTile.position)
-                        update(selectedTile)
-                        cityScreen.update()
-                    }
+                    city.lockedTiles.remove(selectedTile.position)
+                    update(selectedTile)
+                    cityScreen.update()
                 }
                 if (!cityScreen.canChangeState) unlockButton.disable()
                 innerTable.add(unlockButton).padTop(5f).row()
             } else {
                 val lockButton = "Lock".toTextButton()
                 lockButton.onClick {
-                    if (cityScreen.isAuthoritativeGame())
-                        cityScreen.submitAuthoritativeCityTileAssignment(selectedTile, CityTileAssignment.Locked)
-                    else {
-                        city.lockedTiles.add(selectedTile.position)
-                        update(selectedTile)
-                        cityScreen.update()
-                    }
+                    city.lockedTiles.add(selectedTile.position)
+                    update(selectedTile)
+                    cityScreen.update()
                 }
                 if (!cityScreen.canChangeState) lockButton.disable()
                 innerTable.add(lockButton).padTop(5f).row()
@@ -158,25 +125,6 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
 
     private inner class TileBuyMenu(buyTileButton: TextButton) : AnimatedMenuPopup(stage, buyTileButton) {
         override fun createContentTable(): Table? {
-            if (cityScreen.isAuthoritativeGame()) {
-                val options = cityScreen.authoritativeProjectedCity()
-                    ?.tileBatchPurchases.orEmpty()
-                if (options.isEmpty()) return null
-                val gold = cityScreen.authoritativeProjection()?.gold ?: return null
-                return super.createContentTable()!!.apply {
-                    add("Currently you have [$gold] [Gold].".toLabel(alignment = Align.center))
-                        .growX().row()
-                    for (option in options) {
-                        val text = "Buy [${option.tileCount}] tiles in ring [${option.ring}] for " +
-                            "[${option.goldCost}][${Stat.Gold.character}]"
-                        val button = getButton(text, KeyboardBinding.None) {
-                            cityScreen.askToBuyTileBatch(option.ring)
-                        }
-                        button.isDisabled = !option.affordable
-                        add(button).row()
-                    }
-                }
-            }
             val maxRing = city.getWorkRange()
             val counts = IntArray(maxRing + 1) { countBuyableInRing(it) }
             if (counts.sum() < 2) return null

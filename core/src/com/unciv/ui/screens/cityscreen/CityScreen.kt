@@ -8,15 +8,7 @@ import com.unciv.GUI
 import com.unciv.UncivGame
 import com.unciv.logic.automation.Automation
 import com.unciv.logic.city.City
-import com.unciv.logic.city.CityFocus
 import com.unciv.logic.civilization.Civilization
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.CityTileAssignment
-import com.unciv.logic.multiplayer.authoritative.CityGovernanceAction
-import com.unciv.logic.multiplayer.authoritative.CitizenFocus
-import com.unciv.logic.multiplayer.authoritative.PlayerProjection
-import com.unciv.logic.multiplayer.authoritative.ProjectedCity
-import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionPurchase
 import com.unciv.logic.map.tile.Tile
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
@@ -50,8 +42,6 @@ import com.unciv.ui.popups.closeAllPopups
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.worldscreen.WorldScreen
-import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 import kotlin.math.max
 
 class CityScreen(
@@ -85,30 +75,6 @@ class CityScreen(
     /** Toggles or adds/removes all state changing buttons */
     val canChangeState = GUI.isAllowedChangeState() && !isSpying
 
-    internal fun isAuthoritativeGame() = city.civ.gameInfo.gameParameters.isOnlineMultiplayer &&
-        game.onlineMultiplayer.authoritativeSession?.isGameOpen(city.civ.gameInfo.gameId) == true
-
-    internal fun authoritativeProjection(): PlayerProjection? =
-        if (!isAuthoritativeGame()) null else game.onlineMultiplayer.authoritativeSession
-            ?.cachedProjectionIfOpen(city.civ.gameInfo.gameId)
-
-    internal fun authoritativeProjectedCity(): ProjectedCity? = authoritativeProjection()
-        ?.ownCities?.singleOrNull { it.id == city.id }
-
-    internal fun authoritativeProjectedPurchase(
-        constructionName: String,
-        currencyName: String,
-        queueIndex: Int?,
-    ): ProjectedConstructionPurchase? {
-        val projectedCity = authoritativeProjectedCity() ?: return null
-        val purchases = if (queueIndex == null)
-            projectedCity.constructionOptions.singleOrNull { it.name == constructionName }?.purchases
-        else projectedCity.constructionQueueEntries.getOrNull(queueIndex)
-            ?.takeIf { it.name == constructionName }
-            ?.purchases
-        return purchases?.singleOrNull { it.currency == currencyName }
-    }
-
     // Clockwise from the top-left
 
     /** Displays current production, production queue and available productions list
@@ -116,11 +82,6 @@ class CityScreen(
      *  in a Table holder on TOP LEFT, and available constructions in a ScrollPane BOTTOM LEFT.
      */
     private var constructionsTable = CityConstructionsTable(this)
-    private var authoritativeTilePurchaseSubmissionInProgress = false
-    private var authoritativeTileConstructionSubmissionInProgress = false
-    private var authoritativeTileAssignmentSubmissionInProgress = false
-    private var authoritativeSpecialistSubmissionInProgress = false
-    private var authoritativeCitizenManagementSubmissionInProgress = false
 
     /** Displays raze city button - sits on TOP CENTER */
     private var razeCityButtonHolder = Table()
@@ -297,23 +258,9 @@ class CityScreen(
 
         fun getPickImprovementColor(tile: Tile): Pair<Color, Float> {
             val improvementToPlace = pickTileData!!.improvement
-            val projectedLegal = if (!isAuthoritativeGame()) null else {
-                val data = pickTileData!!
-                val targets = if (data.isBuying) authoritativeProjectedPurchase(
-                    data.building.name,
-                    data.buyStat.name,
-                    selectedQueueEntry.takeIf { it >= 0 },
-                )?.legalTargets else authoritativeProjectedCity()?.constructionOptions
-                    ?.singleOrNull { it.name == data.building.name }
-                    ?.placementTargets
-                targets?.any { it.x == tile.position.x && it.y == tile.position.y } == true
-            }
             return when {
                 tile.isMarkedForCreatesOneImprovement() -> Color.BROWN to 0.7f
-                projectedLegal == false -> Color.RED to 0.4f
-                projectedLegal == null &&
-                    !city.cityConstructions.canPlaceCreateOneImprovementOn(improvementToPlace, tile) ->
-                    Color.RED to 0.4f
+                !city.cityConstructions.canPlaceCreateOneImprovementOn(improvementToPlace, tile) -> Color.RED to 0.4f
                 isExistingImprovementValuable(tile) -> Color.ORANGE to 0.5f
                 tile.improvement != null -> Color.YELLOW to 0.6f
                 tile.turnsToImprovement > 0 -> Color.YELLOW to 0.6f
@@ -361,28 +308,16 @@ class CityScreen(
             val annexCityButton = "Annex city".toTextButton()
             annexCityButton.labelCell.pad(10f)
             annexCityButton.onClick {
-                if (isAuthoritativeGame())
-                    submitAuthoritativeCityGovernance(CityGovernanceAction.Annex)
-                else {
-                    city.annexCity()
-                    update()
-                }
+                city.annexCity()
+                update()
             }
             if (!canChangeState) annexCityButton.disable()
             razeCityButtonHolder.add(annexCityButton) //.colspan(cityPickerTable.columns)
         } else if (!city.isBeingRazed) {
             val razeCityButton = "Raze city".toTextButton()
             razeCityButton.labelCell.pad(10f)
-            razeCityButton.onClick {
-                if (isAuthoritativeGame())
-                    submitAuthoritativeCityGovernance(CityGovernanceAction.StartRazing)
-                else {
-                    city.isBeingRazed = true
-                    update()
-                }
-            }
-            if (!canChangeState ||
-                (!isAuthoritativeGame() && (!city.canBeDestroyed() || !canAnnex))) {
+            razeCityButton.onClick { city.isBeingRazed = true; update() }
+            if (!canChangeState || !city.canBeDestroyed() || !canAnnex) {
                 razeCityButton.disable()
             }
 
@@ -390,14 +325,7 @@ class CityScreen(
         } else {
             val stopRazingCityButton = "Stop razing city".toTextButton()
             stopRazingCityButton.labelCell.pad(10f)
-            stopRazingCityButton.onClick {
-                if (isAuthoritativeGame())
-                    submitAuthoritativeCityGovernance(CityGovernanceAction.StopRazing)
-                else {
-                    city.isBeingRazed = false
-                    update()
-                }
-            }
+            stopRazingCityButton.onClick { city.isBeingRazed = false; update() }
             if (!canChangeState) stopRazingCityButton.disable()
             razeCityButtonHolder.add(stopRazingCityButton) //.colspan(cityPickerTable.columns)
         }
@@ -433,8 +361,7 @@ class CityScreen(
     private fun addTiles() {
         val viewRange = max(city.getExpandRange(), city.getWorkRange())
         val tileSetStrings = TileSetStrings(city.civ.gameInfo.ruleset, game.settings)
-        city.getCenterTile().forEachTileInDistance(viewRange) { tile ->
-            if (!selectedCiv.hasExplored(tile)) return@forEachTileInDistance
+        city.getCenterTile().forEachTileInDistance(viewRange, selectedCiv::hasExplored) { tile ->
             val tileGroup = CityTileGroup(city, tile, tileSetStrings, false, isSpying)
             tileGroup.onClick { tileGroupOnClick(tileGroup, city) }
             tileGroup.layerMisc.onWorkedIconClick = {
@@ -477,13 +404,6 @@ class CityScreen(
 
         // Cycling as: Not-worked -> Worked  -> Not-worked
         if (tileGroup.tileState == CityTileState.WORKABLE) {
-            if (isAuthoritativeGame()) {
-                submitAuthoritativeCityTileAssignment(
-                    tile,
-                    if (city.isWorked(tile)) CityTileAssignment.Unworked else CityTileAssignment.Worked,
-                )
-                return
-            }
             if (!tile.providesYield() && city.population.getFreePopulation() > 0) {
                 city.workedTiles.add(tile.position)
                 game.settings.addCompletedTutorialTask("Reassign worked tiles")
@@ -499,296 +419,6 @@ class CityScreen(
         }
     }
 
-    internal fun submitAuthoritativeCityTileAssignment(
-        tile: Tile,
-        assignment: CityTileAssignment,
-    ) {
-        if (authoritativeTileAssignmentSubmissionInProgress) return
-        authoritativeTileAssignmentSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Set authoritative city tile assignment") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.setCityTileAssignmentIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    tile.position.x,
-                    tile.position.y,
-                    assignment,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeTileAssignmentSubmissionInProgress = false
-                    ToastPopup("Could not submit tile assignment: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("City tile assignment committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - tile assignment was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeTileAssignmentSubmissionInProgress = false
-                        ToastPopup("Server rejected tile assignment: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeTileAssignmentSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeTileAssignmentSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before tile assignment", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    internal fun submitAuthoritativeSpecialistCount(
-        specialistName: String,
-        count: Int,
-    ) {
-        if (authoritativeSpecialistSubmissionInProgress) return
-        authoritativeSpecialistSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Set authoritative specialist count") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.setSpecialistCountIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    specialistName,
-                    count,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeSpecialistSubmissionInProgress = false
-                    ToastPopup("Could not submit specialist assignment: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Specialist assignment committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - specialist assignment was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Server rejected specialist assignment: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before specialist assignment", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    internal fun submitAuthoritativeManualSpecialists(enabled: Boolean) {
-        if (authoritativeSpecialistSubmissionInProgress) return
-        authoritativeSpecialistSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Set authoritative specialist mode") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.setManualSpecialistsIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    enabled,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeSpecialistSubmissionInProgress = false
-                    ToastPopup("Could not submit specialist mode: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Specialist mode committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - specialist mode was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Server rejected specialist mode: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeSpecialistSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before specialist mode", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    internal fun submitAuthoritativeCitizenReset() {
-        if (authoritativeCitizenManagementSubmissionInProgress) return
-        authoritativeCitizenManagementSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Reset authoritative citizens") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.resetCitizensIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeCitizenManagementSubmissionInProgress = false
-                    ToastPopup("Could not submit citizen reset: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Citizen reset committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - citizens were not reset", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Server rejected citizen reset: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before citizen reset", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    internal fun submitAuthoritativeAvoidGrowth(enabled: Boolean) =
-        submitAuthoritativeCitizenPolicy("growth policy") {
-            game.onlineMultiplayer.authoritativeSession?.setAvoidGrowthIfOpen(
-                city.civ.gameInfo.gameId,
-                city.id,
-                enabled,
-            )
-        }
-
-    internal fun submitAuthoritativeCitizenFocus(focus: CityFocus) =
-        submitAuthoritativeCitizenPolicy("citizen focus") {
-            game.onlineMultiplayer.authoritativeSession?.setCitizenFocusIfOpen(
-                city.civ.gameInfo.gameId,
-                city.id,
-                CitizenFocus.valueOf(focus.name),
-            )
-        }
-
-    internal fun submitAuthoritativeUnitPromotionPreference(
-        baseUnitName: String,
-        enabled: Boolean,
-    ) = submitAuthoritativeCitizenPolicy("unit promotion preference") {
-        game.onlineMultiplayer.authoritativeSession?.setCityUnitPromotionPreferenceIfOpen(
-            city.civ.gameInfo.gameId,
-            city.id,
-            baseUnitName,
-            enabled,
-        )
-    }
-
-    private fun submitAuthoritativeCitizenPolicy(
-        description: String,
-        submit: suspend () -> AuthoritativeCommandOutcome?,
-    ) {
-        if (authoritativeCitizenManagementSubmissionInProgress) return
-        authoritativeCitizenManagementSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Set authoritative $description") {
-            val outcome = try {
-                submit()
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeCitizenManagementSubmissionInProgress = false
-                    ToastPopup("Could not submit $description: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("${description.replaceFirstChar { it.uppercase() }} committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - $description was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Server rejected $description: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeCitizenManagementSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before $description", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    internal fun submitAuthoritativeBuildingSale(buildingName: String) =
-        submitAuthoritativeCitizenPolicy("building sale") {
-            game.onlineMultiplayer.authoritativeSession?.sellBuildingIfOpen(
-                city.civ.gameInfo.gameId,
-                city.id,
-                buildingName,
-            )
-        }
-
-    private fun submitAuthoritativeCityGovernance(action: CityGovernanceAction) =
-        submitAuthoritativeCitizenPolicy("city governance") {
-            game.onlineMultiplayer.authoritativeSession?.setCityGovernanceIfOpen(
-                city.civ.gameInfo.gameId,
-                city.id,
-                action,
-            )
-        }
-
     /** Ask whether user wants to buy [selectedTile] for gold.
      *
      * Used from onClick and keyboard dispatch, thus only minimal parameters are passed,
@@ -796,21 +426,13 @@ class CityScreen(
      */
     internal fun askToBuyTile(selectedTile: Tile) {
         // These checks are redundant for the onClick action, but not for the keyboard binding
-        if (!canChangeState) return
-        val authoritative = isAuthoritativeGame()
-        val projectedPurchase = if (authoritative) authoritativeProjectedCity()?.tilePurchases
-            ?.singleOrNull { it.x == selectedTile.position.x && it.y == selectedTile.position.y }
-        else null
-        if (authoritative && (projectedPurchase == null || !projectedPurchase.affordable)) return
-        if (!authoritative && !city.expansion.canBuyTile(selectedTile)) return
-        val goldCostOfTile = projectedPurchase?.goldCost
-            ?: city.expansion.getGoldCostOfTile(selectedTile)
-        if (!authoritative && !city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)) return
-        val goldBalance = if (authoritative) authoritativeProjection()?.gold ?: return else city.civ.gold
+        if (!canChangeState || !city.expansion.canBuyTile(selectedTile)) return
+        val goldCostOfTile = city.expansion.getGoldCostOfTile(selectedTile)
+        if (!city.civ.hasStatToBuy(Stat.Gold, goldCostOfTile)) return
 
         closeAllPopups()
 
-        val purchasePrompt = "Currently you have [$goldBalance] [Gold].".tr() + "\n\n" +
+        val purchasePrompt = "Currently you have [${city.civ.gold}] [Gold].".tr() + "\n\n" +
             "Would you like to purchase [Tile] for [$goldCostOfTile] [${Stat.Gold.character}]?".tr()
         ConfirmPopup(
             this,
@@ -819,208 +441,17 @@ class CityScreen(
             true,
             restoreDefault = { update() }
         ) {
-            if (isAuthoritativeGame()) submitAuthoritativeTilePurchase(selectedTile)
-            else {
-                SoundPlayer.play(UncivSound.Coin)
-                city.expansion.buyTile(selectedTile)
-                // preselect the next tile on city screen rebuild so bulk buying can go faster
-                UncivGame.Current.replaceCurrentScreen(CityScreen(city, initSelectedTile = city.expansion.chooseNewTileToOwn()))
-            }
+            SoundPlayer.play(UncivSound.Coin)
+            city.expansion.buyTile(selectedTile)
+            // preselect the next tile on city screen rebuild so bulk buying can go faster
+            UncivGame.Current.replaceCurrentScreen(CityScreen(city, initSelectedTile = city.expansion.chooseNewTileToOwn()))
         }.open()
-    }
-
-    internal fun askToBuyTileBatch(ring: Int) {
-        if (!canChangeState || !isAuthoritativeGame()) return
-        val option = authoritativeProjectedCity()?.tileBatchPurchases
-            ?.singleOrNull { it.ring == ring && it.affordable } ?: return
-        closeAllPopups()
-        ConfirmPopup(
-            this,
-            "Currently you have [${authoritativeProjection()?.gold ?: return}] [Gold].".tr() +
-                "\n\n" +
-                "Would you like to purchase [${option.tileCount}] tiles for " +
-                "[${option.goldCost}] [${Stat.Gold.character}]?".tr(),
-            "Purchase",
-            true,
-            restoreDefault = { update() },
-        ) {
-            submitAuthoritativeTileBatchPurchase(ring)
-        }.open()
-    }
-
-    private fun submitAuthoritativeTilePurchase(selectedTile: Tile) {
-        if (authoritativeTilePurchaseSubmissionInProgress) return
-        authoritativeTilePurchaseSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Buy authoritative city tile") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.buyCityTileIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    selectedTile.position.x,
-                    selectedTile.position.y,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeTilePurchaseSubmissionInProgress = false
-                    ToastPopup("Could not submit tile purchase: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        SoundPlayer.play(UncivSound.Coin)
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Tile purchase committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - tile was not purchased", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup("Server rejected tile purchase: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before tile purchase", this@CityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun submitAuthoritativeTileBatchPurchase(ring: Int) {
-        if (authoritativeTilePurchaseSubmissionInProgress) return
-        authoritativeTilePurchaseSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Buy authoritative city tile batch") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.buyCityTileBatchIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    ring,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeTilePurchaseSubmissionInProgress = false
-                    ToastPopup(
-                        "Could not submit tile batch purchase: [${ex.message ?: "Unknown"}]",
-                        this@CityScreen,
-                    )
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        SoundPlayer.play(UncivSound.Coin)
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup(
-                            "Tile batch purchase committed by the authoritative server",
-                            GUI.getWorldScreen(),
-                        )
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup(
-                            "Game changed on the server - tiles were not purchased",
-                            GUI.getWorldScreen(),
-                        )
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup(
-                            "Server rejected tile batch purchase: [${outcome.code}]",
-                            this@CityScreen,
-                        )
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup(
-                            "Server response was lost - retry will use the same command",
-                            this@CityScreen,
-                        )
-                    }
-                    null -> {
-                        authoritativeTilePurchaseSubmissionInProgress = false
-                        ToastPopup(
-                            "Authoritative game was closed before tile batch purchase",
-                            this@CityScreen,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun submitAuthoritativeTileConstruction(building: Building, selectedTile: Tile) {
-        if (authoritativeTileConstructionSubmissionInProgress) return
-        authoritativeTileConstructionSubmissionInProgress = true
-        Concurrency.runOnNonDaemonThreadPool("Queue authoritative tile construction") {
-            val outcome = try {
-                game.onlineMultiplayer.authoritativeSession?.queueConstructionAtTileIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    building.name,
-                    selectedTile.position.x,
-                    selectedTile.position.y,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeTileConstructionSubmissionInProgress = false
-                    ToastPopup("Could not submit tile construction: [${ex.message ?: "Unknown"}]", this@CityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Tile construction committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - construction was not queued", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeTileConstructionSubmissionInProgress = false
-                        ToastPopup("Server rejected tile construction: [${outcome.code}]", this@CityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeTileConstructionSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", this@CityScreen)
-                    }
-                    null -> {
-                        authoritativeTileConstructionSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before tile construction", this@CityScreen)
-                    }
-                }
-            }
-        }
     }
 
 
     private fun tileWorkedIconDoubleClick(tileGroup: CityTileGroup, city: City) {
         if (!canChangeState || city.isPuppet || tileGroup.tileState != CityTileState.WORKABLE) return
         val tile = tileGroup.tile
-
-        if (isAuthoritativeGame()) {
-            submitAuthoritativeCityTileAssignment(tile, CityTileAssignment.Locked)
-            return
-        }
 
         // Double-click should lead to locked tiles - both for unworked AND worked tiles
 
@@ -1042,26 +473,9 @@ class CityScreen(
             val pickTileData = this.pickTileData!!
             this.pickTileData = null
             val improvement = pickTileData.improvement
-            val projectedTarget = if (!isAuthoritativeGame()) false else {
-                val queueIndex = selectedQueueEntry.takeIf { it >= 0 }
-                if (pickTileData.isBuying)
-                    authoritativeProjectedPurchase(
-                        pickTileData.building.name, pickTileData.buyStat.name, queueIndex,
-                    )?.legalTargets?.any {
-                        it.x == tileInfo.position.x && it.y == tileInfo.position.y
-                    } == true
-                else authoritativeProjectedCity()?.constructionOptions
-                    ?.singleOrNull { it.name == pickTileData.building.name }
-                    ?.placementTargets?.any {
-                        it.x == tileInfo.position.x && it.y == tileInfo.position.y
-                    } == true
-            }
-            if (projectedTarget || !isAuthoritativeGame() &&
-                city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
+            if (city.cityConstructions.canPlaceCreateOneImprovementOn(improvement, tileInfo)) {
                 
-                if (isAuthoritativeGame() && !pickTileData.isBuying) {
-                    submitAuthoritativeTileConstruction(pickTileData.building, tileInfo)
-                } else if (pickTileData.isBuying) {
+                if (pickTileData.isBuying) {
                     BuyButtonFactory(this).askToBuyConstruction(pickTileData.building, pickTileData.buyStat, tileInfo)
                 } else {
                     city.cityConstructions.addToQueue(pickTileData.building, tile = tileInfo)

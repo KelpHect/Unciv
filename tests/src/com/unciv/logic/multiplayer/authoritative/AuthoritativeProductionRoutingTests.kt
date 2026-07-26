@@ -112,6 +112,13 @@ class AuthoritativeProductionRoutingTests {
             "diplomacyscreen/CityStateDiplomacyTable.kt",
             "diplomacyscreen/TradeTable.kt",
             "worldscreen/TradePopup.kt",
+            "cityscreen/BuyButtonFactory.kt",
+            "cityscreen/CitizenManagementTable.kt",
+            "cityscreen/CityConstructionsTable.kt",
+            "cityscreen/CityScreen.kt",
+            "cityscreen/CityScreenTileTable.kt",
+            "cityscreen/ConstructionInfoTable.kt",
+            "cityscreen/SpecialistAllocationTable.kt",
         )) {
             val source = sourceFile(
                 "core/src/com/unciv/ui/screens/$legacyScreen",
@@ -121,6 +128,11 @@ class AuthoritativeProductionRoutingTests {
             assertFalse("$legacyScreen must not submit API-v3 commands", source.contains("IfOpen("))
             assertFalse("$legacyScreen must not handle API-v3 outcomes", source.contains("AuthoritativeCommandOutcome"))
         }
+        val legacyCityMenu = sourceFile(
+            "core/src/com/unciv/ui/popups/CityScreenConstructionMenu.kt",
+        ).readText()
+        assertFalse(legacyCityMenu.contains("ConstructionQueueAction"))
+        assertFalse(legacyCityMenu.contains("Authoritative"))
 
         val decisions = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +
@@ -162,6 +174,21 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(trades.contains("controller.offer("))
         assertTrue(trades.contains("controller.accept("))
         assertTrue(trades.contains("controller.counter("))
+        val cityControl = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCityControlPanel.kt",
+        ).readText()
+        val cityEconomy = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCityEconomyPanel.kt",
+        ).readText()
+        assertTrue(cityControl.contains("controller.buyTile("))
+        assertTrue(cityControl.contains("controller.setTileAssignment("))
+        assertTrue(cityControl.contains("controller.setSpecialistCount("))
+        assertTrue(cityControl.contains("controller.setGovernance("))
+        assertTrue(cityEconomy.contains("controller.selectConstruction("))
+        assertTrue(cityEconomy.contains("controller.manageQueues("))
+        assertTrue(cityEconomy.contains("controller.purchase("))
     }
 
     @Test

@@ -6,7 +6,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.GUI
 import com.unciv.logic.city.City
 import com.unciv.logic.city.CityConstructions
-import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
 import com.unciv.models.ruleset.PerpetualConstruction
@@ -30,8 +29,6 @@ class CityScreenConstructionMenu(
     private val city: City,
     private val construction: IConstruction,
     private val onButtonClicked: () -> Unit,
-    private val authoritativeActions: List<ConstructionQueueAction>? = null,
-    private val onAuthoritativeAction: ((ConstructionQueueAction) -> Unit)? = null,
 ) : AnimatedMenuPopup(stage, positionNextTo) {
 
     // These are only readability shorteners
@@ -65,8 +62,7 @@ class CityScreenConstructionMenu(
 
     override fun createContentTable(): Table? {
         val table = super.createContentTable()!!
-        if (authoritativeActions != null) addAuthoritativeActions(table)
-        else addLocalQueueActions(table)
+        addLocalQueueActions(table)
         if (canDisable())
             table.add(getButton("Disable", KeyboardBinding.BuildDisabled, ::disableEntry)).row()
         if (canEnable())
@@ -87,27 +83,6 @@ class CityScreenConstructionMenu(
             table.add(getButton("Add or move to the top in all cities", KeyboardBinding.AddConstructionAllTop, ::addAllQueuesTop)).row()
         if (canRemoveAllQueues())
             table.add(getButton("Remove from the queue in all cities", KeyboardBinding.RemoveConstructionAll, ::removeAllQueues)).row()
-    }
-
-    private fun addAuthoritativeActions(table: Table) {
-        val submit = requireNotNull(onAuthoritativeAction)
-        for (action in authoritativeActions.orEmpty()) {
-            val (text, binding) = when (action) {
-                ConstructionQueueAction.MoveToTop ->
-                    "Move to the top of the queue" to KeyboardBinding.RaisePriority
-                ConstructionQueueAction.MoveToEnd ->
-                    "Move to the end of the queue" to KeyboardBinding.LowerPriority
-                ConstructionQueueAction.AddToTop ->
-                    "Add to the top of the queue" to KeyboardBinding.AddConstructionTop
-                ConstructionQueueAction.AddToAllCities ->
-                    "Add to the queue in all cities" to KeyboardBinding.AddConstructionAll
-                ConstructionQueueAction.AddOrMoveToTopAllCities ->
-                    "Add or move to the top in all cities" to KeyboardBinding.AddConstructionAllTop
-                ConstructionQueueAction.RemoveFromAllCities ->
-                    "Remove from the queue in all cities" to KeyboardBinding.RemoveConstructionAll
-            }
-            table.add(getButton(text, binding) { submit(action) }).row()
-        }
     }
 
     @Pure

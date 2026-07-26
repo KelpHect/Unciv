@@ -1,5 +1,37 @@
 # Authoritative multiplayer v3 status
 
+## Legacy city-screen authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed the complete historical API-v3 overlay from the seven canonical
+  city-screen files and their construction context-menu helper. The restored
+  city UI now contains only local, saved, hotseat, and legacy/API-v2 behavior.
+- Production API v3 retains construction selection and tile targeting, queue
+  actions/reordering/removal, purchases, tile and batch buying, building sales,
+  governance/disposition, tile assignments, specialist counts/mode, citizen
+  reset/growth/focus, and unit-promotion preferences exclusively in focused
+  projection-world city panels and controllers.
+- Modernized two restored local code paths to current allocation-free unique
+  and tile traversal APIs, eliminating the deprecation warnings found by the
+  first compile.
+- Source-level routing coverage now rejects API-v3 session/types/outcomes in
+  every legacy city file and the context-menu helper while proving
+  representative projection-only city controls remain wired.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/city-controller tests and desktop compilation
+  pass without compile warnings.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1065 JVM/server cases: 1052 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed. No known compile, warning, test, routing,
+  or formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped unit and alert
+  surfaces; the broad mutation audit remains correctly unchecked until those
+  are removed or explicitly classified.
+
 ## Legacy diplomacy and trade authority-boundary removal
 
 Implemented on 2026-07-26:

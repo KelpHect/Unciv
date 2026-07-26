@@ -13,8 +13,6 @@ import com.unciv.Constants
 import com.unciv.GUI
 import com.unciv.logic.city.City
 import com.unciv.logic.city.CityConstructions
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
-import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
@@ -50,11 +48,9 @@ import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.adjustContextMenuIndicators
 import com.unciv.ui.popups.CityScreenConstructionMenu
-import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
-import kotlinx.coroutines.CancellationException
 import kotlin.math.max
 import kotlin.math.min
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
@@ -93,7 +89,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     private val stageHeight = cityScreen.stage.height
 
     private val highlightColor = Color.GREEN.darken(0.4f)
-    private var authoritativeQueueSubmissionInProgress = false
 
     /** Gets or sets visibility of [both widgets][CityConstructionsTable] */
     var isVisible: Boolean
@@ -175,11 +170,13 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
 
     private fun updateButtons(construction: IConstruction?) {
         if (!cityScreen.canChangeState) return
-        buttonsTable.clear()
-        val authoritative = cityScreen.isAuthoritativeGame()
         /** [UniqueType.MayBuyConstructionsInPuppets] support - we need a buy button for civs that could buy items in puppets */
-        if (!authoritative && cityScreen.city.isPuppet &&
-            !cityScreen.city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any()) return
+        var mayBuyConstructionsInPuppets = false
+        cityScreen.city.forEachMatchingUnique(UniqueType.MayBuyConstructionsInPuppets) {
+            mayBuyConstructionsInPuppets = true
+        }
+        if (cityScreen.city.isPuppet && !mayBuyConstructionsInPuppets) return
+        buttonsTable.clear()
 
         for (button in buyButtonFactory.getBuyButtons(construction)) {
             buttonsTable.add(button).width(120f).padRight(10f)
@@ -296,28 +293,14 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 city.getRuleset().buildings.values.asSequence()
 
         city.cityStats.updateTileStats() // only once
-        val projectedOptionNames = cityScreen.authoritativeProjectedCity()
-            ?.constructionOptions?.mapTo(hashSetOf()) { it.name }
-        for (entry in constructionsSequence.filter {
-            projectedOptionNames?.contains(it.name) ?: it.shouldBeDisplayed(cityConstructions)
-        }) {
+        for (entry in constructionsSequence.filter { it.shouldBeDisplayed(cityConstructions) }) {
 
             val useStoredProduction = entry is Building || !cityConstructions.isBeingConstructedOrEnqueued(entry.name)
-            val projectedOption = cityScreen.authoritativeProjectedCity()
-                ?.constructionOptions?.singleOrNull { it.name == entry.name }
 
             // this is susceptible to comodification since ANY change in unique sources - for example a new building -
             //   can cause comodification change
             // This is however rare enough and short enough in duration that a second run will work
-            val buttonText = if (cityScreen.isAuthoritativeGame()) {
-                projectedOption?.let {
-                    projectedConstructionProgressText(
-                        it.storedProduction,
-                        it.productionCost,
-                        it.estimatedTurns,
-                    ).trim()
-                } ?: ""
-            } else try {
+            val buttonText = try {
                 cityConstructions.getTurnsToConstructionString(entry, useStoredProduction).trim()
             } catch (_: Exception){
                 cityConstructions.getTurnsToConstructionString(entry, useStoredProduction).trim()
@@ -326,10 +309,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             val resourcesRequired = if (entry is BaseUnit)
                 entry.getResourceRequirementsPerTurn(city.civ.state)
                 else entry.getResourceRequirementsPerTurn(city.state)
-            val mostImportantRejection = if (cityScreen.isAuthoritativeGame()) null else
-                entry.getRejectionReasons(cityConstructions)
-                    .filter { it.isImportantRejection() }
-                    .minByOrNull { it.getRejectionPrecedence() }
+            val mostImportantRejection =
+                    entry.getRejectionReasons(cityConstructions)
+                        .filter { it.isImportantRejection() }
+                        .minByOrNull { it.getRejectionPrecedence() }
 
             constructionButtonDTOList.add(
                 ConstructionButtonDTO(
@@ -342,10 +325,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
 
         for (specialConstruction in PerpetualConstruction.perpetualConstructionsMap.values
-                .filter {
-                    projectedOptionNames?.contains(it.name)
-                        ?: it.shouldBeDisplayed(cityConstructions)
-                }
+                .filter { it.shouldBeDisplayed(cityConstructions) }
         ) {
             constructionButtonDTOList.add(
                 ConstructionButtonDTO(
@@ -446,18 +426,9 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         val construction = cityConstructions.getConstruction(constructionName)
         val isFirstConstructionOfItsKind = cityConstructions.isFirstConstructionOfItsKind(constructionQueueIndex, constructionName)
 
-        val projectedQueueEntry = cityScreen.authoritativeProjectedCity()
-            ?.constructionQueueEntries?.getOrNull(constructionQueueIndex)
-            ?.takeIf { it.name == constructionName }
-        var text = constructionName.tr(true) + when {
-            constructionName in PerpetualConstruction.perpetualConstructionsMap -> "\n" + Fonts.infinity
-            projectedQueueEntry != null -> projectedConstructionProgressText(
-                projectedQueueEntry.storedProduction,
-                projectedQueueEntry.productionCost,
-                projectedQueueEntry.estimatedTurns,
-            )
-            else -> cityConstructions.getTurnsToConstructionString(construction, isFirstConstructionOfItsKind)
-        }
+        var text = constructionName.tr(true) +
+                if (constructionName in PerpetualConstruction.perpetualConstructionsMap) "\n" + Fonts.infinity
+                else cityConstructions.getTurnsToConstructionString(construction, isFirstConstructionOfItsKind)
 
         val constructionResource = if (construction is BaseUnit)
                 construction.getResourceRequirementsPerTurn(city.civ.state)
@@ -468,7 +439,7 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
 
         table.defaults().pad(2f).minWidth(40f)
-        if (isFirstConstructionOfItsKind) table.add(getProgressBar(constructionName, constructionQueueIndex)).minWidth(5f)
+        if (isFirstConstructionOfItsKind) table.add(getProgressBar(constructionName)).minWidth(5f)
         else table.add().minWidth(5f)
         table.add(ImageGetter.getConstructionPortrait(constructionName, 40f)).padRight(10f)
         table.add(text.toLabel()).expandX().fillX().left()
@@ -491,22 +462,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         if (cityScreen.canCityBeChanged()) {
             table.addContextMenu {
                 selectQueueEntry(constructionQueueIndex) {
-                    if (cityScreen.isAuthoritativeGame())
-                        CityScreenConstructionMenu(
-                            cityScreen.stage, table, cityScreen.city, construction, {},
-                            projectedQueueEntry?.availableActions.orEmpty(),
-                        ) { action ->
-                            submitAuthoritativeQueueAction(
-                                construction, constructionQueueIndex, action,
-                            )
-                        }
-                    else CityScreenConstructionMenu(
-                        cityScreen.stage, table, cityScreen.city, construction,
-                        {
-                            cityScreen.city.reassignPopulation()
-                            cityScreen.update()
-                        },
-                    )
+                    CityScreenConstructionMenu(cityScreen.stage, table, cityScreen.city, construction) {
+                        cityScreen.city.reassignPopulation()
+                        cityScreen.update()
+                    }
                 }
             }
         }
@@ -543,27 +502,14 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 )
     }
 
-    private fun getProgressBar(constructionName: String, queueIndex: Int? = null): Group {
+    private fun getProgressBar(constructionName: String): Group {
         val cityConstructions = cityScreen.city.cityConstructions
         val construction = cityConstructions.getConstruction(constructionName)
         if (construction is PerpetualConstruction) return Table()
-        val projected = if (cityScreen.isAuthoritativeGame()) {
-            val city = cityScreen.authoritativeProjectedCity() ?: return Table()
-            if (queueIndex == null)
-                city.constructionOptions.singleOrNull { it.name == constructionName }
-                    ?.let { it.storedProduction to it.productionCost }
-            else city.constructionQueueEntries.getOrNull(queueIndex)
-                ?.takeIf { it.name == constructionName }
-                ?.let { it.storedProduction to it.productionCost }
-        } else null
-        val workDone = projected?.first ?: cityConstructions.getWorkDone(constructionName)
-        val productionCost = projected?.second
-            ?: (construction as INonPerpetualConstruction).getProductionCost(
-                cityConstructions.city.civ, cityConstructions.city,
-            )
-        if (workDone == 0 || productionCost <= 0) return Table()
+        if (cityConstructions.getWorkDone(constructionName) == 0) return Table()
 
-        val constructionPercentage = workDone / productionCost.toFloat()
+        val constructionPercentage = cityConstructions.getWorkDone(constructionName) /
+                (construction as INonPerpetualConstruction).getProductionCost(cityConstructions.city.civ, cityConstructions.city).toFloat()
         return ImageGetter.getProgressBarVertical(2f, 30f, constructionPercentage,
                 Color.BROWN.brighten(0.5f), Color.WHITE)
     }
@@ -661,20 +607,10 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
                 highlightConstructionButton(pickConstructionButton, true, true)
                 cityScreen.updateWithoutConstructionAndMap()
             }
-            val projectedActions = cityScreen.authoritativeProjectedCity()?.constructionOptions
-                ?.singleOrNull { it.name == construction.name }?.availableActions.orEmpty()
-            if (cityScreen.isAuthoritativeGame())
-                CityScreenConstructionMenu(
-                    cityScreen.stage, pickConstructionButton, cityScreen.city, construction, {},
-                    projectedActions,
-                ) { action -> submitAuthoritativeQueueAction(construction, null, action) }
-            else CityScreenConstructionMenu(
-                cityScreen.stage, pickConstructionButton, cityScreen.city, construction,
-                {
-                    cityScreen.city.reassignPopulation()
-                    cityScreen.update()
-                },
-            )
+            CityScreenConstructionMenu(cityScreen.stage, pickConstructionButton, cityScreen.city, construction) {
+                cityScreen.city.reassignPopulation()
+                cityScreen.update()
+            }
         }
         return pickConstructionButton
     }
@@ -722,27 +658,11 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     private fun isSelectedQueueEntry(): Boolean = selectedQueueEntry >= 0
 
     private fun cannotAddConstructionToQueue(construction: IConstruction, city: City, cityConstructions: CityConstructions): Boolean {
-        if (cityScreen.isAuthoritativeGame()) {
-            return !cityScreen.canChangeState || cityScreen.authoritativeProjectedCity()
-                ?.constructionOptions
-                ?.singleOrNull { it.name == construction.name }
-                ?.queueable != true
-        }
         return cityConstructions.isQueueFull()
                 || !construction.isBuildable(cityConstructions)
                 || !cityScreen.canChangeState
                 || construction is PerpetualConstruction && cityConstructions.isBeingConstructedOrEnqueued(construction.name)
                 || city.isPuppet
-    }
-
-    private fun projectedConstructionProgressText(
-        storedProduction: Int,
-        productionCost: Int?,
-        estimatedTurns: Int?,
-    ): String {
-        if (productionCost == null) return ""
-        val turns = estimatedTurns?.let { " $it${Fonts.turn}" } ?: ""
-        return "\n$storedProduction/$productionCost${Fonts.production}$turns"
     }
 
     private fun addConstructionToQueue(construction: IConstruction, cityConstructions: CityConstructions) {
@@ -757,11 +677,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
         cityScreen.stopPickTileForCreatesOneImprovement()
 
-        if (cityScreen.isAuthoritativeGame()) {
-            submitAuthoritativeConstruction(construction)
-            return
-        }
-
         SoundPlayer.play(getConstructionSound(construction))
 
         cityConstructions.addToQueue(construction.name)
@@ -770,82 +685,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         cityScreen.city.reassignPopulation()
         cityScreen.update()
         cityScreen.game.settings.addCompletedTutorialTask("Pick construction")
-    }
-
-    private fun submitAuthoritativeConstruction(construction: IConstruction) {
-        if (authoritativeQueueSubmissionInProgress) return
-        authoritativeQueueSubmissionInProgress = true
-        val city = cityScreen.city
-        Concurrency.runOnNonDaemonThreadPool("Queue authoritative construction") {
-            val outcome = try {
-                val session = cityScreen.game.onlineMultiplayer.authoritativeSession
-                if (construction is PerpetualConstruction)
-                    session?.setPerpetualConstructionIfOpen(
-                        city.civ.gameInfo.gameId, city.id, construction.name,
-                    )
-                else
-                    session?.queueConstructionIfOpen(
-                        city.civ.gameInfo.gameId, city.id, construction.name,
-                    )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeQueueSubmissionInProgress = false
-                    ToastPopup(
-                        "Could not submit authoritative construction: [${ex.message ?: "Unknown"}]",
-                        cityScreen,
-                    )
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                if (outcome == null) {
-                    authoritativeQueueSubmissionInProgress = false
-                    ToastPopup("Authoritative game was closed before construction could be submitted", cityScreen)
-                    return@runOnGLThread
-                }
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        SoundPlayer.play(getConstructionSound(construction))
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.settings.addCompletedTutorialTask("Pick construction")
-                        cityScreen.game.popScreen()
-                        ToastPopup("Construction committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.popScreen()
-                        ToastPopup("Game changed on the server - construction was not submitted", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeQueueSubmissionInProgress = false
-                        ToastPopup("Server rejected construction: [${outcome.code}]", cityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeQueueSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun submitAuthoritativeQueueAction(
-        construction: IConstruction,
-        queueIndex: Int?,
-        action: ConstructionQueueAction,
-    ) {
-        val city = cityScreen.city
-        submitAuthoritativeQueueMutation("manage construction queues") {
-            cityScreen.game.onlineMultiplayer.authoritativeSession
-                ?.manageConstructionQueuesIfOpen(
-                    city.civ.gameInfo.gameId,
-                    city.id,
-                    construction.name,
-                    queueIndex,
-                    action,
-                )
-        }
     }
 
     private fun getConstructionSound(construction: IConstruction): UncivSound {
@@ -873,20 +712,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         // Don't bind the queue reordering keys here - those should affect only the selected entry, not all of them
         button.onActivation {
             button.touchable = Touchable.disabled
-            if (cityScreen.isAuthoritativeGame()) {
-                val toIndex = if (arrowDirection == Align.top) constructionQueueIndex - 1
-                    else constructionQueueIndex + 1
-                submitAuthoritativeQueueMutation("reorder production") {
-                    cityScreen.game.onlineMultiplayer.authoritativeSession?.moveConstructionIfOpen(
-                        cityScreen.city.civ.gameInfo.gameId,
-                        cityScreen.city.id,
-                        constructionQueueIndex,
-                        toIndex,
-                        name,
-                    )
-                }
-                return@onActivation
-            }
             selectedQueueEntry = movePriority(constructionQueueIndex)
             // Selection display may need to update as I can click the button of a non-selected entry.
             cityScreen.selectConstruction(name)
@@ -915,22 +740,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         tab.touchable = Touchable.enabled
         tab.onClick {
             tab.touchable = Touchable.disabled
-            if (cityScreen.isAuthoritativeGame()) {
-                val expectedName = city.cityConstructions.constructionQueue.getOrNull(constructionQueueIndex)
-                if (expectedName == null) {
-                    ToastPopup("Construction queue changed before it could be removed", cityScreen)
-                    return@onClick
-                }
-                submitAuthoritativeQueueMutation("remove production") {
-                    cityScreen.game.onlineMultiplayer.authoritativeSession?.removeConstructionIfOpen(
-                        city.civ.gameInfo.gameId,
-                        city.id,
-                        constructionQueueIndex,
-                        expectedName,
-                    )
-                }
-                return@onClick
-            }
             city.cityConstructions.removeFromQueue(constructionQueueIndex, false)
             cityScreen.clearSelection()
             cityScreen.city.reassignPopulation()
@@ -939,53 +748,6 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
             selectQueueEntry(constructionQueueIndex.coerceAtMost(city.cityConstructions.constructionQueue.lastIndex)) { }
         }
         return tab
-    }
-
-    private fun submitAuthoritativeQueueMutation(
-        description: String,
-        submit: suspend () -> AuthoritativeCommandOutcome?,
-    ) {
-        if (authoritativeQueueSubmissionInProgress) return
-        authoritativeQueueSubmissionInProgress = true
-        val city = cityScreen.city
-        Concurrency.runOnNonDaemonThreadPool("Authoritative city production mutation") {
-            val outcome = try {
-                submit()
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeQueueSubmissionInProgress = false
-                    ToastPopup("Could not $description: [${ex.message ?: "Unknown"}]", cityScreen)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.popScreen()
-                        ToastPopup("City production committed by the authoritative server", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        city.civ.gameInfo.isUpToDate = false
-                        cityScreen.game.popScreen()
-                        ToastPopup("Game changed on the server - production was not changed", GUI.getWorldScreen())
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeQueueSubmissionInProgress = false
-                        ToastPopup("Server rejected production change: [${outcome.code}]", cityScreen)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeQueueSubmissionInProgress = false
-                        ToastPopup("Server response was lost - retry will use the same command", cityScreen)
-                    }
-                    null -> {
-                        authoritativeQueueSubmissionInProgress = false
-                        ToastPopup("Authoritative game was closed before production could be changed", cityScreen)
-                    }
-                }
-            }
-        }
     }
 
     private fun getHeader(title: String): Table {

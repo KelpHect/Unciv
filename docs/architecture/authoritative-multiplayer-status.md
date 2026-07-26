@@ -1,5 +1,45 @@
 # Authoritative multiplayer v3 status
 
+## Projection-only status and history completion
+
+Implemented on 2026-07-26:
+
+- A field-by-field audit of `PlayerProjection` and the production
+  `AuthoritativeWorldScreen` confirmed that every command-bearing top-level
+  family already routes through a focused fail-closed panel. The remaining
+  unconsumed fields were read-only player/current-turn identity, treasury,
+  known civilizations, adopted policies, researched technologies, and public
+  wonder history.
+- Focused `AuthoritativePlayerStatusPanel` and `AuthoritativeHistoryPanel`
+  modules now render those exact server fields. Knowledge-gated builder and
+  location details remain absent when the projection omits them; the client
+  never attempts to reconstruct hidden wonder context or gameplay history.
+- Deterministic presentation tests use the shared v58 fixture to prove both
+  fully disclosed and deliberately hidden wonder rows, player status, known
+  civilizations, treasury, and researched history. The projection-only
+  source-boundary test includes both new panels and continues to reject
+  `GameInfo`, `WorldScreen`, `GameStarter`, and legacy save dependencies.
+- This closes the production projection-only rendering checklist item for the
+  current player projection contract. Richer future notification/history
+  feeds remain a separately listed product/schema expansion rather than an
+  unrendered existing contract.
+
+Verification on 2026-07-26:
+
+- The first focused compile showed that the separate Gradle `tests` module
+  cannot call an `internal` core formatter. Only the two stateless
+  presentation formatters were widened for deterministic cross-module tests;
+  both panels and all mutation controllers remain internal or narrowly scoped.
+- The focused world-controller tests and desktop compilation pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1054 JVM/server cases: 1041 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed: existing projection v58 semantic tests
+  already validate researched history and bounded, sorted, visibility-coherent
+  wonder events.
+- No known compile, test, source-boundary, or formatting error from this
+  milestone is deferred.
+
 ## Projection-only route and worker orders
 
 Implemented on 2026-07-26:

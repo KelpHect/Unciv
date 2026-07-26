@@ -1,5 +1,7 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.ui.screens.multiplayerscreens.AuthoritativeHistoryPresentation
+import com.unciv.ui.screens.multiplayerscreens.AuthoritativePlayerStatusPresentation
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -586,6 +588,14 @@ class AuthoritativeWorldControllerTests {
             ),
             sourceFile(
                 "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeHistoryPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativePlayerStatusPanel.kt",
+            ),
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                     "AuthoritativeWorldSessionActions.kt",
             ),
         ).joinToString("\n") { it.readText() }
@@ -598,6 +608,38 @@ class AuthoritativeWorldControllerTests {
         )) {
             assertFalse("Projection world must not reference $forbidden", sources.contains(forbidden))
         }
+    }
+
+    @Test
+    fun projectedHistoryRendersOnlyExactServerDisclosures() {
+        val projection = gameProjection(7).projection
+
+        assertEquals(
+            listOf(
+                "Researched technologies: Agriculture, Mining",
+                "Turn 9: Great Library — +1 Science — built by Rome in Rome (2,-1)",
+                "Turn 11: Stonehenge — +5 Faith",
+            ),
+            AuthoritativeHistoryPresentation.rows(projection),
+        )
+    }
+
+    @Test
+    fun projectedPlayerStatusUsesOnlyServerFields() {
+        val projection = gameProjection(7).projection
+        val withAdoptedPolicy = projection.copy(
+            policies = projection.policies.copy(adoptedPolicies = listOf("Tradition")),
+        )
+        assertEquals(
+            listOf(
+                "Civilization: Rome",
+                "Current player: Rome",
+                "Treasury: 321 gold",
+                "Known civilizations: Greece",
+                "Adopted policies: Tradition",
+            ),
+            AuthoritativePlayerStatusPresentation.rows(withAdoptedPolicy),
+        )
     }
 
     private fun controller(

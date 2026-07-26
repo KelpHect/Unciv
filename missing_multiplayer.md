@@ -243,13 +243,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   accept, decline, retract, and counter decisions by opaque request identity.
   Empty, excessive, duplicate, forged-duration, stale, and out-of-turn trades
   fail before transport; the worker independently revalidates canonical stock.
-- [ ] Build projection-only world rendering. The online world screen must not
+- [x] Build projection-only world rendering. The online world screen does not
   require a canonical `GameInfo`, and deleting or modifying every client cache
-  must have no gameplay effect. The projection-only foundation and first
-  movement/end-turn routes are complete; production now also has exact
-  projection-only long-route selection plus improvement and road choices.
-  History/events and remaining non-blocking interaction surfaces still prevent
-  this item from being checked.
+  has no gameplay effect. Its map, player/current-turn status, treasury, known
+  civilizations, adopted/researched history, public wonder events, and every
+  command-bearing top-level projection family now render from the immutable
+  server projection. All inputs route through typed authenticated controllers;
+  periodic/manual refresh replaces the full validated projection.
 - [ ] Remove every v3-reachable fallback to legacy whole-save upload, download,
   local turn advancement, local resignation, or direct canonical mutation.
   Preserve those paths only for single-player, hotseat, saves, and explicitly

@@ -24,6 +24,9 @@ internal class AuthoritativeWorldDecisions(
     fun build(): Table = Table().apply {
         defaults().pad(3f)
         add(
+            AuthoritativePlayerStatusPanel(controller.projection).build(),
+        ).left().row()
+        add(
             AuthoritativeCityEconomyPanel(
                 controller.projection,
                 controller.cityEconomy,
@@ -106,6 +109,9 @@ internal class AuthoritativeWorldDecisions(
                 busy,
                 submit,
             ).build(),
+        ).left().row()
+        add(
+            AuthoritativeHistoryPanel(controller.projection).build(),
         ).left().row()
         add(researchSummary()).left().row()
         addChoices(

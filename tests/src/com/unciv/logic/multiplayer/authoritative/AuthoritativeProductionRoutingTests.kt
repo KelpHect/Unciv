@@ -19,11 +19,14 @@ class AuthoritativeProductionRoutingTests {
             start.indexOf("MultiplayerCreationRoute.AuthoritativeApiV3 ->")
         val unavailableBranch =
             start.indexOf("MultiplayerCreationRoute.AuthoritativeUnavailable ->")
+        val legacyDisabledBranch =
+            start.indexOf("MultiplayerCreationRoute.LegacyCreationDisabled ->")
         val localConstruction = start.indexOf("GameStarter.startNewGame")
 
         assertTrue(authoritativeBranch >= 0)
         assertTrue(localConstruction > authoritativeBranch)
         assertTrue(localConstruction > unavailableBranch)
+        assertTrue(localConstruction > legacyDisabledBranch)
         assertTrue(
             start.substring(authoritativeBranch, localConstruction)
                 .contains("return@coroutineScope"),
@@ -32,6 +35,29 @@ class AuthoritativeProductionRoutingTests {
             start.substring(unavailableBranch, localConstruction)
                 .contains("return@coroutineScope"),
         )
+        assertTrue(
+            start.substring(legacyDisabledBranch, localConstruction)
+                .contains("return@coroutineScope"),
+        )
+    }
+
+    @Test
+    fun productionNewGameUiCannotCreateLegacyWholeSaveGames() {
+        val options = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/GameOptionsTable.kt",
+        ).readText()
+        val players = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/PlayerPickerTable.kt",
+        ).readText()
+        val newGame = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        ).readText()
+
+        assertFalse(options.contains("showDropboxWarning"))
+        assertFalse(players.contains("Player ID from clipboard"))
+        assertFalse(newGame.contains("checkConnectionToMultiplayerServer"))
+        assertTrue(newGame.contains("LegacyCreationDisabled"))
+        assertTrue(newGame.contains("Creating new legacy multiplayer games is disabled"))
     }
 
     @Test

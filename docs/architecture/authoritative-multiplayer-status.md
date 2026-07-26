@@ -1,5 +1,33 @@
 # Authoritative multiplayer v3 status
 
+## API v3 is the sole new-online-game creation path
+
+Implemented on 2026-07-26:
+
+- Explicit API-v1/v2 server detection still preserves discovery and opening of
+  existing legacy games, but it now maps new online-game setup to a closed
+  `LegacyCreationDisabled` route.
+- The production new-game screen reports that a v3 login is required and
+  returns before `GameStarter` for both disabled legacy creation and unavailable
+  v3 sessions. Only local single-player/hotseat setup may reach local game
+  construction; authenticated API v3 creation returns through the server-owned
+  setup/projection path.
+- Removed legacy player-ID/friend-assignment widgets, Dropbox/file-server
+  probing, and the legacy creation warning from the new-game UI. This does not
+  remove or reinterpret existing legacy saves or their explicit multiplayer
+  screen service.
+- Routing tests prove all non-local online branches return before local
+  construction and statically reject restoration of the removed legacy
+  creation controls.
+
+Verification on 2026-07-26:
+
+- `./gradlew :android:lintDebug :android:assembleDebug :tests:test :server:test
+  :desktop:compileKotlin --no-parallel` passes 1073 JVM/server cases: 1060
+  executed, 13 intentional skips, zero failures, and zero errors.
+- `git diff --check` passes. This milestone changes no server, worker, Rust,
+  persistence, protocol, or legacy discovery/open implementation.
+
 ## Production session restoration and OS-protected credentials
 
 Implemented on 2026-07-26:

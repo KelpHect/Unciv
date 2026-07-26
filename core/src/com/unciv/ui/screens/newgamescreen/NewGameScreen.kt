@@ -7,14 +7,12 @@ import com.unciv.Constants
 import com.unciv.UncivGame
 import com.unciv.logic.GameInfo
 import com.unciv.logic.GameStarter
-import com.unciv.logic.IdChecker
 import com.unciv.logic.UncivShowableException
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.MapSaver
 import com.unciv.logic.map.MapGeneratedMainType
-import com.unciv.logic.multiplayer.LegacyMultiplayer
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
@@ -48,10 +46,8 @@ import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
-import com.unciv.utils.isUUID
 import com.unciv.utils.launchOnGLThread
 import kotlinx.coroutines.coroutineScope
-import java.net.URI
 import kotlin.math.floor
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
@@ -169,6 +165,8 @@ class NewGameScreen(
     fun getErrorMessage(): String? {
         if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
             when (multiplayerCreationRoute()) {
+                MultiplayerCreationRoute.LegacyCreationDisabled ->
+                    return legacyCreationDisabledMessage
                 MultiplayerCreationRoute.AuthoritativeUnavailable ->
                     return authoritativeUnavailableMessage()
                 MultiplayerCreationRoute.AuthoritativeApiV3 -> {
@@ -181,22 +179,6 @@ class NewGameScreen(
                 runCatching { ApiV3GameSetup.from(gameSetupInfo) }
                     .exceptionOrNull()
                     ?.let { return it.message ?: "This setup is not supported by API v3." }
-                }
-                MultiplayerCreationRoute.LegacyApiV2 -> {
-                if (!checkConnectionToMultiplayerServer())
-                    return if (LegacyMultiplayer.usesCustomServer()) "Couldn't connect to Multiplayer Server!"
-                        else "Couldn't connect to Dropbox!"
-
-                for (player in gameSetupInfo.gameParameters.players.filter { it.playerType == PlayerType.Human }) {
-                    if (!(IdChecker.checkAndReturnPlayerUuid(player.playerId)?.playerID?.isUUID() ?: false)) {
-                        return "Invalid player ID!"
-                    }
-                }
-
-                if (!gameSetupInfo.gameParameters.anyoneCanSpectate) {
-                    if (gameSetupInfo.gameParameters.players.none { it.playerId == UncivGame.Current.settings.multiplayer.getUserId() })
-                        return "You are not allowed to spectate!"
-                }
                 }
                 MultiplayerCreationRoute.Local -> Unit
             }
@@ -303,20 +285,6 @@ class NewGameScreen(
         }).expandX().fillX().row()
     }
 
-    private fun checkConnectionToMultiplayerServer(): Boolean {
-        return try {
-            val multiplayerServer = UncivGame.Current.settings.multiplayer.getServer()
-            val u = URI(if (LegacyMultiplayer.usesDropbox()) "https://content.dropboxapi.com" else multiplayerServer).toURL()
-            val con = u.openConnection()
-            con.connectTimeout = 3000
-            con.connect()
-
-            true
-        } catch(_: Throwable) {
-            false
-        }
-    }
-
     private suspend fun startNewGame() = coroutineScope {
         val popup = Popup(this@NewGameScreen)
         launchOnGLThread {
@@ -339,9 +307,16 @@ class NewGameScreen(
                 }
                 return@coroutineScope
             }
-            MultiplayerCreationRoute.Local,
-            MultiplayerCreationRoute.LegacyApiV2,
-            -> Unit
+            MultiplayerCreationRoute.LegacyCreationDisabled -> {
+                launchOnGLThread {
+                    popup.reuseWith(legacyCreationDisabledMessage, true)
+                    rightSideButton.enable()
+                    rightSideButton.setText("Start game!".tr())
+                    Gdx.input.inputProcessor = stage
+                }
+                return@coroutineScope
+            }
+            MultiplayerCreationRoute.Local -> Unit
         }
 
         val newGame:GameInfo
@@ -459,6 +434,10 @@ class NewGameScreen(
                 "This platform has no secure credential store for authoritative multiplayer."
             else -> "Could not establish the authoritative multiplayer session."
         }
+
+    private val legacyCreationDisabledMessage =
+        "Creating new legacy multiplayer games is disabled. " +
+            "Log in to an API v3 server to create an online game."
 
     private suspend fun startAuthoritativeGame(popup: Popup) {
         try {

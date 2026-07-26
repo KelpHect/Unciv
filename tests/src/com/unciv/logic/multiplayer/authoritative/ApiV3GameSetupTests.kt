@@ -10,7 +10,7 @@ import org.junit.Test
 
 class ApiV3GameSetupTests {
     @Test
-    fun creationRoutePreservesOfflineAndExplicitLegacyBoundaries() {
+    fun creationRoutePreservesOfflineAndDisablesExplicitLegacyCreation() {
         assertEquals(
             MultiplayerCreationRoute.Local,
             multiplayerCreationRoute(
@@ -19,7 +19,7 @@ class ApiV3GameSetupTests {
             ),
         )
         assertEquals(
-            MultiplayerCreationRoute.LegacyApiV2,
+            MultiplayerCreationRoute.LegacyCreationDisabled,
             multiplayerCreationRoute(
                 isOnlineMultiplayer = true,
                 authoritativeStatus = AuthoritativeSessionStatus.LegacyServer,

@@ -2,7 +2,7 @@ package com.unciv.logic.multiplayer.authoritative
 
 enum class MultiplayerCreationRoute {
     Local,
-    LegacyApiV2,
+    LegacyCreationDisabled,
     AuthoritativeApiV3,
     AuthoritativeUnavailable,
 }
@@ -13,7 +13,7 @@ fun multiplayerCreationRoute(
 ) = when {
     !isOnlineMultiplayer -> MultiplayerCreationRoute.Local
     authoritativeStatus == AuthoritativeSessionStatus.LegacyServer ->
-        MultiplayerCreationRoute.LegacyApiV2
+        MultiplayerCreationRoute.LegacyCreationDisabled
     authoritativeStatus in setOf(
         AuthoritativeSessionStatus.LoginRequired,
         AuthoritativeSessionStatus.Authenticated,

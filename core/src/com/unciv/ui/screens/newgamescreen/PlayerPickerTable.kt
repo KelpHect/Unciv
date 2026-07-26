@@ -1,13 +1,11 @@
 package com.unciv.ui.screens.newgamescreen
 
-import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Touchable
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
 import com.unciv.UncivGame
-import com.unciv.logic.IdChecker
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.PlayerType.AI
 import com.unciv.logic.civilization.PlayerType.Human
@@ -23,7 +21,6 @@ import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.darken
 import com.unciv.ui.components.extensions.isEnabled
-import com.unciv.ui.components.extensions.setFontColor
 import com.unciv.ui.components.extensions.surroundWithCircle
 import com.unciv.ui.components.extensions.toCheckBox
 import com.unciv.ui.components.extensions.toLabel
@@ -32,15 +29,10 @@ import com.unciv.ui.components.input.KeyCharAndCode
 import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.components.input.onClick
-import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.components.widgets.WrappableLabel
 import com.unciv.ui.images.ImageGetter
-import com.unciv.ui.popups.Popup
 import com.unciv.ui.screens.basescreen.BaseScreen
-import com.unciv.ui.screens.multiplayerscreens.FriendPickerList
-import com.unciv.ui.screens.pickerscreens.PickerPane
 import com.unciv.ui.screens.pickerscreens.PickerScreen
-import com.unciv.utils.isUUID
 import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
 /**
@@ -58,6 +50,7 @@ class PlayerPickerTable(
     blockWidth: Float = 0f
 ): Table() {
     val playerListTable = Table()
+    private val friendList = FriendList()
     val civBlocksWidth = if (blockWidth <= 10f) previousScreen.stage.width / 3 - 5f else blockWidth
     private var randomNumberLabel: WrappableLabel? = null
 
@@ -67,7 +60,6 @@ class PlayerPickerTable(
     /** No random civilization is available, potentially used in the future during map editing. */
     var noRandom = false
 
-    private val friendList = FriendList()
 
     init {
         for (player in gameParameters.players)
@@ -235,12 +227,6 @@ class PlayerPickerTable(
             ).pad(5f).right()
         }
 
-        if (gameParameters.isOnlineMultiplayer &&
-            multiplayerCreationRoute() == MultiplayerCreationRoute.LegacyApiV2 &&
-            player.playerType == PlayerType.Human
-        )
-            playerTable.addPlayerTableMultiplayerControls(player)
-
         return playerTable
     }
 
@@ -269,57 +255,6 @@ class PlayerPickerTable(
         }
     }
 
-    private fun Table.addPlayerTableMultiplayerControls(player: Player) {
-        row()
-
-        val playerIdTextField = UncivTextField("Please input Player ID!", player.playerId)
-        add(playerIdTextField).colspan(2).fillX().pad(5f)
-        val errorLabel = "✘".toLabel(Color.RED)
-        add(errorLabel).pad(5f).row()
-
-        fun onPlayerIdTextUpdated() {
-            val friend = IdChecker.checkAndReturnPlayerUuid(playerIdTextField.text)
-            if (friend?.playerID?.isUUID() ?: false) {
-                player.playerId = playerIdTextField.text.trim()
-                errorLabel.apply {
-                    setText("✔") // U+2714 heavy checkmark
-                    setFontColor(Color.GREEN)
-                }
-            } else {
-                errorLabel.apply {
-                    setText("✘") // U+2718 heavy ballot x
-                    setFontColor(Color.RED)
-                }
-            }
-        }
-        onPlayerIdTextUpdated()
-        playerIdTextField.addListener { onPlayerIdTextUpdated(); true }
-
-        val currentUserId = UncivGame.Current.settings.multiplayer.getUserId()
-        val setCurrentUserButton = "Set current user".toTextButton()
-        setCurrentUserButton.onClick {
-            playerIdTextField.text = currentUserId
-            onPlayerIdTextUpdated()
-        }
-        add(setCurrentUserButton).colspan(3).fillX().pad(5f).row()
-
-        val copyFromClipboardButton = "Player ID from clipboard".toTextButton()
-        copyFromClipboardButton.onClick {
-            playerIdTextField.text = Gdx.app.clipboard.contents
-            onPlayerIdTextUpdated()
-        }
-        add(copyFromClipboardButton).right().colspan(3).fillX().pad(5f).row()
-
-        //check if friends list is empty before adding the select friend button
-        if (friendList.listOfFriends.isNotEmpty()) {
-            val selectPlayerFromFriendsList = "Player ID from friends list".toTextButton()
-            selectPlayerFromFriendsList.onClick {
-                popupFriendPicker(player)
-            }
-            add(selectPlayerFromFriendsList).left().colspan(3).fillX().pad(5f)
-        }
-    }
-
     /**
      * Creates clickable icon and nation name for some [Player].
      * @param player [Player] for which generated
@@ -336,17 +271,6 @@ class PlayerPickerTable(
         nationTable.add(player.chosenCiv.toLabel(hideIcons = true)).pad(5f)
         nationTable.touchable = Touchable.enabled
         return nationTable
-    }
-
-    /**
-     * Opens Friend picking popup with all friends,
-     * currently available for [player] to choose, depending on current
-     * friends list and if another friend is selected.
-     * @param player current player
-     */
-    private fun popupFriendPicker(player: Player) {
-        FriendSelectionPopup(this, player, previousScreen as BaseScreen).open()
-        update()
     }
 
     /**
@@ -376,63 +300,14 @@ class PlayerPickerTable(
             .filter { it.name == dontSkipNation || gameParameters.players.none { player -> player.chosenCiv == it.name } }
 
     /**
-     * Returns a list of available friends.
-     * Skips friends already chosen.
-     *
-     * @return [Sequence] of available [FriendList.Friend]s
+     * Legacy friend-list filtering remains available to the standalone picker,
+     * but new online games no longer expose player-ID assignment controls.
      */
     internal fun getAvailableFriends(): Sequence<FriendList.Friend> {
-        val friendListWithRemovedFriends = friendList.listOfFriends.toMutableList()
-        for (index in gameParameters.players.indices) {
-            val currentFriendId = previousScreen.gameSetupInfo.gameParameters.players[index].playerId
-            friendListWithRemovedFriends.remove(friendList.getFriendById(currentFriendId))
-        }
-        return friendListWithRemovedFriends.asSequence()
-    }
-}
-
-class FriendSelectionPopup(
-    private val playerPicker: PlayerPickerTable,
-    player: Player,
-    screen: BaseScreen,
-) : Popup(screen) {
-
-    private val pickerPane = PickerPane()
-    private var selectedFriendId: String? = null
-
-    init {
-        val pickerCell = add()
-            .width(700f).fillX().expandX()
-            .minHeight(screen.stage.height * 0.5f)
-            .maxHeight(screen.stage.height * 0.8f)
-
-        val friendList = FriendPickerList(playerPicker, ::friendSelected)
-        pickerPane.topTable.add(friendList)
-        pickerPane.rightSideButton.setText("Select friend".tr())
-        pickerPane.closeButton.onActivation(::close)
-        pickerPane.closeButton.keyShortcuts.add(KeyCharAndCode.BACK)
-        pickerCell.setActor<PickerPane>(pickerPane)
-        pickerPane.rightSideButton.onClick {
-            close()
-            val friendId = selectedFriendId
-            if (friendId != null) {
-                player.playerId = selectedFriendId.toString()
-                close()
-                playerPicker.update()
-            }
-        }
-
-        clickBehindToClose = true
-    }
-
-    private fun friendSelected(friendName: String) {
-        val friendsList = FriendList()
-        val friend = friendsList.getFriendByName(friendName)
-        if (friend != null) {
-            selectedFriendId = friend.playerID
-        }
-        pickerPane.setRightSideButtonEnabled(true)
-        pickerPane.rightSideButton.setText("Select [$friendName]".tr())
+        val available = friendList.listOfFriends.toMutableList()
+        for (player in gameParameters.players)
+            available.remove(friendList.getFriendById(player.playerId))
+        return available.asSequence()
     }
 
 }

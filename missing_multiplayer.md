@@ -155,13 +155,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   response returns the original game without invoking the worker again;
   changed-account or changed-meaning reuse fails closed, and a failed attempt
   rolls back completely so the same operation can be retried.
-- [ ] Make v3 the complete production game lifecycle, not an explicitly opened
-  opt-in path. New online games must be created by the v3 server and must never
-  be created locally and uploaded. The installed-session route now satisfies
-  that invariant, and production now detects/restores the configured v3 server
-  and OS-protected session by default. Remaining work is to retire creation of
-  new legacy-v2 games without breaking discovery/opening of existing legacy
-  games.
+- [x] Make v3 the only production path for creating new online games. Production
+  detects/restores the configured v3 server and OS-protected session by default;
+  authenticated creation returns before local `GameStarter`, and failed or
+  unavailable v3 setup fails closed. Explicit API-v1/v2 servers can still
+  discover and open existing legacy games, but the new-game screen no longer
+  accepts legacy player IDs, probes the file server, shows legacy creation
+  controls, constructs a local online `GameInfo`, or uploads a new whole save.
 - [ ] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero projection. The
@@ -595,7 +595,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
 - `./gradlew :android:assembleDebug :tests:test :server:test
-  :desktop:compileKotlin --no-parallel` passes (1072 JVM/server cases: 1059
+  :desktop:compileKotlin --no-parallel` passes (1073 JVM/server cases: 1060
   executed, 13 intentional skips), and `:android:lintDebug` passes.
 - Rust passes 120 active library tests and 10 HTTP/OpenAPI tests; 21 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

@@ -104,7 +104,7 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
                 }
             }
         override fun action(worldScreen: WorldScreen) =
-            worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv, worldScreen))
+            worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv))
     },
     ExpandPantheon("Expand Pantheon", Color.valueOf(BeliefType.Pantheon.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
@@ -114,7 +114,7 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
                 }
             }
         override fun action(worldScreen: WorldScreen) =
-            worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv, worldScreen))
+            worldScreen.game.pushScreen(PantheonPickerScreen(worldScreen.viewingCiv))
     },
     FoundReligion("Found Religion", Color.valueOf(BeliefType.Founder.color)) {
         override fun isChoice(worldScreen: WorldScreen) =
@@ -220,7 +220,6 @@ enum class NextTurnAction(protected val text: String, val color: Color) {
                     worldScreen.viewingCiv,
                     worldScreen.viewingCiv.religionManager.getBeliefs(),
                     pickIconAndName = pickIconAndName,
-                    worldScreen = worldScreen,
                 )
             )
 

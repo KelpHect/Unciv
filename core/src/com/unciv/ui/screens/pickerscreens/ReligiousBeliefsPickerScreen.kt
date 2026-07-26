@@ -24,14 +24,12 @@ import com.unciv.ui.components.extensions.packIfNeeded
 import com.unciv.ui.components.extensions.surroundWithCircle
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.AskTextPopup
-import com.unciv.ui.screens.worldscreen.WorldScreen
 
 class ReligiousBeliefsPickerScreen (
     choosingCiv: Civilization,
     numberOfBeliefsCanChoose: Counter<BeliefType>,
     pickIconAndName: Boolean,
-    worldScreen: WorldScreen? = null,
-): ReligionPickerScreenCommon(choosingCiv, disableScroll = true, worldScreen = worldScreen) {
+): ReligionPickerScreenCommon(choosingCiv, disableScroll = true) {
     // Roughly follows the layout of the original (although I am not very good at UI designing, so please improve this)
 
     private val topReligionIcons = Table() // Top of the layout, contains icons for religions
@@ -78,13 +76,6 @@ class ReligiousBeliefsPickerScreen (
         setOKAction(
             if (pickIconAndName) "Choose a Religion"
             else "Enhance [${currentReligion.getReligionDisplayName()}]",
-            authoritativeChoice = {
-                AuthoritativeReligionChoice(
-                    beliefsToChoose.map { it.belief!!.name },
-                    religionName.takeIf { pickIconAndName },
-                    displayName.takeIf { pickIconAndName },
-                )
-            },
         ) {
             if (civInfo.religionManager.religionState == ReligionState.FoundingReligion)
                 civInfo.religionManager.foundReligion(displayName!!, religionName!!)

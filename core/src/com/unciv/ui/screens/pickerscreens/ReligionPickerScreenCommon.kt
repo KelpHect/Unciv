@@ -10,7 +10,6 @@ import com.unciv.Constants
 import com.unciv.UncivGame
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.ReligionManager
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Belief
 import com.unciv.models.ruleset.BeliefType
@@ -22,30 +21,17 @@ import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.widgets.WrappableLabel
 import com.unciv.ui.screens.civilopediascreen.MarkupRenderer
-import com.unciv.ui.screens.worldscreen.WorldScreen
-import com.unciv.ui.popups.ToastPopup
-import com.unciv.utils.Concurrency
-import kotlinx.coroutines.CancellationException
 import yairm210.purity.annotations.Readonly
 
 abstract class ReligionPickerScreenCommon(
     protected val choosingCiv: Civilization,
     disableScroll: Boolean = false,
-    private val worldScreen: WorldScreen? = null,
 ) : PickerScreen(disableScroll) {
 
     protected val gameInfo = choosingCiv.gameInfo
     protected val ruleset = gameInfo.ruleset
 
     private val descriptionTable = Table(skin)
-    private var authoritativeSubmissionInProgress = false
-
-    protected data class AuthoritativeReligionChoice(
-        val beliefNames: List<String>,
-        val religionIconName: String? = null,
-        val religionDisplayName: String? = null,
-    )
-
     protected class Selection {
         var button: Button? = null
             private set
@@ -77,71 +63,12 @@ abstract class ReligionPickerScreenCommon(
 
     protected fun setOKAction(
         buttonText: String,
-        authoritativeChoice: (() -> AuthoritativeReligionChoice)? = null,
         action: ReligionManager.() -> Unit,
     ) {
         rightSideButton.setText(buttonText.tr())
         rightSideButton.onClick(UncivSound.Choir) {
-            if (worldScreen?.mapHolder?.usesAuthoritativeCommands() == true && authoritativeChoice != null) {
-                submitAuthoritativeChoice(authoritativeChoice())
-                return@onClick
-            }
             choosingCiv.religionManager.action()
             UncivGame.Current.popScreen()
-        }
-    }
-
-    private fun submitAuthoritativeChoice(choice: AuthoritativeReligionChoice) {
-        val worldScreen = worldScreen ?: return
-        if (authoritativeSubmissionInProgress) return
-        authoritativeSubmissionInProgress = true
-        rightSideButton.disable()
-        Concurrency.runOnNonDaemonThreadPool("Choose authoritative religious beliefs") {
-            val outcome = try {
-                worldScreen.game.onlineMultiplayer.authoritativeSession?.chooseReligiousBeliefsIfOpen(
-                    choosingCiv.gameInfo.gameId,
-                    choice.beliefNames,
-                    choice.religionIconName,
-                    choice.religionDisplayName,
-                )
-            } catch (ex: Exception) {
-                if (ex is CancellationException) throw ex
-                Concurrency.runOnGLThread {
-                    authoritativeSubmissionInProgress = false
-                    rightSideButton.enable()
-                    ToastPopup("Could not submit religious choice: [${ex.message ?: "Unknown"}]", this@ReligionPickerScreenCommon)
-                }
-                return@runOnNonDaemonThreadPool
-            }
-            Concurrency.runOnGLThread {
-                when (outcome) {
-                    is AuthoritativeCommandOutcome.Accepted -> {
-                        choosingCiv.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Religious choice committed by the authoritative server", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.StaleRefreshed -> {
-                        choosingCiv.gameInfo.isUpToDate = false
-                        game.popScreen()
-                        ToastPopup("Game changed on the server - religious choice was not committed", worldScreen)
-                    }
-                    is AuthoritativeCommandOutcome.Rejected -> {
-                        authoritativeSubmissionInProgress = false
-                        rightSideButton.enable()
-                        ToastPopup("Server rejected religious choice: [${outcome.code}]", this@ReligionPickerScreenCommon)
-                    }
-                    AuthoritativeCommandOutcome.RetryRequired -> {
-                        authoritativeSubmissionInProgress = false
-                        rightSideButton.enable()
-                        ToastPopup("Server response was lost - retry will use the same religious choice", this@ReligionPickerScreenCommon)
-                    }
-                    null -> {
-                        authoritativeSubmissionInProgress = false
-                        rightSideButton.enable()
-                        ToastPopup("Authoritative game was closed before the religious choice", this@ReligionPickerScreenCommon)
-                    }
-                }
-            }
         }
     }
 

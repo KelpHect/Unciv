@@ -104,6 +104,8 @@ class AuthoritativeProductionRoutingTests {
             "TechPickerScreen.kt",
             "PolicyPickerScreen.kt",
             "DiplomaticVotePickerScreen.kt",
+            "GreatPersonPickerScreen.kt",
+            "ReligionPickerScreenCommon.kt",
         )) {
             val source = sourceFile(
                 "core/src/com/unciv/ui/screens/pickerscreens/$legacyPicker",
@@ -122,12 +124,18 @@ class AuthoritativeProductionRoutingTests {
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +
                 "AuthoritativePromptPanel.kt",
         ).readText()
+        val projectionWorld = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeWorldScreen.kt",
+        ).readText()
 
         assertTrue(decisions.contains("controller.selectResearch("))
         assertTrue(decisions.contains("controller.manageResearchQueue("))
         assertTrue(decisions.contains("controller::chooseProjectedFreeTechnology"))
         assertTrue(decisions.contains("controller::adoptProjectedPolicy"))
         assertTrue(prompts.contains("controller.castDiplomaticVote("))
+        assertTrue(prompts.contains("controller.chooseGreatPerson("))
+        assertTrue(projectionWorld.contains("session.chooseReligiousBeliefsIfOpen("))
     }
 
     @Test

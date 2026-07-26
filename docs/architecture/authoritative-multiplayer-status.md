@@ -1,5 +1,36 @@
 # Authoritative multiplayer v3 status
 
+## Legacy great-person and religion picker authority-boundary removal
+
+Implemented on 2026-07-26:
+
+- Removed historical API-v3 projection filtering and command submission from
+  `GreatPersonPickerScreen` and removed API-v3 religion submission from
+  `ReligionPickerScreenCommon`.
+- Simplified the pantheon and religious-belief picker APIs so they no longer
+  accept a `WorldScreen` or construct an authoritative payload. These
+  canonical-`GameInfo` pickers are now explicitly local/legacy surfaces.
+- Production API v3 continues to render only server-projected great-person,
+  pantheon, founding, enhancement, and reformation choices through the focused
+  projection-world prompt and religion panels.
+- Extended source-level routing coverage to forbid API-v3 session lookup,
+  typed submission, and authoritative outcome handling in the two shared
+  legacy picker implementations while proving the projection-world routes
+  remain present.
+
+Verification on 2026-07-26:
+
+- Focused production-routing/world-controller tests and desktop compilation
+  pass.
+- `./gradlew :tests:test :server:test :desktop:compileKotlin --no-parallel`
+  passes 1065 JVM/server cases: 1052 executed, 13 intentional skips, zero
+  failures, and zero errors.
+- No Rust or OpenAPI source changed. No known compile, test, routing, or
+  formatting error from this milestone is deferred.
+- Historical API-v3 interceptors remain in legacy-shaped city, unit,
+  diplomacy, espionage, and alert surfaces; the broad mutation audit remains
+  correctly unchecked until those are removed or explicitly classified.
+
 ## Legacy decision-picker authority-boundary removal
 
 Implemented on 2026-07-26:

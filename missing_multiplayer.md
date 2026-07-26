@@ -220,6 +220,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   choices use opaque prompt/choice IDs; ordinary diplomacy accepts/declines
   only friendship/demand prompts; protected-city-state prompts expose only
   their exact response enum. Wrong prompt kinds now fail in the command bus.
+  The legacy great-person and diplomatic-vote pickers contain no API-v3
+  projection or command path.
 - [x] Expose authoritative spy assignment and coup controls in the
   projection-only world. Every owned spy displays only worker-projected city
   destinations, hideout availability, and coup stage/cancel capabilities.
@@ -230,7 +232,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   worker-advertised belief and, while founding, requires one projected icon and
   a bounded printable display name. Slot/type mismatches, invented beliefs or
   icons, invalid identity text, and identity outside founding fail before
-  transport; canonical uniqueness and effects remain worker-owned.
+  transport; canonical uniqueness and effects remain worker-owned. The legacy
+  pantheon/religion picker hierarchy no longer accepts a world screen, builds
+  authoritative payloads, or submits API-v3 commands.
 - [x] Expose authoritative major-civilization and city-state diplomacy in the
   projection-only world. The UI renders only turn-scoped projected war,
   denouncement, friendship, demand, gold/protection/tribute/improvement gift,
@@ -262,8 +266,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   been removed from their canonical-`GameInfo` picker screens; production v3
   uses only projection-world controllers for those decisions. The remaining
   work is removal or hard classification of historical legacy-shaped city,
-  unit, diplomacy, religion, espionage, and alert interceptors that key API-v3
-  behavior to an open command bus.
+  unit, diplomacy, espionage, and alert interceptors that key API-v3 behavior
+  to an open command bus. Great-person and religion picker interceptors have
+  also been removed.
 - [ ] Finish the source-level mutation audit across all world, city, unit,
   diplomacy, religion, espionage, alert, and multiplayer UI call sites. Every
   player-authored online mutation must either use a closed typed v3 operation or

@@ -1,0 +1,151 @@
+package com.unciv.app.server.authoritative
+
+import kotlinx.serialization.ExperimentalSerializationApi
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/**
+ * Executable inventory of the fresh-process parity boundary.
+ *
+ * Adding a worker operation without explicitly classifying its parity evidence
+ * fails this test. `InProcessOnly` is debt, not an assertion of completeness.
+ */
+class PackagedWorkerParityCoverageTests {
+    @OptIn(ExperimentalSerializationApi::class)
+    @Test
+    fun everyWorkerOperationHasAnExplicitFreshProcessParityClassification() {
+        val descriptor = WorkerOperation.serializer().descriptor.getElementDescriptor(1)
+        val protocolOperations = (0 until descriptor.elementsCount)
+            .map(descriptor::getElementName)
+            .toSet()
+
+        assertEquals(protocolOperations, coverage.keys)
+    }
+
+    @Test
+    fun completedFreshProcessParitySetCannotRegressSilently() {
+        assertEquals(
+            setOf(
+                "handshake",
+                "create_game",
+                "assign_player",
+                "end_turn",
+                "move_unit",
+                "set_unit_posture",
+                "disband_unit",
+                "attack_with_unit",
+                "rename_unit",
+                "resolve_event_choice",
+                "set_research_path",
+            ),
+            coverage.filterValues { it != ParityEvidence.InProcessOnly }.keys,
+        )
+    }
+
+    private enum class ParityEvidence {
+        FreshProcessStateParity,
+        FreshProcessTransportParity,
+        InProcessOnly,
+    }
+
+    private companion object {
+        val coverage = setOf(
+            "handshake",
+            "create_game",
+            "assign_player",
+            "end_turn",
+            "resign",
+            "force_resign",
+            "kick_player",
+            "move_unit",
+            "move_unit_toward",
+            "cancel_unit_movement_order",
+            "set_unit_exploration",
+            "set_unit_automation",
+            "set_unit_posture",
+            "disband_unit",
+            "pillage_tile",
+            "found_city",
+            "paradrop_unit",
+            "attack_with_unit",
+            "bombard_with_city",
+            "launch_nuclear_strike",
+            "air_sweep",
+            "upgrade_units",
+            "promote_unit",
+            "set_city_unit_promotion_preference",
+            "rename_unit",
+            "set_tile_improvement_order",
+            "set_road_connection_order",
+            "swap_units",
+            "queue_construction",
+            "queue_construction_at_tile",
+            "set_perpetual_construction",
+            "remove_construction",
+            "move_construction",
+            "manage_construction_queues",
+            "purchase_construction",
+            "purchase_construction_at_tile",
+            "buy_city_tile",
+            "buy_city_tile_batch",
+            "sell_building",
+            "set_city_governance",
+            "resolve_city_disposition",
+            "cast_diplomatic_vote",
+            "choose_great_person",
+            "use_religious_unit",
+            "use_great_person_unit",
+            "choose_religious_beliefs",
+            "offer_trade",
+            "retract_trade_offer",
+            "accept_trade",
+            "decline_trade",
+            "counter_trade",
+            "declare_war",
+            "denounce_civilization",
+            "offer_friendship",
+            "make_diplomatic_demand",
+            "respond_to_diplomatic_prompt",
+            "respond_to_city_state_protection_prompt",
+            "gift_city_state_gold",
+            "set_city_state_protection",
+            "demand_city_state_tribute",
+            "gift_city_state_improvement",
+            "negotiate_city_state_peace",
+            "marry_city_state",
+            "move_spy",
+            "set_spy_coup",
+            "resolve_event_choice",
+            "gift_unit",
+            "add_unit_to_capital_project",
+            "transform_unit",
+            "trigger_unit_unique",
+            "create_instant_improvement",
+            "set_city_tile_assignment",
+            "set_specialist_count",
+            "set_manual_specialists",
+            "reset_citizens",
+            "set_avoid_growth",
+            "set_citizen_focus",
+            "set_research_path",
+            "manage_research_queue",
+            "adopt_policy",
+            "choose_free_technology",
+            "acknowledge_research_completion",
+            "project_state",
+            "project_spectator_state",
+        ).associateWith { ParityEvidence.InProcessOnly } + mapOf(
+            "handshake" to ParityEvidence.FreshProcessTransportParity,
+            "create_game" to ParityEvidence.FreshProcessStateParity,
+            "assign_player" to ParityEvidence.FreshProcessStateParity,
+            "end_turn" to ParityEvidence.FreshProcessStateParity,
+            "move_unit" to ParityEvidence.FreshProcessStateParity,
+            "set_unit_posture" to ParityEvidence.FreshProcessStateParity,
+            "disband_unit" to ParityEvidence.FreshProcessStateParity,
+            "attack_with_unit" to ParityEvidence.FreshProcessStateParity,
+            "rename_unit" to ParityEvidence.FreshProcessStateParity,
+            "resolve_event_choice" to ParityEvidence.FreshProcessStateParity,
+            "set_research_path" to ParityEvidence.FreshProcessStateParity,
+        )
+    }
+}

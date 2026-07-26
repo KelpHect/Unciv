@@ -6610,6 +6610,44 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Executable packaged-worker parity inventory and first stateful unit batch
+
+Implemented on 2026-07-26:
+
+- Added an executable registry for all 86 sealed `WorkerOperation` wire
+  variants. The test derives the live sealed subtype names from the serializer
+  descriptor and fails if a protocol operation is added, removed, or renamed
+  without an explicit fresh-process evidence classification.
+- Extended the shared packaged-worker harness to execute a sequence of typed
+  requests in one fresh JVM and repeat the whole scenario in a second fresh
+  JVM. It compares every complete serialized response, including errors,
+  actor, projections, snapshot, and canonical state hash.
+- Added a stateful unit fixture that creates a seeded game and then performs an
+  exact move, rename, worker-derived legal posture, and disband. Both
+  independent packaged JVMs produce byte-identical responses after every
+  operation and the final canonical state is asserted.
+- Fresh-process evidence now covers 11 of 86 operations. The remaining 75 are
+  deliberately classified as in-process-only debt; the exhaustive checklist
+  remains unchecked in `missing_multiplayer.md`.
+
+Focused verification on 2026-07-26:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitOrderParityTests`
+  passes all three focused tests.
+- `./gradlew :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --console=plain` passes
+  1,119 JVM/server tests with 14 intentional skips and no failures or errors,
+  plus Android release lint, the debug APK, and desktop packaging.
+- The first coverage implementation inspected the outer sealed serializer
+  envelope (`type` and `value`) rather than its subtype descriptor; it was
+  corrected before the clean run. The first posture fixture assumed `Sleep`
+  for a fortifiable unit; it now selects an actually worker-advertised posture
+  from canonical state. No failure was deferred.
+- This milestone changes only descriptive test modules and documentation; no
+  production façade or gameplay module grew.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

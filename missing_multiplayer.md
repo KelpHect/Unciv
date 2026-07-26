@@ -597,14 +597,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   systemd/Linux failure qualification remains separately unchecked above.
 - [ ] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
-  Packaged-worker coverage currently proves seeded creation with city-states
-  plus replayable player assignment, typed research selection, and a complete
-  human-to-two-AI-to-human turn. It now also proves a canonical state-seeded
-  melee-combat randomness path and a real ruleset event-choice path across
-  independent JVMs. Changed canonical combat state, forged actor, and
-  changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. Every remaining command family and additional
-  random setup/combat/event/AI branch still needs an inventoried fixture.
+  An executable registry now classifies all 86 sealed worker operations and
+  fails when the protocol changes without an explicit parity classification.
+  Fresh packaged-JVM evidence covers 11 operations: handshake, game creation,
+  player assignment, research selection, end turn with all AI, unit movement,
+  renaming, posture, disband, melee combat, and event choice. The stateful unit
+  scenario compares every full response across two independent JVMs. Changed
+  canonical combat state, forged actor, and changed-clock controls prove that
+  state, authenticated identity, and server time remain replay-critical. The
+  other 75 operations plus additional random setup/combat/event/AI branches
+  still need fresh-process fixtures, so this item remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

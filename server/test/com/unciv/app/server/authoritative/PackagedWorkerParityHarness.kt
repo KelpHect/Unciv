@@ -41,17 +41,36 @@ internal object PackagedWorkerParityHarness {
     }
 
     fun assertStable(request: WorkerRequest): WorkerResponse {
-        val first = execute(request)
-        val second = execute(request)
-        assertNull(first.error)
-        assertNull(second.error)
-        assertEquals(first.actorCivilizationId, second.actorCivilizationId)
-        assertEquals(first.canonicalStateHash, second.canonicalStateHash)
-        assertEquals(first.snapshot, second.snapshot)
+        return assertStableScenario { send -> listOf(send(request)) }.single()
+    }
+
+    fun assertStableScenario(
+        scenario: ((WorkerRequest) -> WorkerResponse) -> List<WorkerResponse>,
+    ): List<WorkerResponse> {
+        val first = withWorker(scenario)
+        val second = withWorker(scenario)
+        assertEquals(first.size, second.size)
+        first.zip(second).forEachIndexed { index, (firstResponse, secondResponse) ->
+            assertNull("First worker response $index failed", firstResponse.error)
+            assertNull("Second worker response $index failed", secondResponse.error)
+            assertEquals(
+                "Fresh worker response $index differs",
+                EngineWorkerProtocol.json.encodeToString(
+                    WorkerResponse.serializer(),
+                    firstResponse,
+                ),
+                EngineWorkerProtocol.json.encodeToString(
+                    WorkerResponse.serializer(),
+                    secondResponse,
+                ),
+            )
+        }
         return first
     }
 
-    fun execute(request: WorkerRequest): WorkerResponse {
+    fun execute(request: WorkerRequest): WorkerResponse = withWorker { send -> send(request) }
+
+    private fun <T> withWorker(block: ((WorkerRequest) -> WorkerResponse) -> T): T {
         val loopback = InetAddress.getLoopbackAddress()
         val port = ServerSocket(0, 50, loopback).use { it.localPort }
         val javaExecutable = Paths.get(
@@ -79,7 +98,7 @@ internal object PackagedWorkerParityHarness {
             .start()
         try {
             awaitWorker(process, loopback, port)
-            return sendRequest(loopback, port, request)
+            return block { request -> sendRequest(loopback, port, request) }
         } finally {
             process.destroy()
             if (!process.waitFor(5, TimeUnit.SECONDS)) {

@@ -8,8 +8,12 @@ import com.unciv.logic.files.UncivFiles
 import com.unciv.logic.multiplayer.MultiplayerGamePreview
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCommandOutcome
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
+import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
+import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.translations.tr
+import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
@@ -34,6 +38,9 @@ import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
 class MultiplayerScreen : PickerScreen() {
     private var selectedGame: MultiplayerGamePreview? = null
+    private var selectedAuthoritativeGame: ApiV3GameSummary? = null
+    private val authoritativeDirectory = game.onlineMultiplayer.authoritativeSession
+        ?.let(::AuthoritativeGameDirectory)
 
     private val copyGameIdButton = createCopyGameIdButton()
     private val resignButton = createResignButton()
@@ -50,6 +57,7 @@ class MultiplayerScreen : PickerScreen() {
     private val refreshButton = createRefreshButton()
 
     val gameList = GameList(::selectGame)
+    val authoritativeGameList = AuthoritativeGameList(::selectAuthoritativeGame)
 
     init {
         setDefaultCloseAction()
@@ -61,9 +69,7 @@ class MultiplayerScreen : PickerScreen() {
         setupHelpButton()
         setupRightSideButton()
         
-        Concurrency.run("Update all multiplayer games") {
-            game.onlineMultiplayer.requestUpdate()
-        }
+        refreshGameLists()
 
         pickerPane.bottomTable.background = skinStrings.getUiBackground("MultiplayerScreen/BottomTable", tintColor = skinStrings.skinConfig.clearColor)
         pickerPane.topTable.background = skinStrings.getUiBackground("MultiplayerScreen/TopTable", tintColor = skinStrings.skinConfig.clearColor)
@@ -77,6 +83,10 @@ class MultiplayerScreen : PickerScreen() {
     private fun setupRightSideButton() {
         rightSideButton.setText("Join game".tr())
         rightSideButton.onClick {
+            selectedAuthoritativeGame?.let {
+                openAuthoritativeGame(it)
+                return@onClick
+            }
             val missingMods = selectedGame!!.preview!!.gameParameters.getModsAndBaseRuleset()
                 .filter { !RulesetCache.containsKey(it) }
             if (missingMods.isEmpty()) return@onClick MultiplayerHelpers.loadMultiplayerGame(this, selectedGame!!)
@@ -121,12 +131,74 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun createRefreshButton(): TextButton {
         val btn = "Refresh list".toTextButton()
-        btn.onClick {
-            Concurrency.run("Update all multiplayer games") {
-                game.onlineMultiplayer.requestUpdate()
+        btn.onClick { refreshGameLists() }
+        return btn
+    }
+
+    private fun refreshGameLists() {
+        Concurrency.run("Update all multiplayer games") {
+            game.onlineMultiplayer.requestUpdate()
+        }
+        val directory = authoritativeDirectory ?: return
+        Concurrency.runOnNonDaemonThreadPool("Update authoritative multiplayer games") {
+            try {
+                val games = directory.refresh()
+                launchOnGLThread {
+                    authoritativeGameList.update(games)
+                    val selected = selectedAuthoritativeGame
+                    if (selected != null) {
+                        games.firstOrNull { it.gameId == selected.gameId }
+                            ?.let(::selectAuthoritativeGame)
+                            ?: unselectGame()
+                    }
+                }
+            } catch (ex: Exception) {
+                val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
+                launchOnGLThread {
+                    authoritativeGameList.update(emptyList())
+                    ToastPopup("Could not refresh server games: [$message]", this@MultiplayerScreen)
+                }
             }
         }
-        return btn
+    }
+
+    private fun openAuthoritativeGame(summary: ApiV3GameSummary) {
+        val directory = authoritativeDirectory ?: return
+        val popup = Popup(this)
+        popup.addGoodSizedLabel(Constants.working).row()
+        popup.open()
+        Concurrency.runOnNonDaemonThreadPool("Open authoritative multiplayer game") {
+            try {
+                val opened = directory.open(summary)
+                launchOnGLThread {
+                    popup.clear()
+                    when (opened) {
+                        is OpenedAuthoritativeGame.Player -> {
+                            val projection = opened.projection
+                            popup.addGoodSizedLabel("Server game [${projection.gameId}]").row()
+                            popup.addGoodSizedLabel(
+                                "Revision [${projection.committedRevision}] - Turn [${projection.projection.turn}]",
+                            ).row()
+                            popup.addGoodSizedLabel(
+                                "Playing as [${projection.projection.civilizationId}]",
+                            ).row()
+                        }
+                        is OpenedAuthoritativeGame.Spectator -> {
+                            val projection = opened.projection
+                            popup.addGoodSizedLabel("Server game [${projection.gameId}]").row()
+                            popup.addGoodSizedLabel(
+                                "Revision [${projection.committedRevision}] - Turn [${projection.projection.turn}]",
+                            ).row()
+                            popup.addGoodSizedLabel("Public spectator projection").row()
+                        }
+                    }
+                    popup.addCloseButton()
+                }
+            } catch (ex: Exception) {
+                val (message) = LoadGameScreen.getLoadExceptionMessage(ex)
+                launchOnGLThread { popup.reuseWith(message, true) }
+            }
+        }
     }
 
     private fun createAddGameButton(): TextButton {
@@ -392,7 +464,16 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun createMainContent(): Table {
         val mainTable = Table()
-        mainTable.add(ScrollPane(gameList).apply { setScrollingDisabled(true, false) }).center()
+        val lists = Table()
+        if (authoritativeDirectory != null) {
+            lists.add("Server games".tr().toLabel()).left().row()
+            lists.add(
+                ScrollPane(authoritativeGameList).apply { setScrollingDisabled(true, false) },
+            ).growX().row()
+            lists.add("Legacy saved games".tr().toLabel()).left().row()
+        }
+        lists.add(ScrollPane(gameList).apply { setScrollingDisabled(true, false) }).growX()
+        mainTable.add(lists).center()
         mainTable.add(getGameSpecificActionsTable())
         mainTable.add(getGeneralActionsTable())
         return mainTable
@@ -425,6 +506,8 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun unselectGame() {
         selectedGame = null
+        selectedAuthoritativeGame = null
+        rightSideButton.setText("Join game".tr())
         rightSideButton.disable()
         for (button in gameSpecificButtons)
             button.disable()
@@ -443,6 +526,8 @@ class MultiplayerScreen : PickerScreen() {
         }
 
         selectedGame = multiplayerGame
+        selectedAuthoritativeGame = null
+        rightSideButton.setText("Join game".tr())
 
         for (button in gameSpecificButtons) button.enable()
 
@@ -472,5 +557,22 @@ class MultiplayerScreen : PickerScreen() {
         }
         
         descriptionLabel.setText(MultiplayerHelpers.buildDescriptionText(multiplayerGame))
+    }
+
+    private fun selectAuthoritativeGame(summary: ApiV3GameSummary) {
+        selectedGame = null
+        selectedAuthoritativeGame = summary
+        for (button in gameSpecificButtons) button.disable()
+        skipTurnButton.isVisible = false
+        forceResignButton.isVisible = false
+        rightSideButton.setText("Open server projection".tr())
+        if (authoritativeDirectory?.canOpen(summary) == true)
+            rightSideButton.enable()
+        else rightSideButton.disable()
+        descriptionLabel.setText(
+            "API v3 server game [${summary.gameId}]\n" +
+                "Role: [${summary.role}] - Revision: [${summary.committedRevision}]\n" +
+                "Status: [${summary.lifecycleStatus}]",
+        )
     }
 }

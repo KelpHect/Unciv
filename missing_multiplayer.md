@@ -101,6 +101,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   meaning-bound operation ID across exact retries and screen recreation, and
   never uploads or autosaves a client-created canonical game. Offline and
   explicit legacy API-v2 creation routes remain separate and tested.
+- [x] Add account-backed API-v3 game discovery and projection reopening to the
+  production multiplayer screen. The bounded directory pages server membership
+  metadata without consulting local saves, rejects duplicate games or repeated
+  cursors, routes players through the authenticated command-bus projection and
+  spectators through the public-only projection endpoint, and keeps the
+  legacy file-backed list visually and logically separate.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -153,7 +159,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   revision-zero projection into a projection-only lobby/world remain.
 - [ ] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
-  every v3 game without a local save.
+  every v3 game without a local save. Membership discovery and projection
+  reopening now work without local saves; invitation acceptance/player setup
+  UI and transition from the synchronized projection into the projection-only
+  lobby/world remain.
 - [ ] Build projection-only world rendering. The online world screen must not
   require a canonical `GameInfo`, and deleting or modifying every client cache
   must have no gameplay effect.
@@ -430,7 +439,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-parallel` passes (983 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-parallel` passes (995 JVM/server tests,
   13 intentional skips).
 - Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 20 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

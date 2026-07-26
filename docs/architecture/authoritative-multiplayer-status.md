@@ -5074,6 +5074,51 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Account-backed game discovery and projection reopening
+
+Implemented on 2026-07-26:
+
+- `AuthoritativeGameDirectory` reconstructs the authenticated account's API-v3
+  game directory entirely from bounded server membership pages. It has no
+  multiplayer-file or save dependency, rejects blank/repeated cursors,
+  duplicate game IDs, oversized pages, invalid metadata, and configured result
+  overflow instead of looping or accepting ambiguous membership state.
+- The production multiplayer screen shows API-v3 server games separately from
+  legacy saved-game previews. Refreshing either source does not convert,
+  fabricate, upload, or save a canonical `GameInfo`.
+- Opening an owner/player membership initializes the existing authenticated
+  command bus through an HTTP projection refresh. Opening a spectator
+  membership calls only the public spectator-projection endpoint.
+  Unavailable games and admin-only memberships cannot be opened as players.
+- The current screen displays synchronized projection identity, revision, turn,
+  and role. Projection-only lobby/world rendering and invitation/player-setup
+  UI remain explicit P0 gaps; this milestone does not claim a playable v3 world
+  or complete lifecycle migration.
+
+Verification on 2026-07-26:
+
+- Focused
+  `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectoryTests" --no-parallel`
+  passes all 7 tests. They cover multi-page fresh-client reconstruction,
+  repeated-cursor and duplicate-game rejection, exact player/spectator endpoint
+  routing, projection/membership identity agreement, and fail-closed
+  unavailable membership.
+- `./gradlew :tests:test :server:test --no-parallel` passes 995 JVM/server tests:
+  982 executed, 13 intentional skips, zero failures, and zero errors.
+- `./gradlew :desktop:compileKotlin --no-parallel` passes. The Android project
+  is conditionally excluded by `settings.gradle.kts` because this checkout has
+  neither `sdk.dir` nor `ANDROID_HOME`; no Android compile is claimed.
+- `git diff --check` passes. `MultiplayerScreen.kt` is 524 lines and the new
+  directory implementation is 162 lines, both within the repository's
+  proactive split guidance.
+- No compile or test failure is deferred. The failed intermediate compile/test
+  attempts exposed and corrected a coroutine receiver ambiguity, test-module
+  constructor visibility, JUnit expression return types, and fixture field
+  drift before the clean focused and broad reruns. A combined desktop/Android
+  compile command also named the absent conditional Android project; project
+  discovery confirmed the SDK-gated exclusion and the valid desktop target
+  then passed.
+
 ## Packaged-worker fresh-process parity
 
 Implemented on 2026-07-26:

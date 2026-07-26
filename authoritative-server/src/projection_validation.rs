@@ -76,6 +76,27 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn diplomacy_is_consistent(&self) -> bool {
+        self.diplomacy_partners.len() <= MAX_PROJECTED_CHOICES
+            && self
+                .diplomacy_partners
+                .windows(2)
+                .all(|pair| pair[0].civilization_id < pair[1].civilization_id)
+            && self.diplomacy_partners.iter().all(|partner| {
+                !partner.civilization_id.is_empty()
+                    && partner.civilization_id.chars().count() <= 128
+                    && partner.adopted_policy_branches.len() <= MAX_PROJECTED_CHOICES
+                    && partner
+                        .adopted_policy_branches
+                        .iter()
+                        .all(|name| !name.is_empty() && name.chars().count() <= 128)
+                    && partner
+                        .adopted_policy_branches
+                        .windows(2)
+                        .all(|pair| pair[0] < pair[1])
+            })
+    }
+
     pub fn wonder_events_are_consistent(&self) -> bool {
         self.wonder_events.len() <= MAX_PROJECTED_CHOICES
             && self.wonder_events.windows(2).all(|pair| {

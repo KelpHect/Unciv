@@ -11938,12 +11938,19 @@
         "type": "object",
         "required": [
           "civilizationId",
+          "adoptedPolicyBranches",
           "canDeclareWar",
           "canDenounce",
           "canOfferFriendship",
           "availableDemands"
         ],
         "properties": {
+          "adoptedPolicyBranches": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "availableDemands": {
             "type": "array",
             "items": {

@@ -23,6 +23,10 @@ object DiplomacyCommandExecutor {
                 .hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)
             ProjectedDiplomacyPartner(
                 civilizationId = other.civID,
+                adoptedPolicyBranches = other.policies.getAdoptedPolicies().asSequence()
+                    .filter(other.gameInfo.ruleset.policyBranches::containsKey)
+                    .sorted()
+                    .toList(),
                 canDeclareWar = relationshipsCanChange && diplomacy.canDeclareWar(),
                 canDenounce = peaceful && !diplomacy.hasFlag(DiplomacyFlags.Denunciation) &&
                     !diplomacy.hasFlag(DiplomacyFlags.DeclarationOfFriendship),

@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-22 on the authoritative-v3 feature branch. It records only incomplete work;
+2026-07-26 on the authoritative-v3 feature branch. It records only incomplete work;
 completed command families and historical milestones remain in
 `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -79,9 +79,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   picker exposes only the actions advertised by the cached projection and
   reconciles after the server commit. Ordinary versus free-tech picker mode is
   also selected from the cached authoritative projection.
-- [ ] Policies and ideology: implement ideology selection, tenets, and any
-  supported mod-defined multi-choice policy flow; project public ideology/event
-  data required by the UI.
+- [x] Policies and ideology: ideology branches, tenets, and arbitrary
+  mod-defined policy choices use the existing closed `AdoptPolicy` operation
+  and shared canonical `PolicyManager` rules. Projection v50 additionally
+  exposes each known major civilization's sorted public adopted branch names,
+  including ideology, while Rust rejects duplicate, reordered, oversized, or
+  malformed branch disclosure. The opened-v3 picker submits only names from
+  the actor's projected selectable set and never mutates policies locally.
 - [ ] Re-audit the `EndTurn` readiness list after the above work and prove that
   every blocking action has a player-scoped projection and authoritative
   resolution command. The transient move-spies reminder has been removed from

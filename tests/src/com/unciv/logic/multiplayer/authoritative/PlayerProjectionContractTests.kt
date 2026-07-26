@@ -29,6 +29,8 @@ class PlayerProjectionContractTests {
         )
         assertEquals(listOf("Greece"), projection.diplomaticVoteCandidates)
         assertEquals("Greece", projection.diplomacyPartners.single().civilizationId)
+        assertEquals(listOf("Tradition"),
+            projection.diplomacyPartners.single().adoptedPolicyBranches)
         assertEquals(listOf(DiplomaticDemand.DoNotSettleNearUs),
             projection.diplomacyPartners.single().availableDemands)
         assertEquals(DiplomacyPromptType.Friendship, projection.diplomacyPrompts.single().type)
@@ -173,6 +175,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v49.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v50.fixture.json") }
         .first { it.isFile }
 }

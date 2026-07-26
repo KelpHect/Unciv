@@ -4714,3 +4714,57 @@ Verification on 2026-07-26:
   41 lines). New HTTP and persistence logic lives in focused `api/research.rs`
   and `postgres/research.rs` modules; the largest changed Rust implementation
   remains below the 800-line guardrail.
+
+## Policy and ideology authority plus projection v50
+
+The policy inventory confirmed that Unciv models ordinary policies, policy
+branch starts, ideology starts, tenets, and mod-defined policy branches through
+the same data-driven `Policy` and `PolicyBranch` types. The existing closed
+`AdoptPolicy(policyName)` command therefore already routes every supported
+choice through the private Kotlin worker and canonical
+`PolicyManager.canAdoptPolicy`, `isAdoptable`, and `adopt` rules. Rust does not
+contain policy, ideology, prerequisite, cost, exclusion, trigger, or branch
+completion logic.
+
+Projection v50 closes the remaining public presentation gap by adding each
+known living major civilization's sorted adopted policy-branch names to its
+diplomacy projection. This includes public ideology identity without exposing
+private culture, progress, free-policy balance, unavailable choices, or
+unadopted policies. Rust rejects duplicate, reordered, oversized, empty, or
+overlong branch disclosures before serving the projection.
+
+Verification on 2026-07-26:
+
+- Focused Kotlin tests prove canonical selection of the real Freedom ideology,
+  mutual exclusion of Autocracy and Order, subsequent Constitution-tenet
+  adoption, arbitrary mod-defined branch choices without hardcoded names,
+  wrong-account rejection with an unchanged state hash, end-turn readiness
+  resolution, and known-civilization public ideology disclosure. The shared
+  Kotlin/Rust fixture moved from v49 to v50 and round-trips semantically in both
+  runtimes.
+- Focused Rust tests prove public branch lists are bounded, sorted, unique, and
+  name-bounded. Worker projection validation now fails closed on malformed
+  diplomacy/policy disclosure.
+- `./gradlew :tests:test :server:test --no-daemon` passes 961 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- `cargo test --all-targets --no-fail-fast` passes 102 active library tests and
+  all 7 HTTP/OpenAPI tests, with the 17 explicitly configured database tests
+  ignored in that non-database run. `cargo check --all-targets`,
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings`, and regenerated OpenAPI parity
+  pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  on port 55489. The disposable `--rm` container was stopped and verified
+  absent.
+- An initial focused Cargo command used two unsupported positional filters and
+  was rerun with a valid single filter. The first public-disclosure test also
+  reached a UI tutorial side effect in a headless fixture; it now constructs
+  the same bilateral diplomacy managers directly. Every affected gate was
+  rerun cleanly, and no compile, test, format, Clippy, OpenAPI, database, or
+  cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  43 lines). The new semantic test lives in the focused
+  `projection_policy_tests.rs` module; the largest Rust source remains below
+  the 800-line guardrail.

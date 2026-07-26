@@ -11,6 +11,8 @@ mod projection_combat;
 mod projection_combat_tests;
 #[cfg(test)]
 mod projection_escort_tests;
+#[cfg(test)]
+mod projection_policy_tests;
 mod projection_validation;
 mod projection_wonder_events;
 #[cfg(test)]
@@ -33,7 +35,7 @@ pub use hashing::state_hash;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 49;
+pub const PROJECTION_VERSION: u16 = 50;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

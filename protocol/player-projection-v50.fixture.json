@@ -366,6 +366,7 @@
   "diplomacyPartners": [
     {
       "civilizationId": "Greece",
+      "adoptedPolicyBranches": ["Tradition"],
       "canDeclareWar": true,
       "canDenounce": true,
       "canOfferFriendship": true,

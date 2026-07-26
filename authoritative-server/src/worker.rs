@@ -353,6 +353,7 @@ impl EngineWorkerClient {
         let projection: crate::projection::PlayerProjection =
             serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
         if !projection.research.is_consistent()
+            || !projection.diplomacy_is_consistent()
             || !projection.movement_is_consistent()
             || !projection.combat_is_consistent()
             || !projection.city_economy_is_consistent()

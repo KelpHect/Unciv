@@ -24,6 +24,7 @@ import com.unciv.ui.images.IconTextButton
 import com.unciv.ui.popups.AnimatedMenuPopup.Companion.addContextMenu
 import com.unciv.ui.popups.UnitUpgradeMenu
 import com.unciv.ui.screens.worldscreen.WorldScreen
+import org.jetbrains.annotations.VisibleForTesting
 import yairm210.purity.annotations.Readonly
 
 class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
@@ -49,6 +50,29 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         private const val maxSinglePageButtons = 5
         /** Padding between and to the left of the Buttons */
         private const val padBetweenButtons = 2f
+
+        private val authoritativeOpaqueActionTypes = setOf(
+            UnitActionType.CreateImprovement,
+            UnitActionType.Transform,
+            UnitActionType.TriggerUnique,
+        )
+
+        /**
+         * Returns true for every opened-v3 opaque action, including an action
+         * that cannot map to its cached projection. That fail-closed result is
+         * what prevents the caller from invoking the legacy local callback.
+         */
+        @VisibleForTesting
+        fun routeAuthoritativeOpaqueUnitAction(
+            type: UnitActionType,
+            usesAuthoritativeCommands: Boolean,
+            actionIdFor: (UnitActionType) -> String?,
+            submit: (UnitActionType, String) -> Unit,
+        ): Boolean {
+            if (!usesAuthoritativeCommands || type !in authoritativeOpaqueActionTypes) return false
+            actionIdFor(type)?.let { submit(type, it) }
+            return true
+        }
     }
 
     init {
@@ -221,20 +245,33 @@ class UnitActionsTable(val worldScreen: WorldScreen) : Table() {
         if (unitAction.type == UnitActionType.GiftUnit && worldScreen.mapHolder.giftUnit(unit)) return
         if (unitAction.type == UnitActionType.AddInCapital &&
             worldScreen.mapHolder.addUnitToCapitalProject(unit)) return
-        if (unitAction.type == UnitActionType.CreateImprovement &&
-            worldScreen.mapHolder.usesAuthoritativeCommands()) {
-            val actionId = InstantImprovementCommandExecutor.actionIdFor(unit, unitAction)
-            if (actionId != null) worldScreen.mapHolder.createInstantImprovement(unit, actionId)
-            return
-        }
-        if (unitAction.type == UnitActionType.Transform) {
-            val actionId = UnitTransformCommandExecutor.actionIdFor(unit, unitAction)
-            if (actionId != null && worldScreen.mapHolder.transformUnit(unit, actionId)) return
-        }
-        if (unitAction.type == UnitActionType.TriggerUnique) {
-            val actionId = UnitTriggerCommandExecutor.actionIdFor(unit, unitAction)
-            if (actionId != null && worldScreen.mapHolder.triggerUnitUnique(unit, actionId)) return
-        }
+        if (routeAuthoritativeOpaqueUnitAction(
+                unitAction.type,
+                worldScreen.mapHolder.usesAuthoritativeCommands(),
+                actionIdFor = { type ->
+                    when (type) {
+                        UnitActionType.CreateImprovement ->
+                            InstantImprovementCommandExecutor.actionIdFor(unit, unitAction)
+                        UnitActionType.Transform ->
+                            UnitTransformCommandExecutor.actionIdFor(unit, unitAction)
+                        UnitActionType.TriggerUnique ->
+                            UnitTriggerCommandExecutor.actionIdFor(unit, unitAction)
+                        else -> error("Unsupported authoritative opaque unit action")
+                    }
+                },
+                submit = { type, actionId ->
+                    when (type) {
+                        UnitActionType.CreateImprovement ->
+                            worldScreen.mapHolder.createInstantImprovement(unit, actionId)
+                        UnitActionType.Transform ->
+                            worldScreen.mapHolder.transformUnit(unit, actionId)
+                        UnitActionType.TriggerUnique ->
+                            worldScreen.mapHolder.triggerUnitUnique(unit, actionId)
+                        else -> error("Unsupported authoritative opaque unit action")
+                    }
+                },
+            )
+        ) return
         unitAction.action!!.invoke()
         worldScreen.shouldUpdate = true
         // We keep the unit action/selection overlay from the previous unit open even when already selecting another unit

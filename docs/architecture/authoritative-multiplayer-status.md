@@ -4976,3 +4976,46 @@ Verification on 2026-07-26:
   47 lines). New HTTP, persistence, and worker logic is split into descriptive
   focused modules; the largest Rust sources are 787 lines, below the 800-line
   guardrail.
+
+## Fail-closed opaque unit-action routing audit
+
+The source-level mutation audit found that opened-v3 transformation and generic
+trigger buttons differed from instant improvements in one critical failure
+case. If the selected local action could not map to an opaque identity in the
+cached player projection, both paths fell through to `UnitAction.action` and
+could execute their legacy local mutation callback. The server handlers were
+authoritative, but the client-side routing failure itself was not fail closed.
+
+`UnitActionsTable` now routes instant improvements, transformations, and generic
+triggered uniques through one bounded opaque-action router. For an explicitly
+opened v3 game the router always consumes those action types. It submits only a
+successfully mapped opaque identity; a missing mapping performs no command and
+returns without invoking the legacy callback. Non-v3 games and unrelated unit
+actions still use their existing local behavior. This is a routing hardening
+milestone and does not mark the broader world/city/unit/UI mutation audit
+complete.
+
+Verification on 2026-07-26:
+
+- Three focused routing tests prove all three opaque action types fail closed
+  on a missing identity, a mapped transformation submits exactly its opaque
+  identity, and legacy/unrelated actions retain their local route.
+- `./gradlew :tests:test :server:test --no-daemon` passes 979 JVM/server tests
+  with 13 intentional skips and zero failures or errors.
+- Rust remains unchanged and passes 111 active library tests plus all 8
+  HTTP/OpenAPI tests. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and regenerated
+  OpenAPI parity pass.
+- All 17 serialized PostgreSQL integration and controlled replica-fault tests
+  pass in 6.61 seconds against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The fresh disposable container was forcibly removed by the test harness.
+- The first focused compile overlapped the companion-object edit and observed
+  the temporary duplicate declaration; the rerun then exposed JUnit-version
+  and cross-module test-visibility mistakes. Both were corrected immediately,
+  and every focused and broad gate was rerun cleanly. Two initially underspecified
+  Cargo commands were also replaced by explicit binary-target invocations. No
+  compile, test, format, Clippy, OpenAPI, database, or cleanup error remains
+  deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines), and the largest Rust source remains 787 lines.

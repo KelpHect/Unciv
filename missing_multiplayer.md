@@ -130,6 +130,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   improvement, tile, resource and movement legality, unit consumption, and
   unique side effects through the shared Kotlin callback. Opened-v3 mapping
   failures return without invoking the local mutation path.
+- [x] Harden all opaque unit-action button routing. Instant improvements,
+  transformations, and generic triggered uniques now share one opened-v3
+  fail-closed router: an unavailable cached projection identity suppresses the
+  command and can never fall through to the legacy local mutation callback.
+  Focused tests preserve the local route for non-v3 and unrelated actions.
 - [x] Complete all inventoried authoritative city-production context operations for
   opened-v3 projection (move-to-top/end, add-to-top, add-to-all-cities,
   add-or-move-to-top-in-all-cities, and remove-from-all-cities) through a
@@ -341,7 +346,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :tests:test :server:test --no-daemon` passes (976 JVM/server tests,
+- `./gradlew :tests:test :server:test --no-daemon` passes (979 JVM/server tests,
   13 intentional skips).
 - Rust passes 111 active library tests and 8 HTTP/OpenAPI tests; 17 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.

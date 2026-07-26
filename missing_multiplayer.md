@@ -97,18 +97,22 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   supplies the secret map seed. The authenticated session resolves the exact
   manifest, creates revision zero, fetches its projection, and opens the
   command bus.
-- [ ] Make game creation retry-safe with a caller-stable creation operation ID
+- [x] Make game creation retry-safe with a caller-stable creation operation ID
   bound durably to the authenticated account and exact manifest/setup meaning.
-  A lost create response must return the original game rather than create a
-  second canonical game, and changed reuse must fail closed.
+  PostgreSQL serializes duplicate attempts with a transaction-scoped advisory
+  lock and atomically records the operation with revision zero. A lost create
+  response returns the original game without invoking the worker again;
+  changed-account or changed-meaning reuse fails closed, and a failed attempt
+  rolls back completely so the same operation can be retried.
 - [ ] Make v3 the complete production game lifecycle, not an explicitly opened
   opt-in path. New online games must be created by the v3 server and must never
   be created locally and uploaded.
 - [ ] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero projection. The
-  bounded DTO, manifest resolver, and session creation/opening lifecycle are
-  implemented; production screen routing is not.
+  bounded DTO, manifest resolver, durable creation idempotency, and session
+  creation/opening lifecycle are implemented; the production screen must retain
+  one operation ID across retries and route through that lifecycle.
 - [ ] Migrate game discovery, join, civilization assignment, and open-game UI
   to account membership and server projections. A fresh device must reconstruct
   every v3 game without a local save.
@@ -376,13 +380,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   being deferred from the current milestone.
 - `./gradlew :tests:test :server:test --no-parallel` passes (983 JVM/server tests,
   13 intentional skips).
-- Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 18 serialized
+- Rust passes 112 active library tests and 10 HTTP/OpenAPI tests; 20 serialized
   PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta 2 digest.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
 - `main.rs` is 6 lines, `lib.rs` is a 47-line facade, and the largest Rust source
-  is 788 lines. New work must split by concern before crossing the 800-line
+  is 789 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

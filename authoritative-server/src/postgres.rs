@@ -147,6 +147,7 @@ mod construction_queues;
 mod diplomacy;
 mod espionage;
 mod event_choices;
+mod game_creation;
 mod games;
 mod great_people;
 mod instant_improvements;
@@ -264,18 +265,27 @@ impl PostgresGameRepository {
     /// content-addressed ruleset manifest and account; the public API will do
     /// that through authenticated setup rather than accepting a save upload.
     pub async fn create_game(&self, game: NewGame) -> Result<(), CommitError> {
-        let stored = stored_snapshot(&game.snapshot)?;
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
+        self.create_game_in_transaction(&mut tx, game).await?;
+        tx.commit().await.map_err(CommitError::storage)
+    }
+
+    pub(super) async fn create_game_in_transaction(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        game: NewGame,
+    ) -> Result<(), CommitError> {
+        let stored = stored_snapshot(&game.snapshot)?;
         let engine_build: String =
             sqlx::query_scalar("SELECT engine_build FROM ruleset_manifests WHERE hash = $1")
                 .bind(&game.ruleset_manifest_hash)
-                .fetch_one(&mut *tx)
+                .fetch_one(&mut **tx)
                 .await
                 .map_err(CommitError::storage)?;
         sqlx::query("INSERT INTO games (id, ruleset_manifest_hash) VALUES ($1, $2)")
             .bind(game.game_id)
             .bind(&game.ruleset_manifest_hash)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await
             .map_err(CommitError::storage)?;
         sqlx::query(
@@ -284,7 +294,7 @@ impl PostgresGameRepository {
         .bind(game.game_id)
         .bind(game.owner_account_id)
         .bind(game.owner_civilization_id)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
@@ -299,7 +309,7 @@ impl PostgresGameRepository {
         .bind(&stored.canonical_state_hash)
         .bind(&stored.payload_hash)
         .bind(&stored.payload)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
         .map_err(CommitError::storage)?;
         sqlx::query(
@@ -307,10 +317,10 @@ impl PostgresGameRepository {
         )
         .bind(game.game_id)
         .bind(&stored.canonical_state_hash)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
         .map_err(CommitError::storage)?;
-        tx.commit().await.map_err(CommitError::storage)
+        Ok(())
     }
 
     /// Commits only a server-worker result. `FOR UPDATE` makes the database

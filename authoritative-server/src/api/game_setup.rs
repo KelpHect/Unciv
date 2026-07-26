@@ -36,7 +36,7 @@ pub(super) struct CreateGameSetupRequest {
 }
 
 impl CreateGameSetupRequest {
-    pub(super) fn validate(self) -> Result<WorkerGameSetup, ApiError> {
+    pub(super) fn validate(mut self) -> Result<WorkerGameSetup, ApiError> {
         let names_are_bounded = [&self.difficulty, &self.speed, &self.starting_era]
             .into_iter()
             .all(|name| bounded_name(name));
@@ -60,6 +60,7 @@ impl CreateGameSetupRequest {
         {
             return Err(ApiError::bad_request("invalid_game_setup"));
         }
+        self.victory_types.sort();
         Ok(WorkerGameSetup {
             difficulty: self.difficulty,
             speed: self.speed,

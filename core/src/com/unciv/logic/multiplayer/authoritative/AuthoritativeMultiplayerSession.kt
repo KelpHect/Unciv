@@ -126,10 +126,15 @@ class AuthoritativeMultiplayerSession(
         baseRulesetName: String,
         modNames: Set<String>,
         setup: ApiV3GameSetup,
+        operationId: String,
     ): AuthoritativeGameCreation {
         requireAuthenticated()
+        val parsedOperationId = runCatching { UUID.fromString(operationId) }.getOrNull()
+        require(parsedOperationId != null && parsedOperationId != UUID(0, 0)) {
+            "Creation operation ID must be a non-zero UUID"
+        }
         val manifest = RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
-        val metadata = transport.createGame(manifest.manifestHash, setup)
+        val metadata = transport.createGame(operationId, manifest.manifestHash, setup)
         check(metadata.committedRevision == 0L) {
             "A newly created API v3 game did not return revision zero"
         }

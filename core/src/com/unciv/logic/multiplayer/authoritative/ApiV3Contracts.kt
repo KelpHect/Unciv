@@ -41,6 +41,7 @@ data class ApiV3ConfirmPasswordRequest(val password: String)
 
 @Serializable
 data class ApiV3CreateGameRequest(
+    @SerialName("operation_id") val operationId: String,
     @SerialName("ruleset_manifest_hash") val rulesetManifestHash: String,
     val setup: ApiV3GameSetup,
 )

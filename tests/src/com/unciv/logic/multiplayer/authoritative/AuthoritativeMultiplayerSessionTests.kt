@@ -157,17 +157,34 @@ class AuthoritativeMultiplayerSessionTests {
         val session = session(transport)
         val setup = gameSetup()
         assertThrows<IllegalStateException> {
-            session.createAuthoritativeGame("Civ V - Vanilla", emptySet(), setup)
+            session.createAuthoritativeGame(
+                "Civ V - Vanilla",
+                emptySet(),
+                setup,
+                CREATION_ID,
+            )
         }
         session.restore()
+        assertThrows<IllegalArgumentException> {
+            session.createAuthoritativeGame(
+                "Civ V - Vanilla",
+                emptySet(),
+                setup,
+                "00000000-0000-0000-0000-000000000000",
+            )
+        }
 
         val created = session.createAuthoritativeGame(
             "Civ V - Vanilla",
             emptySet(),
             setup,
+            CREATION_ID,
         )
 
-        assertEquals(listOf("a".repeat(64) to setup), transport.createdGames)
+        assertEquals(
+            listOf(Triple(CREATION_ID, "a".repeat(64), setup)),
+            transport.createdGames,
+        )
         assertEquals(0, created.metadata.committedRevision)
         assertTrue(session.isGameOpen(created.metadata.gameId))
         assertEquals(
@@ -1430,7 +1447,7 @@ class AuthoritativeMultiplayerSessionTests {
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val manifestListCalls = mutableListOf<String?>()
         val manifestPages = mutableMapOf<String?, ApiV3RulesetManifestPage>()
-        val createdGames = mutableListOf<Pair<String, ApiV3GameSetup>>()
+        val createdGames = mutableListOf<Triple<String, String, ApiV3GameSetup>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
@@ -1487,10 +1504,11 @@ class AuthoritativeMultiplayerSessionTests {
             playerInvitationRequests += Triple(gameId, request.invitationId, request.username)
         }
         override suspend fun createGame(
+            operationId: String,
             rulesetManifestHash: String,
             setup: ApiV3GameSetup,
         ): ApiV3GameMetadata {
-            createdGames += rulesetManifestHash to setup
+            createdGames += Triple(operationId, rulesetManifestHash, setup)
             return ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
         }
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted {
@@ -2360,6 +2378,7 @@ class AuthoritativeMultiplayerSessionTests {
     companion object {
         private const val GAME_ID = "00000000-0000-0000-0000-000000000001"
         private const val NEXT_GAME_ID = "00000000-0000-0000-0000-000000000002"
+        private const val CREATION_ID = "00000000-0000-0000-0000-000000000003"
 
         private fun gameSetup() = ApiV3GameSetup(
             difficulty = "Prince",

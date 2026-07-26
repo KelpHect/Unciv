@@ -1,61 +1,6 @@
 use super::*;
-use rand_core::{OsRng, RngCore};
 
 impl PostgresGameRepository {
-    /// Creates a new canonical game exclusively through the private Kotlin
-    /// worker. The caller supplies a previously stored manifest hash; it cannot
-    /// upload a revision-zero save or choose an unpinned ruleset payload.
-    pub async fn create_authoritative_game(
-        &self,
-        worker: &EngineWorkerClient,
-        owner_account_id: Uuid,
-        game_id: Uuid,
-        ruleset_manifest_hash: String,
-        setup: crate::worker::WorkerGameSetup,
-    ) -> Result<(), CommitError> {
-        let manifest: serde_json::Value =
-            sqlx::query_scalar("SELECT manifest FROM ruleset_manifests WHERE hash = $1")
-                .bind(&ruleset_manifest_hash)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(CommitError::storage)?
-                .ok_or(CommitError::NotFound)?;
-        let manifest: WorkerManifest =
-            serde_json::from_value(manifest).map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        // Keep the seed independent from the public game UUID so a client
-        // cannot reproduce hidden map generation. OS entropy failure aborts
-        // creation before any canonical row is written.
-        let mut seed_bytes = [0_u8; 8];
-        OsRng
-            .try_fill_bytes(&mut seed_bytes)
-            .map_err(|_| CommitError::Storage)?;
-        let server_seed = i64::from_be_bytes(seed_bytes);
-        let created = worker
-            .create_game(
-                &owner_account_id.to_string(),
-                &manifest,
-                server_seed,
-                &setup,
-            )
-            .await
-            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
-        let proposal = created.proposal;
-        if proposal.snapshot.is_empty() || proposal.snapshot.len() > MAX_SNAPSHOT_BYTES {
-            return Err(CommitError::SnapshotTooLarge);
-        }
-        if state_hash(&proposal.snapshot) != proposal.canonical_state_hash {
-            return Err(CommitError::InvalidSnapshotHash);
-        }
-        self.create_game(NewGame {
-            game_id,
-            owner_account_id,
-            ruleset_manifest_hash,
-            snapshot: proposal.snapshot,
-            owner_civilization_id: created.owner_civilization_id,
-        })
-        .await
-    }
-
     /// Returns a safe metadata projection. It deliberately excludes the
     /// canonical snapshot: callers must later use a player-scoped projection
     /// endpoint rather than receiving serialized `GameInfo`.

@@ -5116,7 +5116,7 @@ Verification on 2026-07-26:
 - All 18 serialized PostgreSQL integration and controlled replica-fault tests
   pass in 6.84 seconds against only
   `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
-  The fresh disposable container was removed and verified absent.
+The fresh disposable container was removed and verified absent.
 - The expected first HTTP run exposed stale checked-in OpenAPI. The first
   regeneration command omitted the required binary selector in a multi-binary
   crate; the corrected explicit command regenerated the schema and all 10
@@ -5124,6 +5124,49 @@ Verification on 2026-07-26:
   813 lines after adding the wire fixture; that test moved into the focused
   `worker/game_setup.rs` module before final verification. No compile, test,
   format, Clippy, OpenAPI, database, or cleanup error remains deferred.
+- Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
+  47 lines). The largest Rust source is 789 lines, below the 800-line
+  guardrail.
+
+## Retry-idempotent revision-zero creation
+
+Implemented on 2026-07-26:
+
+- Every API-v3 create request now carries a nonzero caller-stable operation
+  UUID. The Kotlin transport and authenticated session require callers to
+  retain it rather than silently generating a different identity on each
+  attempt.
+- PostgreSQL durably binds that UUID to the authenticated account and the
+  canonical manifest/setup request. A transaction-scoped advisory lock
+  serializes concurrent duplicates across Rust replicas. Exact retries return
+  the original game without invoking the Kotlin worker again; changed-account
+  or changed-request reuse fails closed.
+- Worker execution, revision-zero persistence, owner membership, and the
+  creation-operation record share one transaction. Worker or validation
+  failure leaves no game and no idempotency record, so the same operation can
+  safely retry. Victory identifiers are sorted before binding so equivalent
+  ordering has one canonical meaning.
+
+Verification on 2026-07-26:
+
+- `./gradlew :tests:test :server:test --no-parallel` passes 983 JVM/server tests
+  with 13 intentional skips.
+- Rust passes 112 active library tests and all 10 HTTP/OpenAPI tests.
+  `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets -- -D warnings` pass.
+- All 20 serialized PostgreSQL integration tests pass in 6.94 seconds against
+  only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The new tests race duplicate requests through a one-shot worker, prove one
+  game and one worker invocation, reject actor/request rebinding, prove failed
+  creation leaves no rows, and retry the same operation successfully. The
+  disposable container was removed.
+- The first compile after extracting the transactional insertion helper exposed
+  the additional dereference required for a borrowed SQLx transaction; it was
+  corrected before the clean rerun. The request schema change also made the
+  checked-in OpenAPI intentionally stale; explicit regeneration restored parity
+  and all HTTP tests passed. No compile, test, formatting, Clippy, OpenAPI,
+  database, or cleanup error remains deferred.
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). The largest Rust source is 789 lines, below the 800-line
   guardrail.

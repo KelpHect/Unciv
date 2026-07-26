@@ -5,6 +5,8 @@ use crate::{GameCommand, state_hash};
 
 #[path = "administration_integration_tests.rs"]
 mod administration;
+#[path = "game_creation_integration_tests.rs"]
+mod game_creation;
 #[path = "invitation_integration_tests.rs"]
 mod invitations;
 #[path = "manifest_integration_tests.rs"]

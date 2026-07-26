@@ -2115,6 +2115,7 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun listPlayerInvitations() = emptyList<ApiV3PlayerInvitation>()
         override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) = Unit
         override suspend fun createGame(
+            operationId: String,
             rulesetManifestHash: String,
             setup: ApiV3GameSetup,
         ) =

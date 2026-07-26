@@ -20,6 +20,7 @@ interface ApiV3Transport {
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
     suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)
     suspend fun createGame(
+        operationId: String,
         rulesetManifestHash: String,
         setup: ApiV3GameSetup,
     ): ApiV3GameMetadata

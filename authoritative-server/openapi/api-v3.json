@@ -10491,10 +10491,15 @@
       "CreateGameRequest": {
         "type": "object",
         "required": [
+          "operation_id",
           "ruleset_manifest_hash",
           "setup"
         ],
         "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
           "ruleset_manifest_hash": {
             "type": "string"
           },

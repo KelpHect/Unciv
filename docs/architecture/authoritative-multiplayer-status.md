@@ -7247,6 +7247,34 @@ Focused verification on 2026-07-27:
   packaging. The existing SDK XML-version mismatch warning remains
   non-failing; no test or build error is deferred.
 
+## Packaged-worker capital-project parity
+
+Implemented on 2026-07-27:
+
+- Added a deterministic Vanilla scenario that creates a capital and places a
+  shipped spaceship-part unit on its center tile.
+- The private projection advertises the server-derived `The Spaceship` capital
+  project only while the unit is in its own capital. The worker revalidates
+  that placement, consumes the unit, and increments the canonical spaceship
+  part inventory exactly once.
+- All three complete responses and state hashes are byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 79 of 84
+  classified operations; five remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCapitalProjectParityTests
+  --no-parallel --console=plain` passes the registry and capital-project
+  scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,141 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging. The existing SDK XML-version mismatch warning remains
+  non-failing; no test or build error is deferred.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

@@ -78,6 +78,14 @@ impl PostgresGameRepository {
                      ELSE 'game.revision.recovered'
                    END
                )
+               AND NOT EXISTS (
+                 SELECT 1 FROM game_outbox_receipts receipt
+                 WHERE receipt.game_id=r.game_id AND receipt.revision=r.revision
+                   AND receipt.topic=CASE r.revision_kind
+                     WHEN 'command' THEN 'game.revision.committed'
+                     ELSE 'game.revision.recovered'
+                   END
+               )
              ON CONFLICT DO NOTHING
              RETURNING revision",
         )

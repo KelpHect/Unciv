@@ -165,17 +165,30 @@ impl PostgresGameRepository {
             SELECT 'missing_commit_outbox', r.game_id, r.revision, 'revision does not have exactly one commit outbox event'
             FROM game_revisions r
             WHERE r.revision>0 AND (
-                (r.revision_kind='command' AND (SELECT count(*) FROM game_outbox o
-                  WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.committed')<>1)
+                (r.revision_kind='command' AND (
+                  (SELECT count(*) FROM game_outbox o
+                   WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.committed')
+                  +(SELECT count(*) FROM game_outbox_receipts receipt
+                    WHERE receipt.game_id=r.game_id AND receipt.revision=r.revision AND receipt.topic='game.revision.committed')
+                )<>1)
                 OR
-                (r.revision_kind='recovery' AND (SELECT count(*) FROM game_outbox o
-                  WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.recovered')<>1)
+                (r.revision_kind='recovery' AND (
+                  (SELECT count(*) FROM game_outbox o
+                   WHERE o.game_id=r.game_id AND o.revision=r.revision AND o.topic='game.revision.recovered')
+                  +(SELECT count(*) FROM game_outbox_receipts receipt
+                    WHERE receipt.game_id=r.game_id AND receipt.revision=r.revision AND receipt.topic='game.revision.recovered')
+                )<>1)
             )
             UNION ALL
             SELECT 'orphan_commit_outbox', o.game_id, o.revision, 'commit outbox event has no matching revision'
             FROM game_outbox o LEFT JOIN game_revisions r
               ON r.game_id=o.game_id AND r.revision=o.revision
             WHERE o.topic IN ('game.revision.committed','game.revision.recovered') AND r.game_id IS NULL
+            UNION ALL
+            SELECT 'orphan_commit_outbox', receipt.game_id, receipt.revision, 'compacted commit outbox receipt has no matching revision'
+            FROM game_outbox_receipts receipt LEFT JOIN game_revisions r
+              ON r.game_id=receipt.game_id AND r.revision=receipt.revision
+            WHERE receipt.topic IN ('game.revision.committed','game.revision.recovered') AND r.game_id IS NULL
             UNION ALL
             SELECT 'duplicate_civilization_membership', gm.game_id, NULL::bigint, 'civilization is assigned to multiple player memberships'
             FROM game_members gm

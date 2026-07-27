@@ -6816,6 +6816,56 @@ Verification on 2026-07-27:
   both generated parity tests and the complete gate then passed. No contract,
   packaging, compile, test, format, or Clippy error is deferred.
 
+## Bounded outbox poison handling, retention, and operator repair
+
+Implemented on 2026-07-27:
+
+- Migration `0021_outbox_operations.sql` adds consistent dead-letter state,
+  excludes poison rows from ordinary claims, and introduces minimal immutable
+  delivery receipts plus append-only operator audit records. Release
+  compatibility now requires the complete ordered migration set through 21.
+- Runtime maximum attempts default to 12 and are bounded to 3-100; the lag
+  threshold defaults to 60 seconds and is bounded to 10-86,400 seconds.
+  Invalid or non-Unicode environment values fail startup. Failed delivery uses
+  the existing bounded delay until the configured attempt atomically
+  dead-letters the row with a fixed redacted reason.
+- Every replica checks health at a bounded 30-second interval. Any dead-letter
+  row or oldest pending event beyond the configured threshold emits a redacted
+  alert containing only aggregate counts, ages, and maximum attempts.
+  `unciv-v3-outbox status` exposes the same JSON and exits two while alerting.
+- `unciv-v3-outbox requeue` and `compact` are dry-run-first. Requeue changes
+  only exact still-dead rows, resets delivery state, and audits in one
+  transaction. Compaction selects at most 10,000 old delivered rows with
+  `SKIP LOCKED`, creates compact receipts, deletes only receipted rows, and
+  audits atomically.
+- Receipts preserve outbox ID, game/revision/topic identity, timestamps, and
+  attempt count but no payload, claim token, or error. Reconciliation counts
+  active events plus receipts and detects orphan receipts; repair will not
+  recreate a compacted event. Canonical revisions, snapshots, commands,
+  membership, and projections are never changed by this workflow.
+- `docs/operations/authoritative-outbox-operations.md` records runtime bounds,
+  alert semantics, exit codes, incident review, exact commands, compaction
+  invariants, and backup/restore requirements.
+
+Verification on 2026-07-27:
+
+- A fresh exact-digest PostgreSQL 19 Beta 2 scenario forced three failures,
+  proved the third attempt dead-lettered and left the claim index, observed the
+  health alert, previewed/applied audited requeue, delivered the reset row,
+  previewed/applied receipt compaction, and proved reconciliation stayed at
+  zero findings before and after compaction.
+- The complete serialized PostgreSQL lane passes all 28 integration tests on a
+  separate fresh exact-digest Beta 2 database, including recovery, repair,
+  reconciliation, retention, failover, worker-death, and multi-replica paths.
+- The complete Rust gate passes 168 active library tests with the 28 explicit
+  PostgreSQL tests ignored outside their live lane, all 25 server
+  HTTP/OpenAPI/AsyncAPI/runtime tests, and the `unciv-v3-outbox` binary target.
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` pass.
+- Both disposable PostgreSQL containers were removed. No database, compile,
+  test, format, Clippy, diff, or cleanup error remains deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

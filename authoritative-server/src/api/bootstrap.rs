@@ -90,7 +90,10 @@ pub(crate) async fn run() {
         websocket_policy.global_connection_limit,
         websocket_policy.account_connection_limit,
     );
-    start_notification_runtime(repository.clone(), notifications.clone())
+    let outbox_policy =
+        unciv_authoritative_server::postgres::OutboxRuntimePolicy::from_environment()
+            .expect("authoritative outbox runtime policy must be valid");
+    start_notification_runtime(repository.clone(), notifications.clone(), outbox_policy)
         .await
         .expect("authoritative shared notification runtime failed to start");
     let http_security = HttpSecurityConfig::from_environment()

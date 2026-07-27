@@ -63,6 +63,9 @@ See `authoritative-snapshot-retention.md` for the dry-run-first snapshot
 payload compaction workflow. Run reconciliation after every applied batch.
 See `authoritative-reconciliation-repair.md` for the reviewed, dry-run-first
 response to every finding and the narrow deterministic outbox repair.
+See `authoritative-outbox-operations.md` for poison-event dead-lettering,
+backlog/lag alerts, audited requeue, and delivered-row compaction into immutable
+receipts.
 
 Set `UNCIV_V3_DATABASE_URL` outside source control before running it. Exit code
 `0` means no findings, `2` means the JSON report contains findings, and `1`

@@ -6,7 +6,9 @@ use sqlx::postgres::PgListener;
 use super::{NotificationHub, RevisionNotification};
 use crate::{
     PROTOCOL_VERSION,
-    postgres::{ClaimedOutboxEvent, PostgresGameRepository},
+    postgres::{
+        ClaimedOutboxEvent, OutboxRetryDisposition, OutboxRuntimePolicy, PostgresGameRepository,
+    },
 };
 
 const SHARED_NOTIFICATION_SCHEMA_VERSION: u16 = 1;
@@ -26,12 +28,14 @@ struct SharedNotification {
 pub async fn start_notification_runtime(
     repository: PostgresGameRepository,
     hub: NotificationHub,
+    policy: OutboxRuntimePolicy,
 ) -> Result<(), sqlx::Error> {
     // LISTEN must be active before a dispatcher can claim and publish. This
     // makes startup ordering explicit for the first local replica.
     let listener = repository.shared_notification_listener().await?;
     tokio::spawn(run_shared_listener(repository.clone(), hub, listener));
-    tokio::spawn(run_outbox_dispatcher(repository));
+    tokio::spawn(run_outbox_dispatcher(repository.clone(), policy));
+    tokio::spawn(run_outbox_monitor(repository, policy));
     Ok(())
 }
 
@@ -70,7 +74,7 @@ pub(crate) async fn run_shared_listener(
     }
 }
 
-async fn run_outbox_dispatcher(repository: PostgresGameRepository) {
+async fn run_outbox_dispatcher(repository: PostgresGameRepository, policy: OutboxRuntimePolicy) {
     loop {
         let events = match repository.claim_outbox_batch(100).await {
             Ok(events) => events,
@@ -85,12 +89,16 @@ async fn run_outbox_dispatcher(repository: PostgresGameRepository) {
             continue;
         }
         for event in events {
-            deliver_outbox_event(&repository, event).await;
+            deliver_outbox_event(&repository, event, policy).await;
         }
     }
 }
 
-async fn deliver_outbox_event(repository: &PostgresGameRepository, event: ClaimedOutboxEvent) {
+async fn deliver_outbox_event(
+    repository: &PostgresGameRepository,
+    event: ClaimedOutboxEvent,
+    policy: OutboxRuntimePolicy,
+) {
     let payload_state_hash = event
         .payload
         .get("state_hash")
@@ -129,7 +137,7 @@ async fn deliver_outbox_event(repository: &PostgresGameRepository, event: Claime
                 .await
                 .is_err()
             {
-                retry_outbox(repository, &event).await;
+                retry_outbox(repository, &event, policy).await;
                 return;
             }
             if let Err(error) = repository
@@ -140,19 +148,52 @@ async fn deliver_outbox_event(repository: &PostgresGameRepository, event: Claime
                 eprintln!("authoritative outbox acknowledgement failed: {error}");
             }
         }
-        Err(()) => retry_outbox(repository, &event).await,
+        Err(()) => retry_outbox(repository, &event, policy).await,
     }
 }
 
-async fn retry_outbox(repository: &PostgresGameRepository, event: &ClaimedOutboxEvent) {
+async fn retry_outbox(
+    repository: &PostgresGameRepository,
+    event: &ClaimedOutboxEvent,
+    policy: OutboxRuntimePolicy,
+) {
     eprintln!("authoritative outbox delivery failed");
-    let _ = repository
-        .retry_outbox(
-            event.id,
-            event.claim_token,
-            "shared notification delivery failed",
-        )
-        .await;
+    if matches!(
+        repository
+            .retry_outbox(
+                event.id,
+                event.claim_token,
+                "shared notification delivery failed",
+                policy.max_delivery_attempts,
+            )
+            .await,
+        Ok(OutboxRetryDisposition::DeadLettered)
+    ) {
+        eprintln!(
+            "authoritative outbox event dead-lettered after bounded retries: id={}",
+            event.id
+        );
+    }
+}
+
+async fn run_outbox_monitor(repository: PostgresGameRepository, policy: OutboxRuntimePolicy) {
+    let mut interval = tokio::time::interval(Duration::from_secs(30));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        interval.tick().await;
+        match repository.outbox_health(policy.lag_alert_after).await {
+            Ok(report) if report.alert => eprintln!(
+                "authoritative outbox alert: pending={}, dead_letter={}, oldest_pending_seconds={}, oldest_dead_letter_seconds={}, maximum_attempts={}",
+                report.pending_events,
+                report.dead_letter_events,
+                report.oldest_pending_age_seconds,
+                report.oldest_dead_letter_age_seconds,
+                report.maximum_attempt_count,
+            ),
+            Ok(_) => {}
+            Err(_) => eprintln!("authoritative outbox health query failed"),
+        }
+    }
 }
 
 fn encode_shared_notification(notification: RevisionNotification) -> Result<String, ()> {

@@ -688,8 +688,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   HTTP-only reconciliation; duplicate/reordered unit tests remain. Fleet-wide
   admission, reconnect jitter, and sustained loss/load qualification keep this
   broader item open.
-- [ ] Add outbox retention, poison-event handling, lag alerts, and operational
+- [x] Add outbox retention, poison-event handling, lag alerts, and operational
   repair tooling without allowing notifications to become authoritative.
+  Delivery retries are startup-validated and bounded before atomic
+  dead-lettering; dead rows leave the claim index and trigger redacted runtime
+  and CLI health alerts. `unciv-v3-outbox` provides JSON status plus
+  dry-run-first audited requeue and bounded delivered-row compaction. Compaction
+  atomically replaces full rows with immutable minimal receipts, and
+  reconciliation/repair count receipts without recreating hints or touching
+  canonical state.
 - [x] Publish a full WebSocket/AsyncAPI lifecycle contract. The generated
   AsyncAPI 3.1 document is served at `/api/v3/asyncapi.json`, checked in as
   `authoritative-server/openapi/notifications-v3.json`, and included as a
@@ -784,7 +791,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
   --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
   skips), and `:android:lint` passes.
-- Rust passes 167 active library tests and 25 HTTP/OpenAPI/AsyncAPI/runtime tests; all 27
+- Rust passes 168 active library tests and 25 HTTP/OpenAPI/AsyncAPI/runtime tests; all 28
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
   lanes also pass.

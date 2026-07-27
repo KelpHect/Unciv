@@ -11,6 +11,8 @@ mod game_creation;
 mod invitations;
 #[path = "manifest_integration_tests.rs"]
 mod manifests;
+#[path = "outbox_operations_integration_tests.rs"]
+mod outbox_operations;
 #[path = "reconciliation_integration_tests.rs"]
 mod reconciliation;
 #[path = "recovery_integration_tests.rs"]

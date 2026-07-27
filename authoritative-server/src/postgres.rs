@@ -177,6 +177,10 @@ mod unit_transforms;
 mod unit_triggers;
 
 pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
+pub use outbox::{
+    OutboxCompactionReport, OutboxHealthReport, OutboxRequeueReport, OutboxRetryDisposition,
+    OutboxRuntimePolicy,
+};
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 pub use recovery::RecoveredHead;
 pub use security::{SecurityAuditEvent, SecurityAuditOutcome};

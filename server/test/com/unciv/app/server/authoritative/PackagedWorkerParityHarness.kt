@@ -145,7 +145,7 @@ internal object PackagedWorkerParityHarness {
             .encodeToByteArray()
         val nonce = ByteArray(EngineWorkerAuthentication.nonceBytes).also(random::nextBytes)
         return Socket().use { socket ->
-            socket.connect(java.net.InetSocketAddress(address, port), 500)
+            socket.connect(java.net.InetSocketAddress(address, port), 5_000)
             socket.soTimeout = 120_000
             val output = DataOutputStream(socket.getOutputStream())
             output.writeInt(payload.size)

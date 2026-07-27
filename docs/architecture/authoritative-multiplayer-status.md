@@ -7275,6 +7275,38 @@ Focused verification on 2026-07-27:
   packaging. The existing SDK XML-version mismatch warning remains
   non-failing; no test or build error is deferred.
 
+## Packaged-worker unit-unique action parity
+
+Implemented on 2026-07-27:
+
+- Added one deterministic Vanilla scenario covering a Great Engineer's
+  projected instant-Manufactory action and a Great General's projected
+  golden-age trigger.
+- Both commands submit only opaque action identities selected from the private
+  projection. The worker reconstructs the shared Kotlin callbacks, revalidates
+  the unit and tile state, builds the canonical improvement, consumes each
+  unit, and enters the server-derived golden age.
+- All five complete responses and state hashes are byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 81 of 84
+  classified operations; three remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerUnitUniqueActionParityTests
+  --no-parallel --console=plain` passes the registry and unit-unique scenario.
+- The first combined run exposed the harness's 500 ms loopback connect timeout
+  as too narrow for a second fresh JVM under load. The harness now allows a
+  bounded five seconds to connect while retaining its 120-second response
+  timeout; the exact clean focused command then passed.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,142 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging. The existing SDK XML-version mismatch warning remains
+  non-failing; no test or build error is deferred.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

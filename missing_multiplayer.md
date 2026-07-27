@@ -449,9 +449,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   byte/hash identical across fresh packaged JVMs while a changed server seed
   diverges. The bounded replay and immutable recovery-publication path is
   PostgreSQL integration-tested, but these representative fixtures do not yet
-  prove every setup/map generator, repeated AI campaign, random combat/event
-  branch, or process failure. Pre-migration rows without exact replay context
-  fail closed and require operator-supplied recovery evidence.
+  prove every map shape/size/resource/option combination, repeated AI campaign,
+  random combat/event branch, or process failure. All 13 supported generated
+  map types now have exact full-response/hash/snapshot parity across two fresh
+  packaged JVMs, with decoded type and server-seed checks. Pre-migration rows
+  without exact replay context fail closed and require operator-supplied
+  recovery evidence.
 - [x] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
@@ -636,8 +639,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   immutable test-only extension ruleset loaded through the same bounded asset
   validator and manifest hashing as packaged mods. The override is accepted
   only by explicitly unpackaged development workers and cannot alter a
-  production packaged worker. Additional random setup/combat/event/AI branches
-  still need fresh-process fixtures, so this broader item remains unchecked.
+  production packaged worker. All 13 server-generated map types now have exact
+  fresh-process parity with decoded canonical type/seed checks. Additional map
+  option combinations and random combat/event/repeated-AI branches still need
+  fresh-process fixtures, so this broader item remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

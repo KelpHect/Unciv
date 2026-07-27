@@ -4,6 +4,7 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.files.UncivFiles
+import com.unciv.logic.map.MapType
 import com.unciv.logic.multiplayer.authoritative.EventChoiceCommandExecutor
 import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertEquals
@@ -14,6 +15,57 @@ import org.junit.BeforeClass
 import org.junit.Test
 
 class PackagedWorkerRandomParityTests {
+    @Test(timeout = 300_000)
+    fun everyGeneratedMapTypeIsByteStableAcrossFreshWorkers() {
+        val baseName = "Civ V - Vanilla"
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = InstalledRulesetCatalog.named(baseName),
+        )
+        val mapTypes = listOf(
+            GeneratedMapType.Pangaea to MapType.pangaea,
+            GeneratedMapType.SmallContinents to MapType.smallContinents,
+            GeneratedMapType.Perlin to MapType.perlin,
+            GeneratedMapType.Fractal to MapType.fractal,
+            GeneratedMapType.ContinentAndIslands to MapType.continentAndIslands,
+            GeneratedMapType.Archipelago to MapType.archipelago,
+            GeneratedMapType.TwoContinents to MapType.twoContinents,
+            GeneratedMapType.ThreeContinents to MapType.threeContinents,
+            GeneratedMapType.InnerSea to MapType.innerSea,
+            GeneratedMapType.Lakes to MapType.lakes,
+            GeneratedMapType.FourCorners to MapType.fourCorners,
+            GeneratedMapType.Spiral to MapType.spiral,
+            GeneratedMapType.Boreal to MapType.boreal,
+        )
+        assertEquals(GeneratedMapType.entries.size, mapTypes.size)
+
+        val responses = PackagedWorkerParityHarness.assertStableScenario { send ->
+            mapTypes.mapIndexed { index, (mapType, _) ->
+                val gameIdSuffix = (200 + index).toString().padStart(12, '0')
+                send(
+                    WorkerRequest(
+                        protocolVersion = EngineWorkerProtocol.VERSION,
+                        serverTimeMillis = 1_700_090_000_000L + index,
+                        actorId = actorId,
+                        rulesetManifest = manifest,
+                        operation = WorkerOperation.CreateGame(
+                            gameId = "00000000-0000-4000-8000-$gameIdSuffix",
+                            serverSeed = 741_852_963L + index,
+                            setup = setup(baseName).copy(mapType = mapType),
+                        ),
+                    ),
+                )
+            }
+        }
+
+        responses.zip(mapTypes).forEachIndexed { index, (response, mapType) ->
+            val game = decode(response.snapshot)
+            assertEquals(mapType.second, game.tileMap.mapParameters.type)
+            assertEquals(741_852_963L + index, game.tileMap.mapParameters.seed)
+            assertTrue(game.tileMap.values.isNotEmpty())
+        }
+    }
+
     @Test(timeout = 300_000)
     fun richSeededGameCreationIsByteStableAcrossFreshWorkers() {
         val baseName = "Civ V - Gods & Kings"

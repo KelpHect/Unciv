@@ -6897,6 +6897,33 @@ Verification on 2026-07-27:
 - `git diff --check` passes. No compile, test, release-contract, or diff error
   remains deferred.
 
+## All server-generated map types have fresh-process parity
+
+Implemented on 2026-07-27:
+
+- One bounded packaged-worker scenario now creates canonical games for every
+  public API-v3 generated map type: Pangaea, Small Continents, Perlin, Fractal,
+  Continent and Islands, Archipelago, Two Continents, Three Continents, Inner
+  Sea, Lakes, Four Corners, Spiral, and Boreal.
+- The complete 13-game sequence runs independently inside two newly started
+  packaged Kotlin workers. Every serialized worker response, canonical hash,
+  snapshot, projection, event set, and turn metadata must match exactly by
+  sequence position.
+- Each result is decoded and checked against the requested engine `MapType`,
+  server-owned seed, and a nonempty generated map. The explicit API-to-engine
+  mapping and enum cardinality check ensure a newly added public generator
+  cannot silently escape parity classification.
+
+Verification on 2026-07-27:
+
+- The focused packaged-worker random parity class passes all generator, rich
+  setup, combat randomness, and event-choice scenarios.
+- `./gradlew :tests:test :server:test --no-parallel` passes 1,146 cases:
+  1,092 core/client cases with 13 intentional skips and 54 server cases with
+  one intentional skip.
+- The expanded random parity file remains 322 lines. `git diff --check`
+  passes, and no compile, test, formatting, or diff error remains deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

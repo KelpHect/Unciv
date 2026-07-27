@@ -6866,6 +6866,37 @@ Verification on 2026-07-27:
 - Both disposable PostgreSQL containers were removed. No database, compile,
   test, format, Clippy, diff, or cleanup error remains deferred.
 
+## Rich server-seeded creation parity
+
+Implemented on 2026-07-27:
+
+- The packaged-worker random parity suite now creates a nontrivial canonical
+  Gods & Kings game through the real private `GameStarter` boundary using a
+  server-owned seed, three major civilizations, three city states, a small
+  fractal hex map, abundant resources, shuffled players, strategic balance,
+  raging barbarians, ancient ruins, and natural wonders.
+- Two independent packaged JVMs must return an exactly identical complete
+  worker response, canonical hash, and snapshot. The test inspects the
+  resulting canonical state to prove that resources, natural wonders, ruins,
+  city states, and two server AI players were actually generated. Changing
+  only the server seed must change both the canonical hash and snapshot.
+- The prior compact setup construction was extracted into one test helper so
+  the combat and event fixtures retain their exact behavior while random setup
+  branches can be selected explicitly.
+- Kotlin release compatibility now asserts migration 21, matching the checked
+  PostgreSQL 19 Beta 2 contract and Rust release-bundle verifier.
+
+Verification on 2026-07-27:
+
+- Focused rich-creation, combat-randomness, event-choice, and release-contract
+  tests pass through the packaged worker.
+- `./gradlew :tests:test :server:test --no-parallel` passes 1,145 cases:
+  1,092 core/client cases with 13 intentional skips and 53 server cases with
+  one intentional skip. The server lane was rerun after correcting the stale
+  migration-20 assertion and passes cleanly.
+- `git diff --check` passes. No compile, test, release-contract, or diff error
+  remains deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

@@ -442,13 +442,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Complete recovery qualification across every supported setup and
   controlled worker/process fault mode. The real packaged Kotlin worker now has
   fresh-process byte/hash parity coverage for seeded city-state placement and a
-  replayable player-assignment mutation, typed research selection, and a
-  complete human-to-two-AI-to-human turn. The bounded replay and immutable
-  recovery-publication path is PostgreSQL integration-tested, but those
-  representative fixtures do not yet prove all setups, command families,
-  random combat/event paths, or process failures. Pre-migration rows without
-  exact replay context fail closed and require operator-supplied recovery
-  evidence.
+  replayable player-assignment mutation, typed research selection, a complete
+  human-to-two-AI-to-human turn, and rich server-seeded creation using a
+  fractal hex map, shuffled players, city states, abundant resources, strategic
+  balance, raging barbarians, ruins, and natural wonders. The rich fixture is
+  byte/hash identical across fresh packaged JVMs while a changed server seed
+  diverges. The bounded replay and immutable recovery-publication path is
+  PostgreSQL integration-tested, but these representative fixtures do not yet
+  prove every setup/map generator, repeated AI campaign, random combat/event
+  branch, or process failure. Pre-migration rows without exact replay context
+  fail closed and require operator-supplied recovery evidence.
 - [x] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports

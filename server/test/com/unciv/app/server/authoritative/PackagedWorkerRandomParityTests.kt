@@ -15,6 +15,71 @@ import org.junit.Test
 
 class PackagedWorkerRandomParityTests {
     @Test(timeout = 300_000)
+    fun richSeededGameCreationIsByteStableAcrossFreshWorkers() {
+        val baseName = "Civ V - Gods & Kings"
+        val base = InstalledRulesetCatalog.named(baseName)
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = base,
+        )
+        val operation = WorkerOperation.CreateGame(
+            gameId = "00000000-0000-4000-8000-000000000100",
+            serverSeed = 864_209_753L,
+            setup = setup(baseName).copy(
+                majorCivilizations = 3,
+                cityStates = 3,
+                mapType = GeneratedMapType.Fractal,
+                mapShape = GeneratedMapShape.Hexagonal,
+                mapSize = GeneratedMapSize.Small,
+                mapResources = MapResourceDensity.Abundant,
+                barbarians = BarbarianMode.Raging,
+                noStartBias = false,
+                shufflePlayerOrder = true,
+                strategicBalance = true,
+                noRuins = false,
+                noNaturalWonders = false,
+            ),
+        )
+        val request = WorkerRequest(
+            protocolVersion = EngineWorkerProtocol.VERSION,
+            serverTimeMillis = 1_700_100_000_000L,
+            actorId = actorId,
+            rulesetManifest = manifest,
+            operation = operation,
+        )
+
+        val result = PackagedWorkerParityHarness.assertStable(request)
+        val game = decode(result.snapshot)
+        assertEquals(3, game.gameParameters.numberOfCityStates)
+        assertTrue(game.gameParameters.ragingBarbarians)
+        assertTrue(game.gameParameters.shufflePlayerOrder)
+        assertTrue(game.tileMap.values.any { it.resource != null })
+        assertTrue(game.tileMap.values.any { it.naturalWonder != null })
+        assertTrue(
+            game.tileMap.values.any { tile ->
+                tile.improvement?.let {
+                    game.ruleset.tileImprovements[it]?.isAncientRuinsEquivalent()
+                } == true
+            },
+        )
+        assertEquals(
+            2,
+            game.civilizations.count { it.isMajorCiv() && it.isAI() },
+        )
+
+        val changedSeed = PackagedWorkerParityHarness.execute(
+            request.copy(
+                operation = operation.copy(
+                    serverSeed = operation.serverSeed + 1,
+                ),
+            ),
+        )
+        assertNull(changedSeed.error)
+        assertNotEquals(result.canonicalStateHash, changedSeed.canonicalStateHash)
+        assertNotEquals(result.snapshot, changedSeed.snapshot)
+    }
+
+    @Test(timeout = 300_000)
     fun canonicalCombatRandomnessIsByteStableAcrossFreshWorkers() {
         val fixture = createFixture("Civ V - Vanilla", "00000000-0000-4000-8000-000000000101")
         val game = decode(fixture.response.snapshot)
@@ -130,42 +195,47 @@ class PackagedWorkerRandomParityTests {
                 operation = WorkerOperation.CreateGame(
                     gameId = gameId,
                     serverSeed = 975_318_642L,
-                    setup = WorkerGameSetup(
-                        difficulty = requireNotNull(RulesetCache[baseName]).difficulties.keys.first(),
-                        speed = requireNotNull(RulesetCache[baseName]).speeds.keys.first(),
-                        startingEra = requireNotNull(RulesetCache[baseName]).eras.keys.first(),
-                        victoryTypes = requireNotNull(RulesetCache[baseName]).victories.values
-                            .filterNot { it.hiddenInVictoryScreen }
-                            .map { it.name }
-                            .sorted(),
-                        majorCivilizations = 2,
-                        cityStates = 0,
-                        maxTurns = 500,
-                        mapType = GeneratedMapType.Pangaea,
-                        mapShape = GeneratedMapShape.Rectangular,
-                        mapSize = GeneratedMapSize.Tiny,
-                        mapResources = MapResourceDensity.Default,
-                        barbarians = BarbarianMode.Disabled,
-                        oneCityChallenge = false,
-                        nuclearWeaponsEnabled = true,
-                        espionageEnabled = true,
-                        noStartBias = true,
-                        shufflePlayerOrder = false,
-                        noCityRazing = false,
-                        worldWrap = false,
-                        strategicBalance = false,
-                        legendaryStart = false,
-                        noRuins = true,
-                        noNaturalWonders = true,
-                        minutesUntilSkipTurn = 1_440,
-                        minutesUntilForceResign = 4_320,
-                        minutesRecoveredPerTurn = 1_440,
-                    ),
+                    setup = setup(baseName),
                 ),
             ),
         )
         assertNull(response.error)
         return Fixture(manifest, response)
+    }
+
+    private fun setup(baseName: String): WorkerGameSetup {
+        val ruleset = requireNotNull(RulesetCache[baseName])
+        return WorkerGameSetup(
+            difficulty = ruleset.difficulties.keys.first(),
+            speed = ruleset.speeds.keys.first(),
+            startingEra = ruleset.eras.keys.first(),
+            victoryTypes = ruleset.victories.values
+                .filterNot { it.hiddenInVictoryScreen }
+                .map { it.name }
+                .sorted(),
+            majorCivilizations = 2,
+            cityStates = 0,
+            maxTurns = 500,
+            mapType = GeneratedMapType.Pangaea,
+            mapShape = GeneratedMapShape.Rectangular,
+            mapSize = GeneratedMapSize.Tiny,
+            mapResources = MapResourceDensity.Default,
+            barbarians = BarbarianMode.Disabled,
+            oneCityChallenge = false,
+            nuclearWeaponsEnabled = true,
+            espionageEnabled = true,
+            noStartBias = true,
+            shufflePlayerOrder = false,
+            noCityRazing = false,
+            worldWrap = false,
+            strategicBalance = false,
+            legendaryStart = false,
+            noRuins = true,
+            noNaturalWonders = true,
+            minutesUntilSkipTurn = 1_440,
+            minutesUntilForceResign = 4_320,
+            minutesRecoveredPerTurn = 1_440,
+        )
     }
 
     private fun request(

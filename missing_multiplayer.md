@@ -718,7 +718,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   incident-response ownership.
 - [ ] Add cache-control and content-type hardening, safe error redaction, CORS/
   origin policy, TLS termination tests, dependency/vulnerability scanning, SBOM,
-  secret scanning, and release provenance/signing where practical.
+  secret scanning, and release provenance/signing where practical. The Rust
+  API now rejects unapproved browser origins before handlers, accepts at most
+  16 exact HTTPS origins from a fail-closed environment setting, keeps native
+  no-Origin clients working, bounds preflight methods/headers, and applies
+  no-store, nosniff, no-referrer, and restrictive permissions headers to every
+  response. Existing stable API errors remain detail-redacted. TLS/HSTS,
+  scanning, SBOM, and provenance/signing work keep this broader item open.
 - [ ] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
   malformed frames, WebSocket exhaustion, and expensive rulesets/commands.

@@ -6651,6 +6651,42 @@ Verification on 2026-07-27:
 - `git diff --check` passes. No Rust source changed in this milestone; the Rust
   façade and source-size guardrails remain unchanged.
 
+## Public HTTP origin and response hardening
+
+Implemented on 2026-07-27:
+
+- The Rust API now rejects any request carrying an unapproved browser `Origin`
+  before its route handler executes. `UNCIV_V3_ALLOWED_ORIGINS` accepts at most
+  16 distinct exact HTTPS origins and rejects empty entries, HTTP, user
+  information, paths, queries, malformed header values, and oversized origins.
+  Native Android/desktop requests without `Origin` remain valid.
+- CORS preflight is restricted to the API's closed method set plus
+  `Authorization` and `Content-Type`; wildcard/reflected origins and
+  credentialed CORS are absent.
+- Every normal or error response overrides caching with `no-store` and adds
+  `nosniff`, `no-referrer`, and a camera/microphone/geolocation-denying
+  permissions policy. Origin rejection uses the same stable detail-redacted
+  JSON error boundary as the rest of the API.
+- The operator contract is recorded in
+  `docs/operations/authoritative-http-security.md`. TLS/HSTS remains explicitly
+  open until the trusted reverse-proxy termination boundary is implemented and
+  qualified.
+
+Verification on 2026-07-27:
+
+- Four focused router tests prove exact configuration validation, rejection
+  before mutation, native and allowed-origin behavior, hardened response
+  headers, and bounded preflight behavior.
+- `cargo test --lib` passes 163 active tests with 26 PostgreSQL tests
+  explicitly ignored in that lane. `cargo test --bin
+  unciv-authoritative-server` passes all 20 HTTP/OpenAPI tests.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- The first warnings-as-errors run exposed a test-only status-code import in
+  the production module scope; it was moved into the test module and the exact
+  complete gate passed. No HTTP boundary, formatting, compile, test, or Clippy
+  error is deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

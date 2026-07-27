@@ -84,6 +84,8 @@ pub(crate) async fn run() {
         repository.clone(),
         notifications.clone(),
     ));
+    let http_security = HttpSecurityConfig::from_environment()
+        .expect("authoritative API HTTP security policy must be valid");
     let app = Router::new()
         .route("/healthz", get(health))
         .route("/api/v3/capabilities", get(capabilities))
@@ -436,6 +438,12 @@ pub(crate) async fn run() {
         .layer(axum::middleware::from_fn(enforce_request_limits))
         .layer(axum::middleware::from_fn(request_deadline))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
+        .layer(http_security.cors_layer())
+        .layer(axum::middleware::from_fn_with_state(
+            http_security.origin_policy(),
+            enforce_origin,
+        ))
+        .layer(axum::middleware::from_fn(set_security_headers))
         .with_state(AppState {
             repository,
             worker,

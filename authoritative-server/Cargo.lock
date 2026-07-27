@@ -2323,6 +2323,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tower",
+ "tower-http",
  "utoipa",
  "uuid",
  "zeroize",

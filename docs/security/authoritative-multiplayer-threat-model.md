@@ -165,6 +165,16 @@ Required controls include separate administrative authentication and network pol
 
 Required controls include pinned and reviewed workflow actions, least-privilege GitHub tokens, protected release environments, isolated signing credentials, dependency locking and verification, reproducible or provenance-attested artifacts where practical, secret scanning, code review for protocol/schema changes, SBOM and vulnerability monitoring, and release tests that bind client capability declarations, server protocol, worker engine version, and database migrations. Reference implementations may inform behavior but must not introduce license-incompatible code into distributed components.
 
+The public API now treats browser origin as an explicit boundary. Native
+clients without an `Origin` header remain supported, while a request carrying
+an origin not present in the bounded exact-HTTPS allowlist is rejected before
+route execution. CORS never reflects arbitrary origins, never enables
+credentials, and permits only the API methods plus bearer/content-type request
+headers. All responses are non-cacheable and carry nosniff, no-referrer, and
+restricted browser-feature policies. TLS/HSTS and trusted-proxy qualification
+remain separate required controls; see
+`docs/operations/authoritative-http-security.md`.
+
 ### Security validation priorities
 
 The highest-value adversarial tests are: cross-account/cross-civilization command attempts; idempotency-key reuse with changed content; multi-replica revision races; sentinel hidden-state projection tests; worker frame, timeout, crash and resource-exhaustion tests; archive traversal and decompression bombs; legacy/v3 namespace isolation; token/audit/log leakage searches; backup restore and rollback drills; and sustained HTTP/WebSocket/load tests against bounded resources.

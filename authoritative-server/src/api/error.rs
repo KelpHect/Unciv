@@ -27,6 +27,15 @@ impl ApiError {
         }
     }
 
+    pub(super) const fn forbidden(code: &'static str) -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            code,
+            current_revision: None,
+            retry_after_seconds: None,
+        }
+    }
+
     pub(super) const fn conflict(code: &'static str) -> Self {
         Self {
             status: StatusCode::CONFLICT,

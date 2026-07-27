@@ -599,9 +599,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 84 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 77 of 84 classified operations: handshake, game creation,
-  player assignment, self/force resignation, owner kick, research selection,
-  end turn with all AI, unit movement,
+  Fresh packaged-JVM evidence covers 78 of 84 classified operations: handshake,
+  game creation, player assignment, self/force resignation, owner kick,
+  research selection, end turn with all AI, unit movement,
   durable movement-toward and cancellation, exploration/automation transitions,
   promotion and saved city defaults, batch upgrades, renaming, posture, disband,
   tile-improvement start/cancel, road connection orders, friendly unit swaps,
@@ -617,7 +617,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   city bombardment, air sweeps, nuclear strikes, the complete bilateral-trade
   lifecycle (offer, counter, decline, retract, and accept), major-civilization
   friendship/demand prompts and responses, denouncements, war declarations,
-  spy movement and coups, Great Person research actions, city-state unit gifts,
+  spy movement and coups, religious-unit founding, Great Person research
+  actions, city-state unit gifts,
   gold gifts, protection pledges, tribute demands, city-state improvement
   gifts, negotiated peace, diplomatic marriage,
   protection-prompt responses,
@@ -625,12 +626,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Stateful unit and city scenarios compare every full response across two
   independent JVMs. Changed canonical combat state, forged actor, and
   changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. The remaining seven operations are
+  time remain replay-critical. The remaining six operations are
   `queue_construction_at_tile`, `purchase_construction_at_tile`,
-  `use_religious_unit`, `add_unit_to_capital_project`, `transform_unit`,
-  `trigger_unit_unique`, and `create_instant_improvement`; each still needs a
-  fresh-process fixture using an approved packaged ruleset. Additional random
-  setup/combat/event/AI
+  `add_unit_to_capital_project`, `transform_unit`, `trigger_unit_unique`, and
+  `create_instant_improvement`; each still needs a fresh-process fixture using
+  an approved packaged ruleset. Additional random setup/combat/event/AI
   branches also need fresh-process fixtures, so this item remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,

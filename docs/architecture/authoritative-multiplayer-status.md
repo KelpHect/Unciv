@@ -7219,6 +7219,34 @@ Focused verification on 2026-07-27:
   packaging. The existing SDK XML-version mismatch warning remains
   non-failing; no test or build error is deferred.
 
+## Packaged-worker religious-unit parity
+
+Implemented on 2026-07-27:
+
+- Added a deterministic Gods & Kings scenario that founds a capital, selects a
+  canonical pantheon, and places a Great Prophet on the capital tile.
+- The private projection advertises only the canonically legal
+  `FoundReligion` action. The worker invokes the shared religion rules,
+  consumes the prophet, enters the founding-religion state, and derives the
+  required belief types, available beliefs, and available religion identities.
+- All four complete responses and state hashes are byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 78 of 84
+  classified operations; six remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerReligiousUnitParityTests
+  --no-parallel --console=plain` passes the registry and religious-unit
+  scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,140 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging. The existing SDK XML-version mismatch warning remains
+  non-failing; no test or build error is deferred.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

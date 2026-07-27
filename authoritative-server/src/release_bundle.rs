@@ -173,6 +173,7 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
         "client/unciv-client",
         "contracts/api-v3.json",
         "contracts/compatibility.json",
+        "contracts/notifications-v3.json",
         "rulesets/manifest.json",
         "worker/UncivAuthoritativeWorker.jar",
     ];

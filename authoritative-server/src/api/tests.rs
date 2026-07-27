@@ -9,6 +9,95 @@ fn generated_openapi_matches_checked_in_contract() {
     assert_eq!(generated, include_str!("../../openapi/api-v3.json"));
 }
 
+#[test]
+fn generated_asyncapi_matches_checked_in_contract_and_runtime_shapes() {
+    let document = asyncapi_document_value();
+    let generated = format!("{}\n", serde_json::to_string_pretty(&document).unwrap());
+    assert_eq!(
+        generated,
+        include_str!("../../openapi/notifications-v3.json")
+    );
+    assert_eq!(document["asyncapi"], "3.1.0");
+    assert_eq!(
+        document["channels"]["revisionHints"]["address"],
+        "/api/v3/notifications"
+    );
+    assert_eq!(
+        document["channels"]["revisionHints"]["bindings"]["ws"]["method"],
+        "GET"
+    );
+    assert_eq!(
+        document["components"]["securitySchemes"]["opaqueBearerSession"]["scheme"],
+        "bearer"
+    );
+    for schema in ["revisionCommittedPayload", "resyncRequiredPayload"] {
+        assert_eq!(
+            document["components"]["schemas"][schema]["additionalProperties"],
+            false
+        );
+    }
+
+    let revision = unciv_authoritative_server::notifications::RevisionNotification {
+        event_type: "revision_committed",
+        protocol_version: PROTOCOL_VERSION,
+        game_id: uuid::Uuid::new_v4(),
+        committed_revision: 7,
+        canonical_state_hash: "ab".repeat(32),
+    };
+    let revision_value = serde_json::to_value(revision).unwrap();
+    assert_message_matches_closed_schema(
+        &revision_value,
+        &document["components"]["schemas"]["revisionCommittedPayload"],
+    );
+    let resync = serde_json::to_value(
+        unciv_authoritative_server::notifications::ResyncRequiredNotification::default(),
+    )
+    .unwrap();
+    assert_message_matches_closed_schema(
+        &resync,
+        &document["components"]["schemas"]["resyncRequiredPayload"],
+    );
+
+    let serialized = serde_json::to_string(&document).unwrap();
+    for forbidden in [
+        "snapshot",
+        "GameInfo",
+        "worker_request",
+        "worker_response",
+        "rng_state",
+        "account_id",
+    ] {
+        assert!(
+            !serialized.contains(forbidden),
+            "public AsyncAPI exposes private term {forbidden}"
+        );
+    }
+}
+
+fn assert_message_matches_closed_schema(message: &serde_json::Value, schema: &serde_json::Value) {
+    let object = message.as_object().unwrap();
+    let properties = schema["properties"].as_object().unwrap();
+    let required = schema["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        object
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>(),
+        required
+    );
+    assert!(object.keys().all(|key| properties.contains_key(key)));
+    for (key, property) in properties {
+        if let Some(expected) = property.get("const") {
+            assert_eq!(&object[key], expected, "{key}");
+        }
+    }
+}
+
 #[tokio::test]
 async fn capabilities_advertise_every_public_gameplay_command_route() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -38,6 +127,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/healthz",
         "/api/v3/capabilities",
         "/api/v3/openapi.json",
+        "/api/v3/asyncapi.json",
         "/api/v3/notifications",
         "/api/v3/auth/register",
         "/api/v3/auth/login",
@@ -155,6 +245,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
                 "/healthz"
                     | "/api/v3/capabilities"
                     | "/api/v3/openapi.json"
+                    | "/api/v3/asyncapi.json"
                     | "/api/v3/auth/register"
                     | "/api/v3/auth/login"
             );

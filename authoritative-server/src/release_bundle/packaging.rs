@@ -73,6 +73,10 @@ fn create(
         &staging.join("contracts/api-v3.json"),
     )?;
     copy_exact(
+        &manifest_dir.join("openapi/notifications-v3.json"),
+        &staging.join("contracts/notifications-v3.json"),
+    )?;
+    copy_exact(
         &manifest_dir.join("release/compatibility.json"),
         &staging.join("contracts/compatibility.json"),
     )?;

@@ -690,8 +690,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   broader item open.
 - [ ] Add outbox retention, poison-event handling, lag alerts, and operational
   repair tooling without allowing notifications to become authoritative.
-- [ ] Publish a full WebSocket/AsyncAPI lifecycle contract rather than only an
-  OpenAPI upgrade and revision-frame description.
+- [x] Publish a full WebSocket/AsyncAPI lifecycle contract. The generated
+  AsyncAPI 3.1 document is served at `/api/v3/asyncapi.json`, checked in as
+  `authoritative-server/openapi/notifications-v3.json`, and included as a
+  required release-bundle artifact. It closes the authenticated WSS handshake,
+  exact revision/resynchronization schemas, receive operation, heartbeat,
+  bounded queues/frames/buffers, lag, reconnect, duplicate/loss/reordering, and
+  HTTP-only authority semantics. Runtime-shape/parity tests and the official
+  AsyncAPI CLI validator reject drift or invalid documents.
 
 ## P1: production deployment and PostgreSQL 19 Beta 2 operations
 
@@ -778,13 +784,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
   --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
   skips), and `:android:lint` passes.
-- Rust passes 167 active library tests and 24 HTTP/OpenAPI/runtime tests; all 27
+- Rust passes 167 active library tests and 25 HTTP/OpenAPI/AsyncAPI/runtime tests; all 27
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
   lanes also pass.
 - `cargo fmt --all -- --check`, warnings-as-errors
-  `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
-  parity, and `git diff --check` pass.
+  `cargo clippy --all-targets --all-features -- -D warnings`, generated
+  OpenAPI/AsyncAPI parity, official AsyncAPI validation, and `git diff --check`
+  pass.
 - `main.rs` is 5 lines, `lib.rs` is a 57-line facade, and the largest Rust source
   is 779 lines. New work must split by concern before crossing the 800-line
   guardrail.

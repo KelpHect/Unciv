@@ -5,6 +5,14 @@ authenticated HTTP projection after any hint, reconnect, lag signal, or
 uncertain delivery. Losing, duplicating, or reordering a frame cannot commit or
 replace canonical state.
 
+The generated public lifecycle contract is available from
+`GET /api/v3/asyncapi.json` and checked in at
+`authoritative-server/openapi/notifications-v3.json`. It is an AsyncAPI 3.1
+document covering the authenticated WSS upgrade, both exact JSON message
+shapes, server-to-client receive operation, control-frame heartbeat, reconnect,
+delivery uncertainty, and transport limits. Release bundles must contain the
+same generated document at `contracts/notifications-v3.json`.
+
 The Rust API applies these defaults:
 
 | Environment variable | Default | Accepted range |
@@ -60,3 +68,19 @@ queried, the replica sends `resync_required` to every local socket. Clients
 then fetch authenticated HTTP projections. A newly connected client likewise
 reconciles through HTTP, so events published before that replica subscribed do
 not need notification replay.
+
+## Contract regeneration and validation
+
+Regenerate both public API contracts with:
+
+```text
+cargo run --bin unciv-authoritative-server -- --write-openapi
+```
+
+Rust parity tests compare the generated AsyncAPI document and its two live
+outbound DTOs with the checked-in artifact. The independent specification gate
+is:
+
+```text
+npx --yes @asyncapi/cli@2.16.0 validate openapi/notifications-v3.json --diagnostics-format json --fail-severity error
+```

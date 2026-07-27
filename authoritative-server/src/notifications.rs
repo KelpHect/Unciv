@@ -23,6 +23,22 @@ pub struct RevisionNotification {
     pub canonical_state_hash: String,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, utoipa::ToSchema)]
+pub struct ResyncRequiredNotification {
+    #[serde(rename = "type")]
+    pub event_type: &'static str,
+    pub protocol_version: u16,
+}
+
+impl Default for ResyncRequiredNotification {
+    fn default() -> Self {
+        Self {
+            event_type: "resync_required",
+            protocol_version: crate::PROTOCOL_VERSION,
+        }
+    }
+}
+
 const DEFAULT_GLOBAL_CONNECTION_LIMIT: usize = 1_024;
 const DEFAULT_ACCOUNT_CONNECTION_LIMIT: usize = 4;
 

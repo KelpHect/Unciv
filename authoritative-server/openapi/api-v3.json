@@ -195,6 +195,22 @@
         ]
       }
     },
+    "/api/v3/asyncapi.json": {
+      "get": {
+        "tags": [],
+        "operationId": "asyncapi_document",
+        "responses": {
+          "200": {
+            "description": "Generated AsyncAPI 3.1 notification lifecycle contract",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v3/auth/login": {
       "post": {
         "tags": [],

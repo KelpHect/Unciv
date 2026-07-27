@@ -5,6 +5,7 @@ use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior};
 use unciv_authoritative_server::notifications::{
     NotificationAdmissionError, NotificationDelivery, NotificationSubscription,
+    ResyncRequiredNotification,
 };
 
 const MAX_WEBSOCKET_MESSAGE_BYTES: usize = 4 * 1024;
@@ -171,11 +172,11 @@ async fn serve_websocket_parts<S, R, E>(
                 | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                     // Exact missed revisions do not matter: this explicitly
                     // instructs the client to fetch its latest HTTP projection.
+                    let payload = serde_json::to_string(&ResyncRequiredNotification::default())
+                        .expect("resynchronization notification is serializable");
                     if send_with_deadline(
                         &mut sender,
-                        Message::Text(
-                            r#"{"type":"resync_required","protocol_version":3}"#.into(),
-                        ),
+                        Message::Text(payload.into()),
                         policy.write_timeout,
                     ).await.is_err() {
                         break;

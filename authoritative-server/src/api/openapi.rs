@@ -6,6 +6,7 @@ use super::*;
         health,
         capabilities,
         openapi_document,
+        asyncapi_document,
         register,
         login,
         refresh_session,

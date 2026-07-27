@@ -2,21 +2,26 @@ use super::*;
 
 pub(crate) async fn run() {
     if std::env::args().any(|argument| argument == "--write-openapi") {
-        let target = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("openapi")
-            .join("api-v3.json");
-        std::fs::create_dir_all(target.parent().expect("OpenAPI target has a parent"))
+        let contract_directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("openapi");
+        std::fs::create_dir_all(&contract_directory)
             .expect("failed to create OpenAPI output directory");
-        std::fs::write(
-            &target,
-            format!(
-                "{}\n",
+        for (name, document) in [
+            (
+                "api-v3.json",
                 serde_json::to_string_pretty(&ApiDoc::openapi())
-                    .expect("OpenAPI document is serializable")
+                    .expect("OpenAPI document is serializable"),
             ),
-        )
-        .expect("failed to write generated OpenAPI document");
-        eprintln!("wrote {}", target.display());
+            (
+                "notifications-v3.json",
+                serde_json::to_string_pretty(&asyncapi_document_value())
+                    .expect("AsyncAPI document is serializable"),
+            ),
+        ] {
+            let target = contract_directory.join(name);
+            std::fs::write(&target, format!("{document}\n"))
+                .expect("failed to write generated API contract document");
+            eprintln!("wrote {}", target.display());
+        }
         return;
     }
     let release_bundle = unciv_authoritative_server::release_bundle::verify_runtime_environment()
@@ -94,6 +99,7 @@ pub(crate) async fn run() {
         .route("/healthz", get(health))
         .route("/api/v3/capabilities", get(capabilities))
         .route("/api/v3/openapi.json", get(openapi_document))
+        .route("/api/v3/asyncapi.json", get(asyncapi_document))
         .route("/api/v3/notifications", get(websocket_notifications))
         .route("/api/v3/auth/register", post(register))
         .route("/api/v3/auth/login", post(login))

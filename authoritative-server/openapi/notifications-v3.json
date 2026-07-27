@@ -1,0 +1,193 @@
+{
+  "asyncapi": "3.1.0",
+  "channels": {
+    "revisionHints": {
+      "address": "/api/v3/notifications",
+      "bindings": {
+        "ws": {
+          "bindingVersion": "0.1.0",
+          "headers": {
+            "properties": {
+              "Authorization": {
+                "description": "Opaque revocable API-v3 session token.",
+                "pattern": "^Bearer [^\\s]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "Authorization"
+            ],
+            "type": "object"
+          },
+          "method": "GET",
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        }
+      },
+      "description": "The HTTP GET upgrade requires a live opaque API-v3 bearer session. The server sends revision_committed after a durable canonical commit and resync_required whenever exact hint continuity is uncertain. Clients do not send application messages; text and binary input are ignored and never mutate state.",
+      "messages": {
+        "resyncRequired": {
+          "$ref": "#/components/messages/resyncRequired"
+        },
+        "revisionCommitted": {
+          "$ref": "#/components/messages/revisionCommitted"
+        }
+      },
+      "servers": [
+        {
+          "$ref": "#/servers/deployed"
+        }
+      ],
+      "summary": "One account-scoped server-to-client hint stream.",
+      "title": "Authenticated revision hints"
+    }
+  },
+  "components": {
+    "messages": {
+      "resyncRequired": {
+        "contentType": "application/json",
+        "name": "resync_required",
+        "payload": {
+          "$ref": "#/components/schemas/resyncRequiredPayload"
+        },
+        "summary": "Hint continuity is uncertain; discard delta assumptions and fetch full authenticated projections.",
+        "title": "Full HTTP resynchronization required"
+      },
+      "revisionCommitted": {
+        "contentType": "application/json",
+        "name": "revision_committed",
+        "payload": {
+          "$ref": "#/components/schemas/revisionCommittedPayload"
+        },
+        "summary": "A game visible to the authenticated account has a new canonical revision.",
+        "title": "Canonical revision committed"
+      }
+    },
+    "schemas": {
+      "resyncRequiredPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "protocol_version": {
+            "const": 3,
+            "type": "integer"
+          },
+          "type": {
+            "const": "resync_required",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "protocol_version"
+        ],
+        "type": "object"
+      },
+      "revisionCommittedPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "canonical_state_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "committed_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "protocol_version": {
+            "const": 3,
+            "type": "integer"
+          },
+          "type": {
+            "const": "revision_committed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "protocol_version",
+          "game_id",
+          "committed_revision",
+          "canonical_state_hash"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "opaqueBearerSession": {
+        "description": "Opaque revocable API-v3 session token. This is not a JWT.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "defaultContentType": "application/json",
+  "id": "urn:unciv:authoritative-multiplayer:v3:notifications",
+  "info": {
+    "description": "Authenticated WebSocket hints for API-v3 canonical revision changes. Frames are non-authoritative: clients always reconcile through authenticated HTTP projections.",
+    "license": {
+      "name": "Mozilla Public License 2.0",
+      "url": "https://www.mozilla.org/MPL/2.0/"
+    },
+    "title": "Unciv authoritative multiplayer notifications",
+    "version": "3.0.0"
+  },
+  "operations": {
+    "receiveRevisionHint": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/revisionHints"
+      },
+      "description": "Receive is from the client application's perspective. Duplicate, missing, delayed, or reordered hints are expected and cannot authorize or commit gameplay.",
+      "messages": [
+        {
+          "$ref": "#/channels/revisionHints/messages/revisionCommitted"
+        },
+        {
+          "$ref": "#/channels/revisionHints/messages/resyncRequired"
+        }
+      ],
+      "summary": "Receive one of the two closed server message shapes.",
+      "title": "Receive a revision or resynchronization hint"
+    }
+  },
+  "servers": {
+    "deployed": {
+      "description": "The API-v3 deployment. Plain ws is not a production transport.",
+      "host": "{authority}",
+      "pathname": "/",
+      "protocol": "wss",
+      "security": [
+        {
+          "$ref": "#/components/securitySchemes/opaqueBearerSession"
+        }
+      ],
+      "variables": {
+        "authority": {
+          "default": "api.example.invalid",
+          "description": "Deployment-specific DNS authority and optional port."
+        }
+      }
+    }
+  },
+  "x-unciv-lifecycle": {
+    "authority": "Messages are hints only. Canonical state changes only through typed HTTP commands executed by the private Kotlin engine and committed by Rust.",
+    "connect": "Fetch the latest authenticated game list and projection before relying on hints.",
+    "delivery": "At-most-transient hints may be duplicated, delayed, reordered, or lost. HTTP revision and projection hashes determine convergence.",
+    "disconnect": "Reconnect with bounded exponential delay and jitter, then fetch full authenticated projections.",
+    "heartbeat": "The server sends numbered WebSocket Ping control frames. The peer must answer with Pong; arbitrary application data does not extend liveness.",
+    "lag": "A bounded local queue emits resync_required instead of replaying guessed revisions.",
+    "limits": {
+      "accountQueueHints": 64,
+      "maximumFrameBytes": 4096,
+      "maximumMessageBytes": 4096,
+      "maximumWriteBufferBytes": 65536
+    }
+  }
+}

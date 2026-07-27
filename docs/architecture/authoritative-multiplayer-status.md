@@ -6771,6 +6771,51 @@ Verification on 2026-07-27:
   `cargo clippy --all-targets --all-features -- -D warnings` pass. No
   notification, database, compile, test, format, or Clippy error is deferred.
 
+## Generated AsyncAPI notification lifecycle contract
+
+Implemented on 2026-07-27:
+
+- `GET /api/v3/asyncapi.json` now serves a generated AsyncAPI 3.1 contract for
+  the authenticated `/api/v3/notifications` WSS channel. The channel binding
+  closes the GET handshake and opaque bearer header; its client-perspective
+  receive operation permits exactly `revision_committed` and
+  `resync_required`.
+- Both JSON payload schemas are closed and derived from the same protocol
+  constant used at runtime. Revision hints require the exact five public
+  fields, lowercase SHA-256 hash, UUID game ID, and nonnegative revision;
+  resynchronization has only its type and protocol version. The runtime now
+  serializes a dedicated `ResyncRequiredNotification` DTO rather than an
+  independent string literal.
+- Lifecycle extensions record that hints never authorize or mutate state,
+  initial/reconnect HTTP reconciliation, numbered Ping/Pong liveness, bounded
+  queue/frame/message/write-buffer behavior, lag recovery, and
+  duplicate/lost/delayed/reordered delivery semantics.
+- `--write-openapi` generates OpenAPI and AsyncAPI together. The checked-in
+  `openapi/notifications-v3.json` must match byte-for-byte, the public OpenAPI
+  advertises the discovery endpoint, and release bundles now require
+  `contracts/notifications-v3.json`.
+
+Verification on 2026-07-27:
+
+- The runtime parity test serializes both actual outbound Rust DTOs and proves
+  their keys/constants match the two closed AsyncAPI schemas, rejects private
+  canonical/worker/account terms, and compares the generated document with the
+  checked-in artifact.
+- Official `@asyncapi/cli` 2.16.0 validation reports the AsyncAPI 3.1 document
+  valid with no governance issues using diagnostics format JSON and
+  error-severity failure.
+- The complete Rust gate passes 167 active library tests with 27 explicit
+  PostgreSQL integration tests ignored in that lane, plus all 25
+  HTTP/OpenAPI/AsyncAPI/runtime tests. Release-bundle tamper/extra-file
+  verification passes with the AsyncAPI artifact required.
+  `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- The first combined generator converted typed OpenAPI through generic
+  `serde_json::Value`, which reordered the checked contract and correctly
+  failed parity. Direct typed OpenAPI serialization restored stable output;
+  both generated parity tests and the complete gate then passed. No contract,
+  packaging, compile, test, format, or Clippy error is deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

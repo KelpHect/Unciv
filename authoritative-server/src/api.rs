@@ -1,5 +1,6 @@
 mod administration;
 mod administration_contracts;
+mod asyncapi;
 mod auth;
 mod auth_helpers;
 mod bootstrap;
@@ -44,6 +45,7 @@ mod unit_triggers;
 
 use administration::*;
 use administration_contracts::*;
+use asyncapi::*;
 use auth::*;
 use auth_helpers::*;
 use boundary_limits::*;

@@ -7190,6 +7190,35 @@ Focused verification on 2026-07-27:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker city-state improvement-gift parity
+
+Implemented on 2026-07-27:
+
+- Added a deterministic Vanilla scenario with a canonical city-state-owned
+  strategic-resource tile, sufficient influence, researched technology, and
+  actor gold. The setup explicitly proves the resource/improvement pairing and
+  canonical build eligibility before crossing the worker boundary.
+- The projection advertises the exact tile, improvement, and server-derived
+  cost. The worker revalidates eligibility, deducts the canonical cost, builds
+  the improvement, preserves city-state ownership, and refreshes its resources.
+- All three complete responses and state hashes are byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 77 of 84
+  classified operations; seven remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerParityCoverageTests --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityStateImprovementGiftParityTests
+  --no-parallel --console=plain` passes the registry and new fresh-worker
+  scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,139 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging. The existing SDK XML-version mismatch warning remains
+  non-failing; no test or build error is deferred.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

@@ -7166,6 +7166,30 @@ Focused verification on 2026-07-27:
   no failures or errors, plus Android release lint, the debug APK, and desktop
   packaging.
 
+## Packaged-worker diplomatic-marriage parity
+
+Implemented on 2026-07-27:
+
+- Added a Gods & Kings scenario whose canonical game ID makes server-side
+  civilization assignment select Austria; no snapshot identity is rewritten.
+- The projection derives marriage availability and cost after canonical
+  alliance/cooldown preparation. The worker deducts gold, defeats the city
+  state, transfers its cities, and emits the exact diplomatic-marriage alerts.
+- All three complete responses and state hashes are byte-identical across
+  independent packaged JVMs. Fresh-process evidence now covers 76 of 84
+  classified operations; eight remain in-process-only debt.
+
+Focused verification on 2026-07-27:
+
+- `./gradlew :server:cleanTest :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerCityStateMarriageParityTests
+  --no-parallel --console=plain` passes the new fresh-worker scenario.
+- `./gradlew :server:cleanTest :tests:test :server:test :android:lintRelease
+  :android:assembleDebug :desktop:dist --no-parallel --no-daemon
+  --console=plain` passes 1,138 JVM/server tests with 14 intentional skips and
+  no failures or errors, plus Android release lint, the debug APK, and desktop
+  packaging.
+
 ## Content-addressed authoritative release bundle
 
 Implemented on 2026-07-26:

@@ -599,7 +599,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 84 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 75 of 84 classified operations: handshake, game creation,
+  Fresh packaged-JVM evidence covers 76 of 84 classified operations: handshake, game creation,
   player assignment, self/force resignation, owner kick, research selection,
   end turn with all AI, unit movement,
   durable movement-toward and cancellation, exploration/automation transitions,
@@ -618,15 +618,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   lifecycle (offer, counter, decline, retract, and accept), major-civilization
   friendship/demand prompts and responses, denouncements, war declarations,
   spy movement and coups, Great Person research actions, city-state unit gifts,
-  gold gifts, protection pledges, tribute demands, negotiated peace,
+  gold gifts, protection pledges, tribute demands, negotiated peace, diplomatic
+  marriage,
   protection-prompt responses,
   and event choice.
   Stateful unit and city scenarios compare every full response across two
   independent JVMs. Changed canonical combat state, forged actor, and
   changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. The remaining nine operations are
+  time remain replay-critical. The remaining eight operations are
   `queue_construction_at_tile`, `purchase_construction_at_tile`,
-  `use_religious_unit`, `gift_city_state_improvement`, `marry_city_state`,
+  `use_religious_unit`, `gift_city_state_improvement`,
   `add_unit_to_capital_project`, `transform_unit`, `trigger_unit_unique`, and
   `create_instant_improvement`; each still needs a fresh-process fixture using
   an approved packaged ruleset. Additional random setup/combat/event/AI

@@ -85,10 +85,9 @@ pub(crate) async fn run() {
         websocket_policy.global_connection_limit,
         websocket_policy.account_connection_limit,
     );
-    tokio::spawn(run_outbox_dispatcher(
-        repository.clone(),
-        notifications.clone(),
-    ));
+    start_notification_runtime(repository.clone(), notifications.clone())
+        .await
+        .expect("authoritative shared notification runtime failed to start");
     let http_security = HttpSecurityConfig::from_environment()
         .expect("authoritative API HTTP security policy must be valid");
     let app = Router::new()

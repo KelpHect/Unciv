@@ -97,7 +97,7 @@ pub(super) use unciv_authoritative_server::{
     CityDispositionAction, CityGovernanceAction, CityTileAssignment, CommandEnvelope, CommitError,
     GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION, ResearchQueueAction,
     auth::{Account, AuthError},
-    notifications::{NotificationHub, run_outbox_dispatcher},
+    notifications::{NotificationHub, start_notification_runtime},
     postgres::{GameMetadata, PostgresGameRepository, SecurityAuditEvent, SecurityAuditOutcome},
     worker::EngineWorkerClient,
 };

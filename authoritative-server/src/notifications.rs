@@ -1,14 +1,17 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
 use serde::Serialize;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::postgres::PostgresGameRepository;
+mod dispatcher;
+
+#[cfg(test)]
+pub(crate) use dispatcher::run_shared_listener;
+pub use dispatcher::start_notification_runtime;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct RevisionNotification {
@@ -36,14 +39,20 @@ struct NotificationHubState {
 }
 
 struct AccountChannel {
-    sender: broadcast::Sender<RevisionNotification>,
+    sender: broadcast::Sender<NotificationDelivery>,
     active_connections: usize,
 }
 
 pub struct NotificationSubscription {
     hub: NotificationHub,
     account_id: Uuid,
-    receiver: broadcast::Receiver<RevisionNotification>,
+    receiver: broadcast::Receiver<NotificationDelivery>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum NotificationDelivery {
+    Revision(RevisionNotification),
+    ResyncRequired,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,14 +122,23 @@ impl NotificationHub {
             if let Some(channel) = state.accounts.get(account_id) {
                 // No receiver means the client is offline. The notification is
                 // only a hint; authenticated HTTP reconciliation is authoritative.
-                let _ = channel.sender.send(notification.clone());
+                let _ = channel
+                    .sender
+                    .send(NotificationDelivery::Revision(notification.clone()));
             }
+        }
+    }
+
+    pub fn require_resync_for_all(&self) {
+        let state = self.inner.lock().expect("notification hub lock poisoned");
+        for channel in state.accounts.values() {
+            let _ = channel.sender.send(NotificationDelivery::ResyncRequired);
         }
     }
 }
 
 impl NotificationSubscription {
-    pub async fn recv(&mut self) -> Result<RevisionNotification, broadcast::error::RecvError> {
+    pub async fn recv(&mut self) -> Result<NotificationDelivery, broadcast::error::RecvError> {
         self.receiver.recv().await
     }
 }
@@ -151,84 +169,10 @@ impl Drop for NotificationSubscription {
     }
 }
 
-pub async fn run_outbox_dispatcher(repository: PostgresGameRepository, hub: NotificationHub) {
-    loop {
-        let events = match repository.claim_outbox_batch(100).await {
-            Ok(events) => events,
-            Err(error) => {
-                eprintln!("authoritative outbox claim failed: {error}");
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                continue;
-            }
-        };
-        if events.is_empty() {
-            tokio::time::sleep(Duration::from_millis(250)).await;
-            continue;
-        }
-        for event in events {
-            let payload_state_hash = event
-                .payload
-                .get("state_hash")
-                .and_then(serde_json::Value::as_str)
-                .filter(|hash| hash.len() == 64)
-                .map(str::to_owned);
-            let state_hash = match payload_state_hash {
-                Some(hash) => Ok(hash),
-                None => {
-                    repository
-                        .outbox_state_hash(event.game_id, event.revision)
-                        .await
-                }
-            };
-            let result = match state_hash {
-                Ok(canonical_state_hash) => repository
-                    .outbox_recipients(event.game_id)
-                    .await
-                    .map(|recipients| (recipients, canonical_state_hash)),
-                Err(error) => Err(error),
-            };
-            match result {
-                Ok((recipients, canonical_state_hash)) => {
-                    hub.publish(
-                        &recipients,
-                        RevisionNotification {
-                            event_type: notification_type(&event.topic),
-                            protocol_version: crate::PROTOCOL_VERSION,
-                            game_id: event.game_id,
-                            committed_revision: event.revision,
-                            canonical_state_hash,
-                        },
-                    )
-                    .await;
-                    if let Err(error) = repository
-                        .acknowledge_outbox(event.id, event.claim_token)
-                        .await
-                    {
-                        // A retry may duplicate a hint, which clients must tolerate.
-                        eprintln!("authoritative outbox acknowledgement failed: {error}");
-                    }
-                }
-                Err(error) => {
-                    eprintln!("authoritative outbox delivery failed: {error}");
-                    let _ = repository
-                        .retry_outbox(event.id, event.claim_token, &error.to_string())
-                        .await;
-                }
-            }
-        }
-    }
-}
-
-fn notification_type(topic: &str) -> &'static str {
-    if topic == "game.revision.committed" {
-        "revision_committed"
-    } else {
-        "resync_required"
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     #[tokio::test]
@@ -249,8 +193,14 @@ mod tests {
         hub.publish(&[member], notification.clone()).await;
         hub.publish(&[member], notification.clone()).await;
 
-        assert_eq!(member_rx.recv().await.unwrap(), notification);
-        assert_eq!(member_rx.recv().await.unwrap(), notification);
+        assert_eq!(
+            member_rx.recv().await.unwrap(),
+            NotificationDelivery::Revision(notification.clone())
+        );
+        assert_eq!(
+            member_rx.recv().await.unwrap(),
+            NotificationDelivery::Revision(notification)
+        );
         assert!(
             tokio::time::timeout(Duration::from_millis(10), outsider_rx.recv())
                 .await
@@ -287,22 +237,22 @@ mod tests {
     }
 
     #[test]
-    fn control_plane_outbox_topics_force_http_resynchronization() {
+    fn transport_reset_reaches_every_live_account_and_no_released_account() {
+        let hub = NotificationHub::with_connection_limits(3, 2);
+        let mut first = hub.try_subscribe(Uuid::new_v4()).unwrap();
+        let mut second = hub.try_subscribe(Uuid::new_v4()).unwrap();
+        let released = hub.try_subscribe(Uuid::new_v4()).unwrap();
+        drop(released);
+
+        hub.require_resync_for_all();
+
         assert_eq!(
-            notification_type("game.revision.committed"),
-            "revision_committed"
+            first.receiver.try_recv().unwrap(),
+            NotificationDelivery::ResyncRequired
         );
         assert_eq!(
-            notification_type("game.membership.changed"),
-            "resync_required"
-        );
-        assert_eq!(
-            notification_type("game.lifecycle.changed"),
-            "resync_required"
-        );
-        assert_eq!(
-            notification_type("game.revision.recovered"),
-            "resync_required"
+            second.receiver.try_recv().unwrap(),
+            NotificationDelivery::ResyncRequired
         );
     }
 }

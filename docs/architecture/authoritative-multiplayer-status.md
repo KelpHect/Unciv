@@ -6726,6 +6726,51 @@ Verification on 2026-07-27:
   simplified, and the exact complete gate passed. No lifecycle, compile, test,
   format, or Clippy error is deferred.
 
+## Shared cross-instance notification fan-out
+
+Implemented on 2026-07-27:
+
+- The durable outbox dispatcher now publishes a closed, versioned JSON hint to
+  PostgreSQL channel `unciv_v3_revision_hints` instead of directly addressing
+  only its own process-local hub. Every Rust replica establishes its listener
+  before its local claimant starts, receives the same bounded frame, resolves
+  current recipients from authoritative membership, and fans out only to
+  matching local accounts.
+- Shared frames are capped at 1 KiB and contain only schema/event/protocol
+  versions, game ID, committed revision, and canonical state hash. Unknown
+  fields, versions, event types, non-lowercase-SHA-256 hashes, malformed JSON,
+  and oversized frames fail closed.
+- Publication completes before outbox acknowledgement. A crash in between can
+  produce only a duplicate hint, while a failed publication returns the row to
+  bounded retry. PostgreSQL notifications remain non-authoritative and
+  transient: listener gaps, rejected shared frames, or recipient lookup
+  failures send `resync_required` to every local subscriber so authenticated
+  HTTP projections recover exact state.
+- The transport lives in the focused
+  `notifications/dispatcher.rs` implementation module; `main.rs`, `lib.rs`,
+  API bootstrap, and module façades remain nearly logic-free.
+
+Verification on 2026-07-27:
+
+- Six focused notification tests pass, covering account isolation, duplicate
+  tolerance, admission/cleanup, process-wide resynchronization, exact shared
+  codec round trips, and closed decoder rejection.
+- A live disposable PostgreSQL 19 Beta 2 instance using the sole pinned digest
+  opened two independent replica listeners and local hubs before one
+  publication. Both listener loops decoded the exact frame, independently
+  queried membership, and delivered the same typed hint to their account-local
+  socket within the deadline. The first run exposed an integration-test
+  constant-visibility error; the qualified reference fixed it and the
+  strengthened live test passed. The disposable container was removed
+  afterward.
+- The complete serialized PostgreSQL lane then passed all 27 integration tests
+  on another fresh exact-digest Beta 2 instance. `cargo test --lib` passes 167
+  active tests with those 27 database tests ignored in the ordinary lane;
+  `cargo test --bin unciv-authoritative-server` passes all 24 server tests.
+  `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass. No
+  notification, database, compile, test, format, or Clippy error is deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

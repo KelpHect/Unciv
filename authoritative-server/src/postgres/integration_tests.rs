@@ -373,6 +373,68 @@ async fn game_discovery_is_membership_scoped_paginated_and_quarantine_aware() {
 
 #[tokio::test]
 #[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn shared_notifications_reach_every_active_replica_listener() {
+    let repository = PostgresGameRepository::connect(&database_url())
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    let (account, game) = seed_repository(&repository).await;
+    let first_hub = crate::notifications::NotificationHub::default();
+    let second_hub = crate::notifications::NotificationHub::default();
+    let mut first_socket = first_hub.try_subscribe(account).unwrap();
+    let mut second_socket = second_hub.try_subscribe(account).unwrap();
+    let first_listener = repository.shared_notification_listener().await.unwrap();
+    let second_listener = repository.shared_notification_listener().await.unwrap();
+    let first_task = tokio::spawn(crate::notifications::run_shared_listener(
+        repository.clone(),
+        first_hub,
+        first_listener,
+    ));
+    let second_task = tokio::spawn(crate::notifications::run_shared_listener(
+        repository.clone(),
+        second_hub,
+        second_listener,
+    ));
+    let payload = serde_json::json!({
+        "schema_version": 1,
+        "event_type": "revision_committed",
+        "protocol_version": PROTOCOL_VERSION,
+        "game_id": game,
+        "committed_revision": 11,
+        "canonical_state_hash": "ab".repeat(32),
+    })
+    .to_string();
+
+    repository
+        .publish_shared_notification(&payload)
+        .await
+        .unwrap();
+
+    let expected = crate::notifications::NotificationDelivery::Revision(
+        crate::notifications::RevisionNotification {
+            event_type: "revision_committed",
+            protocol_version: PROTOCOL_VERSION,
+            game_id: game,
+            committed_revision: 11,
+            canonical_state_hash: "ab".repeat(32),
+        },
+    );
+    let first = tokio::time::timeout(Duration::from_secs(2), first_socket.recv())
+        .await
+        .expect("first replica did not fan out shared notification")
+        .unwrap();
+    let second = tokio::time::timeout(Duration::from_secs(2), second_socket.recv())
+        .await
+        .expect("second replica did not fan out shared notification")
+        .unwrap();
+    assert_eq!(first, expected);
+    assert_eq!(second, expected);
+    first_task.abort();
+    second_task.abort();
+}
+
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
 async fn outbox_claims_are_exclusive_recoverable_and_token_bound() {
     let repository = PostgresGameRepository::connect(&database_url())
         .await

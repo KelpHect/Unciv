@@ -670,8 +670,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: notifications and multi-instance operation
 
-- [ ] Add shared cross-instance notification fan-out; in-process WebSocket
-  broadcast is insufficient when more than one Rust replica serves clients.
+- [x] Add shared cross-instance notification fan-out. One durable outbox
+  claimant publishes a bounded, versioned PostgreSQL notification only after
+  the shared listener is active. Every Rust replica receives it, resolves
+  current recipients from authoritative membership, and fans out only the
+  non-authoritative revision hint to its local sockets. Publish-before-ack
+  ordering preserves crash retry, duplicate delivery remains safe, and
+  listener gaps, malformed shared frames, or recipient-query failures force
+  local HTTP resynchronization rather than guessed replay.
 - [ ] Add connection and subscription limits, heartbeat/idle policy, slow-reader
   handling, bounded queues, reconnect backoff, and sustained duplicate/lost/
   reordered notification tests. The Rust process now has fail-closed bounded
@@ -772,15 +778,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
   --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
   skips), and `:android:lint` passes.
-- Rust passes 163 active library tests and 16 HTTP/OpenAPI tests; all 26
+- Rust passes 167 active library tests and 24 HTTP/OpenAPI/runtime tests; all 27
   serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
   lanes also pass.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated OpenAPI
   parity, and `git diff --check` pass.
-- `main.rs` is 6 lines, `lib.rs` is a 62-line facade, and the largest Rust source
-  is 796 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 5 lines, `lib.rs` is a 57-line facade, and the largest Rust source
+  is 779 lines. New work must split by concern before crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use tokio::time::{Instant, MissedTickBehavior};
 use unciv_authoritative_server::notifications::{
-    NotificationAdmissionError, NotificationSubscription,
+    NotificationAdmissionError, NotificationDelivery, NotificationSubscription,
 };
 
 const MAX_WEBSOCKET_MESSAGE_BYTES: usize = 4 * 1024;
@@ -155,8 +155,8 @@ async fn serve_websocket_parts<S, R, E>(
     let mut ping_sequence = 0_u64;
     loop {
         tokio::select! {
-            notification = subscription.recv() => match notification {
-                Ok(notification) => {
+            delivery = subscription.recv() => match delivery {
+                Ok(NotificationDelivery::Revision(notification)) => {
                     let payload = serde_json::to_string(&notification)
                         .expect("revision notification is serializable");
                     if send_with_deadline(
@@ -167,7 +167,8 @@ async fn serve_websocket_parts<S, R, E>(
                         break;
                     }
                 }
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                Ok(NotificationDelivery::ResyncRequired)
+                | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                     // Exact missed revisions do not matter: this explicitly
                     // instructs the client to fetch its latest HTTP projection.
                     if send_with_deadline(

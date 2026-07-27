@@ -1,6 +1,26 @@
 use super::*;
 
+pub(crate) const SHARED_NOTIFICATION_CHANNEL: &str = "unciv_v3_revision_hints";
+
 impl PostgresGameRepository {
+    pub async fn shared_notification_listener(
+        &self,
+    ) -> Result<sqlx::postgres::PgListener, sqlx::Error> {
+        let mut listener = sqlx::postgres::PgListener::connect_with(&self.pool).await?;
+        listener.listen(SHARED_NOTIFICATION_CHANNEL).await?;
+        Ok(listener)
+    }
+
+    pub async fn publish_shared_notification(&self, payload: &str) -> Result<(), CommitError> {
+        sqlx::query("SELECT pg_notify($1, $2)")
+            .bind(SHARED_NOTIFICATION_CHANNEL)
+            .bind(payload)
+            .execute(&self.pool)
+            .await
+            .map_err(CommitError::storage)?;
+        Ok(())
+    }
+
     /// Claims a bounded batch with a renewable lease. `SKIP LOCKED` permits
     /// multiple dispatchers without double-claiming; expired claims recover
     /// automatically after a process crash.

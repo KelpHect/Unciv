@@ -33,6 +33,30 @@ An account-local broadcast queue holds at most 64 hints. Lag produces one
 The supported clients already reconnect with capped exponential delay and
 always reconcile through HTTP.
 
-These limits are per Rust process. Multi-replica fanout and fleet-wide admission
-still require the shared notification transport described in
-`missing_multiplayer.md`.
+These limits are per Rust process. Fleet-wide admission still requires a shared
+quota or load-balancer policy.
+
+## Cross-instance fan-out
+
+Canonical commits and membership/lifecycle changes first create durable
+`game_outbox` rows in their database transaction. One dispatcher claims each
+row with the existing lease and publishes a versioned JSON hint on PostgreSQL
+channel `unciv_v3_revision_hints`. The payload is limited to 1 KiB and contains
+only its schema version, public event type, protocol version, game ID,
+committed revision, and canonical hash. It never contains a snapshot,
+projection, account ID, or private rules-engine data.
+
+Every Rust replica establishes `LISTEN` before its local dispatcher starts.
+Upon receipt it strictly validates the closed payload, queries current
+recipients from authoritative membership, and fans the hint out only to local
+subscribers for those accounts. The dispatcher acknowledges the durable outbox
+row only after `pg_notify` succeeds. A crash between publish and acknowledge
+can duplicate a hint; it cannot lose or duplicate a canonical commit.
+
+PostgreSQL notifications are transient by design. SQLx reconnects the listener
+and restores its channel subscription after a connection failure. When the
+listener reports a gap, a shared payload is rejected, or membership cannot be
+queried, the replica sends `resync_required` to every local socket. Clients
+then fetch authenticated HTTP projections. A newly connected client likewise
+reconciles through HTTP, so events published before that replica subscribed do
+not need notification replay.

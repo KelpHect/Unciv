@@ -151,12 +151,15 @@ write-buffer sizes, account hint queues, idle lifetime, and every write.
 Admission occurs after authentication and before upgrade; exact drop guards
 release permits and remove unused channel state. Ping/pong control traffic is
 required to remain live, arbitrary data frames cannot extend the deadline, and
-a lagged account receives only `resync_required`.
+a lagged account receives only `resync_required`. A durable outbox claimant now
+publishes a closed 1 KiB PostgreSQL notification to every replica; each replica
+re-resolves authoritative membership before local delivery. Publish precedes
+outbox acknowledgement, duplicates are harmless, and listener gaps or rejected
+shared payloads force HTTP resynchronization.
 
-Remaining hardening includes fleet-wide admission, reconnect jitter,
-multi-instance fanout design, lease recovery tests, metrics for lag and drops,
-and sustained client/load tests proving duplicate, missing, reordered, and
-maliciously large notifications cannot alter canonical state.
+Remaining hardening includes fleet-wide admission, reconnect jitter, metrics
+for lag and drops, and sustained client/load tests proving duplicate, missing,
+reordered, and maliciously large notifications cannot alter canonical state.
 
 ### Client platform and local data
 

@@ -1,13 +1,5 @@
 package com.unciv.app.server.authoritative
 
-import com.badlogic.gdx.ApplicationListener
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.backends.headless.HeadlessApplication
-import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration
-import com.unciv.UncivGame
-import com.unciv.logic.files.UncivFiles
-import com.unciv.models.metadata.GameSettings
-import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertThrows
 import org.junit.BeforeClass
 import org.junit.Test
@@ -43,21 +35,6 @@ class EngineWorkerAssetValidationTests {
     companion object {
         @JvmStatic
         @BeforeClass
-        fun loadInstalledRulesets() {
-            HeadlessApplication(object : ApplicationListener {
-                override fun create() {}
-                override fun render() {}
-                override fun resize(width: Int, height: Int) {}
-                override fun pause() {}
-                override fun resume() {}
-                override fun dispose() {}
-            }, HeadlessApplicationConfiguration())
-            UncivGame.Current = UncivGame().apply {
-                files = UncivFiles(Gdx.files)
-                settings = GameSettings()
-            }
-            RulesetCache.loadRulesets(consoleMode = true, noMods = true)
-            InstalledRulesetCatalog.initialize()
-        }
+        fun loadInstalledRulesets() = PackagedWorkerParityHarness.initializeRulesets()
     }
 }

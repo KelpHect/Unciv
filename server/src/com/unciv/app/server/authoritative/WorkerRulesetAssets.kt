@@ -25,8 +25,18 @@ object WorkerRulesetAssets {
         }
         val budget = AssetBudget()
         validateTree(assetRoot.resolve("jsons"), "built-in rulesets", budget)
-        val modsRoot = assetRoot.resolve("mods")
-        if (!Files.exists(modsRoot, LinkOption.NOFOLLOW_LINKS)) return
+        validateModsRoot(assetRoot.resolve("mods"), budget, required = false)
+    }
+
+    fun validateModsRoot(modsRoot: Path) {
+        validateModsRoot(modsRoot, AssetBudget(), required = true)
+    }
+
+    private fun validateModsRoot(modsRoot: Path, budget: AssetBudget, required: Boolean) {
+        if (!Files.exists(modsRoot, LinkOption.NOFOLLOW_LINKS)) {
+            require(!required) { "Worker mods path is unavailable" }
+            return
+        }
         require(Files.isDirectory(modsRoot, LinkOption.NOFOLLOW_LINKS)) {
             "Worker mods path must be a directory"
         }

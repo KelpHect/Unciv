@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationListener
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.backends.headless.HeadlessApplication
 import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration
+import com.badlogic.gdx.files.FileHandle
 import com.unciv.UncivGame
 import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSettings
@@ -27,7 +28,17 @@ object EngineWorkerMain {
             settings = GameSettings()
         }
         WorkerRulesetAssets.validate(Paths.get("").toAbsolutePath().normalize())
-        val loadingErrors = RulesetCache.loadRulesets(consoleMode = true, noMods = false)
+        val testModsRoot = System.getenv("UNCIV_ENGINE_WORKER_TEST_MODS_ROOT")?.let {
+            require(System.getenv("UNCIV_V3_UNPACKAGED_DEV") == "1") {
+                "Test rulesets are only supported by unpackaged workers"
+            }
+            Paths.get(it).toAbsolutePath().normalize().also(WorkerRulesetAssets::validateModsRoot)
+        }
+        val loadingErrors = RulesetCache.loadRulesets(
+            consoleMode = true,
+            noMods = false,
+            modsFolder = testModsRoot?.let { FileHandle(it.toFile()) },
+        )
         require(loadingErrors.isEmpty()) { "Worker ruleset loading failed" }
         InstalledRulesetCatalog.initialize()
         if (args.contentEquals(arrayOf("--print-catalog"))) {

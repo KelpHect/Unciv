@@ -1,0 +1,7 @@
+[
+    {
+        "name": "Authoritative Parity District",
+        "cost": 40,
+        "uniques": ["Creates a [Farm] improvement on a specific tile"]
+    }
+]

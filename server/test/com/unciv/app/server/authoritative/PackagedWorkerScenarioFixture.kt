@@ -11,11 +11,13 @@ internal class PackagedWorkerScenarioFixture(
     private val serverSeed: Long,
     private val baseName: String = "Civ V - Vanilla",
     private val cityStates: Int = 0,
+    private val modNames: List<String> = emptyList(),
 ) {
     val manifest by lazy {
         WorkerRulesetManifest(
             engineBuild = InstalledRulesetCatalog.engineBuild,
             baseRuleset = InstalledRulesetCatalog.named(baseName),
+            mods = modNames.sorted().map(InstalledRulesetCatalog::named),
         )
     }
 

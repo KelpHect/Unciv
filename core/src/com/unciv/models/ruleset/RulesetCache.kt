@@ -24,7 +24,14 @@ object RulesetCache : HashMap<String, Ruleset>() {
 
 
     /** Returns error lines from loading the rulesets, so we can display the errors to users */
-    fun loadRulesets(consoleMode: Boolean = false, noMods: Boolean = false): List<String> {
+    fun loadRulesets(
+        consoleMode: Boolean = false,
+        noMods: Boolean = false,
+        modsFolder: FileHandle? = null,
+    ): List<String> {
+        require(consoleMode || modsFolder == null) {
+            "A custom mods folder is only supported in console mode"
+        }
         val parallel = true // set to false to debug loading issues more easily
         val startTimeMs = System.currentTimeMillis()
         val newRulesets = ConcurrentHashMap<String, Ruleset>()
@@ -52,8 +59,11 @@ object RulesetCache : HashMap<String, Ruleset>() {
 
         val errorLines = ArrayList<String>()
         if (!noMods) {
-            val modsHandles = if (consoleMode) FileHandle("mods").list()
-                else UncivGame.Current.files.getModsFolder().list()
+            val modsHandles = when {
+                modsFolder != null -> modsFolder.list()
+                consoleMode -> FileHandle("mods").list()
+                else -> UncivGame.Current.files.getModsFolder().list()
+            }
 
             val modRulesetTasks = ArrayList<() -> Unit>()
             for (modFolder in modsHandles) {

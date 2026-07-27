@@ -79,6 +79,13 @@ class PackagedWorkerRandomParityTests {
         val eventName = "Tutorial Task: [Meet another civilization]"
         assertTrue(game.ruleset.events[eventName]?.choices?.isNotEmpty() == true)
         game.turns = 2
+        val otherMajor = game.civilizations.first {
+            it.isMajorCiv() && it.civID != actor.civID
+        }
+        actor.diplomacyFunctions.makeCivilizationsMeet(otherMajor)
+        com.unciv.UncivGame.Current.settings.tutorialTasksCompleted.remove(
+            "Meet another civilization",
+        )
         actor.popupAlerts.add(PopupAlert(AlertType.Event, eventName))
         val prompt = EventChoiceCommandExecutor.prompts(actor).single()
         val request = request(

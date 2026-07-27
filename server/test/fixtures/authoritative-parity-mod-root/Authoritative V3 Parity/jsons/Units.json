@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Authoritative Parity Transformer",
+        "unitType": "Melee",
+        "movement": 2,
+        "strength": 8,
+        "cost": 40,
+        "uniques": ["Can transform to [Scout]"]
+    }
+]

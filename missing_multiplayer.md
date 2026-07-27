@@ -599,15 +599,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 84 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
-  Fresh packaged-JVM evidence covers 81 of 84 classified operations: handshake,
+  Fresh packaged-JVM evidence covers all 84 classified operations: handshake,
   game creation, player assignment, self/force resignation, owner kick,
   research selection, end turn with all AI, unit movement,
   durable movement-toward and cancellation, exploration/automation transitions,
   promotion and saved city defaults, batch upgrades, renaming, posture, disband,
   tile-improvement start/cancel, road connection orders, friendly unit swaps,
   city founding, player/spectator projection,
-  ordinary construction queueing, adjacent queue movement, exact queue removal,
-  queue-context management, perpetual construction, ordinary purchases,
+  ordinary and tile-targeted construction queueing, adjacent queue movement,
+  exact queue removal, queue-context management, perpetual construction,
+  ordinary and tile-targeted purchases,
   captured-city disposition and governance, specialist assignment/mode,
   tile locking, citizen
   reset, avoid-growth/focus policy, single/batch tile purchases, building sale,
@@ -618,7 +619,8 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   lifecycle (offer, counter, decline, retract, and accept), major-civilization
   friendship/demand prompts and responses, denouncements, war declarations,
   spy movement and coups, religious-unit founding, Great Person research
-  actions, instant Great Person improvements, generic unit-unique triggers,
+  actions, instant Great Person improvements, unit transformations,
+  generic unit-unique triggers,
   spaceship-part capital contributions, city-state unit gifts,
   gold gifts, protection pledges, tribute demands, city-state improvement
   gifts, negotiated peace, diplomatic marriage,
@@ -627,11 +629,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Stateful unit and city scenarios compare every full response across two
   independent JVMs. Changed canonical combat state, forged actor, and
   changed-clock controls prove that state, authenticated identity, and server
-  time remain replay-critical. The remaining three operations are
-  `queue_construction_at_tile`, `purchase_construction_at_tile`, and
-  `transform_unit`; each still needs a fresh-process fixture using an approved
-  packaged ruleset. Additional random setup/combat/event/AI branches also need
-  fresh-process fixtures, so this item remains unchecked.
+  time remain replay-critical. The last three protocol gaps use a minimal,
+  immutable test-only extension ruleset loaded through the same bounded asset
+  validator and manifest hashing as packaged mods. The override is accepted
+  only by explicitly unpackaged development workers and cannot alter a
+  production packaged worker. Additional random setup/combat/event/AI branches
+  still need fresh-process fixtures, so this broader item remains unchecked.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

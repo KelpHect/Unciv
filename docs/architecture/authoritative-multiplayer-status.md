@@ -6610,6 +6610,47 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Complete sealed-operation fresh-worker parity
+
+Implemented on 2026-07-27:
+
+- Fresh packaged-JVM state parity now covers all 84 sealed worker operations.
+  The final scenario covers `queue_construction_at_tile`,
+  `purchase_construction_at_tile`, and `transform_unit` by deriving its legal
+  placement, purchase, and transform identities from the authoritative player
+  projection before submitting each mutation.
+- A minimal extension ruleset supplies the two mechanics absent from the
+  shipped base rulesets. It is source-controlled under server test fixtures,
+  included as a Gradle test input, hashed into the same immutable manifest as
+  operator mods, and validated with the production link, entry, file-size,
+  total-size, name, and directory constraints.
+- The worker accepts the explicit test mod root only when
+  `UNCIV_V3_UNPACKAGED_DEV=1`; packaged production startup fails closed if that
+  override is present. Normal game, Android, desktop, and packaged asset trees
+  do not contain the synthetic content.
+- Test catalog setup is now single and synchronized across the complete server
+  suite. The event parity fixture also clears its global tutorial-completion
+  prerequisite, eliminating an order-dependent failure found by the clean
+  broad gate.
+
+Verification on 2026-07-27:
+
+- Focused parity and coverage tests pass, comparing all seven responses from
+  the new stateful scenario across two independent worker JVMs.
+- `./gradlew :server:cleanTest :tests:test :server:test
+  :android:lintRelease :android:assembleDebug :desktop:dist --no-parallel
+  --no-daemon --console=plain` passes 1,144 JVM/server cases: 1,130 executed,
+  14 intentional skips, zero failures, and zero errors. Android release lint,
+  debug APK assembly, and desktop distribution also pass.
+- The first clean broad run exposed incompatible duplicate catalog
+  initialization; after unifying it, the server sweep exposed the
+  order-dependent tutorial prerequisite. Both were corrected and the exact
+  complete gate above passed. The Android SDK XML version 3/4 compatibility
+  warning remains non-failing and no compile, test, lint, packaging, or
+  documentation error is deferred.
+- `git diff --check` passes. No Rust source changed in this milestone; the Rust
+  façade and source-size guardrails remain unchanged.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

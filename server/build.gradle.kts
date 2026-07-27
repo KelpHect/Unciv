@@ -21,6 +21,7 @@ sourceSets {
 val mainClassName = "com.unciv.app.server.UncivServer"
 val authoritativeWorkerMainClassName = "com.unciv.app.server.authoritative.EngineWorkerMain"
 val assetsDir = file("../android/assets")
+val authoritativeParityModsRoot = file("test/fixtures/authoritative-parity-mod-root")
 val deployFolder = file("../deploy")
 
 // See https://github.com/libgdx/libgdx/wiki/Starter-classes-and-configuration#common-issues
@@ -87,11 +88,16 @@ val authoritativeWorkerDist = tasks.register<Jar>("authoritativeWorkerDist") {
 
 tasks.test {
     dependsOn(authoritativeWorkerDist)
+    inputs.dir(authoritativeParityModsRoot)
     workingDir = assetsDir
     doFirst {
         systemProperty(
             "unciv.authoritativeWorkerJar",
             authoritativeWorkerDist.get().archiveFile.get().asFile.absolutePath,
+        )
+        systemProperty(
+            "unciv.authoritativeParityModsRoot",
+            authoritativeParityModsRoot.absolutePath,
         )
     }
 }

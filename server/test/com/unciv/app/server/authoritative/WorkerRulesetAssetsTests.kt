@@ -7,6 +7,23 @@ import java.nio.file.Files
 
 class WorkerRulesetAssetsTests {
     @Test
+    fun validatesAnExplicitRequiredModsRoot() {
+        val modsRoot = Files.createTempDirectory("unciv-worker-test-mods")
+        try {
+            Files.createDirectories(modsRoot.resolve("Example Mod/jsons"))
+            Files.writeString(modsRoot.resolve("Example Mod/jsons/ModOptions.json"), "{}")
+
+            WorkerRulesetAssets.validateModsRoot(modsRoot)
+        } finally {
+            modsRoot.toFile().deleteRecursively()
+        }
+
+        assertThrows(IllegalArgumentException::class.java) {
+            WorkerRulesetAssets.validateModsRoot(modsRoot)
+        }
+    }
+
+    @Test
     fun acceptsBuiltinsAndBoundedStagedMods() {
         val root = Files.createTempDirectory("unciv-worker-assets")
         try {

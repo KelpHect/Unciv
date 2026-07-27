@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationListener
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.backends.headless.HeadlessApplication
 import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration
+import com.badlogic.gdx.files.FileHandle
 import com.unciv.UncivGame
 import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSettings
@@ -23,7 +24,12 @@ import java.util.concurrent.TimeUnit
 
 /** Fresh-process parity boundary shared by packaged-worker scenario tests. */
 internal object PackagedWorkerParityHarness {
+    @Volatile
+    private var rulesetsInitialized = false
+
+    @Synchronized
     fun initializeRulesets() {
+        if (rulesetsInitialized) return
         HeadlessApplication(object : ApplicationListener {
             override fun create() {}
             override fun render() {}
@@ -36,8 +42,15 @@ internal object PackagedWorkerParityHarness {
             files = UncivFiles(Gdx.files)
             settings = GameSettings()
         }
-        RulesetCache.loadRulesets(consoleMode = true, noMods = true)
+        val modsRoot = parityModsRoot()
+        WorkerRulesetAssets.validateModsRoot(modsRoot)
+        RulesetCache.loadRulesets(
+            consoleMode = true,
+            noMods = false,
+            modsFolder = FileHandle(modsRoot.toFile()),
+        )
         InstalledRulesetCatalog.initialize()
+        rulesetsInitialized = true
     }
 
     fun assertStable(request: WorkerRequest): WorkerResponse {
@@ -94,6 +107,7 @@ internal object PackagedWorkerParityHarness {
                 environment()["UNCIV_ENGINE_WORKER_PORT"] = port.toString()
                 environment()["UNCIV_ENGINE_WORKER_SECRET"] = workerSecret
                 environment()["UNCIV_V3_UNPACKAGED_DEV"] = "1"
+                environment()["UNCIV_ENGINE_WORKER_TEST_MODS_ROOT"] = parityModsRoot().toString()
             }
             .start()
         try {
@@ -179,4 +193,9 @@ internal object PackagedWorkerParityHarness {
     private val workerSecret = "55".repeat(32)
     private val authentication = EngineWorkerAuthentication.fromHex(workerSecret)
     private val random = SecureRandom()
+
+    private fun parityModsRoot() =
+        Paths.get(requireNotNull(System.getProperty("unciv.authoritativeParityModsRoot")) {
+            "The server test task must provide the authoritative parity mod root"
+        }).toAbsolutePath().normalize()
 }

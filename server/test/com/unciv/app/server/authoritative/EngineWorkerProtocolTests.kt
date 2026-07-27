@@ -287,6 +287,82 @@ class EngineWorkerProtocolTests {
         assertEquals(response.snapshot, replay.snapshot)
     }
 
+    @Test
+    fun legacyNormalizationRekeysGameAndExhaustivelyMapsHumanPlayers() {
+        val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = baseRuleset,
+        )
+        val legacy = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
+                actorId = "legacy-owner",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000010",
+                    123456789L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 2,
+                        cityStates = 0,
+                        mapSize = GeneratedMapSize.Tiny,
+                        barbarians = BarbarianMode.Disabled,
+                    ),
+                ),
+            ),
+        )
+        val legacyGame = json().fromJson(GameInfo::class.java, requireNotNull(legacy.snapshot))
+        legacyGame.gameId = "legacy-game-id"
+        val legacySnapshot = json().toJson(legacyGame)
+        val ownerAccount = "00000000-0000-4000-8000-000000000020"
+        val canonicalGame = "00000000-0000-4000-8000-000000000021"
+
+        val normalized = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_001L,
+                actorId = ownerAccount,
+                rulesetManifest = manifest,
+                operation = WorkerOperation.NormalizeLegacyGame(
+                    snapshot = legacySnapshot,
+                    expectedLegacyGameId = "legacy-game-id",
+                    canonicalGameId = canonicalGame,
+                    playerMappings = listOf(
+                        LegacyPlayerMapping("legacy-owner", ownerAccount),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(normalized.error)
+        val imported = json().fromJson(GameInfo::class.java, requireNotNull(normalized.snapshot))
+        assertEquals(canonicalGame, imported.gameId)
+        assertEquals(
+            ownerAccount,
+            imported.civilizations.single { it.civID == normalized.actorCivilizationId }.playerId,
+        )
+        assertTrue(imported.civilizations.filter { it.isHuman() }
+            .all { it.playerId == ownerAccount })
+
+        val incompleteMapping = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_001L,
+                actorId = ownerAccount,
+                rulesetManifest = manifest,
+                operation = WorkerOperation.NormalizeLegacyGame(
+                    snapshot = legacySnapshot,
+                    expectedLegacyGameId = "wrong-game",
+                    canonicalGameId = canonicalGame,
+                    playerMappings = listOf(LegacyPlayerMapping("legacy-owner", ownerAccount)),
+                ),
+            ),
+        )
+        assertEquals("engine_rejected", incompleteMapping.error?.code)
+        assertNull(incompleteMapping.snapshot)
+    }
+
     @Test(timeout = 300_000)
     fun cityStateCreationIsByteStableAcrossFreshWorkerProcesses() {
         val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")

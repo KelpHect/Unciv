@@ -130,6 +130,17 @@ sealed interface WorkerOperation {
         val setup: WorkerGameSetup,
     ) : WorkerOperation
 
+    /** Operator-only bridge for one-way migration from legacy multiplayer.
+     * The control plane supplies the new canonical identity and an exhaustive
+     * mapping of legacy human player IDs to authenticated v3 account IDs. */
+    @Serializable @SerialName("normalize_legacy_game")
+    data class NormalizeLegacyGame(
+        val snapshot: String,
+        val expectedLegacyGameId: String,
+        val canonicalGameId: String,
+        val playerMappings: List<LegacyPlayerMapping>,
+    ) : WorkerOperation
+
     @Serializable @SerialName("assign_player")
     data class AssignPlayer(val snapshot: String) : WorkerOperation
 
@@ -655,6 +666,12 @@ sealed interface WorkerOperation {
 }
 
 @Serializable
+data class LegacyPlayerMapping(
+    val legacyPlayerId: String,
+    val accountId: String,
+)
+
+@Serializable
 data class WorkerResponse(
     val protocolVersion: Int = EngineWorkerProtocol.VERSION,
     val releaseBundleId: String? = null,
@@ -694,7 +711,11 @@ class AuthoritativeEngineWorker(
         val engine = HeadlessGameEngine(GameExecutionContext.authoritative(
             actorId = actorId,
             rulesetManifest = manifest.toCore(),
-            canonicalGameId = (request.operation as? WorkerOperation.CreateGame)?.gameId,
+            canonicalGameId = when (val operation = request.operation) {
+                is WorkerOperation.CreateGame -> operation.gameId
+                is WorkerOperation.NormalizeLegacyGame -> operation.canonicalGameId
+                else -> null
+            },
             clockMillis = { serverTimeMillis },
         ))
         when (val operation = request.operation) {
@@ -717,6 +738,54 @@ class AuthoritativeEngineWorker(
                     it.playerId == actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
                 responseForGame(engine, result.game, ownerCivilization.civID)
+            }
+            is WorkerOperation.NormalizeLegacyGame -> {
+                require(UUID.fromString(operation.canonicalGameId).toString() ==
+                    operation.canonicalGameId.lowercase()) {
+                    "Canonical game ID must be a normalized UUID"
+                }
+                require(operation.expectedLegacyGameId.isNotBlank()) {
+                    "Expected legacy game ID must not be blank"
+                }
+                require(operation.playerMappings.isNotEmpty()) {
+                    "Every imported game requires human player mappings"
+                }
+                require(operation.playerMappings.map { it.legacyPlayerId }.distinct().size ==
+                    operation.playerMappings.size) {
+                    "Legacy player IDs must be unique"
+                }
+                require(operation.playerMappings.map { it.accountId }.distinct().size ==
+                    operation.playerMappings.size) {
+                    "V3 account IDs must be unique"
+                }
+                operation.playerMappings.forEach {
+                    require(it.legacyPlayerId.isNotBlank()) { "Legacy player IDs must not be blank" }
+                    require(UUID.fromString(it.accountId).toString() == it.accountId.lowercase()) {
+                        "V3 account IDs must be normalized UUIDs"
+                    }
+                }
+
+                val game = engine.loadSnapshot(operation.snapshot)
+                require(game.gameId == operation.expectedLegacyGameId) {
+                    "Legacy game ID does not match the requested import"
+                }
+                require(game.gameParameters.isOnlineMultiplayer) {
+                    "Only legacy online multiplayer games may be imported"
+                }
+                val humans = game.civilizations.filter { it.isHuman() && !it.isSpectator() }
+                require(humans.isNotEmpty()) { "Legacy game has no human players" }
+                require(humans.all { it.playerId.isNotBlank() }) {
+                    "Every legacy human civilization must have a player ID"
+                }
+                val mappings = operation.playerMappings.associate { it.legacyPlayerId to it.accountId }
+                require(humans.map { it.playerId }.toSet() == mappings.keys) {
+                    "Player mappings must exactly cover legacy human players"
+                }
+                humans.forEach { it.playerId = mappings.getValue(it.playerId) }
+                val owner = humans.singleOrNull { it.playerId == actorId }
+                    ?: error("Authenticated importing owner must map to exactly one civilization")
+                game.gameId = operation.canonicalGameId
+                responseForGame(engine, game, owner.civID)
             }
             is WorkerOperation.AssignPlayer -> {
                 val game = engine.loadSnapshot(operation.snapshot)

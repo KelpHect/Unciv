@@ -6610,6 +6610,34 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Legacy import normalization boundary
+
+The first legacy-import milestone keeps untrusted saves out of Rust rules code.
+A typed, private `normalize_legacy_game` worker operation loads the legacy save
+through the shared Kotlin engine under an approved content-addressed manifest.
+It rejects a mismatched legacy game ID, non-online saves, missing or duplicate
+human mappings, duplicate destination accounts, malformed account UUIDs, and an
+owner mapping that does not resolve to exactly one civilization. On success it
+rekeys the game to a server-selected canonical UUID, rewrites every human
+player identity to its v3 account UUID, and returns normalized snapshot bytes,
+their hash, and the owner's civilization.
+
+Rust exposes this only through a focused private worker-client module; no HTTP
+route or client whole-save path was added. Persistence remains deliberately
+unimplemented until the operator-only dry-run/apply command can combine bounded
+candidate reads, conflict reporting, account validation, provenance, and the
+idempotent genesis transaction atomically.
+
+Verification on 2026-07-27:
+
+- The focused Kotlin normalization test passes and proves successful rekeying,
+  owner remapping, and fail-closed legacy-ID validation.
+- Packaged-worker parity inventory passes with the new operation explicitly
+  classified as fresh-process state parity.
+- The focused Rust serialization/client test passes.
+- `cargo fmt` was applied. The Windows linker emitted only its normal
+  import-library informational warning; no Rust test failed.
+
 ## Complete sealed-operation fresh-worker parity
 
 Implemented on 2026-07-27:

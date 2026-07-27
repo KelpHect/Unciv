@@ -31,6 +31,15 @@ pub(super) enum WorkerOperation<'a> {
         server_seed: i64,
         setup: &'a super::WorkerGameSetup,
     },
+    NormalizeLegacyGame {
+        snapshot: &'a str,
+        #[serde(rename = "expectedLegacyGameId")]
+        expected_legacy_game_id: &'a str,
+        #[serde(rename = "canonicalGameId")]
+        canonical_game_id: &'a str,
+        #[serde(rename = "playerMappings")]
+        player_mappings: &'a [super::LegacyPlayerMapping],
+    },
     AssignPlayer {
         snapshot: &'a str,
     },
@@ -755,6 +764,11 @@ pub(super) struct WorkerResponse {
 
 pub struct CreatedGame {
     pub proposal: CommitProposal,
+    pub owner_civilization_id: String,
+}
+pub struct NormalizedLegacyGame {
+    pub snapshot: String,
+    pub canonical_state_hash: String,
     pub owner_civilization_id: String,
 }
 pub struct AssignedPlayer {

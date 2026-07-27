@@ -31,6 +31,7 @@ mod great_people;
 mod instant_improvements;
 mod intents;
 mod json_limits;
+mod legacy_import;
 mod lifecycle;
 mod major_diplomacy;
 mod manifest;
@@ -76,14 +77,15 @@ pub use intents::{
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
     TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
+pub use legacy_import::LegacyPlayerMapping;
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
     DiplomaticPromptIntent,
 };
 pub use manifest::{WorkerManifest, WorkerRuleset};
 pub use protocol::{
-    AssignedPlayer, CreatedGame, ForcedResignation, ProjectedSpectatorState, ProjectedState,
-    WorkerCapabilities,
+    AssignedPlayer, CreatedGame, ForcedResignation, NormalizedLegacyGame, ProjectedSpectatorState,
+    ProjectedState, WorkerCapabilities,
 };
 use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
 pub use queue::{WorkerQueueConfig, WorkerQueueConfigError};

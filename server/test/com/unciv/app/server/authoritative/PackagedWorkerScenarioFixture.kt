@@ -10,7 +10,9 @@ internal class PackagedWorkerScenarioFixture(
     private val gameId: String,
     private val serverSeed: Long,
     private val baseName: String = "Civ V - Vanilla",
+    private val majorCivilizations: Int = 2,
     private val cityStates: Int = 0,
+    private val barbarians: BarbarianMode = BarbarianMode.Disabled,
     private val modNames: List<String> = emptyList(),
 ) {
     val manifest by lazy {
@@ -35,14 +37,14 @@ internal class PackagedWorkerScenarioFixture(
                         .filterNot { it.hiddenInVictoryScreen }
                         .map { it.name }
                         .sorted(),
-                    majorCivilizations = 2,
+                    majorCivilizations = majorCivilizations,
                     cityStates = cityStates,
                     maxTurns = 500,
                     mapType = GeneratedMapType.Pangaea,
                     mapShape = GeneratedMapShape.Rectangular,
                     mapSize = GeneratedMapSize.Tiny,
                     mapResources = MapResourceDensity.Default,
-                    barbarians = BarbarianMode.Disabled,
+                    barbarians = barbarians,
                     oneCityChallenge = false,
                     nuclearWeaponsEnabled = true,
                     espionageEnabled = true,

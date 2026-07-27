@@ -6924,6 +6924,39 @@ Verification on 2026-07-27:
 - The expanded random parity file remains 322 lines. `git diff --check`
   passes, and no compile, test, formatting, or diff error remains deferred.
 
+## Multi-round server AI campaign parity
+
+Implemented on 2026-07-27:
+
+- A dedicated packaged-worker scenario creates one four-major-civilization
+  canonical game with three server AI players, two city states, and normal
+  barbarians. The authenticated human selects a server-derived prerequisite
+  path to the furthest available technology, avoiding client-authored research
+  queue state.
+- The private Kotlin worker executes eight complete
+  human-to-three-AI-to-human rounds. Every round must increment the canonical
+  turn exactly once and return current-player control to the authenticated
+  human; all three AI civilizations must establish cities.
+- The complete ten-response sequence—creation, research selection, and eight
+  end-turn results—runs in two independent packaged JVMs. Every response,
+  snapshot, canonical hash, projection, event set, and turn field must match
+  exactly at each sequence position.
+- `PackagedWorkerScenarioFixture` now accepts bounded major-civilization and
+  barbarian settings while preserving its prior defaults for every existing
+  command-family scenario. The campaign remains isolated in its own 89-line
+  logical test module.
+
+Verification on 2026-07-27:
+
+- The focused multi-round campaign passes across both fresh workers.
+- `./gradlew :tests:test :server:test --no-parallel` passes 1,147 cases:
+  1,092 core/client cases with 13 intentional skips and 55 server cases with
+  one intentional skip.
+- The initial focused compile identified an incorrect test-only `Technology`
+  import; it was corrected to the engine model package before the clean focused
+  and complete reruns. `git diff --check` passes, and no compile, test, or diff
+  error remains deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

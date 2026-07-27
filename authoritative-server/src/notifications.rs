@@ -1,7 +1,11 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use serde::Serialize;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::postgres::PostgresGameRepository;
@@ -16,28 +20,133 @@ pub struct RevisionNotification {
     pub canonical_state_hash: String,
 }
 
-#[derive(Clone, Default)]
+const DEFAULT_GLOBAL_CONNECTION_LIMIT: usize = 1_024;
+const DEFAULT_ACCOUNT_CONNECTION_LIMIT: usize = 4;
+
+#[derive(Clone)]
 pub struct NotificationHub {
-    accounts: Arc<RwLock<HashMap<Uuid, broadcast::Sender<RevisionNotification>>>>,
+    inner: Arc<Mutex<NotificationHubState>>,
+    global_connection_limit: usize,
+    account_connection_limit: usize,
+}
+
+struct NotificationHubState {
+    accounts: HashMap<Uuid, AccountChannel>,
+    active_connections: usize,
+}
+
+struct AccountChannel {
+    sender: broadcast::Sender<RevisionNotification>,
+    active_connections: usize,
+}
+
+pub struct NotificationSubscription {
+    hub: NotificationHub,
+    account_id: Uuid,
+    receiver: broadcast::Receiver<RevisionNotification>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NotificationAdmissionError {
+    GlobalLimit,
+    AccountLimit,
+}
+
+impl Default for NotificationHub {
+    fn default() -> Self {
+        Self::with_connection_limits(
+            DEFAULT_GLOBAL_CONNECTION_LIMIT,
+            DEFAULT_ACCOUNT_CONNECTION_LIMIT,
+        )
+    }
 }
 
 impl NotificationHub {
-    pub async fn subscribe(&self, account_id: Uuid) -> broadcast::Receiver<RevisionNotification> {
-        let mut accounts = self.accounts.write().await;
-        accounts
+    pub fn with_connection_limits(
+        global_connection_limit: usize,
+        account_connection_limit: usize,
+    ) -> Self {
+        assert!(global_connection_limit > 0);
+        assert!(account_connection_limit > 0);
+        assert!(account_connection_limit <= global_connection_limit);
+        Self {
+            inner: Arc::new(Mutex::new(NotificationHubState {
+                accounts: HashMap::new(),
+                active_connections: 0,
+            })),
+            global_connection_limit,
+            account_connection_limit,
+        }
+    }
+
+    pub fn try_subscribe(
+        &self,
+        account_id: Uuid,
+    ) -> Result<NotificationSubscription, NotificationAdmissionError> {
+        let mut state = self.inner.lock().expect("notification hub lock poisoned");
+        if state.active_connections >= self.global_connection_limit {
+            return Err(NotificationAdmissionError::GlobalLimit);
+        }
+        let channel = state
+            .accounts
             .entry(account_id)
-            .or_insert_with(|| broadcast::channel(64).0)
-            .subscribe()
+            .or_insert_with(|| AccountChannel {
+                sender: broadcast::channel(64).0,
+                active_connections: 0,
+            });
+        if channel.active_connections >= self.account_connection_limit {
+            return Err(NotificationAdmissionError::AccountLimit);
+        }
+        channel.active_connections += 1;
+        let receiver = channel.sender.subscribe();
+        state.active_connections += 1;
+        Ok(NotificationSubscription {
+            hub: self.clone(),
+            account_id,
+            receiver,
+        })
     }
 
     pub async fn publish(&self, recipients: &[Uuid], notification: RevisionNotification) {
-        let accounts = self.accounts.read().await;
+        let state = self.inner.lock().expect("notification hub lock poisoned");
         for account_id in recipients {
-            if let Some(sender) = accounts.get(account_id) {
+            if let Some(channel) = state.accounts.get(account_id) {
                 // No receiver means the client is offline. The notification is
                 // only a hint; authenticated HTTP reconciliation is authoritative.
-                let _ = sender.send(notification.clone());
+                let _ = channel.sender.send(notification.clone());
             }
+        }
+    }
+}
+
+impl NotificationSubscription {
+    pub async fn recv(&mut self) -> Result<RevisionNotification, broadcast::error::RecvError> {
+        self.receiver.recv().await
+    }
+}
+
+impl Drop for NotificationSubscription {
+    fn drop(&mut self) {
+        let mut state = self
+            .hub
+            .inner
+            .lock()
+            .expect("notification hub lock poisoned");
+        let remove_account = if let Some(channel) = state.accounts.get_mut(&self.account_id) {
+            channel.active_connections = channel
+                .active_connections
+                .checked_sub(1)
+                .expect("notification account connection count underflow");
+            channel.active_connections == 0
+        } else {
+            false
+        };
+        state.active_connections = state
+            .active_connections
+            .checked_sub(1)
+            .expect("notification global connection count underflow");
+        if remove_account {
+            state.accounts.remove(&self.account_id);
         }
     }
 }
@@ -127,8 +236,8 @@ mod tests {
         let hub = NotificationHub::default();
         let member = Uuid::new_v4();
         let outsider = Uuid::new_v4();
-        let mut member_rx = hub.subscribe(member).await;
-        let mut outsider_rx = hub.subscribe(outsider).await;
+        let mut member_rx = hub.try_subscribe(member).unwrap();
+        let mut outsider_rx = hub.try_subscribe(outsider).unwrap();
         let notification = RevisionNotification {
             event_type: "revision_committed",
             protocol_version: crate::PROTOCOL_VERSION,
@@ -142,7 +251,39 @@ mod tests {
 
         assert_eq!(member_rx.recv().await.unwrap(), notification);
         assert_eq!(member_rx.recv().await.unwrap(), notification);
-        assert!(outsider_rx.try_recv().is_err());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), outsider_rx.recv())
+                .await
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn connection_admission_is_bounded_per_account_and_globally_and_releases_exactly() {
+        let hub = NotificationHub::with_connection_limits(3, 2);
+        let first_account = Uuid::new_v4();
+        let second_account = Uuid::new_v4();
+        let first = hub.try_subscribe(first_account).unwrap();
+        let second = hub.try_subscribe(first_account).unwrap();
+        assert!(matches!(
+            hub.try_subscribe(first_account),
+            Err(NotificationAdmissionError::AccountLimit),
+        ));
+        let third = hub.try_subscribe(second_account).unwrap();
+        assert!(matches!(
+            hub.try_subscribe(Uuid::new_v4()),
+            Err(NotificationAdmissionError::GlobalLimit),
+        ));
+
+        drop(second);
+        let replacement = hub.try_subscribe(first_account).unwrap();
+        drop(first);
+        drop(third);
+        drop(replacement);
+
+        let state = hub.inner.lock().unwrap();
+        assert_eq!(state.active_connections, 0);
+        assert!(state.accounts.is_empty());
     }
 
     #[test]

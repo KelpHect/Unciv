@@ -143,9 +143,20 @@ Remaining hardening includes live Linux/systemd failure qualification, parser an
 
 **Attacker story:** A client opens many authenticated sockets, reads slowly, causes unbounded queues, repeatedly reconnects, or treats a forged/stale notification as authority. A process crash loses in-memory fanout after an outbox row is leased.
 
-Current controls authenticate the notification endpoint, scope fanout by account, persist outbox events, lease delivery, and instruct clients to reconcile revisions through HTTP. Notifications do not contain full state.
+Current controls authenticate the notification endpoint, scope fanout by
+account, persist outbox events, lease delivery, and instruct clients to
+reconcile revisions through HTTP. Notifications do not contain full state.
+Each Rust process now bounds global and per-account sockets, frame/message and
+write-buffer sizes, account hint queues, idle lifetime, and every write.
+Admission occurs after authentication and before upgrade; exact drop guards
+release permits and remove unused channel state. Ping/pong control traffic is
+required to remain live, arbitrary data frames cannot extend the deadline, and
+a lagged account receives only `resync_required`.
 
-Required hardening includes per-account/socket limits, heartbeat and idle deadlines, bounded queues with explicit slow-consumer behavior, maximum frame sizes, reconnect backoff and jitter, multi-instance fanout design, lease recovery tests, metrics for lag and drops, and client tests proving duplicate, missing, reordered, and maliciously large notifications cannot alter canonical state.
+Remaining hardening includes fleet-wide admission, reconnect jitter,
+multi-instance fanout design, lease recovery tests, metrics for lag and drops,
+and sustained client/load tests proving duplicate, missing, reordered, and
+maliciously large notifications cannot alter canonical state.
 
 ### Client platform and local data
 

@@ -5,6 +5,7 @@ pub(super) struct AppState {
     pub(super) repository: PostgresGameRepository,
     pub(super) worker: EngineWorkerClient,
     pub(super) notifications: NotificationHub,
+    pub(super) websocket_policy: WebSocketRuntimePolicy,
 }
 
 pub(super) struct RateLimitPolicy {

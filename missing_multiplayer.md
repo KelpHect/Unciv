@@ -674,7 +674,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   broadcast is insufficient when more than one Rust replica serves clients.
 - [ ] Add connection and subscription limits, heartbeat/idle policy, slow-reader
   handling, bounded queues, reconnect backoff, and sustained duplicate/lost/
-  reordered notification tests.
+  reordered notification tests. The Rust process now has fail-closed bounded
+  global/per-account admission, exact permit cleanup, 4 KiB frame/message and
+  64 KiB write-buffer ceilings, ping/pong idle eviction, hard write deadlines,
+  and explicit `resync_required` behavior after its bounded 64-hint account
+  queue lags. Supported clients already use capped exponential reconnect and
+  HTTP-only reconciliation; duplicate/reordered unit tests remain. Fleet-wide
+  admission, reconnect jitter, and sustained loss/load qualification keep this
+  broader item open.
 - [ ] Add outbox retention, poison-event handling, lag alerts, and operational
   repair tooling without allowing notifications to become authoritative.
 - [ ] Publish a full WebSocket/AsyncAPI lifecycle contract rather than only an

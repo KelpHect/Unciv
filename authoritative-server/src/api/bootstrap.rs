@@ -79,7 +79,12 @@ pub(crate) async fn run() {
         worker_capabilities.engine_build,
         worker_capabilities.installed_rulesets.len(),
     );
-    let notifications = NotificationHub::default();
+    let websocket_policy = WebSocketRuntimePolicy::from_environment()
+        .expect("authoritative WebSocket runtime policy must be valid");
+    let notifications = NotificationHub::with_connection_limits(
+        websocket_policy.global_connection_limit,
+        websocket_policy.account_connection_limit,
+    );
     tokio::spawn(run_outbox_dispatcher(
         repository.clone(),
         notifications.clone(),
@@ -448,6 +453,7 @@ pub(crate) async fn run() {
             repository,
             worker,
             notifications,
+            websocket_policy,
         });
     let listener = tokio::net::TcpListener::bind(address)
         .await

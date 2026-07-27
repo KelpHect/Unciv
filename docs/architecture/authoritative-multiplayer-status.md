@@ -6687,6 +6687,45 @@ Verification on 2026-07-27:
   complete gate passed. No HTTP boundary, formatting, compile, test, or Clippy
   error is deferred.
 
+## Bounded WebSocket admission and lifecycle
+
+Implemented on 2026-07-27:
+
+- Authenticated notification upgrades now acquire exact per-account and global
+  connection permits before switching protocols. Defaults are four sockets per
+  account and 1,024 per process; environment overrides are bounded and
+  incoherent or malformed policies fail startup.
+- The account broadcast queue remains bounded at 64 hints and lag emits only
+  `resync_required`. Subscription drop guards release both counters and remove
+  unused account channel state on normal closure, transport error, idle
+  eviction, write timeout, or abandoned upgrade.
+- The runtime sends numbered pings, requires ping/pong activity within a
+  bounded idle interval, ignores text/binary traffic for liveness, and puts a
+  hard deadline around every notification, resynchronization, and heartbeat
+  write. Existing 4 KiB message/frame and 64 KiB maximum write-buffer limits
+  remain enforced.
+- `docs/operations/authoritative-websocket-runtime.md` records every variable,
+  default, bound, failure behavior, and the non-authoritative HTTP
+  reconciliation invariant. Multi-instance fanout and fleet-wide admission
+  remain explicitly open.
+
+Verification on 2026-07-27:
+
+- Notification-hub tests prove account isolation, duplicate tolerance,
+  per-account/global admission, exact permit reuse, and complete channel
+  cleanup. Transport-generic lifecycle tests prove silent peers and blocked
+  writers terminate within deterministic deadlines.
+- `cargo test --lib` passes 164 active tests with 26 PostgreSQL tests
+  explicitly ignored in that lane. `cargo test --bin
+  unciv-authoritative-server` passes all 24 HTTP/OpenAPI/runtime tests.
+- `cargo fmt --all -- --check` and warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings` pass.
+- The first transport-generic compile exposed an `Unpin` limitation in a test
+  helper and the first broad Clippy pass rejected redundant result matching.
+  The helper was replaced with an explicit pending sink, the assertion was
+  simplified, and the exact complete gate passed. No lifecycle, compile, test,
+  format, or Clippy error is deferred.
+
 ## Executable packaged-worker parity inventory and first stateful unit batch
 
 Implemented on 2026-07-26:

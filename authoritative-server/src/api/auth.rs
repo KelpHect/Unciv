@@ -249,6 +249,41 @@ pub(super) async fn logout(
 }
 
 #[utoipa::path(
+    delete,
+    path = "/api/v3/account/sessions",
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 204),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+pub(super) async fn logout_all_sessions(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let source = state.trusted_proxy.client_ip(source, &headers)?;
+    enforce_account_security_rate_limit(&state, actor.id, source).await?;
+    state
+        .repository
+        .revoke_all_sessions(actor.id)
+        .await
+        .map_err(|_| ApiError::internal())?;
+    audit_account_lifecycle(
+        &state,
+        actor.id,
+        SecurityAuditEvent::AccountSecurity,
+        SecurityAuditOutcome::Success,
+        source,
+    )
+    .await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
     post,
     path = "/api/v3/auth/refresh",
     security(("bearer_auth" = [])),

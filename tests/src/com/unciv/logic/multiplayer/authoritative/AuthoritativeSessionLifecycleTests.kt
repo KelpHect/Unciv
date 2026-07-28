@@ -102,6 +102,25 @@ class AuthoritativeSessionLifecycleTests {
     }
 
     @Test
+    fun recoveryAndLogoutAllUpdateLifecycleState() = runBlocking {
+        val calls = mutableListOf<String>()
+        val lifecycle = AuthoritativeSessionLifecycle(
+            detectServer = { ApiVersion.APIv3 },
+            createSession = { _, _ -> fakeSession(restored = false, calls) },
+        )
+        lifecycle.restoreConfiguredServer("https://v3.example") {
+            InMemoryApiV3SessionTokenStore()
+        }
+
+        val account = lifecycle.recoverAccount("player", "recovery-code", "new-password")
+        assertEquals("player", account.username)
+        assertEquals(AuthoritativeSessionStatus.Authenticated, lifecycle.status)
+        lifecycle.logoutAll()
+        assertEquals(AuthoritativeSessionStatus.LoginRequired, lifecycle.status)
+        assertEquals(listOf("recover", "logout-all"), calls)
+    }
+
+    @Test
     fun serverIdentityRequiresTlsAndScopesCredentialsByOrigin() {
         assertEquals("https://example.com/", normalizeApiV3BaseUrl("HTTPS://Example.COM"))
         assertEquals("http://127.0.0.1:8080/", normalizeApiV3BaseUrl("http://127.0.0.1:8080"))
@@ -176,6 +195,14 @@ class AuthoritativeSessionLifecycleTests {
                 }
                 "logout" -> {
                     calls += "logout"
+                    Unit
+                }
+                "recoverAccount" -> {
+                    calls += "recover"
+                    ApiV3Account("account-id", "player")
+                }
+                "logoutAll" -> {
+                    calls += "logout-all"
                     Unit
                 }
                 else -> error("Unexpected transport call ${method.name}")

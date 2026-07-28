@@ -12,6 +12,7 @@ use super::*;
         login,
         refresh_session,
         logout,
+        logout_all_sessions,
         recover_account,
         replace_recovery_codes,
         change_password,

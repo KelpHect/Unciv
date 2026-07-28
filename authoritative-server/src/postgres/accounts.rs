@@ -156,6 +156,20 @@ impl PostgresGameRepository {
         Ok(())
     }
 
+    pub async fn revoke_all_sessions(&self, account_id: Uuid) -> Result<(), AuthError> {
+        sqlx::query(
+            "UPDATE sessions
+             SET revoked_at=COALESCE(revoked_at, now()),
+                 revoked_reason=COALESCE(revoked_reason, 'logout')
+             WHERE account_id=$1",
+        )
+        .bind(account_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        Ok(())
+    }
+
     /// Rotates a live session atomically. The successor keeps a parent pointer
     /// for audit/revocation chains while the presented credential is revoked
     /// before the transaction becomes visible.

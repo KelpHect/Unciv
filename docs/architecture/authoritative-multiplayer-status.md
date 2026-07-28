@@ -1,5 +1,56 @@
 # Authoritative multiplayer v3 status
 
+## Production account management and recovery UI
+
+Implemented on 2026-07-28:
+
+- The Kotlin API-v3 contract and production transport now expose account
+  recovery, one-time recovery-code replacement, and all-session logout. Recovery
+  stores the returned replacement session only in the platform token store;
+  account secrets never enter a game command, worker frame, or projection.
+- The authenticated all-session endpoint derives the account from the bearer
+  session, applies the existing durable account-security throttle, revokes all
+  of that account's sessions, and records a redacted audit. A PostgreSQL test
+  proves another account's live session is untouched.
+- The multiplayer screen now presents focused login/recovery and authenticated
+  account-management popups. Players can register, log in, recover, rotate a
+  password, replace recovery codes, log out one or all devices, disable, or
+  delete the account. Password and recovery fields are cleared after every
+  attempt. Recovery-code lifetime and complete-batch invalidation are stated
+  before use, and codes are displayed once for external secure storage.
+- Stable API failures map to specific, redacted player messages for invalid
+  credentials/password policy, duplicate usernames, throttling, invalid server
+  responses, and other closed server errors. No raw error body or account
+  secret is rendered.
+- Lifecycle state moves between login-required and authenticated after recovery,
+  logout-all, disable, and delete. Production routing tests require each account
+  action to use the explicit API-v3 facade and forbid `GameInfo`, `GameStarter`,
+  worker, or whole-save upload access from the account UI.
+
+Verification on 2026-07-28:
+
+- The focused Gradle command covering
+  `AuthoritativeSessionLifecycleTests`,
+  `AuthoritativeMultiplayerSessionTests`,
+  `AuthoritativeAccountMessagesTests`, and
+  `AuthoritativeProductionRoutingTests` passes all 76 tests.
+- `.\gradlew.bat :tests:test --no-daemon` passes the complete JVM regression
+  suite on Temurin JDK 21.0.11.
+- `.\gradlew.bat :android:assembleDebug --no-daemon` succeeds with 45 tasks,
+  including Android Kotlin compilation, dexing, and APK packaging. The existing
+  Android SDK XML version warning remains non-fatal and does not skip the build.
+- `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+  --no-fail-fast` passes 181 active library tests, all 29 API/OpenAPI tests, and
+  all active integration/packaging tests. Warnings-as-errors Clippy passes.
+- Three focused account-security transactions and the complete 34-test ordinary
+  PostgreSQL lane pass against the exact pinned PostgreSQL 19 Beta 2 digest.
+  Disposable containers were removed.
+- The first Kotlin compile rejected an inferred `Nothing` return for the default
+  logout-all transport and a GL-thread extension called outside its receiver;
+  both were corrected. The first production-routing run then rejected the new
+  typed facade members until its explicit non-legacy allowlist was updated. All
+  focused and broad gates were rerun; no failure was deferred.
+
 ## Bounded sessions and player-owned account recovery
 
 Implemented on 2026-07-28:

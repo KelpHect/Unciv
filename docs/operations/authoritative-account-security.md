@@ -43,6 +43,14 @@ account cannot be recovered through API v3. Operators must not bypass this by
 editing account rows. A future owner-reviewed identity migration requires its
 own threat model and audited protocol.
 
+The supported client exposes these operations from Multiplayer > Manage server
+account. Login-required clients can choose Recover account. Password and
+recovery fields are cleared after each attempt. Recovery codes are displayed
+once and may be copied for storage; the client does not persist them. Changing
+the password logs out other devices while retaining one rotated session.
+Logging out every device, disabling, or deleting clears the local protected
+session and returns the client to the login-required state.
+
 ## Credential response
 
 For a suspected stolen session, change the password or use a recovery code;

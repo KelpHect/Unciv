@@ -135,6 +135,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/auth/refresh",
         "/api/v3/auth/logout",
         "/api/v3/auth/recover",
+        "/api/v3/account/sessions",
         "/api/v3/account/recovery-codes",
         "/api/v3/account/password",
         "/api/v3/account/disable",

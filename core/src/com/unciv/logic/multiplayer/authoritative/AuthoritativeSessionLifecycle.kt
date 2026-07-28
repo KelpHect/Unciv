@@ -108,9 +108,50 @@ class AuthoritativeSessionLifecycle(
             account
         }
 
+    suspend fun recoverAccount(
+        username: String,
+        recoveryCode: String,
+        newPassword: String,
+    ): ApiV3Account = mutex.withLock {
+        val current = session ?: error("Authoritative session is not available")
+        val account = current.recoverAccount(username, recoveryCode, newPassword)
+        status = AuthoritativeSessionStatus.Authenticated
+        account
+    }
+
     suspend fun logout() = mutex.withLock {
         val current = session ?: return@withLock
         current.logout()
+        status = AuthoritativeSessionStatus.LoginRequired
+    }
+
+    suspend fun logoutAll() = mutex.withLock {
+        val current = session ?: return@withLock
+        current.logoutAll()
+        status = AuthoritativeSessionStatus.LoginRequired
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String) =
+        mutex.withLock {
+            val current = session ?: error("Authoritative session is not available")
+            current.changePassword(currentPassword, newPassword)
+        }
+
+    suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes =
+        mutex.withLock {
+            val current = session ?: error("Authoritative session is not available")
+            current.replaceRecoveryCodes(password)
+        }
+
+    suspend fun disableAccount(password: String) = mutex.withLock {
+        val current = session ?: error("Authoritative session is not available")
+        current.disableAccount(password)
+        status = AuthoritativeSessionStatus.LoginRequired
+    }
+
+    suspend fun deleteAccount(password: String) = mutex.withLock {
+        val current = session ?: error("Authoritative session is not available")
+        current.deleteAccount(password)
         status = AuthoritativeSessionStatus.LoginRequired
     }
 

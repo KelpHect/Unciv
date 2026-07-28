@@ -86,7 +86,7 @@ class MultiplayerScreen : PickerScreen() {
     private val invitationsButton = createInvitationsButton()
     private val refreshButton = createRefreshButton()
     private val authoritativeAccountButton = createAuthoritativeAccountButton()
-    private val authoritativeLogoutButton = createAuthoritativeLogoutButton()
+    private val authoritativeAccountManagementButton = createAuthoritativeAccountManagementButton()
 
     val gameList = GameList(::selectGame)
     val authoritativeGameList = AuthoritativeGameList(::selectAuthoritativeGame)
@@ -147,7 +147,7 @@ class MultiplayerScreen : PickerScreen() {
         if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.LoginRequired)
             generalActions.add(authoritativeAccountButton).row()
         if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.Authenticated)
-            generalActions.add(authoritativeLogoutButton).row()
+            generalActions.add(authoritativeAccountManagementButton).row()
         generalActions.add(addGameButton).row()
         if (authoritativeInvitationFlow != null) generalActions.add(invitationsButton).row()
         generalActions.add(friendsListButton).row()
@@ -211,24 +211,12 @@ class MultiplayerScreen : PickerScreen() {
             }
         }
 
-    private fun createAuthoritativeLogoutButton(): TextButton =
-        "Log out of server account".toTextButton().apply {
+    private fun createAuthoritativeAccountManagementButton(): TextButton =
+        "Manage server account".toTextButton().apply {
             onClick {
-                Concurrency.runOnNonDaemonThreadPool("Authoritative account logout") {
-                    try {
-                        game.onlineMultiplayer.logoutAuthoritative()
-                        launchOnGLThread {
-                            game.replaceCurrentScreen(MultiplayerScreen())
-                        }
-                    } catch (exception: Exception) {
-                        launchOnGLThread {
-                            ToastPopup(
-                                exception.message ?: "Could not log out of the server account.",
-                                this@MultiplayerScreen,
-                            )
-                        }
-                    }
-                }
+                AuthoritativeAccountManagementPopup(this@MultiplayerScreen) {
+                    game.replaceCurrentScreen(MultiplayerScreen())
+                }.open()
             }
         }
 

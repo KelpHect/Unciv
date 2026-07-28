@@ -91,6 +91,32 @@ class AuthoritativeMultiplayerSession(
         transport.changePassword(currentPassword, newPassword)
     }
 
+    suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes {
+        requireAuthenticated()
+        return transport.replaceRecoveryCodes(password)
+    }
+
+    suspend fun recoverAccount(
+        username: String,
+        recoveryCode: String,
+        newPassword: String,
+    ): ApiV3Account {
+        negotiate()
+        val account = transport.recoverAccount(username, recoveryCode, newPassword)
+        authenticated = true
+        startNotifications()
+        return account
+    }
+
+    suspend fun logoutAll() {
+        requireAuthenticated()
+        try {
+            transport.logoutAll()
+        } finally {
+            clearAuthenticatedState()
+        }
+    }
+
     suspend fun disableAccount(password: String) {
         requireAuthenticated()
         try {

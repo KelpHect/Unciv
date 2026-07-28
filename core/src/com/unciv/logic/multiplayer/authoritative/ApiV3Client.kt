@@ -84,6 +84,13 @@ class ApiV3Client(
         tokenStore.clear()
     }
 
+    override suspend fun logoutAll() {
+        val response = client.delete("api/v3/account/sessions") { authenticate() }
+        if (!response.status.isSuccess()) throw response.toApiException()
+        sessionToken = null
+        tokenStore.clear()
+    }
+
     override suspend fun changePassword(currentPassword: String, newPassword: String) {
         val response: ApiV3Session = decode(client.post("api/v3/account/password") {
             authenticate()
@@ -92,6 +99,27 @@ class ApiV3Client(
         })
         sessionToken = response.sessionToken
         tokenStore.save(response.sessionToken)
+    }
+
+    override suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes =
+        decode(client.post("api/v3/account/recovery-codes") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3ConfirmPasswordRequest(password))
+        })
+
+    override suspend fun recoverAccount(
+        username: String,
+        recoveryCode: String,
+        newPassword: String,
+    ): ApiV3Account {
+        val response: ApiV3Login = decode(client.post("api/v3/auth/recover") {
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3RecoverAccountRequest(username, recoveryCode, newPassword))
+        })
+        sessionToken = response.sessionToken
+        tokenStore.save(response.sessionToken)
+        return response.account
     }
 
     override suspend fun disableAccount(password: String) {

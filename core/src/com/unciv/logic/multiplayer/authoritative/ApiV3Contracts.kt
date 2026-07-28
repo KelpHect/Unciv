@@ -42,6 +42,19 @@ data class ApiV3ChangePasswordRequest(
 data class ApiV3ConfirmPasswordRequest(val password: String)
 
 @Serializable
+data class ApiV3RecoverAccountRequest(
+    val username: String,
+    @SerialName("recovery_code") val recoveryCode: String,
+    @SerialName("new_password") val newPassword: String,
+)
+
+@Serializable
+data class ApiV3RecoveryCodes(
+    @SerialName("recovery_codes") val recoveryCodes: List<String>,
+    @SerialName("expires_in_days") val expiresInDays: Int,
+)
+
+@Serializable
 data class ApiV3CreateGameRequest(
     @SerialName("operation_id") val operationId: String,
     @SerialName("ruleset_manifest_hash") val rulesetManifestHash: String,

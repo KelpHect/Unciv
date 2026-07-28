@@ -32,6 +32,26 @@ class Multiplayer {
 
     suspend fun logoutAuthoritative() = authoritative.logout()
 
+    suspend fun recoverAuthoritative(
+        username: String,
+        recoveryCode: String,
+        newPassword: String,
+    ) = authoritative.recoverAccount(username, recoveryCode, newPassword)
+
+    suspend fun logoutAllAuthoritative() = authoritative.logoutAll()
+
+    suspend fun changeAuthoritativePassword(currentPassword: String, newPassword: String) =
+        authoritative.changePassword(currentPassword, newPassword)
+
+    suspend fun replaceAuthoritativeRecoveryCodes(password: String) =
+        authoritative.replaceRecoveryCodes(password)
+
+    suspend fun disableAuthoritativeAccount(password: String) =
+        authoritative.disableAccount(password)
+
+    suspend fun deleteAuthoritativeAccount(password: String) =
+        authoritative.deleteAccount(password)
+
     fun clearAuthoritativeSession() {
         authoritative.close()
     }

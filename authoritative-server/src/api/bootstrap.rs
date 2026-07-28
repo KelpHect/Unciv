@@ -120,6 +120,7 @@ pub(crate) async fn run() {
         .route("/api/v3/auth/refresh", post(refresh_session))
         .route("/api/v3/auth/logout", post(logout))
         .route("/api/v3/auth/recover", post(recover_account))
+        .route("/api/v3/account/sessions", delete(logout_all_sessions))
         .route(
             "/api/v3/account/recovery-codes",
             post(replace_recovery_codes),

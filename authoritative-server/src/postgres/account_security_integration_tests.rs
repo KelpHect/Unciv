@@ -191,3 +191,39 @@ async fn one_time_recovery_revokes_sessions_password_and_complete_code_batch() {
     assert_eq!(unused, 0);
     assert_eq!(active_sessions, 1);
 }
+
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn logout_all_revokes_every_session_without_touching_other_accounts() {
+    let repository = PostgresGameRepository::connect(&database_url())
+        .await
+        .unwrap();
+    repository.migrate().await.unwrap();
+    clean_auth(&repository).await;
+    let account = repository
+        .register_account("logout-all", "logout-all-password")
+        .await
+        .unwrap();
+    let first = repository.issue_session(account.id).await.unwrap();
+    let second = repository.issue_session(account.id).await.unwrap();
+    let other = repository
+        .register_account("logout-all-other", "logout-all-other-password")
+        .await
+        .unwrap();
+    let other_session = repository.issue_session(other.id).await.unwrap();
+
+    repository.revoke_all_sessions(account.id).await.unwrap();
+
+    for token in [&first.token, &second.token] {
+        assert_eq!(
+            repository.authenticate_session(token).await.unwrap_err(),
+            AuthError::InvalidCredentials,
+        );
+    }
+    assert!(
+        repository
+            .authenticate_session(&other_session.token)
+            .await
+            .is_ok()
+    );
+}

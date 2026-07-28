@@ -207,12 +207,18 @@ class AuthoritativeProductionRoutingTests {
             "authoritativeSession",
             "authoritativeStatus",
             "clearAuthoritativeSession",
+            "changeAuthoritativePassword",
             "close",
+            "deleteAuthoritativeAccount",
+            "disableAuthoritativeAccount",
             "isInitialized",
             "legacy",
             "loginAuthoritative",
+            "logoutAllAuthoritative",
             "logoutAuthoritative",
+            "recoverAuthoritative",
             "registerAuthoritative",
+            "replaceAuthoritativeRecoveryCodes",
             "restoreConfiguredAuthoritativeSession",
         )
         val violations = sourceDirectory("core/src")
@@ -436,6 +442,40 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(source.contains("closeGameButton.isVisible = active"))
         assertTrue(source.contains("archiveGameButton.isVisible = !active"))
         assertTrue(source.contains("coordinator.forceResign(gameSummary.gameId)"))
+    }
+
+    @Test
+    fun productionAccountUiUsesOnlyTypedAccountTransport() {
+        val login = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeAccountPopup.kt",
+        ).readText()
+        val recovery = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeAccountRecoveryPopup.kt",
+        ).readText()
+        val management = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeAccountManagementPopup.kt",
+        ).readText()
+        val combined = login + recovery + management
+
+        for (operation in listOf(
+            "loginAuthoritative",
+            "registerAuthoritative",
+            "recoverAuthoritative",
+            "changeAuthoritativePassword",
+            "replaceAuthoritativeRecoveryCodes",
+            "logoutAllAuthoritative",
+            "disableAuthoritativeAccount",
+            "deleteAuthoritativeAccount",
+        )) {
+            assertTrue("Production account UI must route $operation", combined.contains(operation))
+        }
+        for (forbidden in listOf("GameInfo", "GameStarter", "uploadGame", "worker")) {
+            assertFalse("Account UI must not reach $forbidden", combined.contains(forbidden))
+        }
+        assertTrue(management.contains("clearPasswords()"))
+        assertTrue(management.contains("There is no operator or client-save recovery override"))
     }
 
     private fun workspaceFile(path: String): File = generateSequence(

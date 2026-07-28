@@ -9,7 +9,16 @@ interface ApiV3Transport {
     suspend fun login(username: String, password: String): ApiV3Account
     suspend fun refreshSession()
     suspend fun logout()
+    suspend fun logoutAll(): Unit =
+        error("Logging out all sessions is unsupported by this transport")
     suspend fun changePassword(currentPassword: String, newPassword: String)
+    suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes =
+        error("Recovery codes are unsupported by this transport")
+    suspend fun recoverAccount(
+        username: String,
+        recoveryCode: String,
+        newPassword: String,
+    ): ApiV3Account = error("Account recovery is unsupported by this transport")
     suspend fun disableAccount(password: String)
     suspend fun deleteAccount(password: String)
     suspend fun listRulesetManifests(

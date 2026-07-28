@@ -1,6 +1,7 @@
 package com.unciv.ui.screens.multiplayerscreens
 
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeAccountMessages
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.widgets.UncivTextField
@@ -18,11 +19,18 @@ class AuthoritativeAccountPopup(
     private val password = UncivTextField("Password").apply { isPasswordMode = true }
     private val loginButton = actionButton("Log in", register = false)
     private val registerButton = actionButton("Create account", register = true)
+    private val recoverButton = "Recover account".toTextButton().apply {
+        onClick {
+            AuthoritativeAccountRecoveryPopup(screen, onAuthenticated).open()
+            close()
+        }
+    }
 
     init {
         addGoodSizedLabel("Authoritative multiplayer account").colspan(2).row()
         add(username).colspan(2).growX().pad(12f).row()
         add(password).colspan(2).growX().pad(12f).row()
+        add(recoverButton).colspan(2).growX().pad(0f, 12f, 12f, 12f).row()
         addCloseButton().growX().padRight(6f)
         add(loginButton).growX().pad(0f, 6f, 0f, 6f)
         add(registerButton).growX().padLeft(6f)
@@ -63,7 +71,7 @@ class AuthoritativeAccountPopup(
                             loginButton.isDisabled = false
                             registerButton.isDisabled = false
                             ToastPopup(
-                                exception.message ?: "Authoritative authentication failed.",
+                                AuthoritativeAccountMessages.forException(exception),
                                 screen,
                             )
                         }

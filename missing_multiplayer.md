@@ -675,11 +675,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: authentication, accounts, social features, and clients
 
-- [ ] Build account registration/login/session/account-management UI, including
+- [x] Build account registration/login/session/account-management UI, including
   password change, logout-all/disable/delete behavior, clear recovery policy,
-  and understandable rate-limit errors. Production login, registration followed
-  by login, automatic session restoration, and logout now exist without
-  retaining passwords; the remaining account-management operations stay open.
+  and understandable rate-limit errors. The production multiplayer screen now
+  exposes typed login, registration, recovery, password rotation, recovery-code
+  replacement, current-device logout, all-device logout, disable, and delete
+  flows. Password/recovery fields are cleared after every attempt; recovery
+  codes are shown once with explicit storage/expiry/batch-invalidation guidance;
+  stable API failures are mapped to understandable redacted messages. Source
+  routing proves these screens cannot reach `GameInfo`, the worker, or whole-save
+  upload paths. Focused lifecycle/UI-routing tests, the full JVM suite, Android
+  debug APK build, Rust gates, and the 34-test PostgreSQL 19 Beta 2 lane pass.
 - [ ] Implement secure Android and desktop token stores. The in-memory/testing
   token store is not a production credential store. Windows desktop now uses
   live-tested current-user DPAPI with server-scoped atomic ciphertext files.

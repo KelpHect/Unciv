@@ -357,6 +357,22 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun recoveryCodesAndLogoutAllRemainOutsideGameState() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        session.restore()
+        session.openGame(GAME_ID)
+
+        val codes = session.replaceRecoveryCodes("current-password")
+        assertEquals(listOf("current-password"), transport.recoveryCodeRequests)
+        assertEquals(8, codes.recoveryCodes.size)
+        session.logoutAll()
+        assertEquals(1, transport.logoutAllCalls)
+        assertThrows<IllegalStateException> { session.listGames() }
+        session.close()
+    }
+
+    @Test
     fun endTurnRoutesOnlyForAnExplicitlyOpenedAuthoritativeGame() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -1521,11 +1537,13 @@ class AuthoritativeMultiplayerSessionTests {
         var queueFailuresRemaining = 0
         var manageQueueFailuresRemaining = 0
         var logoutCalls = 0
+        var logoutAllCalls = 0
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val manifestListCalls = mutableListOf<String?>()
         val manifestPages = mutableMapOf<String?, ApiV3RulesetManifestPage>()
         val createdGames = mutableListOf<Triple<String, String, ApiV3GameSetup>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
+        val recoveryCodeRequests = mutableListOf<String>()
         val disableRequests = mutableListOf<String>()
         val deleteRequests = mutableListOf<String>()
         val addedSpectators = mutableListOf<Pair<String, String>>()
@@ -1553,8 +1571,13 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun login(username: String, password: String) = ApiV3Account("account", username)
         override suspend fun refreshSession() = Unit
         override suspend fun logout() { logoutCalls++ }
+        override suspend fun logoutAll() { logoutAllCalls++ }
         override suspend fun changePassword(currentPassword: String, newPassword: String) {
             passwordChanges += currentPassword to newPassword
+        }
+        override suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes {
+            recoveryCodeRequests += password
+            return ApiV3RecoveryCodes(List(8) { "code-$it" }, 90)
         }
         override suspend fun disableAccount(password: String) {
             disableRequests += password

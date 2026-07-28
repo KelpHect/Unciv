@@ -283,4 +283,48 @@ mod tests {
             NotificationDelivery::ResyncRequired
         );
     }
+
+    #[tokio::test]
+    async fn sustained_duplicate_and_reordered_burst_stays_bounded_and_forces_resync() {
+        let hub = NotificationHub::with_connection_limits(1, 1);
+        let account = Uuid::new_v4();
+        let game_id = Uuid::new_v4();
+        let mut subscription = hub.try_subscribe(account).unwrap();
+
+        for sequence in 0..10_000_u64 {
+            let revision = if sequence % 3 == 0 {
+                sequence.saturating_sub(2)
+            } else {
+                sequence / 2
+            };
+            hub.publish(
+                &[account],
+                RevisionNotification {
+                    event_type: "revision_committed",
+                    protocol_version: crate::PROTOCOL_VERSION,
+                    game_id,
+                    committed_revision: revision,
+                    canonical_state_hash: format!("{revision:064x}"),
+                },
+            )
+            .await;
+        }
+        hub.require_resync_for_all();
+
+        assert!(matches!(
+            subscription.recv().await,
+            Err(broadcast::error::RecvError::Lagged(skipped)) if skipped >= 9_900
+        ));
+        let mut saw_resync = false;
+        for _ in 0..64 {
+            if subscription.recv().await.unwrap() == NotificationDelivery::ResyncRequired {
+                saw_resync = true;
+                break;
+            }
+        }
+        assert!(
+            saw_resync,
+            "bounded burst did not preserve the resync marker"
+        );
+    }
 }

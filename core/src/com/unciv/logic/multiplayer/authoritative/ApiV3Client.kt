@@ -837,7 +837,7 @@ class ApiV3Client(
     })
 
     override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
-        var retryDelayMillis = 250L
+        val reconnectBackoff = NotificationReconnectBackoff()
         while (currentCoroutineContext().isActive) {
             val session = try {
                 client.webSocketSession {
@@ -845,12 +845,11 @@ class ApiV3Client(
                     authenticate()
                 }
             } catch (_: Throwable) {
-                delay(retryDelayMillis)
-                retryDelayMillis = (retryDelayMillis * 2).coerceAtMost(10_000L)
+                delay(reconnectBackoff.nextDelayMillis())
                 continue
             }
             try {
-                retryDelayMillis = 250L
+                reconnectBackoff.reset()
                 for (frame in session.incoming) {
                     if (frame !is Frame.Text) continue
                     val notification = json.decodeFromString(
@@ -864,7 +863,9 @@ class ApiV3Client(
             } finally {
                 session.close()
             }
-            if (currentCoroutineContext().isActive) delay(retryDelayMillis)
+            if (currentCoroutineContext().isActive) {
+                delay(reconnectBackoff.nextDelayMillis())
+            }
         }
     }
 

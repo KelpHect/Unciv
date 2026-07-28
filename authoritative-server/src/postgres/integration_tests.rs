@@ -35,6 +35,8 @@ mod retention;
 mod snapshots;
 #[path = "spectator_integration_tests.rs"]
 mod spectators;
+#[path = "websocket_lease_integration_tests.rs"]
+mod websocket_leases;
 #[path = "worker_fault_integration_tests.rs"]
 mod worker_faults;
 

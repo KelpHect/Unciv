@@ -1,4 +1,5 @@
 use super::*;
+use uuid::Uuid;
 
 pub(crate) async fn run() {
     if std::env::args().any(|argument| argument == "--write-openapi") {
@@ -100,6 +101,7 @@ pub(crate) async fn run() {
     );
     let websocket_policy = WebSocketRuntimePolicy::from_environment()
         .expect("authoritative WebSocket runtime policy must be valid");
+    let replica_id = Uuid::new_v4();
     let session_policy = SessionPolicy::from_environment()
         .expect("authoritative active-session policy must be valid");
     let notifications = NotificationHub::with_connection_limits(
@@ -486,6 +488,7 @@ pub(crate) async fn run() {
             worker,
             notifications,
             websocket_policy,
+            replica_id,
             trusted_proxy,
             session_policy,
         });

@@ -1,4 +1,5 @@
 use super::*;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub(super) struct AppState {
@@ -6,6 +7,7 @@ pub(super) struct AppState {
     pub(super) worker: EngineWorkerClient,
     pub(super) notifications: NotificationHub,
     pub(super) websocket_policy: WebSocketRuntimePolicy,
+    pub(super) replica_id: Uuid,
     pub(super) trusted_proxy: TrustedProxyPolicy,
     pub(super) session_policy: SessionPolicy,
 }

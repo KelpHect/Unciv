@@ -721,16 +721,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   ordering preserves crash retry, duplicate delivery remains safe, and
   listener gaps, malformed shared frames, or recipient-query failures force
   local HTTP resynchronization rather than guessed replay.
-- [ ] Add connection and subscription limits, heartbeat/idle policy, slow-reader
+- [x] Add connection and subscription limits, heartbeat/idle policy, slow-reader
   handling, bounded queues, reconnect backoff, and sustained duplicate/lost/
-  reordered notification tests. The Rust process now has fail-closed bounded
-  global/per-account admission, exact permit cleanup, 4 KiB frame/message and
-  64 KiB write-buffer ceilings, ping/pong idle eviction, hard write deadlines,
-  and explicit `resync_required` behavior after its bounded 64-hint account
-  queue lags. Supported clients already use capped exponential reconnect and
-  HTTP-only reconciliation; duplicate/reordered unit tests remain. Fleet-wide
-  admission, reconnect jitter, and sustained loss/load qualification keep this
-  broader item open.
+  reordered notification tests. Each Rust process has exact local permits, and
+  PostgreSQL migration 25 adds atomically admitted, short-lived, replica-bound
+  leases so global/per-account caps apply across the fleet and crashed replicas
+  cannot leak capacity. Sockets renew fail-closed and release immediately on
+  normal exit. Existing 4 KiB frame/message, 64 KiB write-buffer, ping/pong idle,
+  hard-write-deadline, and bounded 64-hint queue policies remain. The API-v3
+  client now uses capped exponential equal jitter and still treats every hint,
+  lag, loss, duplicate, and reordering as a reason to reconcile through HTTP.
+  A 10,000-event adversarial burst test proves queue bounds and preservation of
+  the mandatory `resync_required` marker; PostgreSQL 19 Beta 2 tests race two
+  independent repository pools and prove exactly one fleet-admission winner,
+  replica-bound renewal/release, and expired crash-lease reclamation.
 - [x] Add outbox retention, poison-event handling, lag alerts, and operational
   repair tooling without allowing notifications to become authoritative.
   Delivery retries are startup-validated and bounded before atomic

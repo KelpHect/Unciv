@@ -176,6 +176,7 @@ mod unit_movement;
 mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
+mod websocket_leases;
 
 pub use connection::{
     MIGRATOR, PostgresConfigurationError, PostgresRuntimeConfig, SchemaCompatibilityError,
@@ -194,6 +195,7 @@ pub use reconciliation::{ReconciliationFinding, ReconciliationKind, Reconciliati
 pub use recovery::RecoveredHead;
 pub use security::{SecurityAuditEvent, SecurityAuditOutcome};
 pub use security_audit_export::{SECURITY_AUDIT_EXPORT_PAGE_SIZE, SecurityAuditExportEvent};
+pub use websocket_leases::{WebSocketConnectionLease, WebSocketLeaseError};
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

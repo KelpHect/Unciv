@@ -22,12 +22,24 @@ The Rust API applies these defaults:
 | `UNCIV_V3_WS_HEARTBEAT_SECONDS` | 30 | 5-300 |
 | `UNCIV_V3_WS_IDLE_SECONDS` | 90 | 15-900 and at least two heartbeat intervals |
 | `UNCIV_V3_WS_WRITE_TIMEOUT_SECONDS` | 5 | 1-30 |
+| `UNCIV_V3_WS_LEASE_TTL_SECONDS` | 90 | 30-300 |
+| `UNCIV_V3_WS_LEASE_RENEW_SECONDS` | 30 | 5 to less than the lease TTL, and no more than half the TTL |
 
 Invalid or non-Unicode values fail process startup. Admission is counted after
 authentication and before the protocol upgrade. A rejected connection receives
 the normal bounded `rate_limited` response and a one-second retry hint.
 Connection permits are released on every normal, error, idle, and slow-reader
 exit. Per-account channel state is removed when its final socket closes.
+
+The connection caps apply to the complete Rust API fleet. Each authenticated
+upgrade first takes the process-local permit and then atomically acquires a
+short-lived row in `websocket_connection_leases` while holding a PostgreSQL
+transaction advisory lock. The row is bound to a random process replica ID.
+The socket renews it at the configured interval and disconnects fail-closed if
+the lease expires, disappears, or cannot be renewed. A normal disconnect
+deletes it immediately; a process crash leaves no permanent capacity leak
+because the next admission removes expired rows. A forged or stale replica ID
+cannot renew or release another replica's lease.
 
 The server sends numbered WebSocket ping frames at the heartbeat interval.
 Only peer ping/pong control traffic refreshes the idle deadline; arbitrary text
@@ -38,11 +50,10 @@ the 4 KiB message/frame and 64 KiB maximum write-buffer limits.
 
 An account-local broadcast queue holds at most 64 hints. Lag produces one
 `resync_required` frame instead of replaying guessed intermediate revisions.
-The supported clients already reconnect with capped exponential delay and
-always reconcile through HTTP.
-
-These limits are per Rust process. Fleet-wide admission still requires a shared
-quota or load-balancer policy.
+The supported API-v3 client reconnects with capped exponential equal jitter
+(125 ms through 10 seconds) and always reconciles through HTTP. Jitter affects
+transport timing only; it never enters canonical gameplay state or deterministic
+rules execution.
 
 ## Cross-instance fan-out
 

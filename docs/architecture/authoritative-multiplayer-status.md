@@ -1,5 +1,62 @@
 # Authoritative multiplayer v3 status
 
+## Fleet-wide WebSocket admission and reconnect hardening
+
+Implemented and qualified on 2026-07-28:
+
+- PostgreSQL migration 25 adds indexed `websocket_connection_leases` rows with
+  account, replica, acquisition, renewal, and expiry identity. Admission uses
+  one transaction-scoped advisory lock, removes expired rows, checks both
+  fleet and account counts, and inserts exactly one short-lived lease.
+- Every API process owns one random replica UUID. An authenticated upgrade must
+  obtain both its existing process-local permit and the fleet lease. A live
+  socket renews at a startup-validated interval; a missing, expired, or
+  database-unrenewable lease closes the socket fail-closed. Normal exits delete
+  immediately, while process-death leftovers expire and are reclaimed by the
+  next admission. Replica identity binds renewal and release.
+- `UNCIV_V3_WS_LEASE_TTL_SECONDS` defaults to 90 seconds and is bounded to
+  30-300. `UNCIV_V3_WS_LEASE_RENEW_SECONDS` defaults to 30, is bounded from 5
+  to less than the TTL, and cannot exceed half the TTL. Fleet account/global
+  rejections and lease-loss disconnect causes use bounded metric dimensions.
+- The Kotlin API-v3 client now uses capped exponential equal jitter between
+  125 ms and 10 seconds. The random delay changes transport timing only; it is
+  never part of canonical state, worker execution, server RNG, or gameplay.
+- A sustained 10,000-hint duplicate/reordered burst test proves the account
+  channel stays at 64 entries, reports the exact lag condition, and retains a
+  `resync_required` marker. Existing session tests prove duplicate, stale,
+  reordered, and explicit resync hints converge by authenticated HTTP.
+- `docs/operations/authoritative-websocket-runtime.md` now documents the
+  fleet algorithm, environment bounds, crash behavior, and HTTP-source-of-truth
+  invariant. Release compatibility is advanced to migration 25.
+
+Verification on 2026-07-28:
+
+- Against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`,
+  both WebSocket lease tests execute and pass. Two independent pools race
+  account and fleet limits and produce exactly one winner; forged replica
+  renewal/release fails, an expired crash lease cannot renew, and its capacity
+  is reclaimed. All disposable PostgreSQL containers were stopped and removed.
+- `cargo test --all-targets --all-features` passes 189 active library tests,
+  29 API tests, and every active packaging, observability, policy, and operator
+  test. Forty-two library tests remain intentionally environment-gated.
+  Warnings-as-errors `cargo clippy --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all -- --check`, and `git diff --check` pass.
+- `./gradlew.bat :tests:test --no-daemon` passes the complete JVM test suite in
+  1m54s. Focused backoff and notification reconciliation tests also pass.
+- The first focused Rust compile found missing `Uuid` imports in split API
+  modules; those were fixed. Rust 1.97 then hit an incremental recovery ICE, so
+  the clean verification reran with `CARGO_INCREMENTAL=0`. The first database
+  filter used `--exact` with a short name and executed zero tests; it was
+  rejected as evidence and rerun with filters that executed both cases. The
+  migration-version change initially exposed the expected stale release
+  compatibility constant; it was updated before the complete green rerun. No
+  compile, test, migration, formatting, Clippy, or cleanup error remains
+  deferred.
+- `main.rs` remains a 6-line bootstrap facade and `lib.rs` a 65-line module
+  facade. WebSocket API logic is 496 lines and the new persistence module is
+  128 lines; concerns remain in shallow descriptive modules.
+
 ## Redacted authoritative observability
 
 Implemented and qualified on 2026-07-28:

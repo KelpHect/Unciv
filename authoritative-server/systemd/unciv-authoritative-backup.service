@@ -1,0 +1,44 @@
+[Unit]
+Description=Create and verify an Unciv PostgreSQL 19 physical base backup
+Documentation=file:/opt/unciv-authoritative/docs/authoritative-postgresql-19.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=unciv-backup
+Group=unciv-backup
+WorkingDirectory=/var/backups/unciv-authoritative
+EnvironmentFile=/etc/unciv-authoritative/backup/backup.env
+ExecStart=/bin/sh /opt/unciv-authoritative/releases/current/postgresql/base-backup.sh
+TimeoutStartSec=2h
+
+CPUQuota=40%
+IOWeight=20
+MemoryMax=192M
+MemorySwapMax=0
+TasksMax=32
+LimitNOFILE=1024
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadWritePaths=/var/backups/unciv-authoritative/base
+UMask=0077

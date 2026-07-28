@@ -1,0 +1,13 @@
+[Unit]
+Description=Schedule verified Unciv PostgreSQL 19 physical base backups
+
+[Timer]
+OnCalendar=*-*-* 02:17:00 UTC
+RandomizedDelaySec=30m
+Persistent=yes
+AccuracySec=1m
+Unit=unciv-authoritative-backup.service
+
+[Install]
+WantedBy=timers.target
+

@@ -6872,6 +6872,52 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## PostgreSQL 19 physical backup and point-in-time recovery
+
+Implemented and destructively qualified on 2026-07-28:
+
+- PostgreSQL continuously archives WAL through a fail-closed script that
+  accepts only segment, base-backup history, and timeline-history filenames;
+  refuses symlinks or differing immutable destinations; stages on the archive
+  filesystem; and publishes `0600` files atomically.
+- A separate `unciv-backup` systemd identity runs daily randomized persistent
+  physical backups with a replication-only PostgreSQL login. `pg_basebackup`
+  streams required WAL and emits SHA-256 manifests; `pg_verifybackup` must pass
+  before the staging directory is atomically published.
+- A checked-in destructive drill creates canonical revision 1 plus membership,
+  session, audit, journal, snapshot/blob, and outbox evidence; takes the
+  verified backup; creates a named WAL restore point between two committed
+  marker transactions; restores into a new data volume; and promotes only at
+  that target. The client/API cannot participate in recovery or replace
+  canonical state.
+- The operator runbook requires a separate restore identity, a read-only WAL
+  mount, isolated startup, canonical reconciliation, incident-boundary checks,
+  and preservation of the exact backup, target, image digest, and reports
+  before promotion.
+
+Verification on 2026-07-28:
+
+- `cargo test --manifest-path authoritative-server/Cargo.toml --test
+  systemd_api_packaging` passes 6/6 packaging and fail-closed policy tests.
+- `pwsh -NoProfile -File
+  authoritative-server/tests/run-postgres-pitr-smoke.ps1` passes against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  `pg_verifybackup` passed with a SHA-256 manifest, `pg_stat_archiver` reported
+  zero failures, recovery promoted at
+  `unciv_v3_backup_qualification`, the before-target marker count was one, and
+  the after-target marker count was zero.
+- The restored Rust invariant test passed. `unciv-v3-reconcile` scanned one
+  game, two revisions, and two snapshots with `total_findings: 0`, proving the
+  restored head revision, canonical and payload hashes, revision/command
+  journal, membership, session, security audit, and transactional outbox
+  invariants.
+- Early drill runs exposed and fixed the absent replication HBA entry,
+  root-owned archive volume, temporary-bootstrap readiness race, PostgreSQL 19
+  `PGDATA` restore offset, missing backup-history filename allowance,
+  same-transaction restore-point mistake, and scalar PowerShell output parsing.
+  Every disposable run cleaned its containers, volumes, and network; none of
+  these errors remain deferred.
+
 ## Legacy import normalization boundary
 
 The first legacy-import milestone keeps untrusted saves out of Rust rules code.

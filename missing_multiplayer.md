@@ -760,9 +760,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   privilege boundaries; a live runtime-role smoke proves schema `CREATE` is
   denied while API readiness works. Backup, restore, audit roles plus automated
   TLS and rotation qualification remain.
-- [ ] Implement automated backups and point-in-time recovery, then run and record
+- [x] Implement automated backups and point-in-time recovery, then run and record
   destructive restore drills that validate head revision, snapshot hash,
-  journal, membership, session, audit, and outbox invariants.
+  journal, membership, session, audit, and outbox invariants. PostgreSQL 19 Beta
+  2 now continuously archives immutable WAL files and schedules streamed
+  physical base backups with SHA-256 manifests and `pg_verifybackup` under a
+  separate `unciv-backup` identity. The 2026-07-28 isolated named-point recovery
+  promoted successfully, proved the before-target transaction present and the
+  after-target transaction absent, validated every listed canonical invariant,
+  and reconciled one game/two revisions/two snapshots with zero findings.
 - [ ] Document and test PostgreSQL 19 prerelease upgrades/rollback. Production use
   of Beta 2 is an accepted product decision, but it still requires a rehearsed
   migration and restore gate for each later beta/RC/final image.

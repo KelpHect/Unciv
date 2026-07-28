@@ -43,16 +43,107 @@ The Rust API never applies migrations. It validates the complete version and
 checksum set before binding and then uses bounded pool, acquisition, idle,
 lifetime, statement, and lock timeouts. Production must use a private database
 network or loopback binding, encrypted transport, a distinct least-privilege
-runtime role, and a separately protected migration role. See
-`authoritative-api-systemd.md`. The development composition is not the final
-PostgreSQL TLS/backup deployment.
+runtime role, and separately protected migration and backup roles. See
+`authoritative-api-systemd.md`. The development composition remains a developer
+database; the systemd and PostgreSQL files below are the production backup/PITR
+boundary.
+
+## Continuous WAL archive and physical backups
+
+Install `authoritative-server/postgresql/authoritative-pitr.conf` as a
+PostgreSQL `include` file. Its restart-required settings enable recovery-grade
+WAL and continuous archiving. `archive-wal.sh` accepts only a PostgreSQL WAL
+segment, base-backup history file, or timeline-history filename. It stages in
+the archive filesystem, refuses symlinks and differing existing files, and
+atomically renames the completed `0600` file. Never configure a command that
+overwrites an existing archive object.
+
+Create separate roots with no shared write access:
+
+```text
+install -d -m 0700 -o postgres -g postgres /var/backups/unciv-authoritative/wal
+install -d -m 0700 -o unciv-backup -g unciv-backup /var/backups/unciv-authoritative/base
+```
+
+Create a login that can stream a physical backup but cannot read application
+tables through ordinary SQL:
+
+```sql
+CREATE ROLE unciv_backup LOGIN REPLICATION;
+ALTER ROLE unciv_backup SET statement_timeout = 0;
+```
+
+Set its generated password outside SQL history, add only the required
+`hostssl replication unciv_backup ... scram-sha-256` HBA rule for the backup
+host or loopback address, and reload PostgreSQL. Do not grant schema/table
+privileges. Store the credential in an `0600` pgpass file readable only by
+`unciv-backup`; `/etc/unciv-authoritative/backup/backup.env` contains:
+
+```text
+UNCIV_V3_BACKUP_DATABASE_URL=postgresql://unciv_backup@127.0.0.1:5432/postgres?sslmode=require
+UNCIV_V3_BASE_BACKUP_ROOT=/var/backups/unciv-authoritative/base
+PGPASSFILE=/etc/unciv-authoritative/backup/pgpass
+```
+
+Install and enable `unciv-authoritative-backup.service` and
+`unciv-authoritative-backup.timer`. The daily timer uses a randomized delay and
+is persistent across downtime. Each run streams required WAL, creates a
+SHA-256 backup manifest, runs `pg_verifybackup --exit-on-error`, and publishes
+the directory only after verification. A failed staging directory is removed;
+an existing completed backup is never replaced.
+
+Monitor `pg_stat_archiver`. Alert when `failed_count` increases, when
+`last_archived_time` falls behind the configured recovery-point objective, when
+free space crosses the operator threshold, or when the backup timer fails.
+Copy verified base backups and the continuous WAL archive to independently
+encrypted, access-controlled storage. Keep WAL from at least the start of the
+oldest retained base backup; deleting an apparently old segment without
+checking that boundary can make the backup unrecoverable.
+
+## Isolated restore and promotion gate
+
+Never restore over the production data directory. Under a separate
+`unciv-restore` operating-system identity, copy one verified base backup into a
+new empty PostgreSQL 19 Beta 2 data directory, rerun `pg_verifybackup` before
+adding recovery files, mount the matching WAL archive read-only, and configure:
+
+```text
+restore_command = 'cp /read-only-wal-archive/%f %p'
+recovery_target_time = '<reviewed UTC incident boundary>'
+recovery_target_action = 'promote'
+```
+
+Use `recovery_target_name` instead when an operator created a unique named
+restore point. Create `recovery.signal`, start only the isolated instance, and
+wait until `pg_is_in_recovery()` becomes false. Before any traffic can reach
+the instance:
+
+1. Run the ignored
+   `restored_backup_fixture_preserves_every_required_invariant` qualification
+   or the equivalent release-specific restore assertions.
+2. Run `unciv-v3-reconcile` and require exit code zero and
+   `total_findings: 0`.
+3. Verify canonical heads, snapshot payload/hash pairs, the revision/command
+   journal, membership and ownership, sessions, security audit events, and
+   transactional outbox rows.
+4. Confirm the target boundary with incident-specific included/excluded
+   records and preserve the backup ID, target, PostgreSQL image digest, reports,
+   and operator approvals.
+
+`authoritative-server/tests/run-postgres-pitr-smoke.ps1` automates that entire
+destructive workflow in disposable Docker containers and volumes. It uses only
+the pinned PostgreSQL 19 Beta 2 digest, a replication-only backup login,
+streamed WAL, a SHA-256 manifest, `pg_verifybackup`, a named restore point, and
+the Rust canonical reconciliation path. Its cleanup targets only
+GUID-suffixed resources created by that invocation.
 
 ## Required upgrade gate
 
 Before changing the pinned image:
 
-1. Take and verify a logical backup plus the volume/storage snapshot.
-2. Restore into a separate PostgreSQL 19 candidate instance.
+1. Take a verified physical base backup and preserve its continuous WAL range.
+2. Restore into a separate PostgreSQL 19 candidate instance through the
+   automated PITR drill.
 3. Run every ignored Rust PostgreSQL integration test serially.
 4. Run the read-only reconciliation CLI and require a clean report.
 5. Run command concurrency, idempotency, outbox, and representative load tests.
@@ -113,3 +204,14 @@ concurrency, and parallel autovacuum workers. The complete ignored Rust database
 suite passed 8/8 against this instance, covering migrations, revision CAS and
 idempotency, account/session lifecycle, authorization, snapshot quarantine,
 outbox leasing, discovery, and durable rate limiting.
+
+On 2026-07-28 the isolated destructive PITR qualification passed against
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+The backup used streamed WAL, a SHA-256 manifest, and `pg_verifybackup`; recovery
+promoted at `unciv_v3_backup_qualification`. The transaction committed before
+the target was present and the transaction committed after it was absent.
+Post-restore assertions validated one canonical head at revision 1, both
+snapshot/payload hashes, two revision and one command journal rows, membership,
+session, audit, and outbox rows. Reconciliation scanned one game, two revisions,
+and two snapshots with zero findings. All disposable containers, volumes, and
+the network were removed.

@@ -43,8 +43,11 @@ PY
 
 wait_for_postgres() {
   for _ in $(seq 1 90); do
-    if docker exec "$container" pg_isready -U postgres -d unciv_authoritative \
-      >/dev/null 2>&1; then
+    local logs
+    logs="$(docker logs "$container" 2>&1 || true)"
+    if grep -Fq 'PostgreSQL init process complete; ready for start up.' <<<"$logs" &&
+      docker exec "$container" pg_isready -U postgres -d unciv_authoritative \
+        >/dev/null 2>&1; then
       return
     fi
     sleep 0.5

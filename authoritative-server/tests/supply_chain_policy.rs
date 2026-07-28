@@ -78,6 +78,7 @@ fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
 fn tagged_bundle_runs_a_bounded_linux_production_smoke() {
     for required in [
         "postgres:19beta2-alpine@sha256:bc62313e",
+        "PostgreSQL init process complete; ready for start up.",
         "\"$bundle_root/bin/unciv-v3-bundle\" verify",
         "test -x \"$bundle_root/bin/unciv-v3-rulesets\"",
         "\"$bundle_root/bin/unciv-v3-migrate\"",

@@ -12,7 +12,7 @@ From one clean commit, build every artifact that will ship:
 ```text
 ./gradlew :server:authoritativeWorkerDist :desktop:dist
 cargo build --release --manifest-path authoritative-server/Cargo.toml \
-  --bin unciv-authoritative-server --bin unciv-v3-bundle
+  --bin unciv-authoritative-server --bin unciv-v3-migrate --bin unciv-v3-bundle
 ```
 
 Copy the active ruleset version's `manifest.json` to a root-owned review
@@ -22,6 +22,7 @@ location, then create a new bundle directory:
 authoritative-server/target/release/unciv-v3-bundle create \
   /opt/unciv-authoritative/releases/<candidate> \
   authoritative-server/target/release/unciv-authoritative-server \
+  authoritative-server/target/release/unciv-v3-migrate \
   server/build/libs/UncivAuthoritativeWorker.jar \
   desktop/build/libs/Unciv.jar \
   /opt/unciv-authoritative/rulesets/active/manifest.json
@@ -33,6 +34,11 @@ directory, copies only bounded regular files, requires exactly migrations
 artifact, writes a closed manifest, verifies the completed directory, and only
 then renames it to the requested destination. Existing destinations are never
 replaced.
+
+The bundled `unciv-v3-migrate` executable is the only normal schema writer.
+Run it with the separately protected migration role before activating the API.
+The API executable uses its runtime role only and fails closed if the applied
+version set or any migration checksum differs from the bundle.
 
 The compatibility contract pins:
 

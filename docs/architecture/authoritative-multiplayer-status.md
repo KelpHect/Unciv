@@ -1,5 +1,68 @@
 # Authoritative multiplayer v3 status
 
+## Split database migration authority and active API readiness
+
+Implemented on 2026-07-28:
+
+- Removed schema mutation from the Rust API bootstrap. The separately packaged
+  `unciv-v3-migrate` executable requires its own migration database URL, applies
+  the embedded ordered migration set, and verifies the resulting versions and
+  checksums. API startup is read-only with respect to schema and fails closed
+  on missing, extra, failed, or changed migrations.
+- Added bounded PostgreSQL runtime configuration for maximum/minimum pool size,
+  acquisition timeout, idle retirement, maximum connection lifetime, and
+  session-level statement/lock timeouts. Invalid or incoherent settings stop
+  startup rather than silently disabling a limit.
+- Preserved `/healthz` as process liveness and added `/readyz` as active
+  dependency admission. It concurrently probes PostgreSQL and performs the
+  authenticated private-worker handshake, returns 503 when either dependency
+  is unavailable, and exposes only fixed component status.
+- Added separate hardened systemd units and service identities for the Rust API
+  and one-shot migrator. The release bundle now requires and hashes the
+  migration executable. The deployment guide keeps runtime and migration
+  credentials in different protected environment files and requires loopback
+  database/worker connectivity.
+
+Verification on 2026-07-28:
+
+- `unciv-v3-migrate` applied the complete embedded migration set to a fresh
+  exact digest-pinned PostgreSQL 19 Beta 2 container. The new integration case
+  proved exact schema compatibility plus `12345ms` statement and `2345ms` lock
+  session settings. All 31 serialized PostgreSQL repository/fault scenarios
+  then passed in 9.52 seconds.
+- The real packaged Kotlin worker, non-migrating Rust API, and database ran
+  together through `tests/run-api-readiness-smoke.ps1`. `/healthz` returned
+  protocol 3, `/readyz` reported both dependencies ready, and killing the worker
+  changed readiness to HTTP 503 with PostgreSQL still ready. The same smoke
+  passed under a temporary DML-only runtime role, and PostgreSQL independently
+  denied that role schema `CREATE`.
+- Separate startup fault rehearsals proved the API refuses both a database with
+  no migration history and a database whose migration-22 checksum was changed.
+  Both disposable databases and the temporary runtime role were removed.
+- `systemd-analyze verify` passed for the API and migration units inside the
+  pinned Ubuntu 24.04 qualification image. Static packaging tests also prove
+  their separate identities, credential files, executables, resource caps, and
+  loopback-only policy.
+- `cargo test --all-features` passes 176 active library tests, 25 HTTP/runtime
+  tests, two benchmark tests, six systemd packaging tests, and all other active
+  binary/contract tests; 37 prerequisite-gated cases remain ignored in that
+  lane and the 31 database cases were run separately. Warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all -- --check`, generated OpenAPI parity, and the focused Kotlin
+  `ReleaseCompatibilityContractTests` all pass.
+- The first generated-contract test correctly failed until OpenAPI was
+  regenerated. An inline PowerShell smoke was rejected by execution policy
+  before launching anything; it became the reusable bounded smoke script above.
+  A permission review caught and removed a shared-group credential exposure
+  before live testing. The source-size audit found `worker/protocol.rs` at 804
+  physical lines; response/result types moved into the descriptive
+  `worker/response.rs` module, leaving the protocol operation union at 744
+  lines. The first final formatting command was run from the repository root,
+  where no Cargo manifest exists; the corrected command used the explicit
+  authoritative-server manifest and passed. No discovered source, test,
+  formatting, packaging, database, permission, or cleanup error remains
+  deferred.
+
 ## Live Linux systemd worker qualification
 
 Implemented on 2026-07-28:

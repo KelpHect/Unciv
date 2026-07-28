@@ -39,6 +39,7 @@ mod protocol;
 mod queue;
 mod religion;
 mod research;
+mod response;
 mod spectators;
 mod trade;
 mod transport;
@@ -83,13 +84,14 @@ pub use major_diplomacy::{
     DiplomaticPromptIntent,
 };
 pub use manifest::{WorkerManifest, WorkerRuleset};
-pub use protocol::{
+use protocol::{WorkerOperation, WorkerRequest};
+pub use queue::{WorkerQueueConfig, WorkerQueueConfigError};
+pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
+use response::WorkerResponse;
+pub use response::{
     AssignedPlayer, CreatedGame, ForcedResignation, NormalizedLegacyGame, ProjectedSpectatorState,
     ProjectedState, WorkerCapabilities,
 };
-use protocol::{WorkerOperation, WorkerRequest, WorkerResponse};
-pub use queue::{WorkerQueueConfig, WorkerQueueConfigError};
-pub use religion::{ChooseReligiousBeliefsIntent, UseReligiousUnitIntent};
 pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeRequestIntent};
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};

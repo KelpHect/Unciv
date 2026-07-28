@@ -9783,6 +9783,34 @@
           }
         }
       }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [],
+        "operationId": "readiness",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14309,6 +14337,31 @@
           }
         },
         "additionalProperties": false
+      },
+      "ReadinessResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "protocol_version",
+          "postgres",
+          "engine_worker"
+        ],
+        "properties": {
+          "engine_worker": {
+            "type": "string"
+          },
+          "postgres": {
+            "type": "string"
+          },
+          "protocol_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          }
+        }
       },
       "ReligiousBeliefType": {
         "type": "string",

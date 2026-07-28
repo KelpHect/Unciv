@@ -20,8 +20,8 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
             );
             Ok(())
         }
-        [command, root, server, worker, client, ruleset] if command == "create" => {
-            create(Path::new(root), server, worker, client, ruleset)
+        [command, root, server, migrator, worker, client, ruleset] if command == "create" => {
+            create(Path::new(root), server, migrator, worker, client, ruleset)
         }
         _ => Err(ReleaseBundleError::Policy),
     }
@@ -30,6 +30,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
 fn create(
     output: &Path,
     server: &str,
+    migrator: &str,
     worker: &str,
     client: &str,
     ruleset: &str,
@@ -55,6 +56,10 @@ fn create(
     copy_exact(
         &source_path(server)?,
         &staging.join("bin/unciv-authoritative-server"),
+    )?;
+    copy_exact(
+        &source_path(migrator)?,
+        &staging.join("bin/unciv-v3-migrate"),
     )?;
     copy_exact(
         &source_path(worker)?,
@@ -223,6 +228,7 @@ mod tests {
         let sources = root.join("sources");
         fs::create_dir(&sources).unwrap();
         fs::write(sources.join("server"), "server").unwrap();
+        fs::write(sources.join("migrator"), "migrator").unwrap();
         create_compatible_zip(&sources.join("worker"));
         create_compatible_zip(&sources.join("client"));
         let ruleset = WorkerManifest {
@@ -242,6 +248,7 @@ mod tests {
         create(
             &bundle,
             sources.join("server").to_str().unwrap(),
+            sources.join("migrator").to_str().unwrap(),
             sources.join("worker").to_str().unwrap(),
             sources.join("client").to_str().unwrap(),
             sources.join("ruleset.json").to_str().unwrap(),

@@ -1,8 +1,5 @@
 use serde_json::json;
-use sqlx::{
-    PgPool, Row,
-    postgres::{PgPoolOptions, PgRow},
-};
+use sqlx::{PgPool, Row, postgres::PgRow};
 use uuid::Uuid;
 
 use crate::auth::{
@@ -145,6 +142,7 @@ mod city_population;
 mod city_state;
 mod city_tile_batches;
 mod commands;
+mod connection;
 mod construction_queues;
 mod diplomacy;
 mod espionage;
@@ -177,6 +175,9 @@ mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
 
+pub use connection::{
+    MIGRATOR, PostgresConfigurationError, PostgresRuntimeConfig, SchemaCompatibilityError,
+};
 pub use legacy_import::{
     LegacyImportApplication, LegacyImportCandidateEvidence, LegacyImportConflictReport,
     LegacyImportOutcome, LegacyImportProjectionEvidence, LegacyImportProjectionReport,
@@ -262,21 +263,6 @@ impl PostgresGameRepository {
         .map_err(CommitError::storage)?
         .ok_or(CommitError::NotFound)?;
         self.validated_snapshot(game_id, &row).await.map(|_| ())
-    }
-
-    /// Consumes one durable fixed-window bucket. Only the SHA-256 bucket hash
-    /// is stored, so usernames and composite source identifiers are not
-    /// recoverable from the rate-limit table.
-    pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect(database_url)
-            .await?;
-        Ok(Self { pool })
-    }
-
-    pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-        sqlx::migrate!("./migrations").run(&self.pool).await
     }
 
     /// Creates revision zero atomically. The caller must have already stored a

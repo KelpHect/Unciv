@@ -7,6 +7,14 @@ pub(super) struct HealthResponse {
 }
 
 #[derive(Serialize, ToSchema)]
+pub(super) struct ReadinessResponse {
+    pub(super) status: &'static str,
+    pub(super) protocol_version: u16,
+    pub(super) postgres: &'static str,
+    pub(super) engine_worker: &'static str,
+}
+
+#[derive(Serialize, ToSchema)]
 pub(super) struct CapabilitiesResponse {
     pub(super) protocol_version: u16,
     pub(super) projection_version: u16,

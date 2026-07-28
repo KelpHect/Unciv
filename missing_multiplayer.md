@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-26 on the authoritative-v3 feature branch. Completed foundations and
+2026-07-28 on the authoritative-v3 feature branch. Completed foundations and
 command families are retained below with checked marks; the detailed evidence
 and historical milestones remain in `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -741,13 +741,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Beta 2 services, health/readiness gates, resource limits, and upgrade checks.
   The private worker now has a hardened least-privilege systemd unit, immutable
   artifact layout, secret-file permissions, automatic crash/periodic recycling,
-  and enforceable JVM/cgroup limits. The Rust API, PostgreSQL, reverse proxy/TLS,
-  migration, readiness, backup, and upgrade units remain to complete this item.
+  and enforceable JVM/cgroup limits. The release bundle now includes a dedicated
+  migration executable; the Rust API and migrator have separate hardened
+  systemd units, credentials, users, resource ceilings, and active dependency
+  readiness. PostgreSQL service hardening, reverse proxy/TLS, backup, and
+  upgrade units remain to complete this item.
 - [ ] Configure production TLS/HSTS and explicit trusted-proxy handling. Never
   trust forwarding headers from an untrusted peer.
 - [ ] Create separate least-privilege PostgreSQL roles for runtime, migrations,
   backups, restores, and audit access; require encrypted database transport and
-  credential rotation.
+  credential rotation. Runtime and migration now have separate executables,
+  Linux users/groups, protected credential directories, and documented SQL
+  privilege boundaries; a live runtime-role smoke proves schema `CREATE` is
+  denied while API readiness works. Backup, restore, audit roles plus automated
+  TLS and rotation qualification remain.
 - [ ] Implement automated backups and point-in-time recovery, then run and record
   destructive restore drills that validate head revision, snapshot hash,
   journal, membership, session, audit, and outbox invariants.
@@ -756,7 +763,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   migration and restore gate for each later beta/RC/final image.
 - [ ] Add schema forward/rollback policy, startup migration compatibility checks,
   database statement/lock timeouts, pool sizing, capacity alerts, and disk-full
-  behavior.
+  behavior. The API now refuses missing, extra, failed, or checksum-mismatched
+  migrations without changing the schema; `unciv-v3-migrate` owns schema
+  writes. Pool size/acquisition/idle/lifetime and PostgreSQL statement/lock
+  timeouts are bounded and environment-configurable. Forward/rollback policy,
+  capacity alerts, and disk-full qualification remain.
 - [ ] Add operator runbooks for worker failure, corrupt game quarantine/recovery,
   database failover, outbox backlog, credential compromise, abuse, and
   break-glass access.

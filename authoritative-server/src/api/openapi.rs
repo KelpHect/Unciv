@@ -4,6 +4,7 @@ use super::*;
 #[openapi(
     paths(
         health,
+        readiness,
         capabilities,
         openapi_document,
         asyncapi_document,
@@ -113,6 +114,7 @@ use super::*;
     ),
     components(schemas(
         HealthResponse,
+        ReadinessResponse,
         CapabilitiesResponse,
         CredentialsRequest,
         AccountResponse,
@@ -288,6 +290,39 @@ pub(super) async fn health() -> Json<HealthResponse> {
         status: "ok",
         protocol_version: PROTOCOL_VERSION,
     })
+}
+
+#[utoipa::path(
+    get,
+    path = "/readyz",
+    responses(
+        (status = 200, body = ReadinessResponse),
+        (status = 503, body = ReadinessResponse)
+    )
+)]
+pub(super) async fn readiness(
+    State(state): State<AppState>,
+) -> (StatusCode, Json<ReadinessResponse>) {
+    let (postgres, engine_worker) =
+        tokio::join!(state.repository.readiness_check(), state.worker.handshake());
+    let ready = postgres.is_ok() && engine_worker.is_ok();
+    (
+        if ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(ReadinessResponse {
+            status: if ready { "ready" } else { "unready" },
+            protocol_version: PROTOCOL_VERSION,
+            postgres: if postgres.is_ok() { "ready" } else { "unready" },
+            engine_worker: if engine_worker.is_ok() {
+                "ready"
+            } else {
+                "unready"
+            },
+        }),
+    )
 }
 
 #[utoipa::path(get, path = "/api/v3/capabilities", responses((status = 200, body = CapabilitiesResponse)))]

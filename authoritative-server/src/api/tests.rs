@@ -125,6 +125,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
     let paths = document["paths"].as_object().unwrap();
     let expected_paths = [
         "/healthz",
+        "/readyz",
         "/api/v3/capabilities",
         "/api/v3/openapi.json",
         "/api/v3/asyncapi.json",
@@ -243,6 +244,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
             let public = matches!(
                 path.as_str(),
                 "/healthz"
+                    | "/readyz"
                     | "/api/v3/capabilities"
                     | "/api/v3/openapi.json"
                     | "/api/v3/asyncapi.json"

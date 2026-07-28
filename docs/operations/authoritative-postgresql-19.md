@@ -32,11 +32,20 @@ Run the API with a URL assembled outside source control:
 UNCIV_V3_DATABASE_URL=postgres://unciv_authoritative:<password>@127.0.0.1:5432/unciv_authoritative
 ```
 
-The Rust service applies checked-in migrations on startup. Production must use
-a private database network or loopback binding, TLS for any non-local database
-connection, a distinct least-privilege runtime role, and a separately protected
-migration role. The development composition is not the final production
-systemd/TLS/backup deployment.
+Development can apply checked-in migrations with the dedicated binary:
+
+```text
+UNCIV_V3_MIGRATION_DATABASE_URL=postgres://unciv_authoritative:<password>@127.0.0.1:5432/unciv_authoritative
+cargo run --manifest-path authoritative-server/Cargo.toml --bin unciv-v3-migrate
+```
+
+The Rust API never applies migrations. It validates the complete version and
+checksum set before binding and then uses bounded pool, acquisition, idle,
+lifetime, statement, and lock timeouts. Production must use a private database
+network or loopback binding, encrypted transport, a distinct least-privilege
+runtime role, and a separately protected migration role. See
+`authoritative-api-systemd.md`. The development composition is not the final
+PostgreSQL TLS/backup deployment.
 
 ## Required upgrade gate
 

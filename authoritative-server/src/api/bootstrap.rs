@@ -32,13 +32,16 @@ pub(crate) async fn run() {
         .expect("UNCIV_V3_BIND must be a socket address");
     let database_url = std::env::var("UNCIV_V3_DATABASE_URL")
         .expect("UNCIV_V3_DATABASE_URL is required for the authoritative API");
-    let repository = PostgresGameRepository::connect(&database_url)
+    let database_config =
+        unciv_authoritative_server::postgres::PostgresRuntimeConfig::from_environment()
+            .expect("authoritative PostgreSQL runtime configuration must be valid");
+    let repository = PostgresGameRepository::connect_with_config(&database_url, database_config)
         .await
         .expect("failed to connect to UNCIV_V3_DATABASE_URL");
     repository
-        .migrate()
+        .verify_schema_compatibility()
         .await
-        .expect("failed to migrate authoritative database");
+        .expect("authoritative database schema must exactly match this release; run unciv-v3-migrate with migration credentials");
     let worker_address = std::env::var("UNCIV_ENGINE_WORKER_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:43170".to_owned())
         .parse::<SocketAddr>()
@@ -100,6 +103,7 @@ pub(crate) async fn run() {
         .expect("authoritative API HTTP security policy must be valid");
     let app = Router::new()
         .route("/healthz", get(health))
+        .route("/readyz", get(readiness))
         .route("/api/v3/capabilities", get(capabilities))
         .route("/api/v3/openapi.json", get(openapi_document))
         .route("/api/v3/asyncapi.json", get(asyncapi_document))

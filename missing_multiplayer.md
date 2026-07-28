@@ -781,13 +781,21 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Document and test PostgreSQL 19 prerelease upgrades/rollback. Production use
   of Beta 2 is an accepted product decision, but it still requires a rehearsed
   migration and restore gate for each later beta/RC/final image.
-- [ ] Add schema forward/rollback policy, startup migration compatibility checks,
+- [x] Add schema forward/rollback policy, startup migration compatibility checks,
   database statement/lock timeouts, pool sizing, capacity alerts, and disk-full
   behavior. The API now refuses missing, extra, failed, or checksum-mismatched
   migrations without changing the schema; `unciv-v3-migrate` owns schema
   writes. Pool size/acquisition/idle/lifetime and PostgreSQL statement/lock
-  timeouts are bounded and environment-configurable. Forward/rollback policy,
-  capacity alerts, and disk-full qualification remain.
+  timeouts are bounded and environment-configurable. The documented
+  expand/backfill/contract policy has no unsafe down migrations: incompatible
+  rollback restores a verified pre-migration PostgreSQL backup and matching
+  release, while production startup continues to reject missing, extra, failed,
+  or checksum-drifted migrations. A read-only five-minute capacity timer reports
+  data/WAL/backup filesystem use, database bytes, pending outbox, and snapshots
+  with warning/critical exits. The pinned 160 MiB PostgreSQL 19 Beta 2 disk-full
+  drill reached 1 MiB free, reported critical, rejected a 12 MiB canonical
+  commit with no phantom command/head, then committed the same command once
+  after space recovery and reconciled with zero findings.
 - [ ] Add operator runbooks for worker failure, corrupt game quarantine/recovery,
   database failover, outbox backlog, credential compromise, abuse, and
   break-glass access.

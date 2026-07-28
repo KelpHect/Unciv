@@ -6872,6 +6872,47 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Schema compatibility, capacity alerts, and disk-full recovery
+
+Implemented and destructively qualified on 2026-07-28:
+
+- Published migrations are immutable and forward-only under an explicit
+  expand, deploy, backfill, prove, then contract policy. The API continues to
+  reject missing, extra, failed, or checksum-mismatched SQLx history. There are
+  no automated down migrations: an incompatible binary rollback restores the
+  verified pre-migration physical backup/WAL target and matching release;
+  otherwise operators ship a forward repair.
+- A separate read-only `unciv-monitor` identity runs a hardened five-minute
+  capacity timer. It validates coherent thresholds and safe non-symlink roots,
+  then emits bounded JSON for data/WAL/backup filesystem use, database bytes,
+  pending outbox rows, and snapshot count. Healthy, warning, and critical exits
+  are distinct and contain no credentials or canonical/player data.
+- Disk exhaustion is fail-closed. The API is removed from readiness until space,
+  checkpoint, and reconciliation are healthy; operators never delete canonical
+  history or accept a client-uploaded repair. A failed command is retried only
+  with the same idempotency key.
+
+Verification on 2026-07-28:
+
+- `pwsh -NoProfile -File
+  authoritative-server/tests/run-postgres-disk-full-smoke.ps1` passes against
+  only the pinned PostgreSQL 19 Beta 2 digest. A 160 MiB tmpfs was reduced from
+  122,120 KiB available to 1,024 KiB; the capacity checker changed from `ok` to
+  `critical` with exit code 2.
+- A deterministic 12 MiB incompressible valid UTF-8 snapshot failed at
+  `game_snapshot_blobs` with PostgreSQL `No space left on device`. Rust returned
+  `Storage`; the head remained revision zero and the command journal remained
+  empty.
+- After deleting only the drill filler and checkpointing, the same command ID
+  committed revision one. A changed duplicate returned the original acceptance
+  without a second command. Canonical validation and `unciv-v3-reconcile`
+  completed with zero findings.
+- The first drill wrapper failed before constraining storage because PowerShell
+  interpreted an `awk` field expression; shell positional parsing replaced it.
+  The next run exposed a non-UTF-8 synthetic fixture at final validation; the
+  payload is now deterministic printable UTF-8. Neither error remains deferred,
+  and every disposable container/tmpfs was removed.
+
 ## PostgreSQL 19 TLS, service isolation, and credential rotation
 
 Implemented and live-qualified on 2026-07-28:

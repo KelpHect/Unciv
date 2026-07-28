@@ -15,6 +15,10 @@ const POSTGRES_HBA: &str = include_str!("../postgresql/production-pg_hba.conf");
 const POSTGRES_ROLES: &str = include_str!("../postgresql/bootstrap-roles.sql");
 const POSTGRES_ROTATION: &str = include_str!("../postgresql/rotate-role-password.sql");
 const POSTGRES_SECURITY_SMOKE: &str = include_str!("run-postgres-security-smoke.ps1");
+const CAPACITY_SERVICE: &str = include_str!("../systemd/unciv-authoritative-capacity.service");
+const CAPACITY_TIMER: &str = include_str!("../systemd/unciv-authoritative-capacity.timer");
+const CAPACITY_CHECK: &str = include_str!("../postgresql/check-capacity.sh");
+const DISK_FULL_SMOKE: &str = include_str!("run-postgres-disk-full-smoke.ps1");
 const CADDYFILE: &str = include_str!("../caddy/Caddyfile");
 const TLS_SMOKE: &str = include_str!("run-tls-proxy-smoke.ps1");
 
@@ -321,6 +325,61 @@ fn postgres_roles_and_rotation_are_closed_and_least_privilege() {
         assert!(
             POSTGRES_SECURITY_SMOKE.contains(required),
             "missing live PostgreSQL security assertion: {required}"
+        );
+    }
+}
+
+#[test]
+fn capacity_monitor_is_bounded_read_only_and_fault_qualified() {
+    for required in [
+        "User=unciv-monitor",
+        "EnvironmentFile=/etc/unciv-authoritative/monitor/capacity.env",
+        "Requires=unciv-authoritative-postgres.service",
+        "MemoryMax=64M",
+        "NoNewPrivileges=yes",
+        "ProtectSystem=strict",
+        "IPAddressDeny=any",
+        "IPAddressAllow=localhost",
+    ] {
+        assert!(
+            CAPACITY_SERVICE.contains(required),
+            "missing capacity service policy: {required}"
+        );
+    }
+    for required in [
+        "OnUnitActiveSec=5m",
+        "RandomizedDelaySec=30s",
+        "Persistent=yes",
+        "Unit=unciv-authoritative-capacity.service",
+    ] {
+        assert!(
+            CAPACITY_TIMER.contains(required),
+            "missing capacity schedule: {required}"
+        );
+    }
+    for required in [
+        "UNCIV_V3_AUDIT_DATABASE_URL",
+        "UNCIV_V3_CAPACITY_WARN_PERCENT",
+        "UNCIV_V3_CAPACITY_CRITICAL_PERCENT",
+        "pg_database_size(current_database())",
+        "\"status\":\"%s\"",
+        "exit \"$status\"",
+    ] {
+        assert!(
+            CAPACITY_CHECK.contains(required),
+            "missing capacity check invariant: {required}"
+        );
+    }
+    for required in [
+        "'--tmpfs', '/var/lib/postgresql:rw,size=160m'",
+        "constrained_capacity_status = 'critical'",
+        "disk_full_commit_leaves_no_phantom_revision",
+        "recovered_space_allows_one_idempotent_retry",
+        "--bin unciv-v3-reconcile",
+    ] {
+        assert!(
+            DISK_FULL_SMOKE.contains(required),
+            "missing disk-full qualification: {required}"
         );
     }
 }

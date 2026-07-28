@@ -7,6 +7,8 @@ use crate::{GameCommand, state_hash};
 mod administration;
 #[path = "backup_restore_integration_tests.rs"]
 mod backup_restore;
+#[path = "disk_full_integration_tests.rs"]
+mod disk_full;
 #[path = "game_creation_integration_tests.rs"]
 mod game_creation;
 #[path = "invitation_integration_tests.rs"]

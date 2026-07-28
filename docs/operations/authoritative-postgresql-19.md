@@ -166,6 +166,7 @@ Install these root-owned files:
 ```text
 install -d -o root -g root -m 0750 /etc/unciv-authoritative/postgres
 install -d -o 70 -g 70 -m 0700 /etc/unciv-authoritative/postgres/tls
+install -d -o 70 -g 70 -m 0700 /var/lib/unciv-authoritative/postgresql
 install -o root -g root -m 0644 authoritative-server/postgresql/compose.production.yaml /etc/unciv-authoritative/postgres/compose.yaml
 install -o root -g root -m 0644 authoritative-server/postgresql/production-postgresql.conf /etc/unciv-authoritative/postgres/postgresql.conf
 install -o root -g root -m 0644 authoritative-server/postgresql/production-pg_hba.conf /etc/unciv-authoritative/postgres/pg_hba.conf

@@ -1,0 +1,12 @@
+[Unit]
+Description=Schedule Unciv PostgreSQL capacity checks
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+RandomizedDelaySec=30s
+Persistent=yes
+Unit=unciv-authoritative-capacity.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,40 @@
+[Unit]
+Description=Check Unciv PostgreSQL capacity thresholds
+Documentation=file:/opt/unciv-authoritative/docs/authoritative-schema-policy.md
+After=unciv-authoritative-postgres.service
+Requires=unciv-authoritative-postgres.service
+
+[Service]
+Type=oneshot
+User=unciv-monitor
+Group=unciv-monitor
+EnvironmentFile=/etc/unciv-authoritative/monitor/capacity.env
+ExecStart=/bin/sh /opt/unciv-authoritative/releases/current/postgresql/check-capacity.sh
+TimeoutStartSec=30s
+
+CPUQuota=10%
+MemoryMax=64M
+MemorySwapMax=0
+TasksMax=16
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RemoveIPC=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+UMask=0077

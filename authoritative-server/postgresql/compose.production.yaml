@@ -16,7 +16,7 @@ services:
       - config_file=/etc/unciv-authoritative/postgres/postgresql.conf
     network_mode: host
     volumes:
-      - authoritative-postgres-data:/var/lib/postgresql
+      - /var/lib/unciv-authoritative/postgresql:/var/lib/postgresql
       - /etc/unciv-authoritative/postgres/postgresql.conf:/etc/unciv-authoritative/postgres/postgresql.conf:ro
       - /etc/unciv-authoritative/postgres/pg_hba.conf:/etc/unciv-authoritative/postgres/pg_hba.conf:ro
       - /etc/unciv-authoritative/postgres/tls:/etc/unciv-authoritative/postgres/tls:ro
@@ -48,6 +48,3 @@ services:
       - FOWNER
       - SETGID
       - SETUID
-
-volumes:
-  authoritative-postgres-data:

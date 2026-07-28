@@ -439,6 +439,13 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(cityControl.contains("controller.setTileAssignment("))
         assertTrue(cityControl.contains("controller.setSpecialistCount("))
         assertTrue(cityControl.contains("controller.setGovernance("))
+        assertTrue(cityControl.contains("controller.setUnitPromotionPreference("))
+        assertTrue(
+            sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                    "AuthoritativeWorldSessionActions.kt",
+            ).readText().contains("session.setCityUnitPromotionPreferenceIfOpen("),
+        )
         assertTrue(cityEconomy.contains("controller.selectConstruction("))
         assertTrue(cityEconomy.contains("controller.manageQueues("))
         assertTrue(cityEconomy.contains("controller.purchase("))
@@ -463,6 +470,55 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(unitOrders.contains("controller.cancelMovement("))
         assertTrue(unitOrders.contains("controller.setImprovementOrder("))
         assertTrue(unitOrders.contains("controller.disband("))
+    }
+
+    @Test
+    fun everyAuthoritativeGameplaySessionCommandIsReachableFromProductionClientUi() {
+        val sessionFile = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                "AuthoritativeMultiplayerSession.kt",
+        )
+        val commandMethods = Regex("""(?:suspend\s+)?fun\s+([A-Za-z0-9]+IfOpen)\s*\(""")
+            .findAll(sessionFile.readText())
+            .map { it.groupValues[1] }
+            .filterNot { it in setOf("cachedProjectionIfOpen", "projectionIfOpen") }
+            .toSortedSet()
+        val productionSources = sourceDirectory("core/src")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && it != sessionFile }
+            .joinToString("\n") { it.readText() }
+        val unreachable = commandMethods.filterNot(productionSources::contains)
+
+        assertTrue(
+            "Every typed gameplay command needs a production projection-only UI route: " +
+                unreachable,
+            unreachable.isEmpty(),
+        )
+    }
+
+    @Test
+    fun publicGameplayRouteInventoryExactlyMatchesTheSupportedClientTransport() {
+        val openApi = sourceFile("authoritative-server/openapi/api-v3.json").readText()
+        val expected = Regex(
+            """/api/v3/games/\{game_id\}/commands/([a-z][a-z-]+)""",
+        ).findAll(openApi).map { it.groupValues[1] }.toSortedSet()
+        val client = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/ApiV3Client.kt",
+        ).readText()
+        val literalRoutes = Regex("""commands/([a-z][a-z-]+)""")
+            .findAll(client)
+            .map { it.groupValues[1] }
+        val delegatedDiplomacyRoutes = Regex(
+            """diplomacyPartner\(gameId,\s*"([a-z][a-z-]+)"""",
+        ).findAll(client).map { it.groupValues[1] }
+        val actual = (literalRoutes + delegatedDiplomacyRoutes).toSortedSet()
+
+        assertTrue("OpenAPI must advertise gameplay commands", expected.isNotEmpty())
+        assertTrue(
+            "Client/server gameplay route drift. Missing=${expected - actual}; " +
+                "extra=${actual - expected}",
+            actual == expected,
+        )
     }
 
     @Test

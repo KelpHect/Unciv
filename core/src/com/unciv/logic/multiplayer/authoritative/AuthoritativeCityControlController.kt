@@ -99,6 +99,20 @@ class AuthoritativeCityControlController internal constructor(
         submit { actions.setCitizenFocus(cityId, focus) }
     }
 
+    suspend fun setUnitPromotionPreference(
+        cityId: String,
+        baseUnitName: String,
+        enabled: Boolean,
+    ) {
+        val preference = requireCity(cityId).unitPromotionPreferences.singleOrNull {
+            it.baseUnitName == baseUnitName
+        } ?: error("Unit promotion preference is absent from the current server projection")
+        require(enabled != preference.enabled) {
+            "Unit promotion preference already has the requested state"
+        }
+        submit { actions.setUnitPromotionPreference(cityId, baseUnitName, enabled) }
+    }
+
     private fun requireCity(cityId: String): ProjectedCity =
         projection().ownCities.singleOrNull { it.id == cityId }
             ?: error("City is absent from the current server projection")
@@ -118,6 +132,8 @@ data class AuthoritativeCityControlActions(
     val resetCitizens: suspend (String) -> AuthoritativeCommandOutcome?,
     val setAvoidGrowth: suspend (String, Boolean) -> AuthoritativeCommandOutcome?,
     val setCitizenFocus: suspend (String, CitizenFocus) -> AuthoritativeCommandOutcome?,
+    val setUnitPromotionPreference:
+        suspend (String, String, Boolean) -> AuthoritativeCommandOutcome?,
 ) {
     companion object {
         val Unavailable = AuthoritativeCityControlActions(
@@ -132,6 +148,7 @@ data class AuthoritativeCityControlActions(
             resetCitizens = { null },
             setAvoidGrowth = { _, _ -> null },
             setCitizenFocus = { _, _ -> null },
+            setUnitPromotionPreference = { _, _, _ -> null },
         )
     }
 }

@@ -130,6 +130,21 @@ internal class AuthoritativeCityControlPanel(
             })
         }
         add(citizens).left().row()
+
+        for (preference in city.unitPromotionPreferences) {
+            val saved = preference.savedPromotions.joinToString().ifEmpty { "none" }
+            add(actionButton(
+                if (preference.enabled) {
+                    "Disable ${preference.baseUnitName} promotion preference ($saved)"
+                } else {
+                    "Enable ${preference.baseUnitName} promotion preference ($saved)"
+                },
+            ) {
+                controller.setUnitPromotionPreference(
+                    city.id, preference.baseUnitName, !preference.enabled,
+                )
+            }).left().row()
+        }
     }
 
     private fun actionButton(

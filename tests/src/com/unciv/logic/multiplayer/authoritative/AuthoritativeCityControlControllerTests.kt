@@ -80,6 +80,10 @@ class AuthoritativeCityControlControllerTests {
                 calls += "focus:$city:$focus"
                 AuthoritativeCommandOutcome.RetryRequired
             },
+            setUnitPromotionPreference = { city, unit, enabled ->
+                calls += "promotion-preference:$city:$unit:$enabled"
+                AuthoritativeCommandOutcome.RetryRequired
+            },
         )
         val controls = controller(initial, actions).cityControls
 
@@ -89,10 +93,12 @@ class AuthoritativeCityControlControllerTests {
         controls.resetCitizens("city-rome")
         controls.setAvoidGrowth("city-rome", false)
         controls.setCitizenFocus("city-rome", CitizenFocus.ScienceFocus)
+        controls.setUnitPromotionPreference("city-rome", "Warrior", false)
 
-        assertEquals(6, calls.size)
+        assertEquals(7, calls.size)
         assertTrue(calls.contains("specialist:city-rome:Scientist:2"))
         assertTrue(calls.contains("focus:city-rome:${CitizenFocus.ScienceFocus}"))
+        assertTrue(calls.contains("promotion-preference:city-rome:Warrior:false"))
     }
 
     @Test
@@ -117,6 +123,9 @@ class AuthoritativeCityControlControllerTests {
         }
         assertThrows<IllegalArgumentException> {
             world.cityControls.setGovernance("city-rome", CityGovernanceAction.Annex)
+        }
+        assertThrows<IllegalStateException> {
+            world.cityControls.setUnitPromotionPreference("city-rome", "Archer", true)
         }
         assertEquals(0, calls)
 

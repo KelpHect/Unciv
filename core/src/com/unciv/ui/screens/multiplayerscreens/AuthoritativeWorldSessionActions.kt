@@ -84,6 +84,11 @@ internal fun authoritativeCityControlActions(
     setCitizenFocus = { cityId, focus ->
         session.setCitizenFocusIfOpen(gameId, cityId, focus)
     },
+    setUnitPromotionPreference = { cityId, baseUnitName, enabled ->
+        session.setCityUnitPromotionPreferenceIfOpen(
+            gameId, cityId, baseUnitName, enabled,
+        )
+    },
 )
 
 internal fun authoritativeCombatActions(

@@ -116,29 +116,120 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Create the exact tagged source archive
-        shell: bash
-        run: git archive --format=tar.gz --output=authoritative-v3-source.tar.gz HEAD
-      - name: Generate the release SPDX JSON SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      - name: Install Java 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
-          path: .
-          format: spdx-json
-          output-file: authoritative-v3-release.spdx.json
-          syft-version: v1.49.0
-          upload-artifact: false
-          upload-release-assets: false
-      - name: Sign provenance and bind the SBOM to the source archive
+          distribution: temurin
+          java-version: '21'
+      - name: Build every production bundle input
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.97.0 --profile minimal --no-self-update
+          ./gradlew --no-daemon :server:authoritativeWorkerDist :desktop:dist
+          cargo +1.97.0 build --locked --release \
+            --manifest-path authoritative-server/Cargo.toml \
+            --bin unciv-authoritative-server \
+            --bin unciv-v3-migrate \
+            --bin unciv-v3-export-security-audit \
+            --bin unciv-v3-bundle
+      - name: Derive and validate the exact vanilla ruleset manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-inputs
+          (
+            cd android/assets
+            java -jar ../../server/build/libs/UncivAuthoritativeWorker.jar \
+              --print-catalog
+          ) | tee release-inputs/catalog.log
+          tail --lines=1 release-inputs/catalog.log > release-inputs/catalog.json
+          jq -e '
+            .valid == true and
+            ([.installedRulesets[] | select(.name == "Civ V - Vanilla")] | length == 1)
+          ' release-inputs/catalog.json >/dev/null
+          jq -e '{
+            engineBuild,
+            baseRuleset: (
+              .installedRulesets[] | select(.name == "Civ V - Vanilla")
+            ),
+            mods: []
+          }' release-inputs/catalog.json > release-inputs/ruleset-manifest.json
+          (
+            cd android/assets
+            java -jar ../../server/build/libs/UncivAuthoritativeWorker.jar \
+              --validate-manifest ../../release-inputs/ruleset-manifest.json
+          ) >/dev/null
+      - name: Generate and verify the production bundle
+        shell: bash
+        env:
+          SYFT_VERSION: '1.49.0'
+          SYFT_LINUX_AMD64_SHA256: 7aa2f03ee92739cf643279ba3990548b9925d4e22cae13f46831ee62821147fe
+        run: |
+          set -euo pipefail
+          cp authoritative-server/target/release/unciv-authoritative-server \
+            release-inputs/unciv-authoritative-server
+          cp authoritative-server/target/release/unciv-v3-migrate \
+            release-inputs/unciv-v3-migrate
+          cp authoritative-server/target/release/unciv-v3-export-security-audit \
+            release-inputs/unciv-v3-export-security-audit
+          cp authoritative-server/target/release/unciv-v3-bundle \
+            release-inputs/unciv-v3-bundle
+          cp server/build/libs/UncivAuthoritativeWorker.jar \
+            release-inputs/UncivAuthoritativeWorker.jar
+          cp desktop/build/libs/Unciv.jar release-inputs/Unciv.jar
+          rm release-inputs/catalog.json release-inputs/catalog.log
+
+          curl --fail --location --silent --show-error \
+            --output syft.tar.gz \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          echo "${SYFT_LINUX_AMD64_SHA256}  syft.tar.gz" | sha256sum --check
+          mkdir syft-bin
+          tar --extract --gzip --file syft.tar.gz --directory syft-bin syft
+          ./syft-bin/syft scan dir:release-inputs \
+            --source-name unciv-authoritative-v3-release-bundle \
+            --output spdx-json=release-inputs.spdx.json
+
+          authoritative-server/target/release/unciv-v3-bundle \
+            verify-sbom release-inputs.spdx.json
+          mkdir release-output
+          authoritative-server/target/release/unciv-v3-bundle create \
+            release-output/bundle \
+            release-inputs/unciv-authoritative-server \
+            release-inputs/unciv-v3-migrate \
+            release-inputs/unciv-v3-export-security-audit \
+            release-inputs/unciv-v3-bundle \
+            release-inputs/UncivAuthoritativeWorker.jar \
+            release-inputs/Unciv.jar \
+            release-inputs/ruleset-manifest.json \
+            release-inputs.spdx.json
+          authoritative-server/target/release/unciv-v3-bundle \
+            verify release-output/bundle
+
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
+          tar --sort=name --mtime="@${source_date_epoch}" \
+            --owner=0 --group=0 --numeric-owner \
+            --create --gzip --file=authoritative-v3-linux-x86_64.tar.gz \
+            --directory=release-output bundle
+          sha256sum authoritative-v3-linux-x86_64.tar.gz \
+            > authoritative-v3-linux-x86_64.tar.gz.sha256
+      - name: Sign production bundle provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
         with:
-          subject-path: authoritative-v3-source.tar.gz
-          sbom-path: authoritative-v3-release.spdx.json
+          subject-path: authoritative-v3-linux-x86_64.tar.gz
+      - name: Bind the SPDX SBOM to the production bundle
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: authoritative-v3-linux-x86_64.tar.gz
+          sbom-path: release-output/bundle/evidence/sbom.spdx.json
       - name: Retain the attested evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: authoritative-v3-tagged-release-evidence
+          name: authoritative-v3-linux-x86_64-release
           path: |
-            authoritative-v3-source.tar.gz
-            authoritative-v3-release.spdx.json
+            authoritative-v3-linux-x86_64.tar.gz
+            authoritative-v3-linux-x86_64.tar.gz.sha256
+            release-output/bundle/bundle-manifest.json
+            release-output/bundle/evidence/sbom.spdx.json
           if-no-files-found: error
           retention-days: 90

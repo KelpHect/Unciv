@@ -1,5 +1,60 @@
 # Authoritative multiplayer v3 status
 
+## Attested complete Linux release bundle
+
+Implemented and locally qualified on 2026-07-28:
+
+- Exact `authoritative-v3-*` tags now build the Rust API, migrator, audit
+  exporter, and bundle verifier with locked dependencies under Rust 1.97.0;
+  build the worker and desktop JARs under Java 21; derive the vanilla manifest
+  from the worker's exact engine/ruleset catalog; and revalidate that manifest
+  in the packaged worker.
+- The tag lane downloads Syft 1.49.0 only after checking the exact Linux
+  archive digest, inventories the reviewed production inputs, validates the
+  SPDX, creates and re-verifies the content-addressed release bundle, and
+  produces a normalized Linux x86-64 archive plus external SHA-256.
+- Two GitHub OIDC-backed `actions/attest` calls sign build provenance and bind
+  the embedded SPDX predicate to the complete archive. The workflow retains
+  the archive, external digest, bundle manifest, and exact SBOM. Pull requests
+  still receive no OIDC, attestation, repository write, secret, or release
+  authority.
+- The bundle now requires and hashes its own `bin/unciv-v3-bundle` verifier.
+  Unix creation gives all four Rust executables exact mode `0555`, and
+  verification rejects mode drift as well as content drift. An extracted
+  release can therefore self-verify without trusting a separately downloaded
+  executable.
+- The operator runbook requires external digest verification, GitHub
+  provenance verification, SPDX-predicate verification, extracted bundle
+  verification, and byte comparison of the separately retained manifest/SBOM.
+  Source-only evidence or a locally assembled archive is explicitly
+  insufficient for deployment.
+
+Verification on 2026-07-28:
+
+- `actionlint v1.7.12` accepts the updated workflow and all 16 action
+  invocations remain pinned to reviewed 40-character commits.
+- A disposable Linux build used
+  `rust@sha256:8fa55b2f3ddf97471ab6a767bfa3f37e6bad0986ba823e75fea57e2a2a5c3073`
+  and Rust 1.97.0. The worker reported engine `4.21.1 (Build 1236)` and vanilla
+  ruleset SHA-256
+  `36e87ccb29d7c30e01ae4a76087ac83753a2832afb68671a8168851c12579280`;
+  packaged-worker validation accepted the derived manifest.
+- Pinned Syft generated a 79,897-byte SPDX. Bundle creation and both pre- and
+  post-extraction self-verification agreed on 35 artifacts and bundle ID
+  `32b94ccca3740f5a90b8041b0374c17a0317978ef5ba56f165117eb0eb569c3c`.
+  Every Rust binary was mode `0555`.
+- The normalized archive was 102,751,682 bytes. Two independent archive
+  creations were byte-identical at SHA-256
+  `abb69cbb9263e664d580e9e5a106868b686aa927568f982401681ead763c2eed`.
+  The extracted manifest and SBOM were byte-identical to the staged evidence.
+  All disposable qualification output was removed.
+
+The OIDC attestation step itself can execute only on GitHub. This implementation
+is not represented as hosted release evidence until an exact release tag runs
+successfully and the retained archive passes the documented `gh attestation
+verify` gates. Full service-stack Linux qualification and PostgreSQL 19
+post-Beta-2 upgrade rehearsal remain separate open requirements.
+
 ## Production-bundle SPDX evidence boundary
 
 Implemented and locally qualified on 2026-07-28:
@@ -51,13 +106,12 @@ Implemented and locally qualified on 2026-07-28:
   scanning, RustSec audit, SPDX source SBOM generation, and daily advisory
   refresh. Default permissions are read-only. The only repository-write job is
   Gradle dependency submission, restricted to the default branch or schedule.
-- All 15 action invocations are pinned to reviewed 40-character commits.
+- All 16 action invocations are pinned to reviewed 40-character commits.
   Gitleaks and Syft tool versions are also fixed. Pull requests cannot use
   release credentials, repository writes, OIDC, or attestation authority.
-- Exact `authoritative-v3-*` tags create a `git archive`, a matching SPDX SBOM,
-  and a GitHub OIDC attestation binding the two. The runbook explicitly keeps
-  this source evidence below the still-required complete production-bundle
-  attestation boundary.
+- The initial exact-tag lane proved GitHub OIDC source-archive attestations.
+  It is now superseded by the complete production-bundle build and attestation
+  above; the independent source SBOM still runs on every workflow invocation.
 - Five historical scan exceptions are exact commit/path/rule/line
   fingerprints. Broad regex/path/rule suppressions are forbidden. One removed
   historical PAT disclosure is treated as permanently compromised and

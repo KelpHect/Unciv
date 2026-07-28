@@ -32,17 +32,43 @@ not change.
 ## SBOM and attestation
 
 Every run produces an SPDX JSON source SBOM. Tags matching
-`authoritative-v3-*` additionally create an exact `git archive`, regenerate its
-SBOM, and use GitHub OIDC plus the repository attestation service to sign
-provenance and bind the SBOM to that archive. No long-lived signing key enters
-the workflow, and pull requests cannot reach the attestation permissions.
+`authoritative-v3-*` build every production input from the tagged commit using
+Java 21 and Rust 1.97.0 with the locked dependency graph. The packaged worker
+derives the exact vanilla engine/ruleset content identity and validates that
+manifest. Checksum-pinned Syft 1.49.0 inventories the reviewed Rust binaries,
+worker JAR, desktop JAR, and ruleset manifest. The release CLI validates that
+SPDX document, creates the content-addressed release bundle, re-verifies it,
+and archives it with normalized order, timestamp, and ownership.
 
-This source attestation does not attest production binaries. A production
-release still requires the content-addressed release bundle, its complete
-artifact hashes, compatibility contract, migration set, worker/client pairing,
-and the release qualification in `authoritative-release-bundle.md`. Until the
-production packaging lane publishes and attests that complete bundle, source
-attestation is supporting evidence rather than permission to deploy.
+The tag job uses two GitHub OIDC attestations: one signs build provenance for
+`authoritative-v3-linux-x86_64.tar.gz`, and one binds its embedded
+`evidence/sbom.spdx.json` under the SPDX 2.3 predicate. No long-lived signing
+key enters the workflow, and pull requests cannot reach the attestation
+permissions. The retained evidence contains the archive, external SHA-256,
+bundle manifest, and exact embedded SBOM.
+
+Download all four retained files without renaming them. Verify the external
+digest, GitHub provenance, SPDX predicate, extracted bundle ID, and internal
+artifact hashes before deployment:
+
+```text
+sha256sum --check authoritative-v3-linux-x86_64.tar.gz.sha256
+gh attestation verify authoritative-v3-linux-x86_64.tar.gz \
+  --repo KelpHect/Unciv
+gh attestation verify authoritative-v3-linux-x86_64.tar.gz \
+  --repo KelpHect/Unciv \
+  --predicate-type https://spdx.dev/Document/v2.3
+tar --extract --gzip --file authoritative-v3-linux-x86_64.tar.gz
+bundle/bin/unciv-v3-bundle verify bundle
+cmp bundle/bundle-manifest.json \
+  release-output/bundle/bundle-manifest.json
+cmp bundle/evidence/sbom.spdx.json \
+  release-output/bundle/evidence/sbom.spdx.json
+```
+
+Any tag whose complete build or attestation job did not pass is not a release.
+Source-only evidence, a locally assembled bundle, or an archive whose external
+or internal digest differs is not permission to deploy.
 
 For a release, require two-person review of the exact tag, workflow action pin
 changes, dependency findings, SPDX output, GitHub attestation verification,

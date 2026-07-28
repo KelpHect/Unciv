@@ -172,6 +172,7 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
     let required = [
         "bin/unciv-authoritative-server",
         "bin/unciv-v3-export-security-audit",
+        "bin/unciv-v3-bundle",
         "bin/unciv-v3-migrate",
         "client/unciv-client",
         "contracts/api-v3.json",
@@ -218,6 +219,7 @@ fn collect_artifacts(root: &Path) -> Result<Vec<ReleaseArtifact>, ReleaseBundleE
             if !metadata.file_type().is_file() || metadata.len() > MAX_ARTIFACT_BYTES {
                 return Err(ReleaseBundleError::Policy);
             }
+            validate_artifact_permissions(&relative, &metadata)?;
             Ok(ReleaseArtifact {
                 path: relative,
                 size: metadata.len(),
@@ -225,6 +227,27 @@ fn collect_artifacts(root: &Path) -> Result<Vec<ReleaseArtifact>, ReleaseBundleE
             })
         })
         .collect()
+}
+
+#[cfg(unix)]
+fn validate_artifact_permissions(
+    relative: &str,
+    metadata: &std::fs::Metadata,
+) -> Result<(), ReleaseBundleError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if relative.starts_with("bin/") && metadata.permissions().mode() & 0o777 != 0o555 {
+        return Err(ReleaseBundleError::Policy);
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn validate_artifact_permissions(
+    _relative: &str,
+    _metadata: &std::fs::Metadata,
+) -> Result<(), ReleaseBundleError> {
+    Ok(())
 }
 
 fn collect_files(

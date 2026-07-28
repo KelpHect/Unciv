@@ -35,6 +35,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
             server,
             migrator,
             audit_exporter,
+            bundle_verifier,
             worker,
             client,
             ruleset,
@@ -45,6 +46,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
                 server,
                 migrator,
                 audit_exporter,
+                bundle_verifier,
                 worker,
                 client,
                 ruleset,
@@ -59,6 +61,7 @@ struct PackageSources<'a> {
     server: &'a str,
     migrator: &'a str,
     audit_exporter: &'a str,
+    bundle_verifier: &'a str,
     worker: &'a str,
     client: &'a str,
     ruleset: &'a str,
@@ -84,17 +87,21 @@ fn create(output: &Path, sources: PackageSources<'_>) -> Result<(), ReleaseBundl
     let guard = StagingGuard(staging.clone());
     validate_embedded_contract(&source_path(sources.worker)?)?;
     validate_embedded_contract(&source_path(sources.client)?)?;
-    copy_exact(
+    copy_executable(
         &source_path(sources.server)?,
         &staging.join("bin/unciv-authoritative-server"),
     )?;
-    copy_exact(
+    copy_executable(
         &source_path(sources.migrator)?,
         &staging.join("bin/unciv-v3-migrate"),
     )?;
-    copy_exact(
+    copy_executable(
         &source_path(sources.audit_exporter)?,
         &staging.join("bin/unciv-v3-export-security-audit"),
+    )?;
+    copy_executable(
+        &source_path(sources.bundle_verifier)?,
+        &staging.join("bin/unciv-v3-bundle"),
     )?;
     copy_exact(
         &source_path(sources.worker)?,
@@ -221,6 +228,24 @@ fn copy_exact(source: &Path, target: &Path) -> Result<(), ReleaseBundleError> {
     Ok(())
 }
 
+fn copy_executable(source: &Path, target: &Path) -> Result<(), ReleaseBundleError> {
+    copy_exact(source, target)?;
+    set_executable_permissions(target)
+}
+
+#[cfg(unix)]
+fn set_executable_permissions(path: &Path) -> Result<(), ReleaseBundleError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::set_permissions(path, fs::Permissions::from_mode(0o555))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_executable_permissions(_path: &Path) -> Result<(), ReleaseBundleError> {
+    Ok(())
+}
+
 fn validate_ruleset(path: &Path) -> Result<(), ReleaseBundleError> {
     let metadata = path.metadata()?;
     if metadata.len() > 64 * 1024 {
@@ -271,6 +296,7 @@ mod tests {
         fs::write(sources.join("server"), "server").unwrap();
         fs::write(sources.join("migrator"), "migrator").unwrap();
         fs::write(sources.join("audit-exporter"), "audit-exporter").unwrap();
+        fs::write(sources.join("bundle-verifier"), "bundle-verifier").unwrap();
         create_compatible_zip(&sources.join("worker"));
         create_compatible_zip(&sources.join("client"));
         let ruleset = WorkerManifest {
@@ -307,6 +333,7 @@ mod tests {
                 server: sources.join("server").to_str().unwrap(),
                 migrator: sources.join("migrator").to_str().unwrap(),
                 audit_exporter: sources.join("audit-exporter").to_str().unwrap(),
+                bundle_verifier: sources.join("bundle-verifier").to_str().unwrap(),
                 worker: sources.join("worker").to_str().unwrap(),
                 client: sources.join("client").to_str().unwrap(),
                 ruleset: sources.join("ruleset.json").to_str().unwrap(),
@@ -315,6 +342,22 @@ mod tests {
         )
         .unwrap();
         assert!(verify_bundle(&bundle).is_ok());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let server = bundle.join("bin/unciv-authoritative-server");
+            assert_eq!(
+                fs::metadata(&server).unwrap().permissions().mode() & 0o777,
+                0o555
+            );
+            fs::set_permissions(&server, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(matches!(
+                verify_bundle(&bundle),
+                Err(ReleaseBundleError::Policy)
+            ));
+            fs::set_permissions(&server, fs::Permissions::from_mode(0o555)).unwrap();
+        }
         let sbom_path = bundle.join("evidence/sbom.spdx.json");
         let original_sbom = fs::read(&sbom_path).unwrap();
         fs::remove_file(&sbom_path).unwrap();

@@ -36,6 +36,7 @@ authoritative-server/target/release/unciv-v3-bundle create \
   authoritative-server/target/release/unciv-authoritative-server \
   authoritative-server/target/release/unciv-v3-migrate \
   authoritative-server/target/release/unciv-v3-export-security-audit \
+  authoritative-server/target/release/unciv-v3-bundle \
   server/build/libs/UncivAuthoritativeWorker.jar \
   desktop/build/libs/Unciv.jar \
   /opt/unciv-authoritative/rulesets/active/manifest.json \
@@ -51,7 +52,9 @@ dangling described-package reference, writes a closed manifest, verifies
 the completed directory, and only then renames it to the requested
 destination. The SBOM is copied to `evidence/sbom.spdx.json`, covered by the
 bundle ID, and cannot be removed or replaced without verification failing.
-Existing destinations are never replaced.
+The bundle carries its own `bin/unciv-v3-bundle` verifier. On Unix, every
+bundled Rust executable is created with exact read/execute mode `0555`; mode
+drift also fails verification. Existing destinations are never replaced.
 
 The bundled `unciv-v3-migrate` executable is the only normal schema writer.
 Run it with the separately protected migration role before activating the API.

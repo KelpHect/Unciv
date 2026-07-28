@@ -24,7 +24,7 @@ fn every_supply_chain_action_is_pinned_to_an_immutable_commit() {
             "action pin is not hexadecimal: {reference}"
         );
     }
-    assert_eq!(action_count, 15);
+    assert_eq!(action_count, 16);
 }
 
 #[test]
@@ -51,8 +51,19 @@ fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
         "dependency-submission@",
         "id-token: write",
         "attestations: write",
-        "subject-path: authoritative-v3-source.tar.gz",
-        "sbom-path: authoritative-v3-release.spdx.json",
+        "rustup toolchain install 1.97.0",
+        "./gradlew --no-daemon :server:authoritativeWorkerDist :desktop:dist",
+        "cargo +1.97.0 build --locked --release",
+        "--print-catalog",
+        "--validate-manifest",
+        "SYFT_LINUX_AMD64_SHA256: 7aa2f03e",
+        "unciv-v3-bundle create",
+        "unciv-v3-bundle \\\n            verify release-output/bundle",
+        "name: Sign production bundle provenance",
+        "name: Bind the SPDX SBOM to the production bundle",
+        "subject-path: authoritative-v3-linux-x86_64.tar.gz",
+        "sbom-path: release-output/bundle/evidence/sbom.spdx.json",
+        "authoritative-v3-linux-x86_64.tar.gz.sha256",
     ] {
         assert!(
             WORKFLOW.contains(required),
@@ -68,9 +79,11 @@ fn runbook_defines_failure_response_and_binary_release_boundary() {
         "rotate it before rerunning",
         "must not be waived",
         "authoritative-v3-*",
-        "does not attest production binaries",
         "content-addressed release bundle",
         "two-person review",
+        "gh attestation verify",
+        "https://spdx.dev/Document/v2.3",
+        "bundle-manifest.json",
     ] {
         assert!(
             RUNBOOK.contains(required),

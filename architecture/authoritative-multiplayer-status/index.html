@@ -1861,10 +1861,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#post-merge-client-capability-correction" class="md-nav__link">
+  <a href="#upstream-synchronization-and-v3-turn-notification-closure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Post-merge client capability correction
+        Upstream synchronization and V3 turn notification closure
       
     </span>
   </a>
@@ -5603,10 +5603,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#post-merge-client-capability-correction" class="md-nav__link">
+  <a href="#upstream-synchronization-and-v3-turn-notification-closure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Post-merge client capability correction
+        Upstream synchronization and V3 turn notification closure
       
     </span>
   </a>
@@ -8296,19 +8296,39 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
-<h2 id="post-merge-client-capability-correction">Post-merge client capability correction</h2>
+<h2 id="upstream-synchronization-and-v3-turn-notification-closure">Upstream synchronization and V3 turn notification closure</h2>
+<p>Implemented and qualified on 2026-07-28:</p>
+<ul>
+<li><code>upstream/master</code> through <code>94a80907e</code> was merged into fork <code>master</code> as
+  <code>ae326a22d</code> without dropping V3 work. All hosted workflows for the merge are
+  green. Conflict resolution retained deterministic map placement and adopted
+  upstream city views, city-state start biases, AI/combat fixes, and canonical
+  per-city construction automation state.</li>
+<li>The authoritative worker now uses upstream's encapsulated city tile mutation
+  APIs. Per-city and all-city construction disable/enable choices extend the
+  existing closed <code>manage_construction_queues</code> command across projection,
+  client, Rust, worker wire, and Kotlin execution; clients cannot submit target
+  city sets or outcomes.</li>
+<li>Android now runs a unique background V3 poller backed by the protected token
+  store. It lists account memberships, reads player projections only, derives
+  <code>isCurrentTurn</code>, and deduplicates by committed revision. API 23 connected
+  instrumentation ran two tests successfully, including protected credential
+  round-trip and duplicate-scheduler collapse.</li>
+<li>Foreground desktop V3 reconciliation now requests OS attention exactly once
+  on a false-to-true turn transition using the existing GLFW/Windows fallback.
+  This is the supported in-app-only policy for Windows, macOS, and Linux; Unciv
+  does not install a background tray daemon when the desktop process is closed.</li>
+<li>Focused Kotlin worker, command-bus, session, polling, production-routing, and
+  upstream city-state tests pass. Rust's 189 active library tests pass, and
+  <code>cargo fmt</code> plus warnings-as-errors Clippy are clean.</li>
+</ul>
 <p>Audited on 2026-07-28 after fast-forwarding V3 to <code>master</code>:</p>
 <ul>
 <li>Server authority, typed gameplay reachability, packaged-worker AI/mod parity,
   foreground WebSocket reconciliation, account game discovery, and
   platform-protected session storage remain verified.</li>
-<li>Android's native background turn checker is still a legacy whole-save
-  implementation. It enumerates local multiplayer saves and downloads
-  API-v1/v2 previews; it does not log into API v3, list account memberships, or
-  evaluate turn ownership from a V3 player projection.</li>
-<li>No supported desktop platform currently presents an OS-native V3 turn
-  notification. An active V3 client receives revision hints and reconciles its
-  in-app projection, but a closed desktop client is not notified.</li>
+<li>Android background V3 turn polling and foreground desktop attention are now
+  implemented as described above. Legacy polling remains isolated for API v1/v2.</li>
 <li>The server permits multiple active sessions per account, both Android and
   desktop have protected token stores, and authenticated game discovery opens
   server-owned projections. These components support cross-device continuation,

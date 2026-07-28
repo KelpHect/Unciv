@@ -25,7 +25,7 @@ class ReleaseCompatibilityContractTests {
             contract.spectatorProjectionVersion,
         )
         assertEquals(EngineWorkerProtocol.VERSION, contract.workerProtocolVersion)
-        assertEquals(23, contract.latestMigrationVersion)
+        assertEquals(24, contract.latestMigrationVersion)
         assertEquals(
             "postgres:19beta2-alpine@sha256:" +
                 "bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5",

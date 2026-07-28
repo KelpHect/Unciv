@@ -827,9 +827,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authentication abuse, stale conflicts, command latency/failures, worker
   crashes/timeouts, database locks, revision growth, projection size, outbox lag,
   and WebSocket load.
-- [ ] Separate operator/admin endpoints from the public network and authentication
+- [x] Separate operator/admin endpoints from the public network and authentication
   domain; add immutable security-audit export, retention/access policy, and
-  incident-response ownership.
+  incident-response ownership. API-v3 exposes no operator routes or standing
+  application superuser; player-facing owner administration remains
+  membership-authorized gameplay. Local `unciv-v3-export-security-audit` uses
+  the separately authenticated, loopback/TLS, read-only `unciv_audit` role,
+  fixes a high-water mark, reads bounded ID pages, and creates a new durable
+  hash-chained NDJSON artifact with a final manifest. Migration 24 and role
+  bootstrap restrict runtime audit access to append/select. The custody policy
+  requires 400-day locked storage, least-privilege quarterly-reviewed access,
+  daily/incident exports, gap/chain alerts, and named service-owner, incident-
+  commander, and independent-review responsibilities. Static router/policy
+  tests and the live pinned PostgreSQL role/export drill enforce the boundary.
 - [ ] Add cache-control and content-type hardening, safe error redaction, CORS/
   origin policy, TLS termination tests, dependency/vulnerability scanning, SBOM,
   secret scanning, and release provenance/signing where practical. The Rust

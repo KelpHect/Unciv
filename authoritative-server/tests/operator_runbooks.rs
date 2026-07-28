@@ -6,6 +6,9 @@ const OUTBOX_RUNBOOK: &str =
     include_str!("../../docs/operations/authoritative-outbox-operations.md");
 const POSTGRES_RUNBOOK: &str = include_str!("../../docs/operations/authoritative-postgresql-19.md");
 const WORKER_RUNBOOK: &str = include_str!("../../docs/operations/authoritative-worker-systemd.md");
+const AUDIT_EXPORT_RUNBOOK: &str =
+    include_str!("../../docs/operations/authoritative-security-audit-export.md");
+const API_BOOTSTRAP: &str = include_str!("../src/api/bootstrap.rs");
 
 #[test]
 fn incident_runbook_covers_every_required_incident_class() {
@@ -102,6 +105,43 @@ fn incident_records_exclude_credentials_and_private_game_state() {
         assert!(
             INCIDENT_RUNBOOK.contains(prohibited_evidence),
             "missing redaction rule: {prohibited_evidence}"
+        );
+    }
+}
+
+#[test]
+fn operator_tools_are_absent_from_the_public_router() {
+    for forbidden_route in [
+        "unciv-v3-repair",
+        "unciv-v3-recover",
+        "unciv-v3-reconcile",
+        "unciv-v3-outbox",
+        "unciv-v3-export-security-audit",
+        "/api/v3/operator",
+    ] {
+        assert!(
+            !API_BOOTSTRAP.contains(forbidden_route),
+            "operator capability leaked into public router: {forbidden_route}"
+        );
+    }
+}
+
+#[test]
+fn audit_export_policy_is_local_append_only_bounded_and_owned() {
+    for required in [
+        "UNCIV_V3_AUDIT_DATABASE_URL",
+        "must not already exist",
+        "at most 1,000 rows",
+        "final chain hash",
+        "at least 400 days",
+        "write-once or object-lock storage",
+        "cannot update, delete, or truncate",
+        "security incident commander",
+        "separate reviewer",
+    ] {
+        assert!(
+            AUDIT_EXPORT_RUNBOOK.contains(required),
+            "missing audit export control: {required}"
         );
     }
 }

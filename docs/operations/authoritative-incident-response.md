@@ -227,6 +227,10 @@ records. Never log raw bearer tokens, passwords, full IP addresses beyond the
 approved operational policy, or private game payloads. Confirm trusted-proxy
 validation before treating forwarded addresses as evidence.
 
+Export the bounded redacted evidence with the isolated audit identity and
+archive its chain manifest under the retention and access controls in
+`authoritative-security-audit-export.md`.
+
 Contain at the TLS proxy/firewall first with an expiring, reviewed rule. Keep
 PostgreSQL durable rate limiting enabled; do not clear buckets globally or
 raise bounded worker/queue/request limits during an attack. For a compromised

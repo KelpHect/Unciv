@@ -72,6 +72,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE unciv_migrate IN SCHEMA public
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public
     TO unciv_runtime;
+SELECT 'REVOKE UPDATE, DELETE, TRUNCATE ON security_audit_events FROM unciv_runtime'
+WHERE to_regclass('public.security_audit_events') IS NOT NULL
+\gexec
+SELECT 'GRANT SELECT, INSERT ON security_audit_events TO unciv_runtime'
+WHERE to_regclass('public.security_audit_events') IS NOT NULL
+\gexec
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public
     TO unciv_runtime;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO unciv_audit;

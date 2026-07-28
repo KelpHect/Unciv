@@ -12,7 +12,8 @@ From one clean commit, build every artifact that will ship:
 ```text
 ./gradlew :server:authoritativeWorkerDist :desktop:dist
 cargo build --release --manifest-path authoritative-server/Cargo.toml \
-  --bin unciv-authoritative-server --bin unciv-v3-migrate --bin unciv-v3-bundle
+  --bin unciv-authoritative-server --bin unciv-v3-migrate \
+  --bin unciv-v3-export-security-audit --bin unciv-v3-bundle
 ```
 
 Copy the active ruleset version's `manifest.json` to a root-owned review
@@ -23,6 +24,7 @@ authoritative-server/target/release/unciv-v3-bundle create \
   /opt/unciv-authoritative/releases/<candidate> \
   authoritative-server/target/release/unciv-authoritative-server \
   authoritative-server/target/release/unciv-v3-migrate \
+  authoritative-server/target/release/unciv-v3-export-security-audit \
   server/build/libs/UncivAuthoritativeWorker.jar \
   desktop/build/libs/Unciv.jar \
   /opt/unciv-authoritative/rulesets/active/manifest.json
@@ -30,7 +32,7 @@ authoritative-server/target/release/unciv-v3-bundle create \
 
 Creation is same-filesystem and fail-closed: it writes a private staging
 directory, copies only bounded regular files, requires exactly migrations
-`0001` through `0023`, validates the closed ruleset manifest, hashes every
+`0001` through `0024`, validates the closed ruleset manifest, hashes every
 artifact, writes a closed manifest, verifies the completed directory, and only
 then renames it to the requested destination. Existing destinations are never
 replaced.
@@ -45,7 +47,7 @@ The compatibility contract pins:
 - public protocol 3;
 - player projection 59 and spectator projection 1;
 - private worker protocol 2;
-- migration head 23;
+- migration head 24;
 - the sole PostgreSQL 19 Beta 2 image and digest.
 
 Rust unit tests and Kotlin server tests independently compare their compiled

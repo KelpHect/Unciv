@@ -20,9 +20,24 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
             );
             Ok(())
         }
-        [command, root, server, migrator, worker, client, ruleset] if command == "create" => {
-            create(Path::new(root), server, migrator, worker, client, ruleset)
-        }
+        [
+            command,
+            root,
+            server,
+            migrator,
+            audit_exporter,
+            worker,
+            client,
+            ruleset,
+        ] if command == "create" => create(
+            Path::new(root),
+            server,
+            migrator,
+            audit_exporter,
+            worker,
+            client,
+            ruleset,
+        ),
         _ => Err(ReleaseBundleError::Policy),
     }
 }
@@ -31,6 +46,7 @@ fn create(
     output: &Path,
     server: &str,
     migrator: &str,
+    audit_exporter: &str,
     worker: &str,
     client: &str,
     ruleset: &str,
@@ -60,6 +76,10 @@ fn create(
     copy_exact(
         &source_path(migrator)?,
         &staging.join("bin/unciv-v3-migrate"),
+    )?;
+    copy_exact(
+        &source_path(audit_exporter)?,
+        &staging.join("bin/unciv-v3-export-security-audit"),
     )?;
     copy_exact(
         &source_path(worker)?,
@@ -229,6 +249,7 @@ mod tests {
         fs::create_dir(&sources).unwrap();
         fs::write(sources.join("server"), "server").unwrap();
         fs::write(sources.join("migrator"), "migrator").unwrap();
+        fs::write(sources.join("audit-exporter"), "audit-exporter").unwrap();
         create_compatible_zip(&sources.join("worker"));
         create_compatible_zip(&sources.join("client"));
         let ruleset = WorkerManifest {
@@ -249,6 +270,7 @@ mod tests {
             &bundle,
             sources.join("server").to_str().unwrap(),
             sources.join("migrator").to_str().unwrap(),
+            sources.join("audit-exporter").to_str().unwrap(),
             sources.join("worker").to_str().unwrap(),
             sources.join("client").to_str().unwrap(),
             sources.join("ruleset.json").to_str().unwrap(),

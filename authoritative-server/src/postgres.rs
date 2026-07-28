@@ -165,6 +165,7 @@ mod repair;
 mod research;
 mod retention;
 mod security;
+mod security_audit_export;
 mod snapshot_codec;
 mod snapshot_storage;
 mod spectators;
@@ -192,6 +193,7 @@ pub use outbox::{
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 pub use recovery::RecoveredHead;
 pub use security::{SecurityAuditEvent, SecurityAuditOutcome};
+pub use security_audit_export::{SECURITY_AUDIT_EXPORT_PAGE_SIZE, SecurityAuditExportEvent};
 
 impl PostgresGameRepository {
     async fn validated_snapshot(&self, game_id: Uuid, row: &PgRow) -> Result<String, CommitError> {

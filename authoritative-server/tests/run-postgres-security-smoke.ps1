@@ -27,6 +27,7 @@ $certificateRoot = Join-Path $temporaryBase (
 )
 $previousMigrationUrl = $env:UNCIV_V3_MIGRATION_DATABASE_URL
 $previousDatabaseUrl = $env:UNCIV_V3_DATABASE_URL
+$previousAuditUrl = $env:UNCIV_V3_AUDIT_DATABASE_URL
 $containerCreated = $false
 $volumeCreated = $false
 
@@ -294,6 +295,22 @@ try {
             "(id,username_normalized,password_hash) " +
             "VALUES ('00000000-0000-0000-0000-000000000001','denied','denied')"
         )
+    Invoke-RoleQuery `
+        -Role 'unciv_runtime' `
+        -Password $runtimePassword `
+        -Query (
+            "INSERT INTO security_audit_events " +
+            "(event_type,outcome,source_ip_prefix,identity_hash) VALUES " +
+            "('login','rejected','192.0.2.0/24',repeat('a',64))"
+        ) | Out-Null
+    Assert-RoleQueryFails `
+        -Role 'unciv_runtime' `
+        -Password $runtimePassword `
+        -Query "UPDATE security_audit_events SET outcome='success'"
+    Assert-RoleQueryFails `
+        -Role 'unciv_runtime' `
+        -Password $runtimePassword `
+        -Query 'DELETE FROM security_audit_events'
     Assert-RoleQueryFails `
         -Role 'unciv_restore' `
         -Password $restorePassword `
@@ -319,6 +336,7 @@ try {
         "postgresql://unciv_audit:$auditPassword@127.0.0.1:" +
         "$port/$database`?sslmode=require"
     )
+    $env:UNCIV_V3_AUDIT_DATABASE_URL = $env:UNCIV_V3_DATABASE_URL
     $reconciliation = Invoke-External -FilePath 'cargo' -Arguments @(
         'run', '--quiet',
         '--manifest-path', 'authoritative-server/Cargo.toml',
@@ -326,6 +344,29 @@ try {
     )
     if (($reconciliation -join "`n") -notmatch '"total_findings": 0') {
         throw 'audit-only reconciliation was not clean'
+    }
+    $auditExportPath = Join-Path $certificateRoot 'security-audit.ndjson'
+    Invoke-External -FilePath 'cargo' -Arguments @(
+        'run', '--quiet',
+        '--manifest-path', 'authoritative-server/Cargo.toml',
+        '--bin', 'unciv-v3-export-security-audit',
+        '--', '--output', $auditExportPath
+    ) | Out-Null
+    $auditExport = Get-Content -LiteralPath $auditExportPath
+    if ($auditExport.Count -ne 2) {
+        throw 'security audit export did not contain one event plus its manifest'
+    }
+    $eventRecord = $auditExport[0] | ConvertFrom-Json
+    $manifestRecord = $auditExport[1] | ConvertFrom-Json
+    if (
+        $eventRecord.record_type -ne 'security_audit_event' -or
+        $eventRecord.event.identity_hash -ne ('a' * 64) -or
+        $eventRecord.record_hash.Length -ne 64 -or
+        $manifestRecord.record_type -ne 'security_audit_manifest' -or
+        $manifestRecord.event_count -ne 1 -or
+        $manifestRecord.final_record_hash -ne $eventRecord.record_hash
+    ) {
+        throw 'security audit export chain or manifest was invalid'
     }
 
     Invoke-Docker -Arguments @(
@@ -395,6 +436,12 @@ finally {
     }
     else {
         $env:UNCIV_V3_DATABASE_URL = $previousDatabaseUrl
+    }
+    if ($null -eq $previousAuditUrl) {
+        Remove-Item Env:UNCIV_V3_AUDIT_DATABASE_URL -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:UNCIV_V3_AUDIT_DATABASE_URL = $previousAuditUrl
     }
     if ($containerCreated) {
         & docker rm --force $container *> $null

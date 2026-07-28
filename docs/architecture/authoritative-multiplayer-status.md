@@ -1,5 +1,52 @@
 # Authoritative multiplayer v3 status
 
+## Operator isolation and immutable security-audit export
+
+Implemented and live-qualified on 2026-07-28:
+
+- API-v3 has no operator route or standing application superuser. Repair,
+  recovery, reconciliation, outbox, migration, and audit export remain local
+  executables with separate database identities; player-facing owner
+  administration is membership-authorized gameplay, not operator authority.
+- Migration `0024_append_only_security_audit.sql` removes runtime
+  update/delete/truncate access from redacted security events while retaining
+  insert/select. Schema-aware role bootstrap preserves that restriction both
+  before and after migrations. The separately authenticated `unciv_audit` role
+  remains loopback/TLS and transaction-read-only.
+- `unciv-v3-export-security-audit` fixes an ID high-water mark, reads ascending
+  pages of at most 1,000 rows, and refuses to replace an existing destination.
+  It emits deterministic hash-chained NDJSON plus a final count/range/hash
+  manifest, flushes and synchronizes the artifact, and fails closed with a
+  quarantinable partial file.
+- The export is bundled with the matching release and migration head 24. The
+  custody runbook requires at least 400 days in separate write-once/object-lock
+  storage, least-privilege quarterly access review, daily and incident exports,
+  missing/gap/chain alerts, and named service-owner, incident-commander, and
+  independent-review responsibilities.
+
+Verification on 2026-07-28:
+
+- The exact PostgreSQL security smoke passes against
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  It proves runtime insertion succeeds while update/delete fail, audit SELECT
+  succeeds while writes fail, the CLI exports exactly one redacted event and
+  one matching chain manifest, TLS 1.3 is mandatory, role rotation works, and
+  reconciliation remains clean.
+- Seven operator-boundary/runbook tests pass, including a static assertion that
+  no operator capability appears in the public router. The deterministic chain
+  unit test and release compatibility/bundle tests pass.
+- `cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets
+  -- -D warnings` and `cargo test --manifest-path
+  authoritative-server/Cargo.toml --all-targets --no-fail-fast` pass. The latter
+  executes 182 library tests, 29 HTTP/API tests, and every active
+  integration/packaging test; database/process scenarios without explicit
+  fixtures remain intentionally ignored by that generic command and the
+  relevant live database scenario passed separately above.
+- `.\gradlew.bat :server:test --tests
+  com.unciv.app.server.authoritative.ReleaseCompatibilityContractTests
+  --no-daemon --console=plain` passes against migration head 24. Rust formatting,
+  diff hygiene, and the 800-line source ceiling pass.
+
 ## Legacy write telemetry and staged retirement
 
 Implemented and live-qualified on 2026-07-28:

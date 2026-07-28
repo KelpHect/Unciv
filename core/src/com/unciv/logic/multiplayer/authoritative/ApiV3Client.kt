@@ -159,6 +159,44 @@ class ApiV3Client(
     override suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> =
         decode(client.get("api/v3/player-invitations") { authenticate() })
 
+    override suspend fun socialGraph(): ApiV3SocialGraph =
+        decode(client.get("api/v3/friends") { authenticate() })
+
+    override suspend fun requestFriend(request: ApiV3CreateFriendRequest) {
+        requireUuid(request.requestId, "Friend request ID")
+        val response = client.post("api/v3/friend-requests") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
+    override suspend fun acceptFriendRequest(requestId: String) {
+        requireUuid(requestId, "Friend request ID")
+        val response = client.post("api/v3/friend-requests/$requestId/accept") {
+            authenticate()
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
+    override suspend fun removeFriendRequest(requestId: String) {
+        requireUuid(requestId, "Friend request ID")
+        val response = client.delete("api/v3/friend-requests/$requestId") {
+            authenticate()
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
+    override suspend fun removeFriend(username: String) {
+        require(username.isNotBlank()) { "Friend username must not be blank" }
+        val response = client.delete {
+            url { appendPathSegments("api", "v3", "friends", username) }
+            authenticate()
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
     override suspend fun listRulesetManifests(
         after: String?,
         limit: Int,
@@ -880,6 +918,12 @@ class ApiV3Client(
 
     private suspend fun decodeUnit(response: HttpResponse) {
         if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
+    private fun requireUuid(value: String, label: String) {
+        require(runCatching { UUID.fromString(value) }.isSuccess) {
+            "$label must be a UUID"
+        }
     }
 
     private suspend fun HttpResponse.toApiException(): ApiV3Exception {

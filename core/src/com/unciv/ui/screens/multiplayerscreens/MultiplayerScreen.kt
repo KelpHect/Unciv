@@ -13,6 +13,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationCoordinator
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeInvitationFlow
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeResignationCoordinator
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeSocialCoordinator
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativePlayerGame
@@ -58,6 +59,8 @@ class MultiplayerScreen : PickerScreen() {
         ?.let(::AuthoritativeAdministrationCoordinator)
     private val authoritativeResignation = game.onlineMultiplayer.authoritativeSession
         ?.let(::AuthoritativeResignationCoordinator)
+    private val authoritativeSocial: AuthoritativeSocialCoordinator? =
+        game.onlineMultiplayer.authoritativeSession?.socialCoordinator()
 
     private val copyGameIdButton = createCopyGameIdButton()
     private val resignButton = createResignButton()
@@ -626,7 +629,9 @@ class MultiplayerScreen : PickerScreen() {
     private fun createFriendsListButton(): TextButton {
         val btn = "Friends list".toTextButton()
         btn.onClick {
-            game.pushScreen(ViewFriendsListScreen())
+            val social = authoritativeSocial
+            if (social == null) game.pushScreen(ViewFriendsListScreen())
+            else AuthoritativeFriendsPopup(this, social).openAndRefresh()
         }
         return btn
     }

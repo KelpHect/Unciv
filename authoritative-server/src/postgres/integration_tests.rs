@@ -33,6 +33,8 @@ mod replica_faults;
 mod retention;
 #[path = "snapshot_integration_tests.rs"]
 mod snapshots;
+#[path = "social_graph_integration_tests.rs"]
+mod social_graph;
 #[path = "spectator_integration_tests.rs"]
 mod spectators;
 #[path = "websocket_lease_integration_tests.rs"]

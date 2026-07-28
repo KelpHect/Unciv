@@ -7562,6 +7562,47 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Separate account friendship service
+
+Implemented on 2026-07-28:
+
+- API v3 now owns a durable account friendship graph outside canonical
+  `GameInfo`, game revisions, the command journal, worker protocol, and
+  projections. Authenticated accounts can list friends and incoming/outgoing
+  requests, create a caller-ID-bound request, accept an incoming request,
+  reject/cancel a pending request, and remove a friendship.
+- PostgreSQL serializes unordered account pairs, enforces one pending request
+  and one friendship per pair, bounds friends and pending requests, and applies
+  separate durable social-write rate limiting at the HTTP boundary.
+- The shared Kotlin client validates the bounded graph, preserves one request
+  UUID across an ambiguous exact retry, and exposes a focused authoritative
+  friends popup on both desktop and Android. Legacy API-v2 friends remain
+  reachable only when no authenticated v3 session is installed.
+- The work stays in descriptive modules. Rust `social.rs`,
+  `social_contracts.rs`, and `postgres/social_graph.rs` contain the behavior;
+  the Kotlin coordinator and popup are separate files, while `main.rs`,
+  `lib.rs`, and session/bootstrap façades retain only narrow delegation.
+
+Verification on 2026-07-28:
+
+- All 12 focused Rust HTTP/OpenAPI tests pass. `cargo fmt --all -- --check`,
+  warnings-as-errors `cargo clippy --all-targets --all-features -- -D warnings`,
+  and `git diff --check` pass for the backend milestone.
+- Two focused social persistence tests pass serially against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`;
+  the live server reported `19beta2`. They prove exact retry identity,
+  changed-meaning rejection, reverse-request collision rejection,
+  recipient-only acceptance, outsider denial, bilateral visibility,
+  cancellation, and removal. The disposable container was removed.
+- `./gradlew.bat :tests:test --tests
+  com.unciv.logic.multiplayer.authoritative.AuthoritativeSocialCoordinatorTests
+  --no-daemon` passes all three focused client tests after compiling the
+  production UI. The first compile found explicit `Unit` return annotations
+  missing from optional transport defaults and an invalid GL-thread helper
+  receiver; both were corrected before the clean rerun.
+- The combined social checklist item remains open: game-member chat and final
+  pregame lobby/readiness behavior are not yet implemented.
+
 ## Schema compatibility, capacity alerts, and disk-full recovery
 
 Implemented and destructively qualified on 2026-07-28:

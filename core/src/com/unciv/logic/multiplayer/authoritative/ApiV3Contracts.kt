@@ -98,6 +98,30 @@ data class ApiV3PlayerInvitation(
 )
 
 @Serializable
+data class ApiV3Friend(
+    val username: String,
+)
+
+@Serializable
+data class ApiV3FriendRequest(
+    @SerialName("request_id") val requestId: String,
+    val username: String,
+    val direction: String,
+)
+
+@Serializable
+data class ApiV3SocialGraph(
+    val friends: List<ApiV3Friend>,
+    val requests: List<ApiV3FriendRequest>,
+)
+
+@Serializable
+data class ApiV3CreateFriendRequest(
+    @SerialName("request_id") val requestId: String,
+    val username: String,
+)
+
+@Serializable
 data class ApiV3InvitePlayerRequest(
     @SerialName("invitation_id") val invitationId: String,
     val username: String,

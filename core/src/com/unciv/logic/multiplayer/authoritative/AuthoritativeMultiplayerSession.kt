@@ -34,6 +34,8 @@ class AuthoritativeMultiplayerSession(
     @Volatile
     private var authenticated = false
 
+    fun socialCoordinator() = AuthoritativeSocialCoordinator(transport)
+
     suspend fun projectionIfOpen(gameId: String): PlayerProjection? {
         val bus = mutex.withLock { games[gameId] } ?: return null
         return when (val current = bus.state) {

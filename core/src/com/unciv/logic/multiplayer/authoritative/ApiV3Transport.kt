@@ -27,6 +27,16 @@ interface ApiV3Transport {
     ): ApiV3RulesetManifestPage = error("Ruleset manifest discovery is unsupported by this transport")
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
+    suspend fun socialGraph(): ApiV3SocialGraph =
+        error("The social graph is unsupported by this transport")
+    suspend fun requestFriend(request: ApiV3CreateFriendRequest): Unit =
+        error("Friend requests are unsupported by this transport")
+    suspend fun acceptFriendRequest(requestId: String): Unit =
+        error("Friend request acceptance is unsupported by this transport")
+    suspend fun removeFriendRequest(requestId: String): Unit =
+        error("Friend request removal is unsupported by this transport")
+    suspend fun removeFriend(username: String): Unit =
+        error("Friend removal is unsupported by this transport")
     suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)
     suspend fun createGame(
         operationId: String,

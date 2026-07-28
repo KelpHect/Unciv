@@ -89,6 +89,7 @@ fn tagged_bundle_runs_a_bounded_linux_production_smoke() {
         "\"$bundle_root/worker/UncivAuthoritativeWorker.jar\"",
         "UNCIV_V3_RELEASE_BUNDLE_ROOT",
         "UNCIV_V3_RELEASE_BUNDLE_ID",
+        "wait_for_worker",
         "wait_for_ready ready 200",
         "wait_for_ready unready 503",
         "registration: \"created\"",

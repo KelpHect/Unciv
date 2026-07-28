@@ -82,6 +82,23 @@ wait_for_ready() {
   exit 1
 }
 
+wait_for_worker() {
+  for _ in $(seq 1 90); do
+    if (echo >/dev/tcp/127.0.0.1/"$worker_port") 2>/dev/null; then
+      return
+    fi
+    if ! kill -0 "$worker_pid" 2>/dev/null; then
+      cat "$work_root/worker.err" >&2
+      echo "authoritative engine worker exited before accepting connections" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+  cat "$work_root/worker.err" >&2
+  echo "authoritative engine worker readiness deadline expired" >&2
+  exit 1
+}
+
 start_worker() {
   (
     cd "$repository_root/android/assets"
@@ -128,6 +145,7 @@ UNCIV_V3_MIGRATION_DATABASE_URL="$migration_url" \
   "$bundle_root/bin/unciv-v3-migrate" >/dev/null
 
 start_worker
+wait_for_worker
 export UNCIV_V3_RELEASE_BUNDLE_ROOT="$bundle_root"
 export UNCIV_V3_RELEASE_BUNDLE_ID="$bundle_id"
 export UNCIV_ENGINE_WORKER_JAR="$bundle_root/worker/UncivAuthoritativeWorker.jar"
@@ -168,6 +186,7 @@ jq -e '
 ' "$work_root/ready.json" >/dev/null
 
 start_worker
+wait_for_worker
 wait_for_ready ready 200
 
 jq -n \

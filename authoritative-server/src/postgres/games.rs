@@ -236,10 +236,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker projection failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         Ok(GameProjection {
             game_id,

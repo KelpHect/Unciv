@@ -611,6 +611,8 @@ impl PostgresGameRepository {
             }
         }
         tx.commit().await.map_err(CommitError::storage)?;
+        metrics::gauge!("unciv_v3_revision").set(next_revision as f64);
+        metrics::counter!("unciv_v3_commands_committed_total").increment(1);
 
         Ok(CommandAccepted {
             game_id: envelope.game_id,

@@ -24,6 +24,12 @@ pub(crate) async fn run() {
         }
         return;
     }
+    let metrics_address = unciv_authoritative_server::telemetry::initialize()
+        .expect("authoritative API observability must initialize");
+    tracing::info!(
+        metrics_bind = %metrics_address,
+        "authoritative API observability initialized"
+    );
     let release_bundle = unciv_authoritative_server::release_bundle::verify_runtime_environment()
         .expect("authoritative API release bundle must be exact and complete");
     let address = std::env::var("UNCIV_V3_BIND")
@@ -86,11 +92,11 @@ pub(crate) async fn run() {
     {
         panic!("authoritative engine worker ruleset catalog does not match the release bundle");
     }
-    eprintln!(
-        "authoritative engine worker ready: protocol={}, engine_build={}, rulesets={}",
-        unciv_authoritative_server::worker::WORKER_PROTOCOL_VERSION,
-        worker_capabilities.engine_build,
-        worker_capabilities.installed_rulesets.len(),
+    tracing::info!(
+        protocol = unciv_authoritative_server::worker::WORKER_PROTOCOL_VERSION,
+        engine_build = %worker_capabilities.engine_build,
+        installed_rulesets = worker_capabilities.installed_rulesets.len(),
+        "authoritative engine worker ready"
     );
     let websocket_policy = WebSocketRuntimePolicy::from_environment()
         .expect("authoritative WebSocket runtime policy must be valid");
@@ -474,6 +480,7 @@ pub(crate) async fn run() {
             enforce_origin,
         ))
         .layer(axum::middleware::from_fn(set_security_headers))
+        .layer(axum::middleware::from_fn(observe_request))
         .with_state(AppState {
             repository,
             worker,

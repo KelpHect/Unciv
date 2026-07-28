@@ -110,6 +110,11 @@ impl NotificationHub {
     ) -> Result<NotificationSubscription, NotificationAdmissionError> {
         let mut state = self.inner.lock().expect("notification hub lock poisoned");
         if state.active_connections >= self.global_connection_limit {
+            metrics::counter!(
+                "unciv_v3_websocket_admission_rejections_total",
+                "scope" => "global"
+            )
+            .increment(1);
             return Err(NotificationAdmissionError::GlobalLimit);
         }
         let channel = state
@@ -120,11 +125,17 @@ impl NotificationHub {
                 active_connections: 0,
             });
         if channel.active_connections >= self.account_connection_limit {
+            metrics::counter!(
+                "unciv_v3_websocket_admission_rejections_total",
+                "scope" => "account"
+            )
+            .increment(1);
             return Err(NotificationAdmissionError::AccountLimit);
         }
         channel.active_connections += 1;
         let receiver = channel.sender.subscribe();
         state.active_connections += 1;
+        metrics::gauge!("unciv_v3_websocket_connections").set(state.active_connections as f64);
         Ok(NotificationSubscription {
             hub: self.clone(),
             account_id,
@@ -179,6 +190,7 @@ impl Drop for NotificationSubscription {
             .active_connections
             .checked_sub(1)
             .expect("notification global connection count underflow");
+        metrics::gauge!("unciv_v3_websocket_connections").set(state.active_connections as f64);
         if remove_account {
             state.accounts.remove(&self.account_id);
         }

@@ -66,6 +66,12 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        metrics::counter!("unciv_v3_api_errors_total", "code" => self.code).increment(1);
+        tracing::warn!(
+            error_code = self.code,
+            status = self.status.as_u16(),
+            "API request rejected"
+        );
         let mut response = (
             self.status,
             Json(ErrorResponse {
@@ -118,8 +124,7 @@ pub(super) fn account_change_error(error: AuthError) -> ApiError {
 }
 
 pub(super) fn game_error(error: CommitError) -> ApiError {
-    eprintln!("authoritative game command failed: {error}");
-    match error {
+    let api_error = match error {
         CommitError::NotFound => ApiError {
             status: StatusCode::NOT_FOUND,
             code: "not_found",
@@ -180,5 +185,12 @@ pub(super) fn game_error(error: CommitError) -> ApiError {
         | CommitError::RecoveryTailTooLong
         | CommitError::RecoveryDiverged
         | CommitError::Storage => ApiError::internal(),
+    };
+    if api_error.code == "stale_revision" {
+        metrics::counter!("unciv_v3_stale_conflicts_total").increment(1);
     }
+    if api_error.code == "worker_rejected" {
+        metrics::counter!("unciv_v3_worker_failures_total", "kind" => "protocol").increment(1);
+    }
+    api_error
 }

@@ -73,7 +73,24 @@ impl std::fmt::Debug for CommitError {
 }
 
 impl CommitError {
-    pub(crate) fn storage(_: sqlx::Error) -> Self {
+    pub(crate) fn storage(error: sqlx::Error) -> Self {
+        if let Some(code) = error
+            .as_database_error()
+            .and_then(|database| database.code())
+        {
+            let kind = match code.as_ref() {
+                "40001" => Some("serialization"),
+                "40P01" => Some("deadlock"),
+                "55P03" => Some("lock_timeout"),
+                "57014" => Some("statement_timeout"),
+                _ => None,
+            };
+            if let Some(kind) = kind {
+                metrics::counter!("unciv_v3_database_lock_conflicts_total", "kind" => kind)
+                    .increment(1);
+                tracing::warn!(conflict_kind = kind, "database transaction conflict");
+            }
+        }
         Self::Storage
     }
 }

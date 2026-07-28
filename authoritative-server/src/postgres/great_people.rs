@@ -34,12 +34,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker ChooseGreatPerson transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -75,11 +70,10 @@ impl PostgresGameRepository {
             )
             .await
             .map_err(|error| match error {
-                crate::worker::WorkerClientError::Rejected(reason) => CommitError::WorkerRejected(reason),
-                other => {
-                    eprintln!("authoritative worker UseGreatPersonUnit transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
                 }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }

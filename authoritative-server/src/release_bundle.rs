@@ -179,6 +179,8 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
         "contracts/compatibility.json",
         "contracts/notifications-v3.json",
         "evidence/sbom.spdx.json",
+        "observability/grafana-dashboard.json",
+        "observability/prometheus-alerts.yml",
         "rulesets/manifest.json",
         "worker/UncivAuthoritativeWorker.jar",
     ];

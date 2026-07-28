@@ -28,10 +28,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker resign transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit_resignation(actor, envelope, proposal).await
     }
@@ -72,12 +69,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker force-resign transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit_civilization_removal(actor, envelope, forced.proposal, forced.civilization_id)
             .await
@@ -132,10 +124,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker kick transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit_civilization_removal(actor, envelope, proposal, target_civilization)
             .await

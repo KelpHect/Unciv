@@ -37,6 +37,7 @@ pub mod postgres;
 pub mod projection;
 pub mod release_bundle;
 pub mod ruleset_acquisition;
+pub mod telemetry;
 pub mod worker;
 
 pub use command::{

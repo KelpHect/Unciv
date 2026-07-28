@@ -1,0 +1,131 @@
+groups:
+  - name: unciv-authoritative-v3
+    interval: 30s
+    rules:
+      - alert: UncivV3ApiUnavailable
+        expr: absent(unciv_v3_process_up) or unciv_v3_process_up != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Authoritative API process is unavailable
+          runbook: docs/operations/authoritative-observability.md#api-unavailable
+
+      - alert: UncivV3AuthenticationAbuse
+        expr: sum(rate(unciv_v3_http_requests_total{route="auth",status_class=~"4xx|5xx"}[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sustained authentication failures exceed the abuse threshold
+          runbook: docs/operations/authoritative-observability.md#authentication-abuse
+
+      - alert: UncivV3StaleConflictSurge
+        expr: rate(unciv_v3_stale_conflicts_total[10m]) > 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Stale command conflicts are sustained above normal operation
+          runbook: docs/operations/authoritative-observability.md#stale-conflicts
+
+      - alert: UncivV3CommandFailureRatio
+        expr: |
+          sum(rate(unciv_v3_http_requests_total{route="command",status_class=~"4xx|5xx"}[10m]))
+          /
+          clamp_min(sum(rate(unciv_v3_http_requests_total{route="command"}[10m])), 0.001)
+          > 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than ten percent of authoritative commands are failing
+          runbook: docs/operations/authoritative-observability.md#command-failures
+
+      - alert: UncivV3CommandLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (rate(unciv_v3_http_request_duration_seconds_bucket{route="command"}[10m]))
+          ) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Authoritative command p99 latency exceeds 2.5 seconds
+          runbook: docs/operations/authoritative-observability.md#command-latency
+
+      - alert: UncivV3WorkerFailures
+        expr: sum(rate(unciv_v3_worker_failures_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: The private Kotlin rules worker is failing requests
+          runbook: docs/operations/authoritative-observability.md#worker-failures
+
+      - alert: UncivV3DatabaseLockConflicts
+        expr: sum(rate(unciv_v3_database_lock_conflicts_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL lock or serialization conflicts are sustained
+          runbook: docs/operations/authoritative-observability.md#database-locks
+
+      - alert: UncivV3RevisionGrowthStopped
+        expr: |
+          sum(rate(unciv_v3_commands_committed_total[30m])) == 0
+          and
+          sum(rate(unciv_v3_http_requests_total{route="command"}[30m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Commands are arriving but canonical revisions are not advancing
+          runbook: docs/operations/authoritative-observability.md#revision-growth
+
+      - alert: UncivV3ProjectionNearLimit
+        expr: max(unciv_v3_projection_bytes) > 13421772
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: A player projection exceeds eighty percent of the 16 MiB boundary
+          runbook: docs/operations/authoritative-observability.md#projection-size
+
+      - alert: UncivV3OutboxLag
+        expr: unciv_v3_outbox_pending > 0 and unciv_v3_outbox_oldest_pending_age_seconds > 60
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Authoritative notification delivery is lagging
+          runbook: docs/operations/authoritative-observability.md#outbox-lag
+
+      - alert: UncivV3OutboxDeadLetters
+        expr: unciv_v3_outbox_dead_letters > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Notification outbox contains dead-lettered events
+          runbook: docs/operations/authoritative-observability.md#outbox-lag
+
+      - alert: UncivV3WebSocketLoadHigh
+        expr: unciv_v3_websocket_connections > 819
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: WebSocket load exceeds eighty percent of the default global admission limit
+          runbook: docs/operations/authoritative-observability.md#websocket-load
+
+      - alert: UncivV3SlowReaders
+        expr: rate(unciv_v3_websocket_disconnects_total{reason="slow_writer"}[10m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Slow notification readers are being evicted continuously
+          runbook: docs/operations/authoritative-observability.md#websocket-load

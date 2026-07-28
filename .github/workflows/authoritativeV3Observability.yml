@@ -1,0 +1,63 @@
+name: Authoritative v3 observability
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/authoritativeV3Observability.yml'
+      - 'authoritative-server/Cargo.lock'
+      - 'authoritative-server/Cargo.toml'
+      - 'authoritative-server/observability/**'
+      - 'authoritative-server/src/**'
+      - 'authoritative-server/tests/observability_policy.rs'
+      - 'authoritative-server/tests/observability_runtime.rs'
+      - 'docs/operations/authoritative-observability.md'
+  push:
+    branches:
+      - master
+      - main
+      - 'codex/**'
+    paths:
+      - '.github/workflows/authoritativeV3Observability.yml'
+      - 'authoritative-server/Cargo.lock'
+      - 'authoritative-server/Cargo.toml'
+      - 'authoritative-server/observability/**'
+      - 'authoritative-server/src/**'
+      - 'authoritative-server/tests/observability_policy.rs'
+      - 'authoritative-server/tests/observability_runtime.rs'
+      - 'docs/operations/authoritative-observability.md'
+  workflow_dispatch:
+
+concurrency:
+  group: authoritative-v3-observability-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --component clippy,rustfmt --no-self-update
+          rustup override set 1.97.0
+      - name: Enforce formatting and warnings-as-errors
+        working-directory: authoritative-server
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run authoritative Rust tests
+        working-directory: authoritative-server
+        run: cargo test --all-targets --all-features
+      - name: Validate Prometheus alert semantics
+        working-directory: authoritative-server
+        run: |
+          docker run --rm \
+            --entrypoint /bin/promtool \
+            -v "$PWD/observability:/observability:ro" \
+            prom/prometheus@sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80 \
+            check rules /observability/prometheus-alerts.yml

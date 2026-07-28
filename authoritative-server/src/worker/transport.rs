@@ -177,7 +177,51 @@ impl EngineWorkerClient {
             }
             Err(_) => self.circuit_breaker.record_failure(permit),
         }
+        let elapsed = total_started.elapsed().as_secs_f64();
+        match &result {
+            Ok(_) => {
+                metrics::histogram!(
+                    "unciv_v3_worker_request_duration",
+                    "outcome" => "success"
+                )
+                .record(elapsed);
+            }
+            Err(WorkerClientError::Rejected(_)) => {
+                metrics::histogram!(
+                    "unciv_v3_worker_request_duration",
+                    "outcome" => "rejected"
+                )
+                .record(elapsed);
+            }
+            Err(error) => {
+                let kind = worker_failure_kind(error);
+                metrics::counter!("unciv_v3_worker_failures_total", "kind" => kind).increment(1);
+                metrics::histogram!(
+                    "unciv_v3_worker_request_duration",
+                    "outcome" => "failure"
+                )
+                .record(elapsed);
+                tracing::error!(failure_kind = kind, "private engine worker request failed");
+            }
+        }
         result
+    }
+}
+
+fn worker_failure_kind(error: &WorkerClientError) -> &'static str {
+    match error {
+        WorkerClientError::ConnectTimeout
+        | WorkerClientError::WriteTimeout
+        | WorkerClientError::ReadTimeout
+        | WorkerClientError::TotalTimeout
+        | WorkerClientError::QueueTimeout => "timeout",
+        WorkerClientError::CircuitOpen | WorkerClientError::QueueFull => "capacity",
+        WorkerClientError::Identity => "identity",
+        WorkerClientError::Protocol
+        | WorkerClientError::FrameTooLarge
+        | WorkerClientError::Incomplete => "protocol",
+        WorkerClientError::Transport => "transport",
+        WorkerClientError::Rejected(_) => "rejected",
     }
 }
 

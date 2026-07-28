@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory)]
     [string]$DatabaseUrl,
     [int]$ApiPort = 13000,
+    [int]$MetricsPort = 19464,
     [int]$WorkerPort = 43171,
     [ValidateSet('disabled', 'loopback')]
     [string]$TrustedProxy = 'disabled'
@@ -43,6 +44,7 @@ try {
 
     $env:UNCIV_V3_UNPACKAGED_DEV = '1'
     $env:UNCIV_V3_BIND = "127.0.0.1:$ApiPort"
+    $env:UNCIV_V3_METRICS_BIND = "127.0.0.1:$MetricsPort"
     $env:UNCIV_V3_DATABASE_URL = $DatabaseUrl
     $env:UNCIV_ENGINE_WORKER_ADDR = "127.0.0.1:$WorkerPort"
     $env:UNCIV_V3_TRUSTED_PROXY = $TrustedProxy

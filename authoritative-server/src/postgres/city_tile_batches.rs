@@ -36,12 +36,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker BuyCityTileBatch transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }

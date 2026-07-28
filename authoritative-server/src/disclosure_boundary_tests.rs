@@ -51,23 +51,19 @@ fn websocket_revision_frames_have_one_exact_public_shape() {
 #[test]
 fn observability_dependencies_and_sensitive_log_interpolation_fail_closed() {
     let manifest = include_str!("../Cargo.toml").to_ascii_lowercase();
-    for dependency in [
-        "\nlog ",
-        "\nlog=",
-        "\ntracing ",
-        "\ntracing=",
-        "\nmetrics ",
-        "\nmetrics=",
-        "\nprometheus ",
-        "\nprometheus=",
-        "\nopentelemetry ",
-        "\nopentelemetry=",
+    for governed_dependency in [
+        "metrics = \"0.24.6\"",
+        "metrics-exporter-prometheus = { version = \"0.18.3\"",
+        "tracing = \"0.1.44\"",
+        "tracing-subscriber = { version = \"0.3.23\"",
     ] {
         assert!(
-            !manifest.contains(dependency),
-            "observability dependency {dependency:?} requires an explicit disclosure policy"
+            manifest.contains(governed_dependency),
+            "governed observability dependency drifted: {governed_dependency}"
         );
     }
+    assert!(!manifest.contains("\nopentelemetry"));
+    assert!(!manifest.contains("\nprometheus "));
 
     let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut sources = Vec::new();
@@ -87,7 +83,19 @@ fn observability_dependencies_and_sensitive_log_interpolation_fail_closed() {
             continue;
         }
         let text = fs::read_to_string(&source).unwrap();
-        for log_call in macro_calls(&text, "eprintln!") {
+        let calls = [
+            "eprintln!",
+            "tracing::error!",
+            "tracing::warn!",
+            "tracing::info!",
+            "tracing::info_span!",
+            "metrics::counter!",
+            "metrics::gauge!",
+            "metrics::histogram!",
+        ]
+        .into_iter()
+        .flat_map(|name| macro_calls(&text, name));
+        for log_call in calls {
             for private_capture in [
                 "{snapshot}",
                 "{payload}",
@@ -101,6 +109,15 @@ fn observability_dependencies_and_sensitive_log_interpolation_fail_closed() {
                 "{recovery_code}",
                 "{identity}",
                 "{:?}",
+                "account_id =",
+                "game_id =",
+                "command_id =",
+                "session_id =",
+                "client_ip =",
+                "\"account_id\" =>",
+                "\"game_id\" =>",
+                "\"command_id\" =>",
+                "\"session_id\" =>",
             ] {
                 assert!(
                     !log_call.contains(private_capture),

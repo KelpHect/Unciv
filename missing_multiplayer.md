@@ -829,10 +829,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: observability, security, and release controls
 
-- [ ] Add redacted structured logs, metrics, traces, dashboards, and alerts for
+- [x] Add redacted structured logs, metrics, traces, dashboards, and alerts for
   authentication abuse, stale conflicts, command latency/failures, worker
   crashes/timeouts, database locks, revision growth, projection size, outbox lag,
-  and WebSocket load.
+  and WebSocket load. The API now emits bounded JSON request spans and stable
+  error events, exports low-cardinality Prometheus metrics only on a separately
+  configured loopback listener, and centralizes worker/database/outbox/socket
+  failure signals without private identifiers or canonical state. A packaged
+  Grafana dashboard and 13 Prometheus alert rules cover every listed class,
+  link to the operator runbook, and ship inside the verified release bundle.
+  Runtime scrape, redaction/cardinality, immutable-workflow, current Prometheus
+  parser, complete Rust, and pinned PostgreSQL 19 Beta 2 qualifications pass.
 - [x] Separate operator/admin endpoints from the public network and authentication
   domain; add immutable security-audit export, retention/access policy, and
   incident-response ownership. API-v3 exposes no operator routes or standing

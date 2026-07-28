@@ -51,7 +51,12 @@ pub(crate) async fn run_shared_listener(
                 // LISTEN/NOTIFY is deliberately transient. Existing sockets
                 // must reconcile after any listener gap while SQLx reconnects.
                 hub.require_resync_for_all();
-                eprintln!("authoritative shared notification listener disconnected");
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "listener"
+                )
+                .increment(1);
+                tracing::error!("shared notification listener disconnected");
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
@@ -60,7 +65,12 @@ pub(crate) async fn run_shared_listener(
             Ok(notification) => notification,
             Err(()) => {
                 hub.require_resync_for_all();
-                eprintln!("authoritative shared notification payload was rejected");
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "payload"
+                )
+                .increment(1);
+                tracing::warn!("shared notification payload rejected");
                 continue;
             }
         };
@@ -68,7 +78,12 @@ pub(crate) async fn run_shared_listener(
             Ok(recipients) => hub.publish(&recipients, notification).await,
             Err(_) => {
                 hub.require_resync_for_all();
-                eprintln!("authoritative shared notification recipients were unavailable");
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "membership"
+                )
+                .increment(1);
+                tracing::error!("shared notification recipients unavailable");
             }
         }
     }
@@ -78,8 +93,13 @@ async fn run_outbox_dispatcher(repository: PostgresGameRepository, policy: Outbo
     loop {
         let events = match repository.claim_outbox_batch(100).await {
             Ok(events) => events,
-            Err(error) => {
-                eprintln!("authoritative outbox claim failed: {error}");
+            Err(_) => {
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "outbox_claim"
+                )
+                .increment(1);
+                tracing::error!(error_class = "database", "outbox claim failed");
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
@@ -140,12 +160,18 @@ async fn deliver_outbox_event(
                 retry_outbox(repository, &event, policy).await;
                 return;
             }
-            if let Err(error) = repository
+            if repository
                 .acknowledge_outbox(event.id, event.claim_token)
                 .await
+                .is_err()
             {
                 // A retry may duplicate a hint, which clients must tolerate.
-                eprintln!("authoritative outbox acknowledgement failed: {error}");
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "outbox_ack"
+                )
+                .increment(1);
+                tracing::error!("outbox acknowledgement failed");
             }
         }
         Err(()) => retry_outbox(repository, &event, policy).await,
@@ -157,7 +183,12 @@ async fn retry_outbox(
     event: &ClaimedOutboxEvent,
     policy: OutboxRuntimePolicy,
 ) {
-    eprintln!("authoritative outbox delivery failed");
+    metrics::counter!(
+        "unciv_v3_notification_runtime_failures_total",
+        "component" => "delivery"
+    )
+    .increment(1);
+    tracing::warn!("outbox delivery failed");
     if matches!(
         repository
             .retry_outbox(
@@ -169,10 +200,8 @@ async fn retry_outbox(
             .await,
         Ok(OutboxRetryDisposition::DeadLettered)
     ) {
-        eprintln!(
-            "authoritative outbox event dead-lettered after bounded retries: id={}",
-            event.id
-        );
+        metrics::counter!("unciv_v3_outbox_dead_letters_total").increment(1);
+        tracing::error!("outbox event dead-lettered after bounded retries");
     }
 }
 
@@ -182,16 +211,31 @@ async fn run_outbox_monitor(repository: PostgresGameRepository, policy: OutboxRu
     loop {
         interval.tick().await;
         match repository.outbox_health(policy.lag_alert_after).await {
-            Ok(report) if report.alert => eprintln!(
-                "authoritative outbox alert: pending={}, dead_letter={}, oldest_pending_seconds={}, oldest_dead_letter_seconds={}, maximum_attempts={}",
-                report.pending_events,
-                report.dead_letter_events,
-                report.oldest_pending_age_seconds,
-                report.oldest_dead_letter_age_seconds,
-                report.maximum_attempt_count,
-            ),
-            Ok(_) => {}
-            Err(_) => eprintln!("authoritative outbox health query failed"),
+            Ok(report) => {
+                metrics::gauge!("unciv_v3_outbox_pending").set(report.pending_events as f64);
+                metrics::gauge!("unciv_v3_outbox_dead_letters")
+                    .set(report.dead_letter_events as f64);
+                metrics::gauge!("unciv_v3_outbox_oldest_pending_age")
+                    .set(report.oldest_pending_age_seconds as f64);
+                if report.alert {
+                    tracing::error!(
+                        pending = report.pending_events,
+                        dead_letters = report.dead_letter_events,
+                        oldest_pending_seconds = report.oldest_pending_age_seconds,
+                        oldest_dead_letter_seconds = report.oldest_dead_letter_age_seconds,
+                        maximum_attempts = report.maximum_attempt_count,
+                        "outbox health threshold exceeded"
+                    );
+                }
+            }
+            Err(_) => {
+                metrics::counter!(
+                    "unciv_v3_notification_runtime_failures_total",
+                    "component" => "outbox_health"
+                )
+                .increment(1);
+                tracing::error!("outbox health query failed");
+            }
         }
     }
 }

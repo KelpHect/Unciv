@@ -40,10 +40,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker AirSweep transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -87,12 +84,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker LaunchNuclearStrike transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -136,12 +128,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker BombardWithCity transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -185,12 +172,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker AttackWithUnit transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -234,12 +216,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker ParadropUnit transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -277,10 +254,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker FoundCity transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -318,12 +292,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker PillageTile transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -361,12 +330,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker DisbandUnit transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -408,12 +372,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker UpgradeUnits transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -457,12 +416,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker PromoteUnit transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -506,10 +460,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker city promotion preference failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -551,12 +502,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker RenameUnit transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -604,10 +550,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker tile improvement order failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -654,10 +597,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker road connection order failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }

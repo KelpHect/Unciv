@@ -35,12 +35,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker SetAvoidGrowth transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -79,12 +74,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker SetCitizenFocus transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -122,12 +112,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!(
-                        "authoritative worker ResetCitizens transport/protocol failure: {other}"
-                    );
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
@@ -151,21 +136,25 @@ impl PostgresGameRepository {
         let actor_civilization_id = self
             .actor_civilization_id(envelope.game_id, actor_account_id)
             .await?;
-        let proposal = worker.set_manual_specialists(
-            &actor_account_id.to_string(), &worker_state.manifest,
-            envelope.expected_revision, &worker_state.snapshot,
-            SetManualSpecialistsIntent {
-                actor_civilization_id: &actor_civilization_id,
-                city_id: &city_id,
-                enabled,
-            },
-        ).await.map_err(|error| match error {
-            crate::worker::WorkerClientError::Rejected(reason) => CommitError::WorkerRejected(reason),
-            other => {
-                eprintln!("authoritative worker SetManualSpecialists transport/protocol failure: {other}");
-                CommitError::WorkerRevisionMismatch
-            }
-        })?;
+        let proposal = worker
+            .set_manual_specialists(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                SetManualSpecialistsIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id: &city_id,
+                    enabled,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                _ => CommitError::WorkerRevisionMismatch,
+            })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
 
@@ -190,22 +179,26 @@ impl PostgresGameRepository {
         let actor_civilization_id = self
             .actor_civilization_id(envelope.game_id, actor_account_id)
             .await?;
-        let proposal = worker.set_specialist_count(
-            &actor_account_id.to_string(), &worker_state.manifest,
-            envelope.expected_revision, &worker_state.snapshot,
-            SetSpecialistCountIntent {
-                actor_civilization_id: &actor_civilization_id,
-                city_id: &city_id,
-                specialist_name: &specialist_name,
-                count,
-            },
-        ).await.map_err(|error| match error {
-            crate::worker::WorkerClientError::Rejected(reason) => CommitError::WorkerRejected(reason),
-            other => {
-                eprintln!("authoritative worker SetSpecialistCount transport/protocol failure: {other}");
-                CommitError::WorkerRevisionMismatch
-            }
-        })?;
+        let proposal = worker
+            .set_specialist_count(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
+                SetSpecialistCountIntent {
+                    actor_civilization_id: &actor_civilization_id,
+                    city_id: &city_id,
+                    specialist_name: &specialist_name,
+                    count,
+                },
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                _ => CommitError::WorkerRevisionMismatch,
+            })?;
         self.commit(actor_account_id, envelope, proposal).await
     }
 
@@ -247,12 +240,10 @@ impl PostgresGameRepository {
             )
             .await
             .map_err(|error| match error {
-                crate::worker::WorkerClientError::Rejected(reason) =>
-                    CommitError::WorkerRejected(reason),
-                other => {
-                    eprintln!("authoritative worker SetCityTileAssignment transport/protocol failure: {other}");
-                    CommitError::WorkerRevisionMismatch
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
                 }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         self.commit(actor_account_id, envelope, proposal).await
     }

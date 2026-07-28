@@ -1,0 +1,89 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Public requests by route and status",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (route, status_class) (rate(unciv_v3_http_requests_total[5m]))",
+          "legendFormat": "{{route}} {{status_class}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Command latency p50/p95/p99",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(unciv_v3_http_request_duration_seconds_bucket{route=\"command\"}[5m])))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(unciv_v3_http_request_duration_seconds_bucket{route=\"command\"}[5m])))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum by (le) (rate(unciv_v3_http_request_duration_seconds_bucket{route=\"command\"}[5m])))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Canonical commits and stale conflicts",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "rate(unciv_v3_commands_committed_total[5m])", "legendFormat": "committed"},
+        {"expr": "rate(unciv_v3_stale_conflicts_total[5m])", "legendFormat": "stale"}
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Worker and database failures",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (kind) (rate(unciv_v3_worker_failures_total[5m]))", "legendFormat": "worker {{kind}}"},
+        {"expr": "sum by (kind) (rate(unciv_v3_database_lock_conflicts_total[5m]))", "legendFormat": "database {{kind}}"}
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Outbox health",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "unciv_v3_outbox_pending", "legendFormat": "pending"},
+        {"expr": "unciv_v3_outbox_dead_letters", "legendFormat": "dead letters"},
+        {"expr": "unciv_v3_outbox_oldest_pending_age_seconds", "legendFormat": "oldest seconds"}
+      ]
+    },
+    {
+      "id": 6,
+      "title": "WebSocket load",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "unciv_v3_websocket_connections", "legendFormat": "active"},
+        {"expr": "sum by (reason) (rate(unciv_v3_websocket_disconnects_total[5m]))", "legendFormat": "disconnect {{reason}}"}
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Projection payload size",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "unciv_v3_projection_bytes", "legendFormat": "{{kind}}"}
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Authentication failures",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum(rate(unciv_v3_http_requests_total{route=\"auth\",status_class=~\"4xx|5xx\"}[5m]))", "legendFormat": "failures/sec"}
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["unciv", "authoritative-v3"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "Unciv authoritative multiplayer v3",
+  "uid": "unciv-authoritative-v3",
+  "version": 1
+}

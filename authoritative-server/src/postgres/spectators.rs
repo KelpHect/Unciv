@@ -210,10 +210,7 @@ impl PostgresGameRepository {
                 crate::worker::WorkerClientError::Rejected(reason) => {
                     CommitError::WorkerRejected(reason)
                 }
-                other => {
-                    eprintln!("authoritative worker spectator projection failure: {other}");
-                    CommitError::WorkerRevisionMismatch
-                }
+                _ => CommitError::WorkerRevisionMismatch,
             })?;
         let projection_bytes = serde_json::to_vec(&projected.projection)
             .expect("worker spectator projection is serializable");

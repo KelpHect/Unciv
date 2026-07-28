@@ -133,6 +133,14 @@ fn create(output: &Path, sources: PackageSources<'_>) -> Result<(), ReleaseBundl
         &manifest_dir.join("release/compatibility.json"),
         &staging.join("contracts/compatibility.json"),
     )?;
+    copy_exact(
+        &manifest_dir.join("observability/prometheus-alerts.yml"),
+        &staging.join("observability/prometheus-alerts.yml"),
+    )?;
+    copy_exact(
+        &manifest_dir.join("observability/grafana-dashboard.json"),
+        &staging.join("observability/grafana-dashboard.json"),
+    )?;
     copy_migrations(manifest_dir, &staging)?;
 
     let mut manifest = ReleaseBundleManifest {

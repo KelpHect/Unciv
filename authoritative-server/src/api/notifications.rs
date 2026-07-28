@@ -154,7 +154,7 @@ async fn serve_websocket_parts<S, R, E>(
     heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
     let mut last_peer_activity = Instant::now();
     let mut ping_sequence = 0_u64;
-    loop {
+    let disconnect_reason = loop {
         tokio::select! {
             delivery = subscription.recv() => match delivery {
                 Ok(NotificationDelivery::Revision(notification)) => {
@@ -165,7 +165,7 @@ async fn serve_websocket_parts<S, R, E>(
                         Message::Text(payload.into()),
                         policy.write_timeout,
                     ).await.is_err() {
-                        break;
+                        break "slow_writer";
                     }
                 }
                 Ok(NotificationDelivery::ResyncRequired)
@@ -179,13 +179,15 @@ async fn serve_websocket_parts<S, R, E>(
                         Message::Text(payload.into()),
                         policy.write_timeout,
                     ).await.is_err() {
-                        break;
+                        break "slow_writer";
                     }
                 }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break "server_closed",
             },
             message = incoming.next() => match message {
-                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                Some(Ok(Message::Close(_))) => break "peer_closed",
+                None => break "peer_closed",
+                Some(Err(_)) => break "transport_error",
                 Some(Ok(Message::Pong(_))) | Some(Ok(Message::Ping(_))) => {
                     last_peer_activity = Instant::now();
                 }
@@ -193,7 +195,7 @@ async fn serve_websocket_parts<S, R, E>(
             },
             _ = heartbeat.tick() => {
                 if last_peer_activity.elapsed() >= policy.idle_timeout {
-                    break;
+                    break "idle_timeout";
                 }
                 ping_sequence = ping_sequence.wrapping_add(1);
                 if send_with_deadline(
@@ -201,11 +203,20 @@ async fn serve_websocket_parts<S, R, E>(
                     Message::Ping(ping_sequence.to_be_bytes().to_vec().into()),
                     policy.write_timeout,
                 ).await.is_err() {
-                    break;
+                    break "slow_writer";
                 }
             }
         }
-    }
+    };
+    metrics::counter!(
+        "unciv_v3_websocket_disconnects_total",
+        "reason" => disconnect_reason
+    )
+    .increment(1);
+    tracing::info!(
+        reason = disconnect_reason,
+        "notification socket disconnected"
+    );
 }
 
 async fn send_with_deadline(

@@ -197,12 +197,14 @@ pub(super) async fn audit_security(
     source_prefix: &str,
     identity: Option<&str>,
 ) {
-    if let Err(error) = state
+    if state
         .repository
         .record_security_audit(account_id, event_type, outcome, source_prefix, identity)
         .await
+        .is_err()
     {
-        eprintln!("authoritative security audit write failed: {error}");
+        metrics::counter!("unciv_v3_security_audit_write_failures_total").increment(1);
+        tracing::error!("security audit write failed");
     }
 }
 

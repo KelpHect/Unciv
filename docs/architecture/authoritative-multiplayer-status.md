@@ -1,5 +1,64 @@
 # Authoritative multiplayer v3 status
 
+## Redacted authoritative observability
+
+Implemented and qualified on 2026-07-28:
+
+- `telemetry.rs` initializes newline-delimited JSON tracing and a Prometheus
+  exporter on `127.0.0.1:9464` by default. A configured metrics address must be
+  loopback, and the exporter independently allowlists IPv4 and IPv6 loopback.
+  Metrics never share the public Axum/Caddy listener.
+- Every public request receives a generated correlation ID and a structured
+  span with only closed route, method, status-class, and elapsed-time fields.
+  Dynamic paths collapse into bounded route classes and attacker-controlled
+  methods collapse to `OTHER`; account, game, command, session, network,
+  ruleset, snapshot, projection, payload, and credential values are prohibited
+  as trace fields or metric labels.
+- Low-cardinality counters, gauges, and histograms cover authentication abuse,
+  stable API failures, stale conflicts, command commit/latency/failure,
+  worker latency/timeouts/capacity/identity/protocol/transport failures,
+  PostgreSQL serialization/deadlock/lock/statement timeout conflicts,
+  canonical revision growth, player/spectator projection size, security-audit
+  write failure, notification runtime/outbox lag/dead letters, WebSocket
+  admission/load, and bounded disconnect causes.
+- Private worker transport failure logging is centralized. The per-command
+  repository adapters no longer duplicate unstructured diagnostics. Worker
+  rejection detail, SQL detail, identifiers, canonical state, projections, and
+  credentials remain outside normal logs and metrics.
+- `observability/grafana-dashboard.json` provides eight operational panels.
+  `observability/prometheus-alerts.yml` provides 13 alerts covering every
+  required failure class and links each alert to the redacted operator runbook.
+  Both artifacts are mandatory, hash-covered release-bundle inputs.
+- `.github/workflows/authoritativeV3Observability.yml` is least privilege,
+  path-scoped, uses the pinned Rust 1.97.0 toolchain and immutable checkout
+  action, runs formatting, warnings-as-errors Clippy, all Rust tests, and the
+  official Prometheus parser from an exact image digest.
+
+Verification on 2026-07-28:
+
+- The real loopback scrape integration launched the exporter in an isolated
+  process, received HTTP 200, observed the expected bounded command dimensions,
+  and found no private identifiers in the exposition.
+- Four observability policy tests validate YAML/JSON parsing, all required
+  alert classes and runbook links, loopback/systemd/release packaging, exact
+  toolchain/image/action pins, and source-wide private-dimension exclusions.
+- Prometheus `v3.13.1-distroless` at
+  `sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80`
+  reports `SUCCESS: 13 rules found`. Actionlint `v1.7.12` accepts the hosted
+  workflow.
+- `cargo test --all-targets --all-features` passes 228 library tests, 29 API
+  tests, and every active integration/packaging/policy test; only explicitly
+  environment-gated destructive/packaged-worker tests remain ignored.
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` pass.
+- The ordinary serial PostgreSQL lane passes all 34 tests against the sole
+  digest-pinned PostgreSQL 19 Beta 2 image. The first qualification attempt used
+  the runtime URL where the migration-only URL was required and correctly
+  failed before schema creation; the rerun bootstrapped the required
+  least-privilege roles, passed without test failures, and removed its
+  disposable container, network, and volume.
+
 ## OS-protected client session credentials
 
 Implemented and runtime-qualified on 2026-07-28:

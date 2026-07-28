@@ -46,6 +46,8 @@ HTTP, and bounded runtime configuration:
 ```text
 UNCIV_V3_DATABASE_URL=postgres://unciv_runtime:...@127.0.0.1:5432/unciv_authoritative?sslmode=require
 UNCIV_V3_BIND=127.0.0.1:3000
+UNCIV_V3_METRICS_BIND=127.0.0.1:9464
+UNCIV_V3_LOG=unciv_authoritative_server=info,warn
 UNCIV_V3_TRUSTED_PROXY=loopback
 UNCIV_V3_DB_POOL_MAX=10
 UNCIV_V3_DB_POOL_MIN=1

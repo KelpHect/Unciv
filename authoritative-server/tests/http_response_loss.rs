@@ -303,6 +303,7 @@ fn spawn_api(
     ChildGuard(
         Command::new(env!("CARGO_BIN_EXE_unciv-authoritative-server"))
             .env("UNCIV_V3_BIND", api_address.to_string())
+            .env("UNCIV_V3_METRICS_BIND", unused_address().to_string())
             .env("UNCIV_V3_DATABASE_URL", database_url)
             .env("UNCIV_ENGINE_WORKER_ADDR", worker_address.to_string())
             .env("UNCIV_ENGINE_WORKER_SECRET", WORKER_SECRET_HEX)

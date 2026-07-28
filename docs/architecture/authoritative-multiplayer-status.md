@@ -1,5 +1,35 @@
 # Authoritative multiplayer v3 status
 
+## Enforced MPL/AGPL provenance boundary
+
+Implemented and qualified on 2026-07-28:
+
+- The repository remains MPL-2.0. A focused source, history, Cargo, and Gradle
+  audit found no copied, adapted, vendored, generated, or dependency material
+  from the separately AGPL-3.0 `hopfenspace/runciv` project. Its only
+  production-source mention is a pre-existing 2023 API-v2 documentation link.
+- `docs/legal/authoritative-multiplayer-licensing.md` records the provenance
+  result and makes future copying, translation, adaptation, or vendoring fail
+  the contribution gate unless a reviewed compatible basis and preserved
+  notices exist.
+- Every production release bundle now includes the repository license at
+  `legal/LICENSE`. It is part of the closed content-addressed manifest, so
+  removal or alteration fails verification; the mandatory SPDX 2.3 SBOM
+  continues to carry dependency-license evidence.
+- The release runbook's previously stale migration range and compatibility
+  head were corrected from 24 to the current checked-in head 27.
+
+Verification on 2026-07-28:
+
+- `cargo test --test licensing_boundary -- --nocapture` passes both provenance
+  and dependency-boundary tests.
+- `cargo test --lib release_bundle::packaging::tests -- --nocapture` passes the
+  content-addressed bundle test, including explicit rejection of a missing
+  `legal/LICENSE`.
+- `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` pass.
+
 ## Disposable client cache and explicit retry UX
 
 Implemented and qualified on 2026-07-28:

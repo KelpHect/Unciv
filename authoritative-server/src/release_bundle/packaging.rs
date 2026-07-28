@@ -141,6 +141,13 @@ fn create(output: &Path, sources: PackageSources<'_>) -> Result<(), ReleaseBundl
         &manifest_dir.join("observability/grafana-dashboard.json"),
         &staging.join("observability/grafana-dashboard.json"),
     )?;
+    copy_exact(
+        &manifest_dir
+            .parent()
+            .ok_or(ReleaseBundleError::Policy)?
+            .join("LICENSE"),
+        &staging.join("legal/LICENSE"),
+    )?;
     copy_migrations(manifest_dir, &staging)?;
 
     let mut manifest = ReleaseBundleManifest {
@@ -374,6 +381,14 @@ mod tests {
             Err(ReleaseBundleError::Policy)
         ));
         fs::write(sbom_path, original_sbom).unwrap();
+        let license_path = bundle.join("legal/LICENSE");
+        let original_license = fs::read(&license_path).unwrap();
+        fs::remove_file(&license_path).unwrap();
+        assert!(matches!(
+            verify_bundle(&bundle),
+            Err(ReleaseBundleError::Policy)
+        ));
+        fs::write(license_path, original_license).unwrap();
         fs::write(bundle.join("client/unciv-client"), "tampered").unwrap();
         assert!(matches!(
             verify_bundle(&bundle),

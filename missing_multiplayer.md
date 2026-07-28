@@ -912,8 +912,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   worker-frame limits, WebSocket admission/idle/slow-writer tests, bounded
   worker queue/deadline tests, and closed ruleset download/archive limits cover
   the remaining exhaustion and expensive-input boundaries.
-- [ ] Re-check AGPL/MPL boundaries and preserve notices; do not copy code from
-  `runciv` or another reference without an explicit compatible licensing record.
+- [x] Re-check AGPL/MPL boundaries and preserve notices; do not copy code from
+  `runciv` or another reference without an explicit compatible licensing
+  record. The current upstream `hopfenspace/runciv` license is AGPL-3.0;
+  repository/history/dependency audits found no imported source or dependency.
+  The pre-existing API-v2 documentation link remains reference-only, a checked
+  provenance policy forbids copying/adaptation without reviewed permission,
+  and every content-addressed production bundle now requires and hashes the
+  repository MPL-2.0 `legal/LICENSE` alongside its SPDX dependency evidence.
 
 ## P1: legacy migration and retirement
 

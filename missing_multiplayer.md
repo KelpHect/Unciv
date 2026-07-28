@@ -978,13 +978,22 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P2: performance, capacity, and final release evidence
 
-- [ ] Complete the ADR benchmark table with measured JVM startup, idle and peak
+- [x] Complete the ADR benchmark table with measured JVM startup, idle and peak
   memory, representative large-save load, command latency, end-turn latency,
-  worker recycle cost, and deployment complexity.
-- [ ] Run sustained low-resource load tests for HTTP, commands, PostgreSQL locks,
+  worker recycle cost, and deployment complexity. Windows process and
+  representative Large-map measurements are joined by immutable Linux tag
+  `authoritative-v3-0.1.0-beta.2.8`: under the 1-CPU/992-MiB envelope, summed
+  service peak memory was 333.98 MiB, AI-turn p50/p95 was
+  1,510.21/3,301.81 ms, and packaged-worker readiness recovered in 1,122 ms.
+- [x] Run sustained low-resource load tests for HTTP, commands, PostgreSQL locks,
   worker concurrency, AI turns, projections, outbox delivery, and WebSockets.
   Publish throughput, latency percentiles, memory, CPU, storage growth, and a
-  defensible capacity limit—never “unlimited users.”
+  defensible capacity limit—never “unlimited users.” Hosted run `30393852174`
+  completed 60 Large-game create/project/server-AI scenarios with eight-way
+  contention in 152.586 seconds: 60 commits, 420 expected stale conflicts, 120
+  WebSocket notifications, and 6,021,120 bytes of PostgreSQL growth. The
+  recorded capacity floor is this exact workload under 1 CPU, 992 MiB, and no
+  swap; it is not a simultaneous-user maximum or SLA.
 - [x] Add Linux production smoke tests and supported desktop/Android client build
   and reconnect tests. Preserve and rerun single-player, hotseat, save-format,
   legacy multiplayer, and API-v2 regression suites throughout migration. The
@@ -1014,16 +1023,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
   --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
   skips), and `:android:lint` passes.
-- Rust passes 168 active library tests and 25 HTTP/OpenAPI/AsyncAPI/runtime tests; all 28
-  serialized PostgreSQL integration tests pass on the exact PostgreSQL 19 Beta
+- Rust passes 189 active library tests and 29 HTTP/OpenAPI/AsyncAPI/runtime
+  tests; all 39 ordinary serialized PostgreSQL integration tests pass on the
+  exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
   lanes also pass.
 - `cargo fmt --all -- --check`, warnings-as-errors
   `cargo clippy --all-targets --all-features -- -D warnings`, generated
   OpenAPI/AsyncAPI parity, official AsyncAPI validation, and `git diff --check`
   pass.
-- `main.rs` is 5 lines, `lib.rs` is a 57-line facade, and the largest Rust source
-  is 779 lines. New work must split by concern before crossing the 800-line
+- `main.rs` is 5 substantive lines, `lib.rs` is a 60-line facade, and the
+  largest Rust source is 770 lines. New work must split by concern before
+  crossing the 800-line
   guardrail.
 
 Update this file whenever a gap is completed, split, newly discovered, or

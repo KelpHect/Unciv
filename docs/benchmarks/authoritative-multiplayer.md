@@ -2,7 +2,8 @@
 
 This report contains reproducible measurements, not capacity promises. Each
 section names its host, build, dataset, and limitations. Production capacity
-remains unqualified until the documented Linux 1-vCPU/1-GB load run is complete.
+is expressed as a measured floor for the documented workload, never as an
+unlimited-user claim.
 
 ## Private-worker process and connection model
 
@@ -73,10 +74,12 @@ deadline. This removes reliance on the operating-system listen backlog and
 bounds task/socket pressure. Deployments may configure a smaller queue after
 load testing; increasing it does not increase worker throughput.
 
-This decision does not qualify final capacity. Still required: representative
-large saves, end-turn/AI percentiles, Linux cgroup memory and CPU, recycle cost
-under systemd, concurrent-game/API/PostgreSQL/WebSocket load, storage growth,
-and the complete 1-vCPU/1-GB sustained run.
+The representative and constrained qualifications below now cover large saves,
+end-turn/AI percentiles, Linux container memory and CPU, recycle cost,
+concurrent command contention, API/PostgreSQL/WebSocket traffic, and storage
+growth. They establish a conservative capacity floor for this exact workload;
+late-game, mod-specific, geographic, and fleet-scale planning still requires
+deployment-specific measurement.
 
 ## Representative Large-map creation, projection, and server AI
 
@@ -102,5 +105,50 @@ Raw machine-readable evidence is retained in
 Initial canonical snapshots were 229,159-234,548 bytes (mean 231,048);
 post-AI snapshots were 270,098-277,162 bytes (mean 273,077). This proves the
 representative command and AI path and supplies a dataset for the constrained
-Linux lane. It does not replace Linux cgroup, sustained-load, recycle, or
-multi-turn late-game evidence, so final capacity remains unqualified.
+Linux lane. It does not predict multi-turn late-game or arbitrary mod costs.
+
+## Hosted constrained Linux production stack
+
+Qualified on 2026-07-28 by immutable tag
+`authoritative-v3-0.1.0-beta.2.8`, commit `1fb6d174c`, and GitHub Actions run
+`30393852174`. The run used the verified production bundle, the exact pinned
+PostgreSQL 19 Beta 2 and Temurin 21 images, disabled swap, and these hard
+container limits:
+
+| Service | CPU limit | Memory limit | Observed peak CPU | Observed peak memory |
+| --- | ---: | ---: | ---: | ---: |
+| Rust API | 0.10 core | 192 MiB | 5.04% | 22.39 MiB |
+| PostgreSQL | 0.25 core | 288 MiB | 6.76% | 82.39 MiB |
+| Kotlin worker | 0.65 core | 512 MiB | 66.65% | 229.20 MiB |
+| **Total envelope** | **1.00 core** | **992 MiB** | — | **333.98 MiB summed peaks** |
+
+The client created 60 independent Large-map games, fetched each projection,
+opened WebSocket delivery, and issued eight simultaneous end-turn requests at
+the same expected revision. Exactly one command per game committed and ran the
+server AI; all 420 losing requests returned the required stale-revision
+conflict. The 60 commits produced 120 WebSocket notifications.
+
+| Operation | Samples | mean | p50 | p95 | p99 | min | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Large-game creation | 60 | 452.96 ms | 395.87 ms | 894.98 ms | 4,208.47 ms | 150.52 ms | 4,208.47 ms |
+| Player projection | 60 | 89.14 ms | 86.52 ms | 185.52 ms | 668.09 ms | 18.04 ms | 668.09 ms |
+| Contended end turn plus server AI | 60 | 1,785.84 ms | 1,510.21 ms | 3,301.81 ms | 7,907.23 ms | 883.46 ms | 7,907.23 ms |
+| Complete scenario | 60 | 2,509.62 ms | 2,029.31 ms | 4,589.46 ms | 13,397.87 ms | 1,222.39 ms | 13,397.87 ms |
+
+The load completed in 152.586 seconds (about 0.393 complete scenarios/second,
+or 23.6/minute). PostgreSQL grew from 9,525,131 to 15,546,251 bytes: 6,021,120
+bytes total, about 100 KiB per game including snapshots, journals, audit, and
+outbox state. The surrounding production smoke killed the worker, observed
+fail-closed readiness, restarted the packaged worker, and restored readiness in
+1,122 ms.
+
+### Capacity statement
+
+The defensible single-instance floor is **60 sequential Large-game
+create/project/server-AI scenarios, each with eight-way same-revision command
+contention, within 153 seconds under 1 CPU and 992 MiB with swap disabled**.
+That is a workload qualification, not a simultaneous-player maximum or an SLA.
+Operators must re-run it with representative late-game saves, enabled mods,
+network latency, retention, and target hardware before choosing production
+concurrency or latency objectives. The raw JSON, container samples, signed
+archive, digest, SBOM, and attestations are retained by run `30393852174`.

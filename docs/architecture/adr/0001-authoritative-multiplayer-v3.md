@@ -49,8 +49,26 @@ The first reproducible process-model measurements are recorded in
 real tiny-game creations measured 20.59-ms p50 and 109.69-ms p95. Ten cold
 workers became connectable in 1.09 seconds on average and used about 108 MiB at
 readiness. These measurements justify retaining the fresh-connection model and
-one JVM for the low-memory target, but they do not replace the still-required
-Linux, large-save, AI/end-turn, and sustained-load qualification.
+one JVM for the low-memory target.
+
+The final representative Windows run measured Large-game creation at 233.99-ms
+p50, player projection at 105.32-ms p50, and the first human end turn plus seven
+server AI civilizations at 319.13-ms p50. The immutable
+`authoritative-v3-0.1.0-beta.2.8` Linux qualification then completed 60 Large
+game/projection/AI scenarios with eight-way command contention in 152.586
+seconds under hard limits of 1 CPU, 992 MiB, and no swap. End-turn-plus-AI p50
+was 1,510.21 ms and p95 was 3,301.81 ms; exactly 60 commands committed, 420
+lost the revision race as expected, and 120 WebSocket notifications arrived.
+Summed per-container peak memory was 333.98 MiB, database growth was 6,021,120
+bytes, and packaged-worker readiness recovered 1,122 ms after restart.
+
+This qualifies a reproducible floor for the exact scenario rather than an
+unlimited-user or SLA claim. Late-game saves, different mods, network
+geography, retention, and target hardware remain deployment-specific capacity
+inputs. Operational complexity is explicit: one public Rust service, one
+private sequential Kotlin worker, one PostgreSQL service, digest-pinned runtime
+images, bounded queues/timeouts, readiness that fails closed on worker loss,
+and a signed self-verifying release bundle.
 
 Licensing: no code from the separate AGPL `hopfenspace/runciv` reference may be
 copied or vendored without an explicit compatibility and notice decision.

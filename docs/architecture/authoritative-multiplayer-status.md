@@ -1,5 +1,38 @@
 # Authoritative multiplayer v3 status
 
+## Attested constrained Linux capacity qualification
+
+Qualified on 2026-07-28:
+
+- Immutable tag `authoritative-v3-0.1.0-beta.2.8` fixes commit
+  `1fb6d174c3316f8755570f583e25b94a799a2643`; hosted supply-chain run
+  `30393852174` passed source SBOM, complete-history secret scan, Node 24
+  RustSec audit, production bundle construction/verification, exact
+  PostgreSQL/Kotlin/Rust smoke, worker kill/restart, constrained load, both
+  attestations, and retained-evidence upload.
+- The exact production stack completed 60 Large-game creation, projection, and
+  server-AI scenarios in 152.586 seconds under hard limits of 1 CPU, 992 MiB,
+  and disabled swap. Eight commands contended at the same revision for every
+  turn: exactly 60 committed, all 420 losing requests returned the expected
+  stale conflict, and 120 WebSocket notifications arrived.
+- Large creation measured 395.87-ms p50/894.98-ms p95; projection measured
+  86.52-ms p50/185.52-ms p95; contended end turn plus server AI measured
+  1,510.21-ms p50/3,301.81-ms p95. The whole scenario measured 2,029.31-ms
+  p50/4,589.46-ms p95.
+- Peak CPU/memory was 5.04%/22.39 MiB for Rust, 6.76%/82.39 MiB for
+  PostgreSQL, and 66.65%/229.20 MiB for Kotlin. PostgreSQL grew 6,021,120
+  bytes. The adjacent production smoke observed fail-closed readiness after
+  worker death and restored readiness 1,122 ms after packaged-worker restart.
+- The retained archive independently matches SHA-256
+  `37a0fcaf4767f577c7daacfa212e368080bf955794ccd0fde54b1644e93a1ef5`.
+  Separate `gh attestation verify` calls accepted its SLSA provenance and SPDX
+  document predicate for `KelpHect/Unciv`.
+- This establishes a defensible floor for the exact workload, not an
+  unlimited-user statement or SLA. Late-game saves, enabled mods, geography,
+  retention, and production hardware still require deployment-specific
+  measurement. The sole unchecked checklist item is the externally blocked
+  rehearsal against a PostgreSQL 19 prerelease newer than Beta 2.
+
 ## Final end-to-end playability, mod, and authority audit
 
 Qualified on 2026-07-28:

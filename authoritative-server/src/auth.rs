@@ -13,6 +13,10 @@ use uuid::Uuid;
 const MINIMUM_PASSWORD_LENGTH: usize = 12;
 const MINIMUM_USERNAME_LENGTH: usize = 3;
 const MAXIMUM_USERNAME_LENGTH: usize = 32;
+const DEFAULT_MAX_ACTIVE_SESSIONS: usize = 8;
+const MIN_ACTIVE_SESSIONS: usize = 1;
+const MAX_ACTIVE_SESSIONS: usize = 32;
+pub const RECOVERY_CODE_COUNT: usize = 8;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PasswordError {
@@ -36,7 +40,7 @@ pub enum UsernameError {
     InvalidCharacters,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum AuthError {
     #[error(transparent)]
     InvalidUsername(#[from] UsernameError),
@@ -95,6 +99,68 @@ pub struct SessionCredential {
     pub digest: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SessionPolicy {
+    max_active_sessions: usize,
+}
+
+impl Default for SessionPolicy {
+    fn default() -> Self {
+        Self {
+            max_active_sessions: DEFAULT_MAX_ACTIVE_SESSIONS,
+        }
+    }
+}
+
+impl SessionPolicy {
+    pub fn try_with_max_active_sessions(max_active_sessions: usize) -> Result<Self, &'static str> {
+        Self::from_max_active_sessions(max_active_sessions)
+            .map_err(|_| "active-session limit must be between 1 and 32")
+    }
+
+    pub const fn max_active_sessions(self) -> usize {
+        self.max_active_sessions
+    }
+
+    pub fn from_environment() -> Result<Self, &'static str> {
+        match std::env::var("UNCIV_V3_MAX_ACTIVE_SESSIONS") {
+            Ok(value) => value
+                .parse()
+                .ok()
+                .and_then(|value| Self::from_max_active_sessions(value).ok())
+                .ok_or("UNCIV_V3_MAX_ACTIVE_SESSIONS must be between 1 and 32"),
+            Err(std::env::VarError::NotPresent) => Ok(Self::default()),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                Err("UNCIV_V3_MAX_ACTIVE_SESSIONS must be Unicode")
+            }
+        }
+    }
+
+    fn from_max_active_sessions(max_active_sessions: usize) -> Result<Self, ()> {
+        if !(MIN_ACTIVE_SESSIONS..=MAX_ACTIVE_SESSIONS).contains(&max_active_sessions) {
+            return Err(());
+        }
+        Ok(Self {
+            max_active_sessions,
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecoveryCodeBatch {
+    pub codes: Vec<String>,
+}
+
+impl RecoveryCodeBatch {
+    pub fn generate() -> Self {
+        Self {
+            codes: (0..RECOVERY_CODE_COUNT)
+                .map(|_| SessionCredential::generate().token)
+                .collect(),
+        }
+    }
+}
+
 impl SessionCredential {
     pub fn generate() -> Self {
         let mut bytes = [0_u8; 32];
@@ -146,8 +212,8 @@ fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        PasswordError, PasswordService, SessionCredential, UsernameError, normalize_username,
-        token_digest,
+        PasswordError, PasswordService, RECOVERY_CODE_COUNT, RecoveryCodeBatch, SessionCredential,
+        SessionPolicy, UsernameError, normalize_username, token_digest,
     };
 
     #[test]
@@ -185,6 +251,21 @@ mod tests {
         assert_eq!(first.digest, token_digest(&first.token));
         assert_ne!(first.token, second.token);
         assert_ne!(first.digest, second.digest);
+    }
+
+    #[test]
+    fn session_policy_is_bounded_and_recovery_codes_are_independent_secrets() {
+        assert_eq!(SessionPolicy::default().max_active_sessions(), 8);
+        assert!(SessionPolicy::try_with_max_active_sessions(1).is_ok());
+        assert!(SessionPolicy::try_with_max_active_sessions(32).is_ok());
+        assert!(SessionPolicy::try_with_max_active_sessions(0).is_err());
+        assert!(SessionPolicy::try_with_max_active_sessions(33).is_err());
+
+        let batch = RecoveryCodeBatch::generate();
+        assert_eq!(batch.codes.len(), RECOVERY_CODE_COUNT);
+        assert!(batch.codes.iter().all(|code| code.len() == 64));
+        let unique = batch.codes.iter().collect::<std::collections::HashSet<_>>();
+        assert_eq!(unique.len(), RECOVERY_CODE_COUNT);
     }
 
     #[test]

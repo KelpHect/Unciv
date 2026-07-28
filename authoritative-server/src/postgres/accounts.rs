@@ -72,14 +72,52 @@ impl PostgresGameRepository {
     /// Creates a revocable 30-day session. The raw token is returned once and
     /// never appears in SQL or logs; only its SHA-256 digest is persisted.
     pub async fn issue_session(&self, account_id: Uuid) -> Result<SessionCredential, AuthError> {
+        self.issue_session_with_policy(account_id, SessionPolicy::default())
+            .await
+    }
+
+    /// Serializes issuance on the account row and evicts the least-recently
+    /// used live sessions before insertion so every replica enforces one bound.
+    pub async fn issue_session_with_policy(
+        &self,
+        account_id: Uuid,
+        policy: SessionPolicy,
+    ) -> Result<SessionCredential, AuthError> {
         let credential = SessionCredential::generate();
+        let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
+        let enabled: Option<bool> =
+            sqlx::query_scalar("SELECT disabled_at IS NULL FROM accounts WHERE id=$1 FOR UPDATE")
+                .bind(account_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|_| AuthError::Storage)?;
+        match enabled {
+            Some(true) => {}
+            Some(false) => return Err(AuthError::AccountDisabled),
+            None => return Err(AuthError::InvalidCredentials),
+        }
+        sqlx::query(
+            "UPDATE sessions SET revoked_at=now(), revoked_reason='session_limit'
+             WHERE id IN (
+               SELECT id FROM sessions
+               WHERE account_id=$1 AND revoked_at IS NULL AND expires_at>now()
+               ORDER BY COALESCE(last_used_at, created_at) DESC, created_at DESC, id DESC
+               OFFSET $2
+             )",
+        )
+        .bind(account_id)
+        .bind(i64::try_from(policy.max_active_sessions() - 1).expect("session limit fits BIGINT"))
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
         sqlx::query("INSERT INTO sessions (id, account_id, token_digest, expires_at) VALUES ($1, $2, $3, now() + interval '30 days')")
             .bind(Uuid::new_v4())
             .bind(account_id)
             .bind(&credential.digest)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|_| AuthError::Storage)?;
+        tx.commit().await.map_err(|_| AuthError::Storage)?;
         Ok(credential)
     }
 
@@ -109,7 +147,7 @@ impl PostgresGameRepository {
 
     pub async fn revoke_session(&self, bearer_token: &str) -> Result<(), AuthError> {
         sqlx::query(
-            "UPDATE sessions SET revoked_at = now() WHERE token_digest = $1 AND revoked_at IS NULL",
+            "UPDATE sessions SET revoked_at=now(), revoked_reason='logout' WHERE token_digest=$1 AND revoked_at IS NULL",
         )
         .bind(token_digest(bearer_token))
         .execute(&self.pool)
@@ -143,11 +181,13 @@ impl PostgresGameRepository {
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;
-        sqlx::query("UPDATE sessions SET revoked_at = now() WHERE token_digest = $1")
-            .bind(&digest)
-            .execute(&mut *tx)
-            .await
-            .map_err(|_| AuthError::Storage)?;
+        sqlx::query(
+            "UPDATE sessions SET revoked_at=now(), revoked_reason='rotation' WHERE token_digest=$1",
+        )
+        .bind(&digest)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
         tx.commit().await.map_err(|_| AuthError::Storage)?;
         Ok(credential)
     }
@@ -192,7 +232,7 @@ impl PostgresGameRepository {
             .await
             .map_err(|_| AuthError::Storage)?;
         sqlx::query(
-            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()) WHERE account_id=$1",
+            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()), revoked_reason=COALESCE(revoked_reason, 'password_change') WHERE account_id=$1",
         )
         .bind(account_id)
         .execute(&mut *tx)
@@ -264,10 +304,16 @@ impl PostgresGameRepository {
             .await
             .map_err(|_| AuthError::Storage)?;
         }
+        let revoked_reason = if delete {
+            "account_deleted"
+        } else {
+            "account_disabled"
+        };
         sqlx::query(
-            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()) WHERE account_id=$1",
+            "UPDATE sessions SET revoked_at=COALESCE(revoked_at, now()), revoked_reason=COALESCE(revoked_reason, $2) WHERE account_id=$1",
         )
         .bind(account_id)
+        .bind(revoked_reason)
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;

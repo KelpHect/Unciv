@@ -687,9 +687,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   only its compile, lint, and debug-APK build have been verified; API 21-22 and
   API 23+ device/emulator runtime tests remain open. Secure macOS and Linux
   desktop implementations are also missing.
-- [ ] Add bounded concurrent-session policy, account recovery policy,
+- [x] Add bounded concurrent-session policy, account recovery policy,
   credential-stuffing monitoring, credential rotation, and tests that secrets
-  never enter errors, logs, traces, worker frames, or projections.
+  never enter errors, logs, traces, worker frames, or projections. Login now
+  enforces a cross-replica LRU session bound; password-confirmed recovery-code
+  batches are digest-only, expiring, and one-time; successful recovery replaces
+  the password and every old session atomically. Durable rate limits and
+  redacted audits cover registration, login, account changes, and recovery.
+  Password/session/recovery fields are forbidden from worker and projection
+  schemas and sensitive log interpolation. The exact PostgreSQL 19 Beta 2
+  focused and 33-test ordinary persistence lanes pass.
 - [ ] Decide and implement v3 chat, friends, invitations, and lobby behavior as
   separate non-canonical services with membership, size, content, privacy, and
   rate limits. Do not put chat/social data into `GameInfo` revisions.

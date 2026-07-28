@@ -134,6 +134,8 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/auth/login",
         "/api/v3/auth/refresh",
         "/api/v3/auth/logout",
+        "/api/v3/auth/recover",
+        "/api/v3/account/recovery-codes",
         "/api/v3/account/password",
         "/api/v3/account/disable",
         "/api/v3/account",
@@ -250,6 +252,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
                     | "/api/v3/asyncapi.json"
                     | "/api/v3/auth/register"
                     | "/api/v3/auth/login"
+                    | "/api/v3/auth/recover"
             );
             assert_eq!(
                 operation.get("security").is_some(),

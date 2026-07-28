@@ -1,5 +1,54 @@
 # Authoritative multiplayer v3 status
 
+## Bounded sessions and player-owned account recovery
+
+Implemented on 2026-07-28:
+
+- Login issuance now locks the account row and atomically retains only the most
+  recently used active sessions. The deployment-wide limit defaults to eight,
+  is bounded to 1-32 by `UNCIV_V3_MAX_ACTIVE_SESSIONS`, and is enforced by
+  PostgreSQL across Rust replicas. Evicted sessions retain the durable
+  `session_limit` reason; logout, rotation, password change, recovery, disable,
+  and delete also record distinct revocation reasons.
+- Authenticated players can replace their recovery-code batch after password
+  verification. Eight independent 256-bit codes are returned once, expire
+  after 90 days, and are stored only as SHA-256 digests. Generating a new batch
+  invalidates all older batches.
+- One valid recovery code atomically invalidates its complete batch, replaces
+  the Argon2id password hash, revokes every old session, and creates one new
+  session. Unknown, disabled, expired, replayed, and invalid-code cases return
+  the same redacted authentication response and change nothing. There is no
+  email, operator, security-question, or client-save override.
+- Durable source and source-plus-identity recovery throttles and redacted
+  security audits extend the existing registration/login credential-stuffing
+  controls. A disclosure regression rejects password, recovery-code, or
+  session-token fields in worker and projection schemas and rejects recovery
+  code interpolation in logs.
+- Migration `0023_session_limits_and_recovery.sql`, the generated OpenAPI
+  contract, release compatibility head, environment templates, and the
+  account-security operations guide carry the same policy.
+
+Verification on 2026-07-28:
+
+- `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+  --no-fail-fast` passes 181 active library tests, all 29 API tests, and every
+  active integration and packaging test.
+- The focused account-security lane passes both transactional tests against
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  It proves cross-replica LRU session eviction, the active bound, digest-only
+  recovery storage, wrong-code rollback, one-time batch consumption, password
+  replacement, and complete old-session revocation.
+- The complete ordinary serialized PostgreSQL lane passes all 33 tests against
+  that exact digest. Destructive disk-full and backup/PITR qualifications
+  remain separately orchestrated and retain their prior recorded evidence.
+- The first live session-limit run exposed an inverted SQL ordering that
+  evicted the newest session. The query was corrected to retain descending
+  activity order, then both the focused and complete fresh-database lanes
+  passed. No failing result was deferred.
+- `postgres/integration_tests.rs` is exactly 800 lines after the focused account
+  security module split; all other Rust sources remain below the enforced
+  limit.
+
 ## Malicious-client request identity and cross-scope isolation
 
 Implemented on 2026-07-28:

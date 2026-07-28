@@ -54,6 +54,7 @@ UNCIV_V3_DB_IDLE_TIMEOUT_SECONDS=300
 UNCIV_V3_DB_MAX_LIFETIME_SECONDS=1800
 UNCIV_V3_DB_STATEMENT_TIMEOUT_MS=15000
 UNCIV_V3_DB_LOCK_TIMEOUT_MS=5000
+UNCIV_V3_MAX_ACTIVE_SESSIONS=8
 ```
 
 Never put database credentials for different roles in one file. PostgreSQL must grant the
@@ -71,6 +72,10 @@ security routes from the loopback peer. Forwarding headers from every
 non-loopback peer are ignored. Caddy's protected default derives this header
 from its direct remote address, while the qualified configuration removes
 competing forwarding headers.
+
+Account recovery and active-session policy are documented in
+`authoritative-account-security.md`. Do not raise the session limit to work
+around stolen or repeatedly evicted credentials.
 
 ## Release activation
 

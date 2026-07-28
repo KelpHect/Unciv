@@ -98,6 +98,7 @@ fn observability_dependencies_and_sensitive_log_interpolation_fail_closed() {
                 "{credential}",
                 "{token}",
                 "{password}",
+                "{recovery_code}",
                 "{identity}",
                 "{:?}",
             ] {
@@ -107,6 +108,25 @@ fn observability_dependencies_and_sensitive_log_interpolation_fail_closed() {
                     source.display()
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn account_secrets_have_no_worker_or_projection_schema_path() {
+    for relative in [
+        "src/worker.rs",
+        "src/worker/protocol.rs",
+        "src/projection.rs",
+        "src/projection_validation.rs",
+    ] {
+        let source = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(relative))
+            .expect("disclosure-boundary source exists");
+        for secret_field in ["password", "recovery_code", "session_token"] {
+            assert!(
+                !source.contains(secret_field),
+                "{relative} exposes account secret field {secret_field}"
+            );
         }
     }
 }

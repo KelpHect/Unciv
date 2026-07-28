@@ -94,6 +94,8 @@ pub(crate) async fn run() {
     );
     let websocket_policy = WebSocketRuntimePolicy::from_environment()
         .expect("authoritative WebSocket runtime policy must be valid");
+    let session_policy = SessionPolicy::from_environment()
+        .expect("authoritative active-session policy must be valid");
     let notifications = NotificationHub::with_connection_limits(
         websocket_policy.global_connection_limit,
         websocket_policy.account_connection_limit,
@@ -117,6 +119,11 @@ pub(crate) async fn run() {
         .route("/api/v3/auth/login", post(login))
         .route("/api/v3/auth/refresh", post(refresh_session))
         .route("/api/v3/auth/logout", post(logout))
+        .route("/api/v3/auth/recover", post(recover_account))
+        .route(
+            "/api/v3/account/recovery-codes",
+            post(replace_recovery_codes),
+        )
         .route("/api/v3/account/password", post(change_password))
         .route("/api/v3/account/disable", post(disable_account))
         .route("/api/v3/account", delete(delete_account))
@@ -472,6 +479,7 @@ pub(crate) async fn run() {
             notifications,
             websocket_policy,
             trusted_proxy,
+            session_policy,
         });
     let listener = tokio::net::TcpListener::bind(address)
         .await

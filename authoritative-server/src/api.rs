@@ -100,7 +100,7 @@ pub(super) use serde::{Deserialize, Serialize};
 pub(super) use unciv_authoritative_server::{
     CityDispositionAction, CityGovernanceAction, CityTileAssignment, CommandEnvelope, CommitError,
     GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION, ResearchQueueAction,
-    auth::{Account, AuthError},
+    auth::{Account, AuthError, SessionPolicy},
     notifications::{NotificationHub, start_notification_runtime},
     postgres::{GameMetadata, PostgresGameRepository, SecurityAuditEvent, SecurityAuditOutcome},
     worker::EngineWorkerClient,

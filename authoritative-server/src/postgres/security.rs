@@ -6,6 +6,8 @@ pub enum SecurityAuditEvent {
     Login,
     AccountSecurity,
     PasswordChange,
+    RecoveryCodes,
+    AccountRecovery,
     AccountDisable,
     AccountDelete,
 }
@@ -17,6 +19,8 @@ impl SecurityAuditEvent {
             Self::Login => "login",
             Self::AccountSecurity => "account_security",
             Self::PasswordChange => "password_change",
+            Self::RecoveryCodes => "recovery_codes",
+            Self::AccountRecovery => "account_recovery",
             Self::AccountDisable => "account_disable",
             Self::AccountDelete => "account_delete",
         }

@@ -3,8 +3,8 @@ use sqlx::{PgPool, Row, postgres::PgRow};
 use uuid::Uuid;
 
 use crate::auth::{
-    Account, AuthError, PasswordError, PasswordService, SessionCredential, normalize_username,
-    token_digest,
+    Account, AuthError, PasswordError, PasswordService, RecoveryCodeBatch, SessionCredential,
+    SessionPolicy, normalize_username, token_digest,
 };
 use crate::projection::PlayerProjection;
 use crate::projection::SpectatorProjection;
@@ -132,6 +132,7 @@ pub struct ClaimedOutboxEvent {
     pub payload: serde_json::Value,
 }
 
+mod account_recovery;
 mod accounts;
 mod administration;
 mod capital_project;

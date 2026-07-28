@@ -137,7 +137,7 @@ pub(super) async fn login(
         .map_err(login_error)?;
     let credential = state
         .repository
-        .issue_session(account.id)
+        .issue_session_with_policy(account.id, state.session_policy)
         .await
         .map_err(|_| ApiError::internal())?;
     audit_security(
@@ -265,6 +265,152 @@ pub(super) async fn refresh_session(
         .await
         .map_err(login_error)?;
     Ok(Json(SessionResponse {
+        session_token: credential.token,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/account/recovery-codes",
+    security(("bearer_auth" = [])),
+    request_body = ConfirmPasswordRequest,
+    responses(
+        (status = 200, body = RecoveryCodesResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+pub(super) async fn replace_recovery_codes(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<ConfirmPasswordRequest>,
+) -> Result<Json<RecoveryCodesResponse>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let source = state.trusted_proxy.client_ip(source, &headers)?;
+    enforce_account_security_rate_limit(&state, actor.id, source).await?;
+    let batch = match state
+        .repository
+        .replace_recovery_codes(actor.id, &request.password)
+        .await
+    {
+        Ok(batch) => batch,
+        Err(error) => {
+            audit_account_lifecycle(
+                &state,
+                actor.id,
+                SecurityAuditEvent::RecoveryCodes,
+                SecurityAuditOutcome::Rejected,
+                source,
+            )
+            .await;
+            return Err(account_change_error(error));
+        }
+    };
+    audit_account_lifecycle(
+        &state,
+        actor.id,
+        SecurityAuditEvent::RecoveryCodes,
+        SecurityAuditOutcome::Success,
+        source,
+    )
+    .await;
+    Ok(Json(RecoveryCodesResponse {
+        recovery_codes: batch.codes,
+        expires_in_days: 90,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v3/auth/recover",
+    request_body = RecoverAccountRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+pub(super) async fn recover_account(
+    State(state): State<AppState>,
+    ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<RecoverAccountRequest>,
+) -> Result<Json<LoginResponse>, ApiError> {
+    let source_prefix = source_prefix(state.trusted_proxy.client_ip(source, &headers)?);
+    let identity = request.username.trim().to_ascii_lowercase();
+    enforce_rate_limit(
+        &state,
+        &format!("recover:source:{source_prefix}"),
+        RateLimitPolicy {
+            window_seconds: 3_600,
+            max_requests: 10,
+            block_seconds: 3_600,
+            event_type: SecurityAuditEvent::AccountRecovery,
+        },
+        &source_prefix,
+        Some(&identity),
+    )
+    .await?;
+    let identity_bucket = format!("recover:identity:{source_prefix}:{identity}");
+    enforce_rate_limit(
+        &state,
+        &identity_bucket,
+        RateLimitPolicy {
+            window_seconds: 3_600,
+            max_requests: 5,
+            block_seconds: 3_600,
+            event_type: SecurityAuditEvent::AccountRecovery,
+        },
+        &source_prefix,
+        Some(&identity),
+    )
+    .await?;
+    let recovered = state
+        .repository
+        .recover_account(
+            &request.username,
+            &request.recovery_code,
+            &request.new_password,
+        )
+        .await;
+    let (account, credential) = match recovered {
+        Ok(recovered) => recovered,
+        Err(error) => {
+            audit_security(
+                &state,
+                None,
+                SecurityAuditEvent::AccountRecovery,
+                SecurityAuditOutcome::Rejected,
+                &source_prefix,
+                Some(&identity),
+            )
+            .await;
+            return Err(match error {
+                AuthError::InvalidPassword(_) => account_change_error(error),
+                _ => login_error(error),
+            });
+        }
+    };
+    state
+        .repository
+        .clear_rate_limit(&identity_bucket)
+        .await
+        .map_err(login_error)?;
+    audit_security(
+        &state,
+        Some(account.id),
+        SecurityAuditEvent::AccountRecovery,
+        SecurityAuditOutcome::Success,
+        &source_prefix,
+        Some(&identity),
+    )
+    .await;
+    Ok(Json(LoginResponse {
+        account: account_response(account),
         session_token: credential.token,
     }))
 }

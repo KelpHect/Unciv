@@ -1,8 +1,8 @@
-use std::{env, time::Duration};
-
 use super::*;
 use crate::{GameCommand, state_hash};
-
+use std::{env, time::Duration};
+#[path = "account_security_integration_tests.rs"]
+mod account_security;
 #[path = "administration_integration_tests.rs"]
 mod administration;
 #[path = "backup_restore_integration_tests.rs"]

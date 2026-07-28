@@ -30,7 +30,7 @@ authoritative-server/target/release/unciv-v3-bundle create \
 
 Creation is same-filesystem and fail-closed: it writes a private staging
 directory, copies only bounded regular files, requires exactly migrations
-`0001` through `0022`, validates the closed ruleset manifest, hashes every
+`0001` through `0023`, validates the closed ruleset manifest, hashes every
 artifact, writes a closed manifest, verifies the completed directory, and only
 then renames it to the requested destination. Existing destinations are never
 replaced.
@@ -45,7 +45,7 @@ The compatibility contract pins:
 - public protocol 3;
 - player projection 59 and spectator projection 1;
 - private worker protocol 2;
-- migration head 22;
+- migration head 23;
 - the sole PostgreSQL 19 Beta 2 image and digest.
 
 Rust unit tests and Kotlin server tests independently compare their compiled

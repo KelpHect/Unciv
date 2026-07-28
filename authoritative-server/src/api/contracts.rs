@@ -50,6 +50,20 @@ pub(super) struct SessionResponse {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
+pub(super) struct RecoverAccountRequest {
+    pub(super) username: String,
+    pub(super) recovery_code: String,
+    pub(super) new_password: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(super) struct RecoveryCodesResponse {
+    pub(super) recovery_codes: Vec<String>,
+    pub(super) expires_in_days: u16,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub(super) struct ChangePasswordRequest {
     pub(super) current_password: String,
     pub(super) new_password: String,

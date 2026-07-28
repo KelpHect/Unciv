@@ -8,6 +8,15 @@ use std::{
 pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError> {
     let args: Vec<_> = args.collect();
     match args.as_slice() {
+        [command, sbom] if command == "verify-sbom" => {
+            let sbom = source_path(sbom)?;
+            super::sbom::validate(&sbom)?;
+            println!(
+                "{}",
+                serde_json::to_string(&serde_json::json!({"valid": true}))?
+            );
+            Ok(())
+        }
         [command, root] if command == "verify" => {
             let manifest = verify_bundle(Path::new(root))?;
             println!(
@@ -29,28 +38,34 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
             worker,
             client,
             ruleset,
+            sbom,
         ] if command == "create" => create(
             Path::new(root),
-            server,
-            migrator,
-            audit_exporter,
-            worker,
-            client,
-            ruleset,
+            PackageSources {
+                server,
+                migrator,
+                audit_exporter,
+                worker,
+                client,
+                ruleset,
+                sbom,
+            },
         ),
         _ => Err(ReleaseBundleError::Policy),
     }
 }
 
-fn create(
-    output: &Path,
-    server: &str,
-    migrator: &str,
-    audit_exporter: &str,
-    worker: &str,
-    client: &str,
-    ruleset: &str,
-) -> Result<(), ReleaseBundleError> {
+struct PackageSources<'a> {
+    server: &'a str,
+    migrator: &'a str,
+    audit_exporter: &'a str,
+    worker: &'a str,
+    client: &'a str,
+    ruleset: &'a str,
+    sbom: &'a str,
+}
+
+fn create(output: &Path, sources: PackageSources<'_>) -> Result<(), ReleaseBundleError> {
     let parent = output.parent().ok_or(ReleaseBundleError::Policy)?;
     fs::create_dir_all(parent)?;
     if output.exists() {
@@ -67,30 +82,36 @@ fn create(
     }
     fs::create_dir(&staging)?;
     let guard = StagingGuard(staging.clone());
-    validate_embedded_contract(&source_path(worker)?)?;
-    validate_embedded_contract(&source_path(client)?)?;
+    validate_embedded_contract(&source_path(sources.worker)?)?;
+    validate_embedded_contract(&source_path(sources.client)?)?;
     copy_exact(
-        &source_path(server)?,
+        &source_path(sources.server)?,
         &staging.join("bin/unciv-authoritative-server"),
     )?;
     copy_exact(
-        &source_path(migrator)?,
+        &source_path(sources.migrator)?,
         &staging.join("bin/unciv-v3-migrate"),
     )?;
     copy_exact(
-        &source_path(audit_exporter)?,
+        &source_path(sources.audit_exporter)?,
         &staging.join("bin/unciv-v3-export-security-audit"),
     )?;
     copy_exact(
-        &source_path(worker)?,
+        &source_path(sources.worker)?,
         &staging.join("worker/UncivAuthoritativeWorker.jar"),
     )?;
-    copy_exact(&source_path(client)?, &staging.join("client/unciv-client"))?;
     copy_exact(
-        &source_path(ruleset)?,
+        &source_path(sources.client)?,
+        &staging.join("client/unciv-client"),
+    )?;
+    copy_exact(
+        &source_path(sources.ruleset)?,
         &staging.join("rulesets/manifest.json"),
     )?;
     validate_ruleset(&staging.join("rulesets/manifest.json"))?;
+    let sbom = source_path(sources.sbom)?;
+    super::sbom::validate(&sbom)?;
+    copy_exact(&sbom, &staging.join("evidence/sbom.spdx.json"))?;
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     copy_exact(
@@ -265,18 +286,43 @@ mod tests {
             serde_json::to_vec(&ruleset).unwrap(),
         )
         .unwrap();
+        fs::write(
+            sources.join("sbom.json"),
+            br#"{
+              "spdxVersion":"SPDX-2.3",
+              "dataLicense":"CC0-1.0",
+              "SPDXID":"SPDXRef-DOCUMENT",
+              "name":"unciv-authoritative-v3-release-bundle",
+              "documentNamespace":"https://example.invalid/unciv/sbom/test",
+              "creationInfo":{"created":"2026-07-28T12:00:00Z","creators":["Tool: test"]},
+              "packages":[{"SPDXID":"SPDXRef-Unciv","name":"Unciv authoritative v3"}],
+              "documentDescribes":["SPDXRef-Unciv"]
+            }"#,
+        )
+        .unwrap();
         let bundle = root.join("bundle");
         create(
             &bundle,
-            sources.join("server").to_str().unwrap(),
-            sources.join("migrator").to_str().unwrap(),
-            sources.join("audit-exporter").to_str().unwrap(),
-            sources.join("worker").to_str().unwrap(),
-            sources.join("client").to_str().unwrap(),
-            sources.join("ruleset.json").to_str().unwrap(),
+            PackageSources {
+                server: sources.join("server").to_str().unwrap(),
+                migrator: sources.join("migrator").to_str().unwrap(),
+                audit_exporter: sources.join("audit-exporter").to_str().unwrap(),
+                worker: sources.join("worker").to_str().unwrap(),
+                client: sources.join("client").to_str().unwrap(),
+                ruleset: sources.join("ruleset.json").to_str().unwrap(),
+                sbom: sources.join("sbom.json").to_str().unwrap(),
+            },
         )
         .unwrap();
         assert!(verify_bundle(&bundle).is_ok());
+        let sbom_path = bundle.join("evidence/sbom.spdx.json");
+        let original_sbom = fs::read(&sbom_path).unwrap();
+        fs::remove_file(&sbom_path).unwrap();
+        assert!(matches!(
+            verify_bundle(&bundle),
+            Err(ReleaseBundleError::Policy)
+        ));
+        fs::write(sbom_path, original_sbom).unwrap();
         fs::write(bundle.join("client/unciv-client"), "tampered").unwrap();
         assert!(matches!(
             verify_bundle(&bundle),

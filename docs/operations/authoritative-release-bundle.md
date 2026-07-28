@@ -17,7 +17,18 @@ cargo build --release --manifest-path authoritative-server/Cargo.toml \
 ```
 
 Copy the active ruleset version's `manifest.json` to a root-owned review
-location, then create a new bundle directory:
+location. Stage the exact built inputs in an otherwise empty review directory
+and generate their SPDX 2.3 SBOM with the release-pinned Syft 1.49.0:
+
+```text
+syft scan dir:/opt/unciv-authoritative/review/<candidate> \
+  --source-name unciv-authoritative-v3-release-bundle \
+  --output spdx-json=/opt/unciv-authoritative/review/<candidate>.spdx.json
+authoritative-server/target/release/unciv-v3-bundle verify-sbom \
+  /opt/unciv-authoritative/review/<candidate>.spdx.json
+```
+
+Review the input tree and SBOM, then create a new bundle directory:
 
 ```text
 authoritative-server/target/release/unciv-v3-bundle create \
@@ -27,15 +38,20 @@ authoritative-server/target/release/unciv-v3-bundle create \
   authoritative-server/target/release/unciv-v3-export-security-audit \
   server/build/libs/UncivAuthoritativeWorker.jar \
   desktop/build/libs/Unciv.jar \
-  /opt/unciv-authoritative/rulesets/active/manifest.json
+  /opt/unciv-authoritative/rulesets/active/manifest.json \
+  /opt/unciv-authoritative/review/<candidate>.spdx.json
 ```
 
 Creation is same-filesystem and fail-closed: it writes a private staging
 directory, copies only bounded regular files, requires exactly migrations
 `0001` through `0024`, validates the closed ruleset manifest, hashes every
-artifact, writes a closed manifest, verifies the completed directory, and only
-then renames it to the requested destination. Existing destinations are never
-replaced.
+artifact, requires a bounded SPDX 2.3 SBOM named for this release and with
+at least one inventoried package, rejects duplicate package IDs and any
+dangling described-package reference, writes a closed manifest, verifies
+the completed directory, and only then renames it to the requested
+destination. The SBOM is copied to `evidence/sbom.spdx.json`, covered by the
+bundle ID, and cannot be removed or replaced without verification failing.
+Existing destinations are never replaced.
 
 The bundled `unciv-v3-migrate` executable is the only normal schema writer.
 Run it with the separately protected migration role before activating the API.

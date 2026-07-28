@@ -1,5 +1,48 @@
 # Authoritative multiplayer v3 status
 
+## Production-bundle SPDX evidence boundary
+
+Implemented and locally qualified on 2026-07-28:
+
+- Every release bundle now requires `evidence/sbom.spdx.json`. The SPDX 2.3
+  document is copied from a separately reviewed input, bounded to 32 MiB,
+  source-named `unciv-authoritative-v3-release-bundle`, required to inventory
+  at least one package, and checked for bounded unique package IDs and
+  non-dangling optional `documentDescribes` references.
+- The SBOM is an ordinary required release artifact: its size and SHA-256 are
+  included in the closed bundle manifest and therefore in the content-derived
+  bundle ID. Missing, changed, linked, oversized, malformed, unrelated, or
+  extra evidence fails the existing verification and runtime-startup boundary.
+- `unciv-v3-bundle verify-sbom` provides a preflight before immutable bundle
+  creation. The build runbook pins Syft 1.49.0, generates evidence from the
+  exact reviewed artifact input tree, and verifies it before packaging.
+- The validator lives in the focused `release_bundle/sbom.rs` module; the CLI
+  facade and `main.rs` remain bootstrap-only.
+
+Verification on 2026-07-28:
+
+- Pinned Syft 1.49.0, checksum-verified as
+  `6edff6c6e06ddd43ae3b779099653f499a856009786b5375a7cf23aed6b67b1a`,
+  generated an 80,331-byte SPDX 2.3 document inventorying 29 packages from the
+  current Rust, worker, desktop, and ruleset inputs.
+- The complete create/verify smoke produced and reverified a 34-artifact bundle
+  with ID
+  `2bcf1bf6721eed8c3d6605ef4e5ab0805f324a6c747cfc03f1e6ec676be5f98d`;
+  its manifest required the exact 80,331-byte SBOM. Temporary tooling and
+  artifacts were removed afterward.
+- The smoke first rejected a stale desktop artifact at migration contract 20;
+  `./gradlew.bat :desktop:dist` rebuilt it at contract 24 and passed. This
+  demonstrates that packaging fails closed rather than mixing incompatible
+  binaries.
+- Focused bundle policy tests cover valid Syft output, malformed/dangling SPDX,
+  required-evidence deletion, ordinary tampering, and extra files. Rust
+  formatting and warnings-as-errors Clippy pass.
+
+This closes the binary-SBOM inclusion boundary. GitHub OIDC provenance for the
+complete production bundle, production signing where practical, full Linux
+stack qualification, and the future PostgreSQL 19 prerelease upgrade rehearsal
+remain open and are not represented as completed here.
+
 ## Supply-chain scanning, SBOM, and source attestations
 
 Implemented and locally qualified on 2026-07-28:

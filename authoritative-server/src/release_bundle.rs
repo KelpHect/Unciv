@@ -1,6 +1,7 @@
 //! Content-addressed packaging for one deployable authoritative-v3 release.
 
 mod packaging;
+mod sbom;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -176,6 +177,7 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
         "contracts/api-v3.json",
         "contracts/compatibility.json",
         "contracts/notifications-v3.json",
+        "evidence/sbom.spdx.json",
         "rulesets/manifest.json",
         "worker/UncivAuthoritativeWorker.jar",
     ];

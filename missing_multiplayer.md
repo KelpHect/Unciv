@@ -755,15 +755,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   The private worker now has a hardened least-privilege systemd unit, immutable
   artifact layout, secret-file permissions, automatic crash/periodic recycling,
   and enforceable JVM/cgroup limits. The release bundle now includes a dedicated
-  migration executable; the Rust API and migrator have separate hardened
+  migration executable and a mandatory validated SPDX 2.3 binary SBOM covered
+  by its content-derived ID; the Rust API and migrator have separate hardened
   systemd units, credentials, users, resource ceilings, and active dependency
   readiness. PostgreSQL 19 Beta 2 now has an exact-digest production compose
   service owned by systemd, loopback-only TLS/SCRAM admission, dependency
   ordering, health gating, bounded CPU/memory/PIDs/shared memory/capabilities,
-  and continuous WAL/base-backup integration. The public Caddy TLS proxy has its
-  own hardened unit, active readiness gate, HSTS, and fail-closed client-IP
-  boundary. Prerelease upgrade/rollback qualification remains to complete this
-  item.
+  and continuous WAL/base-backup integration. The public Caddy TLS proxy has
+  its own hardened unit, active readiness gate, HSTS, and fail-closed client-IP
+  boundary. Complete-bundle provenance/signing, full-stack Linux qualification,
+  and prerelease upgrade/rollback qualification remain to complete this item.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
   2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
   one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
@@ -853,9 +854,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   complete Git history for secrets, audits RustSec advisories daily, submits
   the resolved Gradle graph, emits SPDX source SBOMs, and uses GitHub OIDC
   attestations for exact `authoritative-v3-*` source archives. Static policy
-  tests prevent movable action tags or PR write/signing authority. Complete
-  production-bundle SBOM/provenance/signing remains coupled to the still-open
-  production packaging lane, so this broader item remains unchecked.
+  tests prevent movable action tags or PR write/signing authority. Production
+  bundles now require a bounded SPDX 2.3 binary SBOM, hash it into their closed
+  manifest and bundle ID, and reject missing, changed, unrelated, malformed, or
+  dangling evidence. Complete-bundle provenance/signing remains coupled to the
+  still-open production packaging lane, so this broader item remains
+  unchecked.
 - [x] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
   malformed frames, WebSocket exhaustion, and expensive rulesets/commands. A

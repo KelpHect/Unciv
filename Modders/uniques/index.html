@@ -3817,6 +3817,11 @@
 <p>Applicable to: Triggerable</p>
 </details>
 <details class="example">
+<summary>Add [<abbr title="The name of any resource.">resource</abbr>] to this tile</summary>
+<p>Example: "Add [Iron] to this tile"</p>
+<p>Applicable to: Triggerable</p>
+</details>
+<details class="example">
 <summary>Remove [<abbr title="A resource name, type, 'all', or a Stat listed in the resource's improvementStats.">resourceFilter</abbr>] resources from this tile</summary>
 <p>Example: "Remove [Strategic] resources from this tile"</p>
 <p>Applicable to: Triggerable</p>
@@ -4596,6 +4601,12 @@
 <p>Applicable to: Global</p>
 </details>
 <details class="example">
+<summary>Spies in [cityFilter] cities act as though they have [<abbr title="This indicates a number, usually with a + or - sign, such as `+25` (this kind of parameter is often followed by '%' which is nevertheless not part of the value).">relativeAmount</abbr>] levels for [<abbr title="A spy action display name, e.g. `Counter-intelligence`, `Stealing Tech`.">spyAction</abbr>]</summary>
+<p>Temporary effective rank change ([<abbr title="This indicates a number, usually with a + or - sign, such as `+25` (this kind of parameter is often followed by '%' which is nevertheless not part of the value).">relativeAmount</abbr>] added to rank, e.g. +1) for spies doing the given action in a matching city. Does not permanently level the spy. Stacks additively, capped by maxSpyRank.</p>
+<p>Example: "Spies in [in all cities] cities act as though they have [+20] levels for [Counter-intelligence]"</p>
+<p>Applicable to: Global</p>
+</details>
+<details class="example">
 <summary>Triggers victory</summary>
 <p>Applicable to: Global</p>
 </details>
@@ -4824,6 +4835,12 @@
 <p>Applicable to: Nation</p>
 </details>
 <details class="example">
+<summary>Start bias [terrainFilter]</summary>
+<p>Same effect as a Nation startBias field entry. Merged with the startBias field and, for city-states, with matching uniques on their CityStateType. Conditionals run against GameInfo only during map generation / start placement (no Civilization — it may be only partially initialized). Do not use conditionals that require tiles, cities, or units.</p>
+<p>Example: "Start bias [Fresh Water]"</p>
+<p>Applicable to: Nation, CityState</p>
+</details>
+<details class="example">
 <summary>All units move through Forest and Jungle Tiles in friendly territory as if they have roads. These tiles can be used to establish City Connections upon researching the Wheel.</summary>
 <p>Due to performance considerations, this unique is cached, thus conditionals that may change within a turn may not work.</p>
 <p>Applicable to: Nation</p>
@@ -4840,6 +4857,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -4905,6 +4925,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -4933,6 +4956,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -4979,6 +5005,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -5251,6 +5280,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -5454,6 +5486,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -5742,6 +5777,11 @@
 <summary>[<abbr title="This indicates a whole number, possibly with a + or - sign, such as `2`, `+13`, or `-3`.">amount</abbr>] HP when healing</summary>
 <p>Example: "[3] HP when healing"</p>
 <p>Applicable to: Global, Unit</p>
+</details>
+<details class="example">
+<summary>Before engaging in combat performs an extra ranged attack with [<abbr title="This indicates a whole number, possibly with a + or - sign, such as `2`, `+13`, or `-3`.">amount</abbr>]% of melee combat strength</summary>
+<p>Example: "Before engaging in combat performs an extra ranged attack with [3]% of melee combat strength"</p>
+<p>Applicable to: Unit</p>
 </details>
 <details class="example">
 <summary>[<abbr title="This indicates a number, usually with a + or - sign, such as `+25` (this kind of parameter is often followed by '%' which is nevertheless not part of the value).">relativeAmount</abbr>]% Spread Religion Strength</summary>
@@ -6123,6 +6163,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6140,6 +6183,9 @@
 <h2 id="unittype-uniques">UnitType uniques</h2>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6181,6 +6227,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6404,6 +6453,10 @@
 </details>
 <details class="example">
 <summary>Coastal Water</summary>
+<p>Marks water tiles as Coast - all other water tiles count as Ocean. These distinctions are relevant e.g. for map generator or the ability to navigate here.</p>
+<p>Note that terrain filters do not recognize this distinction, filtering for "Coast" or "Ocean" will only look for a terrain of that name.</p>
+<p>Also note that for compatibility reasons, terrains named "Coast" are assuned to have this Unique even if it's missing. This may be removed in a future version.</p>
+<p>A tile marked this way marks adjacent land tiles as "Coastal", so they fulfill the terrain filter, and cities built there can build ships, Harbor, etc.</p>
 <p>Applicable to: Terrain</p>
 </details>
 <details class="example">
@@ -6413,6 +6466,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6620,6 +6676,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6741,6 +6800,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6773,6 +6835,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6788,6 +6853,9 @@
 </div>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6811,6 +6879,9 @@
 </div>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>
@@ -6829,6 +6900,12 @@
 <details class="example">
 <summary>Provides a unique luxury</summary>
 <p>Applicable to: CityState</p>
+</details>
+<details class="example">
+<summary>Start bias [terrainFilter]</summary>
+<p>Same effect as a Nation startBias field entry. Merged with the startBias field and, for city-states, with matching uniques on their CityStateType. Conditionals run against GameInfo only during map generation / start placement (no Civilization — it may be only partially initialized). Do not use conditionals that require tiles, cities, or units.</p>
+<p>Example: "Start bias [Fresh Water]"</p>
+<p>Applicable to: Nation, CityState</p>
 </details>
 <h2 id="modoptions-uniques">ModOptions uniques</h2>
 <details class="example">
@@ -6870,6 +6947,12 @@
 </details>
 <details class="example">
 <summary>Allow raze holy city</summary>
+<p>This unique does not support conditionals.</p>
+<p>Applicable to: ModOptions</p>
+</details>
+<details class="example">
+<summary>City-states search for first city location</summary>
+<p>By default, city-state settlers with no cities yet found on their current tile when valid (predetermined map-gen / editor start). With this unique they use the same nearby-site search as major civs.</p>
 <p>This unique does not support conditionals.</p>
 <p>Applicable to: ModOptions</p>
 </details>
@@ -6948,6 +7031,9 @@
 </details>
 <details class="example">
 <summary>Will not be displayed in Civilopedia</summary>
+<p>Supports conditionals that need only a Game as context and nothing else.</p>
+<p>Most conditionals require at least a Civilization and will <strong>not</strong> work.</p>
+<p>Note that when Civilopedia runs from main menu, conditionals will be ignored.</p>
 <p>This unique is automatically hidden from users.</p>
 <p>Applicable to: Nation, Tech, Policy, FounderBelief, FollowerBelief, Building, Unit, UnitType, Promotion, Terrain, Improvement, Resource, Ruins, Speed, Difficulty, EventChoice</p>
 </details>

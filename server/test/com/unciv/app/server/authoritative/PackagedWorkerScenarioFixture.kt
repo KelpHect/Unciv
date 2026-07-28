@@ -10,6 +10,7 @@ internal class PackagedWorkerScenarioFixture(
     private val gameId: String,
     private val serverSeed: Long,
     private val baseName: String = "Civ V - Vanilla",
+    private val startingEra: String? = null,
     private val majorCivilizations: Int = 2,
     private val cityStates: Int = 0,
     private val barbarians: BarbarianMode = BarbarianMode.Disabled,
@@ -32,7 +33,7 @@ internal class PackagedWorkerScenarioFixture(
                 setup = WorkerGameSetup(
                     difficulty = ruleset.difficulties.keys.first(),
                     speed = ruleset.speeds.keys.first(),
-                    startingEra = ruleset.eras.keys.first(),
+                    startingEra = startingEra ?: ruleset.eras.keys.first(),
                     victoryTypes = ruleset.victories.values
                         .filterNot { it.hiddenInVictoryScreen }
                         .map { it.name }

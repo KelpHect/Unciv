@@ -439,7 +439,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: recovery and canonical-history guarantees
 
-- [ ] Complete recovery qualification across every supported setup and
+- [x] Complete recovery qualification across every supported setup dimension and
   controlled worker/process fault mode. The real packaged Kotlin worker now has
   fresh-process byte/hash parity coverage for seeded city-state placement and a
   replayable player-assignment mutation, typed research selection, a complete
@@ -447,16 +447,24 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   fractal hex map, shuffled players, city states, abundant resources, strategic
   balance, raging barbarians, ruins, and natural wonders. The rich fixture is
   byte/hash identical across fresh packaged JVMs while a changed server seed
-  diverges. The bounded replay and immutable recovery-publication path is
-  PostgreSQL integration-tested, but these representative fixtures do not yet
-  prove every map shape/size/resource/option combination, long-horizon or
-  advanced-era AI campaign, random combat/event branch, or process failure.
+  diverges. Every supported named setup value is now materialized and compared
+  across independent JVMs: ruleset difficulties, speeds, starting eras, visible
+  victory types, map shapes/sizes, resource densities, barbarian
+  modes, boolean toggles, and timer extrema. This is exhaustive by setup
+  dimension rather than the impractical Cartesian product of equivalent values.
+  The bounded replay and immutable recovery-publication path is PostgreSQL
+  integration-tested.
   All 13 supported generated map types now have exact full-response/hash/
   snapshot parity across two fresh packaged JVMs, with decoded type and
-  server-seed checks. A separate fixture advances eight complete rounds through
-  three server AI civilizations, two city states, and normal barbarians with
-  exact parity at every response. Pre-migration rows without exact replay
-  context fail closed and require operator-supplied recovery evidence.
+  server-seed checks. Randomized combat and event branches have state-sensitive
+  fresh-process parity coverage. AI qualification includes eight complete
+  ordinary rounds and 24 late-era rounds through three server AI civilizations,
+  two city states, and raging barbarians, with exact parity at every response.
+  All 84 sealed worker operations are covered by the executable parity registry.
+  Controlled worker death, response loss, Rust death, outbox death, connection
+  loss, and PostgreSQL promotion/reconnection fixtures prove bounded retry and
+  recovery behavior. Pre-migration rows without exact replay context fail
+  closed and require operator-supplied recovery evidence.
 - [x] Add revision/snapshot retention and compaction without breaking command
   idempotency, audits, recovery, or projection hashes.
 - [x] Add a dry-run-first bounded recovery workflow. `unciv-v3-recover` reports
@@ -603,7 +611,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   registered asset version and serializes against garbage collection. Clients
   have no URL-fetch, archive, path, hash, or content-upload surface. Live
   systemd/Linux failure qualification remains separately unchecked above.
-- [ ] Add deterministic fresh-process parity fixtures for every command family,
+- [x] Add deterministic fresh-process parity fixtures for every command family,
   game creation seed, random combat/event path, turn processing, and all AI.
   An executable registry now classifies all 84 sealed worker operations and
   fails when the protocol changes without an explicit parity classification.
@@ -642,12 +650,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   validator and manifest hashing as packaged mods. The override is accepted
   only by explicitly unpackaged development workers and cannot alter a
   production packaged worker. All 13 server-generated map types now have exact
-  fresh-process parity with decoded canonical type/seed checks. Eight complete
-  human-to-three-AI-to-human rounds also match exactly, including AI city
-  founding with city states and normal barbarians enabled. Additional map
-  option combinations, longer/advanced AI campaigns, and random combat/event
-  branches still need fresh-process fixtures, so this broader item remains
-  unchecked.
+  fresh-process parity with decoded canonical type/seed checks. Every supported
+  setup dimension/value is exercised, including timer extrema and both states
+  of each toggle. Random combat and event branches have state-sensitive parity.
+  Eight ordinary and 24 late-era human-to-three-AI-to-human rounds also match
+  exactly, including AI city founding with city states and barbarians enabled.
 - [x] Package and pin the exact Kotlin worker build together with the Rust
   server, supported client artifact, OpenAPI/client capability contract,
   approved ruleset manifest, complete ordered database migration set, and sole

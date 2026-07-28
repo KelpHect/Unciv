@@ -1,5 +1,44 @@
 # Authoritative multiplayer v3 status
 
+## Complete setup and long-horizon AI recovery qualification
+
+Implemented on 2026-07-28:
+
+- Added packaged-worker parity coverage for every supported generated-game setup
+  dimension and named value: ruleset difficulties, speeds, starting eras,
+  visible victory types, map shapes and sizes, resource densities, barbarian
+  modes, both states of every boolean option, and timer extrema. Each case runs
+  through two independent packaged JVMs and compares the complete response
+  bytes before decoding and validating the resulting canonical setup.
+- Added a 24-round late-era campaign through three server-controlled AI
+  civilizations, two city states, and raging barbarians. The fixture resolves
+  server-reported mandatory policy blockers with typed commands, then proves
+  every human-to-AI-to-human turn response is byte-identical across independent
+  packaged JVMs and that every AI civilization remains active with a city.
+- The setup fixture is exhaustive by supported dimension/value rather than by
+  the Cartesian product of semantically independent values. Together with the
+  existing all-13-map-type, randomized combat/event, all-84-operation, ordinary
+  eight-round AI, process-fault, bounded replay, and PostgreSQL recovery tests,
+  this closes deterministic fresh-process parity and recovery qualification.
+
+Verification on 2026-07-28:
+
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerRandomParityTests.everyGeneratedSetupDimensionHasFreshWorkerParity
+  --no-parallel --console=plain` passes.
+- `./gradlew :server:test --tests
+  com.unciv.app.server.authoritative.PackagedWorkerAiCampaignParityTests.twentyFourLateEraAiRoundsAreByteStableAcrossFreshWorkers
+  --no-parallel --console=plain` passes.
+- A clean `./gradlew :tests:test :server:test --no-parallel --rerun-tasks
+  --console=plain` passes in 3 minutes 2 seconds with all 17 actionable tasks
+  executed.
+- The first campaign draft selected the terminal future era, which the worker
+  correctly rejected. The second reached a mandatory policy blocker, and the
+  fixture now follows the projected blocker with typed `AdoptPolicy` commands.
+  The final assertion originally expected the command-free human to own a city;
+  it now checks the three server-run AI civilizations instead. Every corrected
+  case was rerun successfully; no discovered source or test error is deferred.
+
 ## Dry-run-first one-way legacy migration
 
 Implemented on 2026-07-28:

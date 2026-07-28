@@ -4,7 +4,9 @@ import com.unciv.logic.GameInfo
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.files.UncivFiles
+import com.unciv.logic.map.MapShape
 import com.unciv.logic.map.MapType
+import com.unciv.logic.map.mapgenerator.MapResourceSetting
 import com.unciv.logic.multiplayer.authoritative.EventChoiceCommandExecutor
 import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertEquals
@@ -129,6 +131,138 @@ class PackagedWorkerRandomParityTests {
         assertNull(changedSeed.error)
         assertNotEquals(result.canonicalStateHash, changedSeed.canonicalStateHash)
         assertNotEquals(result.snapshot, changedSeed.snapshot)
+    }
+
+    @Test(timeout = 300_000)
+    fun everyGeneratedSetupDimensionHasFreshWorkerParity() {
+        val baseName = "Civ V - Gods & Kings"
+        val ruleset = requireNotNull(RulesetCache[baseName])
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = InstalledRulesetCatalog.named(baseName),
+        )
+        val difficulties = ruleset.difficulties.keys.sorted()
+        val speeds = ruleset.speeds.keys.sorted()
+        val eras = ruleset.eras.keys.sorted()
+        val victories = ruleset.victories.values
+            .filterNot { it.hiddenInVictoryScreen }
+            .map { it.name }
+            .sorted()
+        val caseCount = listOf(
+            difficulties.size,
+            speeds.size,
+            eras.size,
+            victories.size,
+            GeneratedMapShape.entries.size,
+            GeneratedMapSize.entries.size,
+            MapResourceDensity.entries.size,
+            BarbarianMode.entries.size,
+        ).max()
+        val cases = (0 until caseCount).map { index ->
+            SetupCase(
+                difficulty = difficulties[index % difficulties.size],
+                speed = speeds[index % speeds.size],
+                era = eras[index % eras.size],
+                victories = if (index == caseCount - 1) {
+                    victories
+                } else {
+                    listOf(victories[index % victories.size])
+                },
+                shape = GeneratedMapShape.entries[index % GeneratedMapShape.entries.size],
+                size = GeneratedMapSize.entries[index % GeneratedMapSize.entries.size],
+                resources = MapResourceDensity.entries[index % MapResourceDensity.entries.size],
+                barbarians = BarbarianMode.entries[index % BarbarianMode.entries.size],
+                enabled = index % 2 == 0,
+            )
+        }
+        assertEquals(difficulties.toSet(), cases.map { it.difficulty }.toSet())
+        assertEquals(speeds.toSet(), cases.map { it.speed }.toSet())
+        assertEquals(eras.toSet(), cases.map { it.era }.toSet())
+        assertEquals(victories.toSet(), cases.flatMap { it.victories }.toSet())
+        assertEquals(GeneratedMapShape.entries.toSet(), cases.map { it.shape }.toSet())
+        assertEquals(GeneratedMapSize.entries.toSet(), cases.map { it.size }.toSet())
+        assertEquals(MapResourceDensity.entries.toSet(), cases.map { it.resources }.toSet())
+        assertEquals(BarbarianMode.entries.toSet(), cases.map { it.barbarians }.toSet())
+        assertEquals(setOf(false, true), cases.map { it.enabled }.toSet())
+
+        val responses = PackagedWorkerParityHarness.assertStableScenario { send ->
+            cases.mapIndexed { index, case ->
+                send(
+                    WorkerRequest(
+                        protocolVersion = EngineWorkerProtocol.VERSION,
+                        serverTimeMillis = 1_700_110_000_000L + index,
+                        actorId = actorId,
+                        rulesetManifest = manifest,
+                        operation = WorkerOperation.CreateGame(
+                            gameId = "00000000-0000-4000-8000-${
+                                (300 + index).toString().padStart(12, '0')
+                            }",
+                            serverSeed = 319_754_826L + index,
+                            setup = setup(baseName).copy(
+                                difficulty = case.difficulty,
+                                speed = case.speed,
+                                startingEra = case.era,
+                                victoryTypes = case.victories,
+                                mapShape = case.shape,
+                                mapSize = case.size,
+                                mapResources = case.resources,
+                                barbarians = case.barbarians,
+                                oneCityChallenge = case.enabled,
+                                nuclearWeaponsEnabled = case.enabled,
+                                espionageEnabled = case.enabled,
+                                noStartBias = case.enabled,
+                                shufflePlayerOrder = case.enabled,
+                                noCityRazing = case.enabled,
+                                worldWrap = case.enabled && case.shape != GeneratedMapShape.FlatEarth,
+                                strategicBalance = case.enabled,
+                                legendaryStart = case.enabled,
+                                noRuins = case.enabled,
+                                noNaturalWonders = case.enabled,
+                                minutesUntilSkipTurn = if (case.enabled) 10_080 else 5,
+                                minutesUntilForceResign = if (case.enabled) 43_200 else 60,
+                                minutesRecoveredPerTurn = if (case.enabled) 10_080 else 0,
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
+
+        responses.zip(cases).forEach { (response, case) ->
+            val game = decode(response.snapshot)
+            assertEquals(case.difficulty, game.gameParameters.difficulty)
+            assertEquals(case.speed, game.gameParameters.speed)
+            assertEquals(case.era, game.gameParameters.startingEra)
+            assertEquals(case.victories, game.gameParameters.victoryTypes)
+            assertEquals(expectedShape(case.shape), game.tileMap.mapParameters.shape)
+            assertEquals(case.size.name, game.tileMap.mapParameters.mapSize.name)
+            assertEquals(expectedResources(case.resources), game.tileMap.mapParameters.mapResources)
+            assertEquals(case.barbarians == BarbarianMode.Disabled, game.gameParameters.noBarbarians)
+            assertEquals(case.barbarians == BarbarianMode.Raging, game.gameParameters.ragingBarbarians)
+            assertEquals(case.enabled, game.gameParameters.oneCityChallenge)
+            assertEquals(case.enabled, game.gameParameters.nuclearWeaponsEnabled)
+            assertEquals(case.enabled, game.gameParameters.espionageEnabled)
+            assertEquals(case.enabled, game.gameParameters.noStartBias)
+            assertEquals(case.enabled, game.gameParameters.shufflePlayerOrder)
+            assertEquals(case.enabled, game.gameParameters.noCityRazing)
+            assertEquals(
+                case.enabled && case.shape != GeneratedMapShape.FlatEarth,
+                game.tileMap.mapParameters.worldWrap,
+            )
+            assertEquals(case.enabled, game.tileMap.mapParameters.strategicBalance)
+            assertEquals(case.enabled, game.tileMap.mapParameters.legendaryStart)
+            assertEquals(case.enabled, game.tileMap.mapParameters.noRuins)
+            assertEquals(case.enabled, game.tileMap.mapParameters.noNaturalWonders)
+            assertEquals(if (case.enabled) 10_080 else 5, game.gameParameters.minutesUntilSkipTurn)
+            assertEquals(
+                if (case.enabled) 43_200 else 60,
+                game.gameParameters.minutesUntilForceResign,
+            )
+            assertEquals(
+                if (case.enabled) 10_080 else 0,
+                game.gameParameters.minutesRecoveredPerTurn,
+            )
+        }
     }
 
     @Test(timeout = 300_000)
@@ -308,9 +442,33 @@ class PackagedWorkerRandomParityTests {
     private fun encode(game: GameInfo): String =
         UncivFiles.gameInfoToString(game, forceZip = false, updateChecksum = false)
 
+    private fun expectedShape(shape: GeneratedMapShape) = when (shape) {
+        GeneratedMapShape.Rectangular -> MapShape.rectangular
+        GeneratedMapShape.Hexagonal -> MapShape.hexagonal
+        GeneratedMapShape.FlatEarth -> MapShape.flatEarth
+    }
+
+    private fun expectedResources(resources: MapResourceDensity) = when (resources) {
+        MapResourceDensity.Sparse -> MapResourceSetting.sparse.label
+        MapResourceDensity.Default -> MapResourceSetting.default.label
+        MapResourceDensity.Abundant -> MapResourceSetting.abundant.label
+    }
+
     private data class Fixture(
         val manifest: WorkerRulesetManifest,
         val response: WorkerResponse,
+    )
+
+    private data class SetupCase(
+        val difficulty: String,
+        val speed: String,
+        val era: String,
+        val victories: List<String>,
+        val shape: GeneratedMapShape,
+        val size: GeneratedMapSize,
+        val resources: MapResourceDensity,
+        val barbarians: BarbarianMode,
+        val enabled: Boolean,
     )
 
     companion object {

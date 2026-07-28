@@ -491,16 +491,25 @@ impl EngineWorkerClient {
             .ok_or(WorkerClientError::Incomplete)?;
         let projection: crate::projection::PlayerProjection =
             serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
-        if !projection.research.is_consistent()
-            || !projection.tiles_are_consistent()
-            || !projection.turn_readiness_is_consistent()
-            || !projection.unit_actions_are_consistent()
-            || !projection.diplomacy_is_consistent()
-            || !projection.movement_is_consistent()
-            || !projection.combat_is_consistent()
-            || !projection.city_economy_is_consistent()
-            || !projection.wonder_events_are_consistent()
-        {
+        let projection_checks = [
+            ("research", projection.research.is_consistent()),
+            ("tiles", projection.tiles_are_consistent()),
+            ("turn_readiness", projection.turn_readiness_is_consistent()),
+            ("unit_actions", projection.unit_actions_are_consistent()),
+            ("diplomacy", projection.diplomacy_is_consistent()),
+            ("movement", projection.movement_is_consistent()),
+            ("combat", projection.combat_is_consistent()),
+            ("city_economy", projection.city_economy_is_consistent()),
+            ("wonder_events", projection.wonder_events_are_consistent()),
+        ];
+        if projection_checks.iter().any(|(_, valid)| !valid) {
+            tracing::warn!(
+                failed_projection_checks = ?projection_checks
+                    .iter()
+                    .filter_map(|(name, valid)| (!valid).then_some(name))
+                    .collect::<Vec<_>>(),
+                "authoritative worker returned an inconsistent player projection"
+            );
             return Err(WorkerClientError::Protocol);
         }
         Ok(ProjectedState { projection })

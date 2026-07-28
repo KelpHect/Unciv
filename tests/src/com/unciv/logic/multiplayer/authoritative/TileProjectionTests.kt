@@ -20,6 +20,7 @@ class TileProjectionTests {
         val observer = testGame.addCiv()
         val tile = testGame.getTile(HexCoord.Zero)
         tile.setExplored(observer, true)
+        observer.viewableTiles = setOf(tile)
         tile.setTileResource("Coal")
 
         val hidden = PlayerProjectionBuilder.build(testGame.gameInfo, observer)
@@ -27,6 +28,8 @@ class TileProjectionTests {
 
         assertEquals(tile.baseTerrain, hidden.baseTerrain)
         assertEquals(tile.terrainFeatures.sorted(), hidden.terrainFeatures)
+        assertNull(hidden.improvementName)
+        assertNull(hidden.improvementPillaged)
         assertNull(hidden.resourceName)
         assertNull(hidden.resourceAmount)
         assertTrue(!Json.encodeToString(ProjectedTileVisibility.serializer(), hidden)

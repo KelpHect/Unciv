@@ -447,7 +447,9 @@ object PlayerProjectionBuilder {
                         y = tile.position.y,
                         visible = visible,
                         improvementName = tile.improvement.takeIf { visible },
-                        improvementPillaged = tile.improvementIsPillaged.takeIf { visible },
+                        improvementPillaged = tile.improvementIsPillaged.takeIf {
+                            visible && tile.improvement != null
+                        },
                         roadStatus = tile.roadStatus.name.takeIf { visible },
                         roadPillaged = tile.roadIsPillaged.takeIf { visible },
                         baseTerrain = tile.baseTerrain,

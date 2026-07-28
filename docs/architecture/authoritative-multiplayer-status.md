@@ -1,5 +1,45 @@
 # Authoritative multiplayer v3 status
 
+## Disposable client cache and explicit retry UX
+
+Implemented and qualified on 2026-07-28:
+
+- The shared desktop/Android API-v3 command bus now has an explicit
+  `OfflineCached` state. A failed HTTP reconciliation retains only the last
+  player projection for presentation; it cannot satisfy the synchronized-state
+  precondition for a command. A successful reconnect replaces it from
+  authenticated HTTP without merging or advancing local state.
+- The projection world labels offline content as read-only and disables every
+  projected input. Its reconnect control replaces the cache. An ambiguous
+  command instead hides generic refresh and exposes a dedicated retry routed to
+  `retryPendingIfOpen`, which resubmits the exact retained command identity and
+  meaning. This prevents cache refresh from discarding a possibly committed
+  idempotency key.
+- Projection compatibility remains negotiated before game opening. A client
+  never attempts a trusted local schema migration: incompatible projection
+  versions fail closed and require a compatible client build; a compatible
+  client reconstructs from the server. Multiplayer selection continues to
+  label `API v3 server game` separately from `legacy saved game`.
+
+Verification on 2026-07-28:
+
+- `./gradlew.bat :tests:test --tests
+  'com.unciv.logic.multiplayer.authoritative.*' --no-daemon` passes all 272
+  authoritative client tests. New cases prove failed refresh retains a
+  read-only projection, backward server responses cannot replace it or enable
+  commands, reconnect replaces it, and uncertain-command retry preserves the
+  exact session command identity.
+- `./gradlew.bat :tests:test :android:assembleDebug --no-daemon --no-parallel`
+  passes in 2m19s, covering the complete JVM suite and supported Android client
+  compilation/packaging. Production-routing assertions keep the retry,
+  read-only reconnect, and explicit legacy/v3 labels wired into the real UI.
+- The first broad run exposed 18 controller tests whose programmatic exact-action
+  retry path was over-restricted. The UI lock was kept, while domain controllers
+  may still route the same projected action to the session, where exact pending
+  payload comparison and command-ID reuse fail closed on changed meaning. The
+  authoritative package and broad suite then passed; no discovered test or
+  compile error remains deferred.
+
 ## Fleet-wide WebSocket admission and reconnect hardening
 
 Implemented and qualified on 2026-07-28:

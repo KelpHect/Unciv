@@ -45,6 +45,7 @@ class AuthoritativeWorldScreen(
             }
             opened.projection
         },
+        retryPending = { session.retryPendingIfOpen(gameSummary.gameId) },
         moveUnit = { unitId, x, y -> session.moveUnitIfOpen(gameSummary.gameId, unitId, x, y) },
         endTurn = { session.endTurnIfOpen(gameSummary.gameId) },
         setResearch = { technology, append ->
@@ -120,7 +121,7 @@ class AuthoritativeWorldScreen(
         topTable.add(ScrollPane(
             AuthoritativeWorldDecisions(
                 controller,
-                busy,
+                busy || !controller.canAcceptProjectedInput,
                 selectUnitTarget = { mode ->
                     controller.beginUnitTargetSelection(mode)
                     rebuild()
@@ -132,9 +133,23 @@ class AuthoritativeWorldScreen(
             setScrollingDisabled(false, false)
             setOverscroll(false, false)
         }).colspan(3).growX().maxHeight(stage.height * 0.22f).row()
-        val refresh = "Refresh server projection".toTextButton()
-        refresh.onClick { refreshProjection(silent = false) }
-        topTable.add(refresh).colspan(3).row()
+        if (controller.status == AuthoritativeWorldStatus.RetryRequired) {
+            val retry = "Retry uncertain action".toTextButton()
+            retry.onClick {
+                runOperation("Retry authoritative action") {
+                    controller.retryUncertainCommand()
+                }
+            }
+            topTable.add(retry).colspan(3).row()
+        } else {
+            val refreshLabel =
+                if (controller.status == AuthoritativeWorldStatus.OfflineCached)
+                    "Reconnect and replace cached projection"
+                else "Refresh server projection"
+            val refresh = refreshLabel.toTextButton()
+            refresh.onClick { refreshProjection(silent = false) }
+            topTable.add(refresh).colspan(3).row()
+        }
 
         if (controller.canEndTurn() && !busy) rightSideButton.enable()
         else rightSideButton.disable()
@@ -281,6 +296,8 @@ class AuthoritativeWorldScreen(
         AuthoritativeWorldStatus.Refreshing -> "Refreshing"
         AuthoritativeWorldStatus.Submitting -> "Submitting"
         AuthoritativeWorldStatus.RetryRequired -> "Response uncertain - retry the same action"
+        AuthoritativeWorldStatus.OfflineCached ->
+            "Offline - cached projection is read-only until server refresh succeeds"
         AuthoritativeWorldStatus.StaleRefreshed -> "Stale projection refreshed"
         is AuthoritativeWorldStatus.Rejected -> "Rejected: ${status.code}"
     }

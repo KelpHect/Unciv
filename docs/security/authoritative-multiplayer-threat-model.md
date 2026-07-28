@@ -165,9 +165,12 @@ re-resolves authoritative membership before local delivery. Publish precedes
 outbox acknowledgement, duplicates are harmless, and listener gaps or rejected
 shared payloads force HTTP resynchronization.
 
-Remaining hardening includes fleet-wide admission, reconnect jitter, metrics
-for lag and drops, and sustained client/load tests proving duplicate, missing,
-reordered, and maliciously large notifications cannot alter canonical state.
+Fleet-wide PostgreSQL leases now enforce global/per-account admission across
+replicas, clients use bounded reconnect jitter, and bounded metrics cover lag,
+drops, rejections, and lease-loss disconnects. Deterministic notification tests
+exercise duplicate, missing, reordered, lagged, and oversized traffic without
+canonical mutation. Sustained low-resource full-stack load qualification
+remains tracked separately in the release checklist.
 
 ### Client platform and local data
 

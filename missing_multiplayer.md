@@ -708,8 +708,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Decide and implement v3 chat, friends, invitations, and lobby behavior as
   separate non-canonical services with membership, size, content, privacy, and
   rate limits. Do not put chat/social data into `GameInfo` revisions.
-- [ ] Finish reconnect, offline/stale presentation, retry UX, projection upgrade,
+- [x] Finish reconnect, offline/stale presentation, retry UX, projection upgrade,
   cache replacement, and explicit legacy/v3 game labeling on supported clients.
+  Desktop and Android share one projection-only client state machine. Failed
+  HTTP reconciliation retains the last projection as explicitly read-only,
+  disables projected inputs, and offers a reconnect action that replaces the
+  disposable cache from authenticated HTTP. An ambiguous mutation cannot be
+  discarded by a generic refresh: the UI exposes one dedicated retry that
+  reuses the exact pending command ID and payload. Projection versions are
+  negotiated before authentication/game opening; unsupported versions fail
+  closed and require a compatible client, while compatible reconnects replace
+  rather than migrate trusted local state. API-v3 server games and legacy saved
+  games are labeled separately. Focused 272-test authoritative coverage, the
+  complete JVM suite, and Android debug assembly pass.
 
 ## P1: notifications and multi-instance operation
 

@@ -1841,6 +1841,36 @@ class AuthoritativeGameCommandBusTests {
     }
 
     @Test
+    fun failedRefreshRetainsAReadOnlyCachedProjection() = runBlocking {
+        val cached = projection(4, "hash-4")
+        val transport = FakeTransport(cached)
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+        transport.projectionFailure = IOException("offline")
+
+        assertThrows<IOException> { bus.refresh() }
+
+        assertSame(cached, (bus.state as AuthoritativeSyncState.OfflineCached).cached)
+        assertThrows<IllegalStateException> { bus.endTurn() }
+        Unit
+    }
+
+    @Test
+    fun rolledBackServerProjectionCannotReplaceTheCacheOrEnableCommands() = runBlocking {
+        val cached = projection(4, "hash-4")
+        val transport = FakeTransport(cached)
+        val bus = AuthoritativeGameCommandBus(gameId, transport)
+        bus.refresh()
+        transport.current = projection(3, "hash-3")
+
+        assertThrows<IllegalStateException> { bus.refresh() }
+
+        assertSame(cached, (bus.state as AuthoritativeSyncState.OfflineCached).cached)
+        assertThrows<IllegalStateException> { bus.endTurn() }
+        Unit
+    }
+
+    @Test
     fun staleCommandRefreshesWithoutMergingOrReplaying() = runBlocking {
         val old = movementProjection(3, "hash-3", 1)
         val canonical = projection(4, "hash-4")
@@ -2128,8 +2158,21 @@ class AuthoritativeGameCommandBusTests {
         canonicalStateHash = hash,
     )
 
+    private suspend inline fun <reified T : Throwable> assertThrows(
+        crossinline block: suspend () -> Unit,
+    ): T {
+        try {
+            block()
+        } catch (throwable: Throwable) {
+            if (throwable is T) return throwable
+            throw AssertionError("Expected ${T::class.simpleName}, got $throwable", throwable)
+        }
+        throw AssertionError("Expected ${T::class.simpleName}")
+    }
+
     private inner class FakeTransport(var current: ApiV3GameProjection) : ApiV3Transport {
         var projectionCalls = 0
+        var projectionFailure: Throwable? = null
         var projectionDeltaCalls = 0
         var onProjectionDelta:
             suspend (Long, String, String) -> ApiV3GameProjectionDelta = { _, _, _ ->
@@ -2368,6 +2411,7 @@ class AuthoritativeGameCommandBusTests {
             accepted(request.commandId, request.expectedRevision, request.expectedRevision + 1, "unused")
         override suspend fun projection(gameId: String): ApiV3GameProjection {
             projectionCalls++
+            projectionFailure?.let { throw it }
             return current
         }
         override suspend fun projectionDelta(

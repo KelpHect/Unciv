@@ -9,6 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.io.IOException
 
 class AuthoritativeWorldControllerTests {
     @Test
@@ -87,13 +88,21 @@ class AuthoritativeWorldControllerTests {
     }
 
     @Test
-    fun ambiguousMoveRemainsRetryableWithoutLocalPrediction() = runBlocking {
+    fun ambiguousMoveRequiresExplicitSameIdentityRetryWithoutLocalPrediction() = runBlocking {
         var calls = 0
         val initial = gameProjection(7)
-        val controller = controller(initial, move = { _, _, _ ->
-            calls++
-            AuthoritativeCommandOutcome.RetryRequired
-        })
+        val accepted = accepted(initial, 8)
+        val controller = controller(
+            initial,
+            move = { _, _, _ ->
+                calls++
+                AuthoritativeCommandOutcome.RetryRequired
+            },
+            retryPending = {
+                calls++
+                accepted
+            },
+        )
         val unit = controller.projection.ownUnits.single()
         val destination = unit.moveDestinations.single()
         controller.selectUnit(unit.id)
@@ -101,10 +110,15 @@ class AuthoritativeWorldControllerTests {
         controller.moveSelectedTo(destination.x, destination.y)
         assertEquals(AuthoritativeWorldStatus.RetryRequired, controller.status)
         assertEquals(7, controller.current.committedRevision)
-        controller.moveSelectedTo(destination.x, destination.y)
+        assertFalse(controller.canMoveSelectedTo(destination.x, destination.y))
+        assertThrows<IllegalArgumentException> {
+            controller.moveSelectedTo(destination.x, destination.y)
+        }
+        assertThrows<IllegalStateException> { controller.refresh() }
+        controller.retryUncertainCommand()
 
         assertEquals(2, calls)
-        assertEquals(7, controller.current.committedRevision)
+        assertEquals(8, controller.current.committedRevision)
     }
 
     @Test
@@ -128,7 +142,31 @@ class AuthoritativeWorldControllerTests {
 
         assertThrows<IllegalArgumentException> { controller.refresh() }
         assertEquals(7, controller.current.committedRevision)
-        assertEquals(AuthoritativeWorldStatus.Rejected("refresh_failed"), controller.status)
+        assertEquals(AuthoritativeWorldStatus.OfflineCached, controller.status)
+        assertFalse(controller.canAcceptProjectedInput)
+        assertFalse(controller.canEndTurn())
+    }
+
+    @Test
+    fun successfulReconnectReplacesTheReadOnlyCacheAndReenablesCommands() = runBlocking {
+        val initial = gameProjection(7)
+        var offline = true
+        val replacement = gameProjection(8)
+        val controller = controller(initial, refresh = {
+            if (offline) throw IOException("offline")
+            replacement
+        })
+
+        assertThrows<IOException> { controller.refresh() }
+        assertEquals(7, controller.current.committedRevision)
+        assertFalse(controller.canAcceptProjectedInput)
+
+        offline = false
+        controller.refresh()
+
+        assertEquals(8, controller.current.committedRevision)
+        assertTrue(controller.canAcceptProjectedInput)
+        assertEquals(AuthoritativeWorldStatus.Synchronized, controller.status)
     }
 
     @Test
@@ -645,6 +683,8 @@ class AuthoritativeWorldControllerTests {
     private fun controller(
         initial: ApiV3GameProjection,
         refresh: suspend () -> ApiV3GameProjection = { initial },
+        retryPending: suspend () -> AuthoritativeCommandOutcome? =
+            { AuthoritativeCommandOutcome.Rejected("test") },
         move: suspend (Int, Int, Int) -> AuthoritativeCommandOutcome? =
             { _, _, _ -> AuthoritativeCommandOutcome.Rejected("test") },
         endTurn: suspend () -> AuthoritativeCommandOutcome? =
@@ -683,6 +723,7 @@ class AuthoritativeWorldControllerTests {
     ) = AuthoritativeWorldController(
         initial = initial,
         refreshProjection = refresh,
+        retryPending = retryPending,
         moveUnit = move,
         endTurn = endTurn,
         setResearch = setResearch,

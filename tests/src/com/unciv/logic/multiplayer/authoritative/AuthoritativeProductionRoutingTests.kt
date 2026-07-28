@@ -135,6 +135,25 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun supportedClientLabelsAuthorityAndKeepsOfflineProjectionReadOnly() {
+        val multiplayer = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val world = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeWorldScreen.kt",
+        ).readText()
+
+        assertTrue(multiplayer.contains("API v3 server game"))
+        assertTrue(multiplayer.contains("Add legacy saved game"))
+        assertTrue(world.contains("Retry uncertain action"))
+        assertTrue(world.contains("retryPendingIfOpen"))
+        assertTrue(world.contains("Reconnect and replace cached projection"))
+        assertTrue(world.contains("cached projection is read-only"))
+        assertTrue(world.contains("busy || !controller.canAcceptProjectedInput"))
+    }
+
+    @Test
     fun acceptedInvitationTransitionsDirectlyIntoProjectionOnlyWorld() {
         val inbox = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +

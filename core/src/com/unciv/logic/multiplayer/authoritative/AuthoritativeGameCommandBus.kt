@@ -8,6 +8,7 @@ import java.util.UUID
 sealed interface AuthoritativeSyncState {
     data object Uninitialized : AuthoritativeSyncState
     data class Refreshing(val cached: ApiV3GameProjection?) : AuthoritativeSyncState
+    data class OfflineCached(val cached: ApiV3GameProjection) : AuthoritativeSyncState
     data class Synchronized(val current: ApiV3GameProjection) : AuthoritativeSyncState
     data class Submitting(val current: ApiV3GameProjection, val commandId: String) : AuthoritativeSyncState
     data class Retryable(
@@ -2257,10 +2258,31 @@ class AuthoritativeGameCommandBus(
 
     private suspend fun refreshLocked(cached: ApiV3GameProjection?): ApiV3GameProjection {
         state = AuthoritativeSyncState.Refreshing(cached)
-        val refreshed = transport.projection(gameId)
-        check(refreshed.gameId == gameId) { "Server returned a projection for a different game" }
-        check(refreshed.projectionVersion == PlayerProjection.CURRENT_PROJECTION_VERSION) {
-            "Server returned an incompatible projection version"
+        val refreshed = try {
+            val candidate = transport.projection(gameId)
+            check(candidate.gameId == gameId) {
+                "Server returned a projection for a different game"
+            }
+            check(candidate.projectionVersion == PlayerProjection.CURRENT_PROJECTION_VERSION) {
+                "Server returned an incompatible projection version"
+            }
+            check(cached == null || candidate.committedRevision >= cached.committedRevision) {
+                "Server projection revision moved backwards"
+            }
+            check(
+                cached == null ||
+                    candidate.committedRevision != cached.committedRevision ||
+                    candidate.canonicalStateHash == cached.canonicalStateHash,
+            ) {
+                "Server projection changed the canonical hash without a revision"
+            }
+            candidate
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Throwable) {
+            state = cached?.let(AuthoritativeSyncState::OfflineCached)
+                ?: AuthoritativeSyncState.Uninitialized
+            throw exception
         }
         state = AuthoritativeSyncState.Synchronized(refreshed)
         return refreshed
@@ -2294,6 +2316,7 @@ class AuthoritativeGameCommandBus(
     private fun cachedProjection() = when (val current = state) {
         is AuthoritativeSyncState.Synchronized -> current.current
         is AuthoritativeSyncState.Refreshing -> current.cached
+        is AuthoritativeSyncState.OfflineCached -> current.cached
         is AuthoritativeSyncState.Submitting -> current.current
         is AuthoritativeSyncState.Retryable -> current.current
         is AuthoritativeSyncState.Rejected -> current.current

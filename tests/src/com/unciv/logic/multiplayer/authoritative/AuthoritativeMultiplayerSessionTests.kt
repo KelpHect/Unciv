@@ -399,7 +399,7 @@ class AuthoritativeMultiplayerSessionTests {
         session.openGame(GAME_ID)
 
         assertTrue(session.endTurnIfOpen(GAME_ID) is AuthoritativeCommandOutcome.RetryRequired)
-        assertTrue(session.endTurnIfOpen(GAME_ID) is AuthoritativeCommandOutcome.Accepted)
+        assertTrue(session.retryPendingIfOpen(GAME_ID) is AuthoritativeCommandOutcome.Accepted)
 
         assertEquals(2, transport.endTurnCommandIds.size)
         assertEquals(transport.endTurnCommandIds[0], transport.endTurnCommandIds[1])

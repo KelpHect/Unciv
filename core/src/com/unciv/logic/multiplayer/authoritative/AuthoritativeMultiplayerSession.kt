@@ -50,8 +50,19 @@ class AuthoritativeMultiplayerSession(
     @Readonly
     fun cachedProjectionIfOpen(gameId: String): PlayerProjection? {
         if (gameId !in openedGameIds) return null
-        val current = games[gameId]?.state as? AuthoritativeSyncState.Synchronized ?: return null
-        return current.current.projection
+        return when (val current = games[gameId]?.state) {
+            is AuthoritativeSyncState.Synchronized -> current.current.projection
+            is AuthoritativeSyncState.OfflineCached -> current.cached.projection
+            else -> null
+        }
+    }
+
+    suspend fun retryPendingIfOpen(gameId: String): AuthoritativeCommandOutcome? {
+        val bus = mutex.withLock { games[gameId] } ?: return null
+        check(bus.state is AuthoritativeSyncState.Retryable) {
+            "No uncertain authoritative command is waiting for retry"
+        }
+        return bus.retryPending()
     }
 
     suspend fun restore(): Boolean {

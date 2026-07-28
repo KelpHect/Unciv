@@ -10,6 +10,7 @@ package com.unciv.logic.multiplayer.authoritative
 class AuthoritativeWorldController(
     initial: ApiV3GameProjection,
     private val refreshProjection: suspend () -> ApiV3GameProjection,
+    private val retryPending: suspend () -> AuthoritativeCommandOutcome? = { null },
     private val moveUnit:
         suspend (unitId: Int, x: Int, y: Int) -> AuthoritativeCommandOutcome?,
     private val endTurn: suspend () -> AuthoritativeCommandOutcome?,
@@ -60,6 +61,10 @@ class AuthoritativeWorldController(
         private set
     var status: AuthoritativeWorldStatus = AuthoritativeWorldStatus.Synchronized
         private set
+
+    val canAcceptProjectedInput: Boolean
+        get() = status != AuthoritativeWorldStatus.OfflineCached &&
+            status != AuthoritativeWorldStatus.RetryRequired
 
     init {
         validateProjection(initial)
@@ -125,19 +130,23 @@ class AuthoritativeWorldController(
         }
         selectedUnitId = unitId
         unitTargetMode = null
-        status = AuthoritativeWorldStatus.Synchronized
     }
 
     fun selectedUnit(): ProjectedUnit? =
         selectedUnitId?.let { id -> projection.ownUnits.singleOrNull { it.id == id } }
 
     fun canMoveSelectedTo(x: Int, y: Int): Boolean =
-        selectedUnit()?.moveDestinations?.any { it.x == x && it.y == y } == true
+        canAcceptProjectedInput &&
+            selectedUnit()?.moveDestinations?.any { it.x == x && it.y == y } == true
 
     fun canEndTurn(): Boolean =
-        projection.isCurrentTurn && projection.pendingTurnActions.isEmpty()
+        canAcceptProjectedInput &&
+            projection.isCurrentTurn && projection.pendingTurnActions.isEmpty()
 
     fun beginUnitTargetSelection(mode: AuthoritativeUnitTargetMode) {
+        check(canAcceptProjectedInput) {
+            "Refresh the cached authoritative projection before selecting a target"
+        }
         val unit = requireNotNull(selectedUnit()) { "Select a projected unit first" }
         val available = when (mode) {
             AuthoritativeUnitTargetMode.MoveToward -> unit.moveTowardDestinations
@@ -147,7 +156,6 @@ class AuthoritativeWorldController(
             "Target mode has no choices in the current server projection"
         }
         unitTargetMode = mode
-        status = AuthoritativeWorldStatus.Synchronized
     }
 
     fun cancelUnitTargetSelection() {
@@ -179,13 +187,26 @@ class AuthoritativeWorldController(
     }
 
     suspend fun refresh() {
+        check(status != AuthoritativeWorldStatus.RetryRequired) {
+            "Retry the uncertain command before replacing the server projection"
+        }
         status = AuthoritativeWorldStatus.Refreshing
         try {
             replaceProjection(refreshProjection())
         } catch (exception: Exception) {
-            status = AuthoritativeWorldStatus.Rejected("refresh_failed")
+            status = AuthoritativeWorldStatus.OfflineCached
             throw exception
         }
+    }
+
+    suspend fun retryUncertainCommand() {
+        check(status == AuthoritativeWorldStatus.RetryRequired) {
+            "No uncertain authoritative command is waiting for retry"
+        }
+        status = AuthoritativeWorldStatus.Submitting
+        applyOutcome(requireNotNull(retryPending()) {
+            "The authoritative game is no longer open"
+        })
     }
 
     suspend fun moveSelectedTo(x: Int, y: Int) {
@@ -262,6 +283,9 @@ class AuthoritativeWorldController(
     }
 
     private suspend fun submit(operation: suspend () -> AuthoritativeCommandOutcome?) {
+        check(status != AuthoritativeWorldStatus.OfflineCached) {
+            "Refresh the cached authoritative projection before submitting commands"
+        }
         status = AuthoritativeWorldStatus.Submitting
         applyOutcome(requireNotNull(operation()) {
             "The authoritative game is no longer open"
@@ -325,6 +349,7 @@ sealed interface AuthoritativeWorldStatus {
     data object Refreshing : AuthoritativeWorldStatus
     data object Submitting : AuthoritativeWorldStatus
     data object RetryRequired : AuthoritativeWorldStatus
+    data object OfflineCached : AuthoritativeWorldStatus
     data object StaleRefreshed : AuthoritativeWorldStatus
     data class Rejected(val code: String) : AuthoritativeWorldStatus
 }

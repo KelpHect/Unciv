@@ -144,7 +144,7 @@ docker run --detach --name "$api" --network "container:${worker}" \
   --env UNCIV_ENGINE_WORKER_SECRET="$worker_secret" \
   --env UNCIV_V3_DATABASE_URL="postgresql://unciv_runtime:load-runtime@${postgres}:5432/unciv_authoritative?sslmode=disable" \
   --env UNCIV_V3_BIND=0.0.0.0:8080 \
-  --env UNCIV_V3_METRICS_BIND=0.0.0.0:9090 \
+  --env UNCIV_V3_METRICS_BIND=127.0.0.1:9090 \
   --env UNCIV_V3_TRUSTED_PROXY=disabled \
   "$java_image" /bundle/bin/unciv-authoritative-server >/dev/null
 wait_for_container_log "$api" 'authoritative API listening'

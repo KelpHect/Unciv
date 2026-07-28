@@ -6,6 +6,37 @@ This threat model covers the Unciv repository as it relates to multiplayer integ
 
 The model is intentionally repository-wide. Multiplayer correctness depends not only on HTTP handlers, but also on save and ruleset deserialization, mod acquisition, platform credential storage, database operations, worker isolation, deployment, and the release supply chain.
 
+## Final authority review
+
+Reviewed repository-wide on 2026-07-28. This section is the current closure
+assessment; later `Current controls` and `Required hardening` paragraphs retain
+the design history that led to it.
+
+| Boundary | Current enforced result |
+| --- | --- |
+| Public writes | The closed OpenAPI command-route inventory exactly matches the Kotlin API-v3 transport. Requests contain typed intent, command identity, and expected revision; no V3 route accepts `GameInfo`, snapshots, save replacement, arbitrary patches, actor civilizations, worker operations, or client RNG. |
+| Production client | Every gameplay `*IfOpen` session mutation is referenced by the projection-only production UI. Source gates prohibit canonical `GameInfo`, `GameStarter`, legacy upload/download, local turn execution, and client autoplay in that UI. Whole-save access elsewhere must explicitly cross the `.legacy` façade. |
+| Rules and AI | Only the private Kotlin worker loads canonical snapshots and executes the shared game engine. End turn runs every AI civilization in that worker before Rust may compare-and-swap the resulting revision. Rust performs identity, protocol, consistency, and persistence checks but contains no second rules engine. |
+| Mods | New games resolve an operator-approved, content-addressed base-plus-mod manifest. Acquisition is bounded and fail-closed; fresh packaged workers validate and execute mod-defined generation and stateful commands. A client mod name or local content is never authoritative. |
+| Persistence | PostgreSQL transactions lock the head and bind actor, command meaning, expected revision, journal, snapshot, hash, membership effects, and outbox. Exact retries return the original result; stale or changed-meaning retries cannot add a revision. Recovery, restore, replica-race, worker/Rust crash, and reconciliation tests preserve one history. |
+| Confidentiality | Players and spectators receive explicit bounded projections only. Sentinel, role, malformed-state, response-shape, cache, log, audit, notification, and public-route tests keep canonical snapshots and opponent secrets inside the trusted service boundary. |
+| Availability | Worker frames, deadlines, queue, circuit breaker, JVM/cgroup resources, WebSocket leases, HTTP sizes, rate limits, SQL timeouts, storage alarms, outbox retries, readiness, and operator recovery are bounded and fail closed. Notifications remain non-authoritative hints reconciled through HTTP. |
+| Release | The Linux bundle is content-addressed and self-verifying, includes exact migrations, binaries, rulesets, license, and SPDX evidence, and is built only from immutable tags. PostgreSQL 19 Beta 2 and runtime images are digest-pinned. Hosted provenance, SBOM, secret-scan, RustSec, production-stack, worker-restart, and constrained-load evidence are release gates. |
+
+The final mutation inventory found no untracked V3 gameplay family and no
+client path capable of changing canonical state without a typed server command.
+Approved mods are supported end to end. AI is deliberately unavailable as a
+client-side V3 automation feature because all AI players execute server-side.
+
+The accepted residual risks are operational rather than missing authority:
+PostgreSQL 19 Beta 2 may contain prerelease defects; a compromised trusted
+operator, Rust process, worker host, or database remains a server incident; and
+capacity is bounded by the measured release profile rather than advertised as
+unlimited. A later PostgreSQL 19 beta, RC, or final image must pass the
+documented upgrade/restore rehearsal before replacing Beta 2. Future
+gameplay/rules/mod/UI changes are governed by `AGENTS.md` and must preserve the
+inventories above.
+
 ### Security objectives and assets
 
 - Preserve the single canonical game history: game identity, monotonically increasing revision, canonical state hash, ruleset manifest, membership, turn ownership, and accepted command history.

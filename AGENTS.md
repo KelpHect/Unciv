@@ -47,3 +47,48 @@ service.
 See `docs/architecture/current-multiplayer-flow.md` and
 `docs/architecture/adr/0001-authoritative-multiplayer-v3.md` before changing
 the legacy multiplayer path.
+
+## V3 change-impact contract
+
+Authoritative multiplayer is a continuing compatibility surface, not a
+finished side project. Any future change to gameplay rules, turn progression,
+AI, randomness, maps, mods, uniques, saves, projections, player-visible UI,
+multiplayer networking, or mutable `GameInfo` data must explicitly assess API
+v3 in the same change.
+
+The maintained baseline is a projection-only desktop/Android client, a typed
+Rust API/control plane, a private packaged Kotlin rules worker, and
+digest-pinned PostgreSQL 19 Beta 2. The server owns setup, all gameplay
+mutations, every AI player, turn advancement, randomness, immutable
+base-plus-mod manifests, canonical revisions, recovery, and notifications.
+The client owns input, presentation, disposable projection caches, and exact
+idempotent retries only. The complete evidence and current external blockers
+live in `docs/architecture/authoritative-multiplayer-status.md` and
+`missing_multiplayer.md`; do not duplicate their evolving inventories here.
+
+- If the change adds or alters a player decision, add or update the closed typed
+  command, Rust validation/route, private Kotlin worker execution, projection
+  fields, projection-only client control, and deterministic authorization,
+  stale-revision, idempotency, crash/retry, and confidentiality tests together.
+- If the change affects automatic rules or AI, prove it executes in the private
+  Kotlin worker under the server-owned execution context. Never add a V3 client
+  autoplay, local rules fallback, client RNG, optimistic canonical mutation, or
+  whole-save synchronization path.
+- If the change affects mods or rulesets, preserve exact content-addressed
+  manifest resolution and run packaged-worker parity with a representative
+  approved mod. Client-local mod content and names are never authority.
+- If the change adds a public gameplay route or session command, keep the
+  OpenAPI-to-client route inventory and session-to-production-UI inventory
+  exact. Every production V3 interaction must remain reachable without
+  importing `GameInfo`, `GameStarter`, or legacy upload/download behavior.
+- If the engine model gains hidden or mutable state, update the explicit player
+  and spectator projections, Rust fail-closed validation, sentinel leak tests,
+  compatibility version, cache/reconnect behavior, and size limits.
+- Run the smallest focused V3 tests first, then all affected Rust, server,
+  desktop, Android, PostgreSQL 19 Beta 2, packaging, mod-parity, and legacy
+  regression gates. Do not dismiss a discovered failure as unrelated.
+- Update `missing_multiplayer.md`,
+  `docs/architecture/authoritative-multiplayer-status.md`,
+  `docs/security/authoritative-multiplayer-threat-model.md` when a boundary
+  changes, and affected protocol/operations/benchmark docs with exact evidence.
+  A checklist mark is not a substitute for a current test.

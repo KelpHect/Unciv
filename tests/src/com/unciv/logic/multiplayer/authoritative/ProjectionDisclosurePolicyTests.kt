@@ -52,7 +52,10 @@ class ProjectionDisclosurePolicyTests {
             require(columns.size == 4) {
                 "Projection policy row ${index + 1} must contain four tab-separated columns"
             }
-            val (audience, path, classification, rationale) = columns
+            val audience = columns[0]
+            val path = columns[1]
+            val classification = columns[2]
+            val rationale = columns[3]
             require(result.put(path, DisclosureDecision(
                 audience,
                 classification,

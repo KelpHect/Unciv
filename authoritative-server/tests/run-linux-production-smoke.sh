@@ -103,6 +103,7 @@ metrics_port="$(free_port)"
 
 docker run --detach --rm --name "$container" \
   --publish 127.0.0.1::5432 \
+  --mount "type=bind,source=${repository_root}/authoritative-server/postgresql,target=/qualification,readonly" \
   --env POSTGRES_PASSWORD=linux-smoke-only \
   --env POSTGRES_DB=unciv_authoritative \
   "$postgres_image" >/dev/null
@@ -110,9 +111,17 @@ wait_for_postgres
 postgres_port="$(
   docker port "$container" 5432/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1
 )"
-database_url="postgresql://postgres:linux-smoke-only@127.0.0.1:${postgres_port}/unciv_authoritative?sslmode=disable"
+docker exec --user postgres "$container" psql -v ON_ERROR_STOP=1 \
+  --set runtime_password=linux-smoke-runtime \
+  --set migration_password=linux-smoke-migrate \
+  --set backup_password=linux-smoke-backup \
+  --set restore_password=linux-smoke-restore \
+  --set audit_password=linux-smoke-audit \
+  -d postgres -f /qualification/bootstrap-roles.sql >/dev/null
+migration_url="postgresql://unciv_migrate:linux-smoke-migrate@127.0.0.1:${postgres_port}/unciv_authoritative?sslmode=disable"
+database_url="postgresql://unciv_runtime:linux-smoke-runtime@127.0.0.1:${postgres_port}/unciv_authoritative?sslmode=disable"
 
-UNCIV_V3_MIGRATION_DATABASE_URL="$database_url" \
+UNCIV_V3_MIGRATION_DATABASE_URL="$migration_url" \
   "$bundle_root/bin/unciv-v3-migrate" >/dev/null
 
 start_worker

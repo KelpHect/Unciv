@@ -107,6 +107,22 @@ worker bundle ID or ruleset catalog mismatch before binding the public API.
 `UNCIV_V3_UNPACKAGED_DEV=1` is an explicit test/development escape hatch. It is
 never valid in production configuration or deployment units.
 
+## Hosted qualification
+
+Tag `authoritative-v3-0.1.0-beta.2.4` at commit `79808f736` passed hosted run
+`30388093014`. The workflow built every input on Linux, created and verified
+the closed bundle, then ran `authoritative-server/tests/run-linux-production-smoke.sh`.
+That smoke used the exact PostgreSQL 19 Beta 2 digest and the five production
+roles, migrated with the migration identity, booted the bundled worker and API,
+created an account, proved worker loss changes readiness to HTTP 503, and proved
+the bundled worker can restart and restore readiness. Only after the smoke
+passed did GitHub issue the provenance and SPDX attestations.
+
+The retained archive SHA-256 is
+`c16f6d40bffe0c3424fa2f8b15b64287bb19aeef4413196ac472bedd89c38962`.
+Operators must verify both the SLSA provenance and
+`https://spdx.dev/Document/v2.3` predicate before accepting it.
+
 ## Rollback
 
 Keep prior immutable bundle and ruleset versions. Stop the public API and

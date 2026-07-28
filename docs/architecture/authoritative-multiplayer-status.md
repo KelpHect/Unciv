@@ -1,5 +1,35 @@
 # Authoritative multiplayer v3 status
 
+## Attested Linux production-stack smoke
+
+Qualified on 2026-07-28:
+
+- Immutable tag `authoritative-v3-0.1.0-beta.2.4` fixes commit
+  `79808f736` and hosted run `30388093014`. Its verified release bundle includes
+  the Rust API and tools, private Kotlin worker, ruleset manager, desktop engine
+  input, exact vanilla manifest, migrations 1-27, operational units/config, MPL
+  license, and SPDX 2.3 SBOM.
+- The tagged Linux smoke boots the exact PostgreSQL 19 Beta 2 image digest,
+  waits for the image's final post-bootstrap server, creates the five production
+  roles, migrates as `unciv_migrate`, runs the API as `unciv_runtime`, and starts
+  only bundled Rust/JVM artifacts without the unpackaged-development override.
+  Health, three-way readiness, and account registration pass. Killing the
+  worker makes readiness fail closed with HTTP 503 while PostgreSQL remains
+  ready; restarting the packaged worker restores readiness.
+- Three immutable predecessor tags remain useful negative evidence and were
+  never moved: `.2.1` caught missing production-role bootstrap, `.2.2` caught
+  the official image's temporary-bootstrap readiness race, and `.2.3` caught
+  the JVM-listener startup race. Each failed before attestation. The final gate
+  requires both the official PostgreSQL final-start marker and a live worker
+  listener.
+- The retained `.2.4` archive independently matches SHA-256
+  `c16f6d40bffe0c3424fa2f8b15b64287bb19aeef4413196ac472bedd89c38962`.
+  Separate `gh attestation verify` calls accepted its SLSA provenance and
+  `https://spdx.dev/Document/v2.3` predicate for `KelpHect/Unciv`.
+- Linux production smoke and supported desktop/Android reconnect/build evidence
+  now close that P2 item. PostgreSQL's later-prerelease upgrade rehearsal remains
+  honestly blocked because Beta 2 is still the newest PostgreSQL 19 image.
+
 ## First hosted production-bundle attestations
 
 Qualified on 2026-07-28:

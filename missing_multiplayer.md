@@ -801,8 +801,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   the archive, external digest, manifest, and SBOM. The first real hosted tag
   `authoritative-v3-0.1.0-beta.2` built and attested the complete bundle at
   commit `f584c22d0`; its retained archive digest and both provenance/SPDX
-  predicates independently verify. Full-stack Linux service qualification and
-  prerelease upgrade/rollback qualification remain to complete this item.
+  predicates independently verify. The later immutable
+  `authoritative-v3-0.1.0-beta.2.4` tag additionally passes the full production
+  bundle on Linux with the five least-privilege database roles, migrations,
+  Rust API, private Kotlin worker, registration, worker-loss fail-closed
+  readiness, and worker recovery. Only prerelease upgrade/rollback
+  qualification remains to complete this item; no PostgreSQL 19 release newer
+  than Beta 2 exists yet.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
   2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
   one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
@@ -976,9 +981,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   worker concurrency, AI turns, projections, outbox delivery, and WebSockets.
   Publish throughput, latency percentiles, memory, CPU, storage growth, and a
   defensible capacity limit—never “unlimited users.”
-- [ ] Add Linux production smoke tests and supported desktop/Android client build
+- [x] Add Linux production smoke tests and supported desktop/Android client build
   and reconnect tests. Preserve and rerun single-player, hotseat, save-format,
-  legacy multiplayer, and API-v2 regression suites throughout migration.
+  legacy multiplayer, and API-v2 regression suites throughout migration. The
+  tagged Linux lane boots the verified bundle with production roles and the
+  exact PostgreSQL 19 Beta 2 digest, proves health/readiness and registration,
+  then proves worker death returns 503 and a packaged-worker restart restores
+  readiness. Supported desktop/Android builds and authoritative offline-cache,
+  retry, reconnect, and compatibility tests pass; broad JVM regressions retain
+  the legacy and non-network game modes.
 - [ ] Run a final repository-wide mutation/authority audit and threat-model review.
   The release gate is zero v3 client path capable of replacing/patching canonical
   state and zero known untracked gameplay mutation family.

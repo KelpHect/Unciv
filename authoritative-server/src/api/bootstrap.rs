@@ -136,6 +136,17 @@ pub(crate) async fn run() {
         .route("/api/v3/account/password", post(change_password))
         .route("/api/v3/account/disable", post(disable_account))
         .route("/api/v3/account", delete(delete_account))
+        .route("/api/v3/friends", get(list_friends))
+        .route("/api/v3/friends/{username}", delete(remove_friend))
+        .route("/api/v3/friend-requests", post(request_friend))
+        .route(
+            "/api/v3/friend-requests/{request_id}",
+            delete(remove_friend_request),
+        )
+        .route(
+            "/api/v3/friend-requests/{request_id}/accept",
+            post(accept_friend),
+        )
         .route("/api/v3/ruleset-manifests", get(list_ruleset_manifests))
         .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))

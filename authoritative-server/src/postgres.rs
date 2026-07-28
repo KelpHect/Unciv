@@ -102,6 +102,24 @@ pub struct PlayerInvitation {
     pub canonical_state_hash: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct FriendSummary {
+    pub username: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct FriendRequestSummary {
+    pub request_id: Uuid,
+    pub username: String,
+    pub direction: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct SocialGraph {
+    pub friends: Vec<FriendSummary>,
+    pub requests: Vec<FriendRequestSummary>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GameProjection {
     pub game_id: Uuid,
@@ -168,6 +186,7 @@ mod security;
 mod security_audit_export;
 mod snapshot_codec;
 mod snapshot_storage;
+mod social_graph;
 mod spectators;
 mod trade;
 mod unit_actions;

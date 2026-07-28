@@ -9,7 +9,8 @@ Implemented and qualified on 2026-07-29:
   instead of accepting Ktor's older transitive selection.
 - Android Gradle build tooling is forced above the repository's GitHub
   vulnerability findings: Bouncy Castle 1.84, Commons Compress 1.26.0,
-  JDOM 2.0.6.1, jose4j 0.9.6, Netty 4.1.136.Final, and Protobuf 3.25.5.
+  Commons Lang 3.18.0, JDOM 2.0.6.1, jose4j 0.9.6, Netty 4.1.136.Final,
+  and Protobuf Java/Kotlin 3.25.5.
   These are build-classpath floors only and can be removed once the Android
   Gradle Plugin's own graph reaches or exceeds them.
 - Gradle dependency evidence resolves server Netty to 4.2.16.Final and the

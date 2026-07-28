@@ -19,6 +19,7 @@ clikt = "5.0.3"
 # the Android Gradle Plugin's own dependency graph reaches the same versions.
 bouncyCastle = "1.84"
 commonsCompress = "1.26.0"
+commonsLang3 = "3.18.0"
 jdom = "2.0.6.1"
 jose4j = "0.9.6"
 netty4 = "4.1.136.Final"

@@ -22,6 +22,7 @@ buildscript {
             "org.bouncycastle:bcpkix-jdk18on:${libs.versions.bouncyCastle.get()}",
             "org.bouncycastle:bcutil-jdk18on:${libs.versions.bouncyCastle.get()}",
             "org.apache.commons:commons-compress:${libs.versions.commonsCompress.get()}",
+            "org.apache.commons:commons-lang3:${libs.versions.commonsLang3.get()}",
             "org.jdom:jdom2:${libs.versions.jdom.get()}",
             "org.bitbucket.b_c:jose4j:${libs.versions.jose4j.get()}",
             "io.netty:netty-buffer:${libs.versions.netty4.get()}",
@@ -37,6 +38,7 @@ buildscript {
             "io.netty:netty-transport-native-unix-common:${libs.versions.netty4.get()}",
             "com.google.protobuf:protobuf-java:${libs.versions.protobuf.get()}",
             "com.google.protobuf:protobuf-java-util:${libs.versions.protobuf.get()}",
+            "com.google.protobuf:protobuf-kotlin:${libs.versions.protobuf.get()}",
         )
     }
 }

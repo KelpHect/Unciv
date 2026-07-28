@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-28 on the authoritative-v3 feature branch. Completed foundations and
+2026-07-28 on `master`. Completed foundations and
 command families are retained below with checked marks; the detailed evidence
 and historical milestones remain in `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -131,6 +131,27 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: required before v3 can replace legacy online play
 
+- [ ] Add V3-aware background turn notifications on Android. The existing
+  `MultiplayerTurnCheckWorker` still enumerates local legacy saves and downloads
+  API-v1/v2 whole-save previews; it does not authenticate an API-v3 account,
+  list server memberships, or derive "your turn" from a player projection.
+  Keep WebSocket revision hints for foreground reconciliation, but use a
+  durable background-safe account/projection check so an offline or suspended
+  Android client receives the existing native "Your turn" notification without
+  learning hidden state.
+- [ ] Add desktop V3 turn notification behavior, or explicitly document and
+  test an in-app-only product decision on every supported desktop OS. No
+  Windows/macOS/Linux native notification or tray integration currently
+  consumes API-v3 turn state; the V3 WebSocket only refreshes an active
+  in-process session.
+- [ ] Qualify account handoff and complete-match playability end to end. Run two
+  independently authenticated human clients, including an Android-to-desktop
+  handoff for the same account, against the packaged Rust/PostgreSQL/Kotlin
+  stack; create and join a game with server AI factions, alternate devices,
+  reconnect after suspension/restart, and play deterministically through an
+  actual Domination terminal state. Existing command inventory, projection,
+  AI, mod-parity, and load tests are necessary but do not by themselves prove a
+  full human match or the cross-device production UI flow.
 - [x] Remove the opaque revision-zero worker setup blob and client-selectable
   seed path. The control plane now generates an independent OS-backed secret
   map seed that is not derivable from the public game UUID; the private

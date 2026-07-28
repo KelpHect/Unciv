@@ -1,5 +1,31 @@
 # Authoritative multiplayer v3 status
 
+## Post-merge client capability correction
+
+Audited on 2026-07-28 after fast-forwarding V3 to `master`:
+
+- Server authority, typed gameplay reachability, packaged-worker AI/mod parity,
+  foreground WebSocket reconciliation, account game discovery, and
+  platform-protected session storage remain verified.
+- Android's native background turn checker is still a legacy whole-save
+  implementation. It enumerates local multiplayer saves and downloads
+  API-v1/v2 previews; it does not log into API v3, list account memberships, or
+  evaluate turn ownership from a V3 player projection.
+- No supported desktop platform currently presents an OS-native V3 turn
+  notification. An active V3 client receives revision hints and reconciles its
+  in-app projection, but a closed desktop client is not notified.
+- The server permits multiple active sessions per account, both Android and
+  desktop have protected token stores, and authenticated game discovery opens
+  server-owned projections. These components support cross-device continuation,
+  but no production E2E test yet proves an Android-to-desktop handoff for one
+  account.
+- The complete command inventory, representative AI turns, mod parity, and
+  constrained-load scenarios do not constitute a two-human match played from
+  creation through an actual Domination terminal state. That qualification is
+  now explicitly P0 in `missing_multiplayer.md`; the earlier “final
+  end-to-end playability” heading below describes the authority and route audit,
+  not proof of a complete human match.
+
 ## Attested constrained Linux capacity qualification
 
 Qualified on 2026-07-28:

@@ -2,6 +2,10 @@ use std::{collections::HashMap, path::PathBuf};
 
 const SERVICE: &str = include_str!("../systemd/unciv-authoritative-worker.service");
 const ENVIRONMENT_EXAMPLE: &str = include_str!("../systemd/worker.env.example");
+const QUALIFICATION_DOCKERFILE: &str = include_str!("../systemd/qualification/Dockerfile");
+const QUALIFICATION_SCRIPT: &str = include_str!("../systemd/qualification/qualify-worker.sh");
+const QUALIFICATION_RUNNER: &str =
+    include_str!("../systemd/qualification/run-linux-worker-qualification.ps1");
 
 #[test]
 fn worker_service_enforces_recycling_isolation_and_resource_caps() {
@@ -17,6 +21,8 @@ fn worker_service_enforces_recycling_isolation_and_resource_caps() {
     assert_eq!(directives["MemorySwapMax"], "0");
     assert_eq!(directives["TasksMax"], "64");
     assert_eq!(directives["OOMPolicy"], "stop");
+    assert_eq!(directives["RuntimeDirectory"], "unciv-worker");
+    assert_eq!(directives["RuntimeDirectoryMode"], "0700");
     assert_eq!(directives["NoNewPrivileges"], "yes");
     assert_eq!(directives["PrivateTmp"], "yes");
     assert_eq!(directives["PrivateDevices"], "yes");
@@ -30,6 +36,7 @@ fn worker_service_enforces_recycling_isolation_and_resource_caps() {
     assert!(command.starts_with("/usr/bin/java "));
     for argument in [
         "-Djava.awt.headless=true",
+        "-Djava.io.tmpdir=/run/unciv-worker",
         "-Xms64m",
         "-Xmx384m",
         "-XX:MaxMetaspaceSize=96m",
@@ -89,6 +96,37 @@ fn packaged_worker_and_assets_are_read_only_inputs() {
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     assert!(manifest.join("../server/build.gradle.kts").is_file());
+}
+
+#[test]
+fn live_linux_qualification_is_pinned_bounded_and_cleans_up() {
+    assert!(QUALIFICATION_DOCKERFILE.contains(
+        "ubuntu@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90"
+    ));
+    assert!(QUALIFICATION_DOCKERFILE.contains(r#"CMD ["/usr/lib/systemd/systemd"]"#));
+    assert!(!QUALIFICATION_DOCKERFILE.contains("ubuntu:latest"));
+    assert!(!QUALIFICATION_DOCKERFILE.contains("UNCIV_V3_UNPACKAGED_DEV"));
+
+    for evidence in [
+        "systemd-analyze verify",
+        "MemorySwapMax",
+        "systemctl kill --signal=SIGKILL",
+        "RuntimeMaxSec=5s",
+        "UNCIV_ENGINE_WORKER_COMMAND_TIMEOUT_MS=1000",
+        "timed_out_status",
+        "OutOfMemoryError",
+        "runuser -u nobody",
+        "qualification-write",
+    ] {
+        assert!(
+            QUALIFICATION_SCRIPT.contains(evidence),
+            "missing live qualification evidence: {evidence}"
+        );
+    }
+    assert!(QUALIFICATION_RUNNER.contains("--privileged"));
+    assert!(QUALIFICATION_RUNNER.contains("'/tmp:rw,noexec,nosuid,nodev'"));
+    assert!(QUALIFICATION_RUNNER.contains("docker rm --force"));
+    assert!(QUALIFICATION_RUNNER.contains("Remove-Item -LiteralPath"));
 }
 
 fn directives(source: &str) -> HashMap<&str, &str> {

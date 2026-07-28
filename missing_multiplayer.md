@@ -591,10 +591,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   crashes/timeouts, periodically recycles the JVM, and applies JVM heap,
   metaspace, direct-memory, cgroup memory/no-swap, CPU, task, and descriptor
   limits to the sequential one-command process.
-- [ ] Qualify the packaged worker unit on the documented Linux production
+- [x] Qualify the packaged worker unit on the documented Linux production
   target. Exercise systemd restart/recycling, timeout exit 124, JVM OOM exit,
   cgroup CPU/memory/no-swap enforcement, task/descriptor ceilings, immutable
-  assets, secret-file permissions, and recovery after each forced failure.
+  assets, secret-file permissions, and recovery after each forced failure. A
+  pinned Ubuntu 24.04 systemd rehearsal now runs the real packaged JAR with an
+  authenticated protocol-v2 probe. It proves SIGKILL and scheduled recycling,
+  the hard command watchdog's exit 124, JVM OOM exit, and authenticated recovery
+  after every fault; inspects the live cgroup-v2 CPU, memory, no-swap, and task
+  controls plus `RLIMIT_NOFILE`; and proves unrelated identities cannot read the
+  service secret or mutate root-owned assets. The rehearsal exposed and fixed
+  LibGDX native extraction failing on `noexec` `/tmp`: the unit now uses a
+  private mode-0700 systemd runtime directory while `/tmp` remains non-executable.
 - [x] Verify every pinned manifest inside the worker before parsing a snapshot.
   The worker now captures one immutable hash catalog immediately after parsing
   its root-owned rulesets, rejects engine/name/hash/component mismatches, and

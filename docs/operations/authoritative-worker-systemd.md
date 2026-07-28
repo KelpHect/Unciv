@@ -11,6 +11,8 @@ boundary; killing or recycling this JVM cannot publish a revision.
 enforces:
 
 - one unprivileged `unciv-worker` process with no Linux capabilities;
+- a private mode-0700 executable runtime directory for LibGDX native-library
+  extraction, so `/tmp` can remain non-executable;
 - loopback-only IPv4/IPv6 access and no public listener;
 - a 384 MiB Java heap, 96 MiB metaspace, and 32 MiB direct-memory cap;
 - a 512 MiB cgroup hard limit, 448 MiB pressure threshold, and no swap;
@@ -111,6 +113,12 @@ bounded authenticated download, extraction, packaged-worker semantic
 validation, PostgreSQL registration, and atomic version activation. Never edit
 a version directory after publication.
 
+LibGDX extracts its platform-native library before the worker starts listening.
+The JVM therefore uses systemd's private `/run/unciv-worker` runtime directory
+instead of `/tmp`. Do not remove `RuntimeDirectory`, change its ownership, or
+point `java.io.tmpdir` at a filesystem mounted `noexec`; doing so makes the
+headless Linux worker fail closed before its authenticated handshake.
+
 ## Recycle and failure drill
 
 Run this on the documented Linux target during deployment rehearsal:
@@ -130,6 +138,11 @@ by the kill may fail or time out, but it must not create a phantom revision.
 Retry only with the same command ID and expected revision.
 
 The checked-in Rust packaging test verifies the unit contract on every
-platform. A live `systemd-analyze`, cgroup-pressure/OOM drill, and Linux
-end-to-end smoke remain required before the separate production-deployment
-checklist can be completed.
+platform. The repeatable live rehearsal is
+`authoritative-server/systemd/qualification/run-linux-worker-qualification.ps1`.
+It boots the pinned Ubuntu 24.04 image with systemd as PID 1, keeps `/tmp`
+mounted `noexec`, and runs the actual packaged JAR through authenticated
+handshake, restart, recycle, watchdog-exit-124, JVM-OOM, cgroup, descriptor,
+asset, and secret-permission checks. This qualifies the private worker unit;
+the separate Rust API, PostgreSQL, proxy/TLS, backup, and full deployment smoke
+gates remain tracked independently.

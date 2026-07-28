@@ -1,5 +1,52 @@
 # Authoritative multiplayer v3 status
 
+## Live Linux systemd worker qualification
+
+Implemented on 2026-07-28:
+
+- Added a repeatable qualification environment built from digest-pinned Ubuntu
+  24.04. It boots systemd as PID 1 under Docker Desktop's Linux engine, stages
+  the real packaged worker and immutable game assets, and drives the private
+  protocol with an authenticated v2 probe.
+- The rehearsal verifies `systemd-analyze`, authenticated startup, SIGKILL
+  restart, five-second scheduled recycling, watchdog exit status 124 during a
+  real huge-map creation, deterministic JVM OOM during constrained ruleset
+  loading, and authenticated recovery after every failure.
+- Live cgroup-v2 values prove the 80% CPU, 448/512 MiB memory, zero-swap, and
+  64-task ceilings. The process limit proves 1,024 descriptors. Identity checks
+  prove the group-readable mode-0640 secret is unavailable to `nobody` and the
+  worker cannot modify the root-owned active ruleset.
+- Live qualification exposed a production startup failure when LibGDX tried to
+  map its extracted native library from a `noexec` private `/tmp`. The unit now
+  directs `java.io.tmpdir` to a systemd-owned mode-0700
+  `/run/unciv-worker`; the rehearsal deliberately retains `noexec` `/tmp`.
+- Corrected the release-bundle runbook's stale migration-head references from
+  20 to the verified current head 22.
+
+Verification on 2026-07-28:
+
+- `authoritative-server/systemd/qualification/run-linux-worker-qualification.ps1`
+  passes against Ubuntu image digest
+  `sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90`.
+  Its JSON report marks systemd verification, authenticated handshake,
+  SIGKILL/recycle/watchdog/OOM recovery, cgroup CPU-memory-swap-task controls,
+  descriptor limit, immutable assets, and secret permissions as passed.
+- `cargo test --all-features` passes 175 active Rust library tests, 25
+  HTTP/runtime tests, two benchmark tests, and four systemd packaging/
+  qualification contract tests; 36 database/process cases remain explicitly
+  prerequisite-gated in that lane. `cargo fmt --all -- --check` and
+  warnings-as-errors `cargo clippy --all-targets --all-features -- -D warnings`
+  pass.
+- A clean `./gradlew :server:test --no-parallel --rerun-tasks --console=plain`
+  passes in 3 minutes 14 seconds with all 12 actionable tasks executed.
+- Iterative rehearsal errors were fixed rather than deferred: the minimal image
+  lacked `/sbin/init`; LibGDX could not execute from `noexec` `/tmp`;
+  `systemctl set-property` rejected the runtime-limit property; intentional
+  restarts tripped the production start limiter; an `Environment=` drop-in did
+  not supersede the protected environment file; and the first OOM scenario did
+  not apply pressure. The final complete run passes and cleans up its disposable
+  container and temporary context.
+
 ## Complete setup and long-horizon AI recovery qualification
 
 Implemented on 2026-07-28:

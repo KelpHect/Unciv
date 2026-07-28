@@ -5,6 +5,10 @@
 *.atlas text eol=lf
 
 *.md   text eol=lf
+*.py text eol=lf
+*.service text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
 # This helps Windows to not mark the auto-generated docs as changed on every Unciv launch
 
 *.svg binary

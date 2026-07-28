@@ -686,13 +686,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   routing proves these screens cannot reach `GameInfo`, the worker, or whole-save
   upload paths. Focused lifecycle/UI-routing tests, the full JVM suite, Android
   debug APK build, Rust gates, and the 34-test PostgreSQL 19 Beta 2 lane pass.
-- [ ] Implement secure Android and desktop token stores. The in-memory/testing
-  token store is not a production credential store. Windows desktop now uses
-  live-tested current-user DPAPI with server-scoped atomic ciphertext files.
-  Android has a bounded AES-GCM/Keystore implementation covering API 21+, but
-  only its compile, lint, and debug-APK build have been verified; API 21-22 and
-  API 23+ device/emulator runtime tests remain open. Secure macOS and Linux
-  desktop implementations are also missing.
+- [x] Implement secure Android and desktop token stores. Windows uses
+  current-user DPAPI with server-scoped atomic ciphertext files. macOS stores
+  the token directly in the current user's Keychain through Security.framework.
+  Linux uses the freedesktop Secret Service through `secret-tool`, passing the
+  token only over stdin. Android API 23+ uses a non-exportable Keystore AES-GCM
+  key; API 21-22 uses a Keystore RSA pair to encrypt a random AES-GCM key.
+  Hosted runtime tests now prove save/reload/clear behavior on Windows, macOS
+  15, Ubuntu 24.04, Android API 21, and Android API 23, and verify that
+  plaintext tokens are not written to client persistence.
 - [x] Add bounded concurrent-session policy, account recovery policy,
   credential-stuffing monitoring, credential rotation, and tests that secrets
   never enter errors, logs, traces, worker frames, or projections. Login now

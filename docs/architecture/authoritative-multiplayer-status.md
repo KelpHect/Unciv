@@ -1,5 +1,55 @@
 # Authoritative multiplayer v3 status
 
+## OS-protected client session credentials
+
+Implemented and runtime-qualified on 2026-07-28:
+
+- Desktop API-v3 sessions now select one server-scoped OS credential store:
+  current-user DPAPI on Windows, Security.framework generic-password items in
+  the current user's macOS Keychain, or the freedesktop Secret Service through
+  `secret-tool` on Linux. macOS token bytes cross only the native API boundary;
+  Linux supplies them only over the child process's stdin. Neither implementation
+  puts credentials in arguments, environment variables, preferences, or
+  plaintext files.
+- Android keeps ciphertext and IV data in app-private preferences. API 23+
+  encrypts with a non-exportable Android Keystore AES-GCM key. API 21-22 uses a
+  Keystore RSA pair to encrypt a random 256-bit AES key, then uses that key for
+  AES-GCM. Token, decrypted key, ciphertext, and IV byte buffers are bounded
+  and cleared after use; corrupt credentials fail closed and are removed.
+- A dedicated least-privilege workflow exercises the real platform stores on
+  macOS 15, Ubuntu 24.04, and Android API 21 and 23. Every action is pinned to
+  a reviewed full commit. Emulator installation, AVD creation, device boot,
+  and failure diagnostics are bounded so a missing device cannot hang CI.
+
+Verification on 2026-07-28:
+
+- GitHub Actions run `30369675831` passed all four jobs: macOS Keychain,
+  Ubuntu Secret Service under a private D-Bus/keyring session, Android API 21,
+  and Android API 23. Each test saved an opaque token, loaded it from a new
+  store instance, and cleared it. Android additionally inspected app-private
+  preferences and found no plaintext token; macOS and Linux expose no
+  application-owned credential file or preference layer.
+- Local Windows runtime tests passed current-user DPAPI round-trip,
+  no-plaintext-at-rest, corrupt-ciphertext removal, and clear behavior.
+  Local Android emulators independently passed API 21 (`Android 5.0.2`) and
+  API 23 (`Android 6.0`) through
+  `./gradlew.bat :android:connectedDebugAndroidTest`.
+- The first API 21 runtime test exposed two real compatibility defects that
+  compile/lint could not detect: its RSA provider did not support
+  `Cipher.unwrap`, and its GCM provider generated a 16-byte IV rather than the
+  assumed 12 bytes. RSA encryption/decryption replaced provider-specific
+  wrapping, and authenticated IVs are now bounded to 12-32 bytes. Both API
+  branches passed after the corrections.
+- `./gradlew.bat :android:lintDebug`, focused desktop credential tests,
+  production-routing tests, Android instrumentation compilation, and the full
+  `./gradlew.bat :tests:test` lane pass. The full lane reports 1,099 tests,
+  zero failures, zero errors, and 15 intentional skips.
+  Additional gates include
+  `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`,
+  `cargo test --test credential_store_workflow_policy`, `actionlint v1.7.12`,
+  and `git diff --check` pass.
+
 ## Attested complete Linux release bundle
 
 Implemented and locally qualified on 2026-07-28:

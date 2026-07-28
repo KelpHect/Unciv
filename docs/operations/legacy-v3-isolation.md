@@ -36,4 +36,3 @@ with all v3 database and worker variables removed, uploads and reads an
 attacker-controlled legacy save under the same UUID, and proves the v3 head,
 snapshot hash, games, revisions, and command journal are unchanged. The
 disposable legacy file root and PostgreSQL container are removed afterward.
-

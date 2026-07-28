@@ -848,8 +848,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   no-Origin clients working, bounds preflight methods/headers, and applies
   no-store, nosniff, no-referrer, and restrictive permissions headers to every
   response. Existing stable API errors remain detail-redacted. TLS/HSTS
-  termination tests now pass; scanning, SBOM, and provenance/signing work keep
-  this broader item open.
+  termination tests now pass. A least-privilege API-v3 workflow now pins every
+  action by full commit, reviews moderate-or-higher dependency changes, scans
+  complete Git history for secrets, audits RustSec advisories daily, submits
+  the resolved Gradle graph, emits SPDX source SBOMs, and uses GitHub OIDC
+  attestations for exact `authoritative-v3-*` source archives. Static policy
+  tests prevent movable action tags or PR write/signing authority. Complete
+  production-bundle SBOM/provenance/signing remains coupled to the still-open
+  production packaging lane, so this broader item remains unchecked.
 - [x] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
   malformed frames, WebSocket exhaustion, and expensive rulesets/commands. A

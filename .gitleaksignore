@@ -1,0 +1,10 @@
+# Documented non-secret example placeholder in the authoritative v3 env template.
+51cfd05d58717f315a7da50edc04a9cd395f618e:authoritative-server/.env.example:generic-api-key:7
+# Historical public Wikimedia searchToken query parameters, not credentials.
+316d57bb26a7cdb44b231fedc8dd5ce3f95ab924:android/assets/jsons/translations/Latin.properties:generic-api-key:7356
+029c8db8dd04eb84f2020553805fa1909db37d70:android/assets/jsons/translations/Latin.properties:generic-api-key:8577
+# Historical already-public PAT disclosure removed from the tree; treat it as
+# permanently compromised and prohibited. Never reuse or test the leaked value.
+1430d7f89d574201915e66650b39295791d49052:.github/workflows/createChangelogEntry.js:github-pat:4
+# Intentionally public mock certificate key used only by the removed bot fixture.
+a7548cd1e686bfdf5acae091dd41dc1c5a89e774:uncivbot/test/fixtures/mock-cert.pem:private-key:1

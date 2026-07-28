@@ -1,5 +1,44 @@
 # Authoritative multiplayer v3 status
 
+## Supply-chain scanning, SBOM, and source attestations
+
+Implemented and locally qualified on 2026-07-28:
+
+- A dedicated API-v3 workflow runs dependency review, complete-history secret
+  scanning, RustSec audit, SPDX source SBOM generation, and daily advisory
+  refresh. Default permissions are read-only. The only repository-write job is
+  Gradle dependency submission, restricted to the default branch or schedule.
+- All 15 action invocations are pinned to reviewed 40-character commits.
+  Gitleaks and Syft tool versions are also fixed. Pull requests cannot use
+  release credentials, repository writes, OIDC, or attestation authority.
+- Exact `authoritative-v3-*` tags create a `git archive`, a matching SPDX SBOM,
+  and a GitHub OIDC attestation binding the two. The runbook explicitly keeps
+  this source evidence below the still-required complete production-bundle
+  attestation boundary.
+- Five historical scan exceptions are exact commit/path/rule/line
+  fingerprints. Broad regex/path/rule suppressions are forbidden. One removed
+  historical PAT disclosure is treated as permanently compromised and
+  prohibited; its leaked value is never tested or reused, and only its original
+  owner can confirm revocation.
+
+Verification on 2026-07-28:
+
+- Pinned `actionlint v1.7.12` accepts the workflow.
+- `cargo audit --file authoritative-server/Cargo.lock` loads 1,170 current
+  RustSec advisories and reports no vulnerability in 287 locked crates.
+- Pinned Gitleaks 8.30.1 scans all 12,807 commits and approximately 129 MB with
+  no unreviewed leak. The first run exposed the five historical candidates;
+  each was inspected before its exact fingerprint was registered.
+- Pinned Syft 1.49.0 emits a valid SPDX 2.3 document containing 646 packages and
+  2,099 relationships. The 1,381,602-byte qualification artifact was generated
+  outside the repository and removed after validation.
+- Five Rust supply-chain policy tests pass, enforcing immutable action pins,
+  read-only PR authority, closed scan exceptions, coverage, and the production
+  release boundary.
+- Warnings-as-errors Clippy and the complete Rust all-target gate pass: 182
+  library tests, 29 API tests, and every active policy/packaging test execute
+  without failure. Rust formatting and repository diff hygiene pass.
+
 ## Operator isolation and immutable security-audit export
 
 Implemented and live-qualified on 2026-07-28:

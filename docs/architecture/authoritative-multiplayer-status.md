@@ -44,15 +44,18 @@ Verification on 2026-07-28:
   `cargo fmt --all -- --check`, and `git diff --check` pass.
 - `./gradlew.bat :tests:test --no-daemon` passes the complete JVM test suite in
   1m54s. Focused backoff and notification reconciliation tests also pass.
+  The hosted server gate then found its separate release-contract assertion
+  still expected migration 24; it was advanced to 25 and the server suite was
+  rerun locally before the follow-up push.
 - The first focused Rust compile found missing `Uuid` imports in split API
   modules; those were fixed. Rust 1.97 then hit an incremental recovery ICE, so
   the clean verification reran with `CARGO_INCREMENTAL=0`. The first database
   filter used `--exact` with a short name and executed zero tests; it was
   rejected as evidence and rerun with filters that executed both cases. The
-  migration-version change initially exposed the expected stale release
-  compatibility constant; it was updated before the complete green rerun. No
-  compile, test, migration, formatting, Clippy, or cleanup error remains
-  deferred.
+  migration-version change initially exposed stale Rust and Kotlin release
+  compatibility constants; both were updated before their complete green
+  reruns. No compile, test, migration, formatting, Clippy, or cleanup error
+  remains deferred.
 - `main.rs` remains a 6-line bootstrap facade and `lib.rs` a 65-line module
   facade. WebSocket API logic is 496 lines and the new persistence module is
   128 lines; concerns remain in shallow descriptive modules.

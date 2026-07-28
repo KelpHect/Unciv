@@ -1,5 +1,48 @@
 # Authoritative multiplayer v3 status
 
+## Operator incident response and break-glass boundary
+
+Implemented on 2026-07-28:
+
+- Added one production incident-response entry point covering private-worker
+  failure/timeout, corrupt-game quarantine and bounded recovery, fenced
+  PostgreSQL promotion, outbox backlog/dead-letter handling, database credential
+  compromise, authentication/denial-of-service abuse, and break-glass access.
+- Every workflow starts by preserving redacted evidence and stopping public
+  writes when integrity is uncertain. Mutating repair, recovery, and outbox
+  operations remain dry-run-first, require an isolated PostgreSQL 19 Beta 2
+  rehearsal and reviewer approval, and end with reconciliation and readiness
+  gates. Lost-response retries explicitly retain the original command ID.
+- Break-glass is a local-console, named, time-bounded, two-person operation.
+  There is no public operator endpoint or standing application superuser.
+  `unciv_restore` remains isolated from production, `unciv_migrate` owns schema
+  changes, and `unciv_audit` owns read-only investigation. Client saves and
+  hand-edited canonical rows are prohibited as recovery inputs.
+- Added a focused Rust regression suite that makes all seven incident classes,
+  authority-preserving commands, detailed-runbook links, break-glass controls,
+  and evidence-redaction rules part of the build.
+
+Verification on 2026-07-28:
+
+- `cargo test --manifest-path authoritative-server/Cargo.toml --test
+  operator_runbooks` passes all five runbook policy tests.
+- `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+  --quiet` passes 176 active library tests, 28 PostgreSQL tests in the
+  non-live lane, the five new operator tests, and every other active
+  integration/packaging test; 42 environment-dependent fault/worker/database
+  cases remain intentionally ignored in this lane.
+- `cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets
+  --all-features -- -D warnings` passes.
+- `cargo fmt --manifest-path authoritative-server/Cargo.toml -- --check`
+  and `git diff --check` pass, and every linked detailed runbook exists.
+- The first test run exposed rustfmt layout drift and two assertions that
+  assumed Markdown phrases were not line-wrapped. The test strings were made
+  layout-independent, formatting was applied, and the complete focused suite
+  passed. No product error remains deferred.
+- PostgreSQL 19 Beta 2 remains the newest published PostgreSQL 19 prerelease on
+  this date. The separate later-beta/RC/final upgrade gate remains open because
+  no later image exists to rehearse honestly.
+
 ## Production TLS, HSTS, and trusted client identity
 
 Implemented on 2026-07-28:

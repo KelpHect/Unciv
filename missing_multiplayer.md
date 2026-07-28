@@ -796,9 +796,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   drill reached 1 MiB free, reported critical, rejected a 12 MiB canonical
   commit with no phantom command/head, then committed the same command once
   after space recovery and reconciled with zero findings.
-- [ ] Add operator runbooks for worker failure, corrupt game quarantine/recovery,
+- [x] Add operator runbooks for worker failure, corrupt game quarantine/recovery,
   database failover, outbox backlog, credential compromise, abuse, and
-  break-glass access.
+  break-glass access. The unified incident entry point preserves redacted
+  evidence, stops public writes when authority is uncertain, routes every
+  mutation through dry-run-first checked-in repair/recovery/outbox procedures,
+  fences the old PostgreSQL primary before one promotion, and requires
+  reconciliation/readiness before reopening traffic. Break-glass is local,
+  named, time-bounded, two-person reviewed, least-privilege, and audited; it
+  cannot expose an operator endpoint, accept client saves, or hand-edit
+  canonical history. Five build-time policy tests keep all seven incident
+  classes, commands, links, redaction rules, and closure gates present.
 
 ## P1: observability, security, and release controls
 

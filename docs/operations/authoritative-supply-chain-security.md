@@ -70,6 +70,16 @@ Any tag whose complete build or attestation job did not pass is not a release.
 Source-only evidence, a locally assembled bundle, or an archive whose external
 or internal digest differs is not permission to deploy.
 
+The first hosted qualification was
+`authoritative-v3-0.1.0-beta.2` at commit
+`f584c22d0aa9d1d60e9156f866390cce9e497335`, GitHub Actions run
+`30383681835`. The retained archive SHA-256 is
+`7a97b727b14c7f6dde3d24b577756b76c594e941f5040c018265c622923cb97f`.
+An independent download matched the retained checksum and separately verified
+the SLSA provenance and SPDX 2.3 predicates against `KelpHect/Unciv`. This
+receipt qualifies that exact immutable tag only; later tags must repeat every
+check.
+
 For a release, require two-person review of the exact tag, workflow action pin
 changes, dependency findings, SPDX output, GitHub attestation verification,
 bundle ID, and all production qualification receipts. Preserve the SBOM,

@@ -1,5 +1,29 @@
 # Authoritative multiplayer v3 status
 
+## First hosted production-bundle attestations
+
+Qualified on 2026-07-28:
+
+- Annotated tag `authoritative-v3-0.1.0-beta.2` fixes commit
+  `f584c22d0aa9d1d60e9156f866390cce9e497335`. Hosted GitHub Actions run
+  `30383681835` passed source-SBOM generation, complete-history secret scanning,
+  RustSec audit, the full Java 21/Rust 1.97.0 Linux build, ruleset-manifest
+  validation, closed-bundle creation/self-verification, both OIDC attestation
+  steps, and retained-evidence upload.
+- The retained archive independently matched SHA-256
+  `7a97b727b14c7f6dde3d24b577756b76c594e941f5040c018265c622923cb97f`.
+  `gh attestation verify` accepted its SLSA provenance and, in a separate
+  invocation, the `https://spdx.dev/Document/v2.3` predicate against
+  `KelpHect/Unciv`. Both bind the exact archive digest and immutable tag; the
+  provenance additionally binds the complete commit.
+- This closes the supply-chain P1 evidence gap. It does not substitute for the
+  still-required full-stack Linux service smoke or a PostgreSQL 19 upgrade to a
+  later prerelease that does not yet exist.
+- Product review also resolved the conditional player-visible administration
+  history item as unnecessary: current lifecycle, ownership, membership, and
+  mutation controls are complete, while immutable audit/outbox history remains
+  intentionally operator-only.
+
 ## Enforced MPL/AGPL provenance boundary
 
 Implemented and qualified on 2026-07-28:

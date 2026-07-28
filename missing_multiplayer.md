@@ -426,8 +426,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   commands open/reuse the command bus, lifecycle operations retain
   exact-meaning IDs across ambiguous retries, and stale/rejected authority
   refreshes without falling through to legacy save mutation.
-- [ ] Add a richer game administration/history projection if the product needs
-  more than the current lifecycle status and durable audit/outbox records.
+- [x] Decide whether a richer game administration/history projection is needed.
+  It is not required for the playable v3 product: the production administration
+  surface already exposes current lifecycle/ownership/membership state and all
+  authorized mutations, while immutable security audit and outbox records are
+  deliberately operator-only. Exposing historical operator records to clients
+  would add privacy surface without enabling gameplay, synchronization, or
+  recovery, so it is excluded unless a future product requirement defines a
+  bounded player-visible history.
 - [x] Allow an owner to revoke spectator access through a distinct audited
   operation. The caller-stable operation ID is durably bound to the owner,
   game, normalized target username, and revocation kind; exact retries succeed
@@ -792,9 +798,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   its own hardened unit, active readiness gate, HSTS, and fail-closed client-IP
   boundary. Exact release tags now build a normalized self-verifying Linux
   bundle, bind its embedded SPDX through GitHub OIDC attestations, and retain
-  the archive, external digest, manifest, and SBOM. A real tagged hosted run,
-  full-stack Linux service qualification, and prerelease upgrade/rollback
-  qualification remain to complete this item.
+  the archive, external digest, manifest, and SBOM. The first real hosted tag
+  `authoritative-v3-0.1.0-beta.2` built and attested the complete bundle at
+  commit `f584c22d0`; its retained archive digest and both provenance/SPDX
+  predicates independently verify. Full-stack Linux service qualification and
+  prerelease upgrade/rollback qualification remain to complete this item.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
   2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
   one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
@@ -878,7 +886,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   daily/incident exports, gap/chain alerts, and named service-owner, incident-
   commander, and independent-review responsibilities. Static router/policy
   tests and the live pinned PostgreSQL role/export drill enforce the boundary.
-- [ ] Add cache-control and content-type hardening, safe error redaction, CORS/
+- [x] Add cache-control and content-type hardening, safe error redaction, CORS/
   origin policy, TLS termination tests, dependency/vulnerability scanning, SBOM,
   secret scanning, and release provenance/signing where practical. The Rust
   API now rejects unapproved browser origins before handlers, accepts at most
@@ -899,8 +907,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   input under pinned toolchains, create a deterministic self-verifying Linux
   archive, and bind its embedded SPDX to that archive through GitHub OIDC.
   Static policy and a full local Linux build/archive/extract/self-verify drill
-  pass. The first real tagged hosted attestation and its independent
-  verification remain required, so this broader item remains unchecked.
+  pass. The hosted `authoritative-v3-0.1.0-beta.2` tag run then built and
+  reverified the production bundle, passed complete-history secret scanning and
+  RustSec audit, issued both OIDC predicates, and retained the evidence.
+  Independent download verification matched archive SHA-256
+  `7a97b727b14c7f6dde3d24b577756b76c594e941f5040c018265c622923cb97f`;
+  `gh attestation verify` bound both SLSA provenance and SPDX 2.3 to commit
+  `f584c22d0` and the exact tag.
 - [x] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
   malformed frames, WebSocket exhaustion, and expensive rulesets/commands. A

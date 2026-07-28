@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory)]
     [string]$DatabaseUrl,
     [int]$ApiPort = 13000,
-    [int]$WorkerPort = 43171
+    [int]$WorkerPort = 43171,
+    [ValidateSet('disabled', 'loopback')]
+    [string]$TrustedProxy = 'disabled'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,6 +45,7 @@ try {
     $env:UNCIV_V3_BIND = "127.0.0.1:$ApiPort"
     $env:UNCIV_V3_DATABASE_URL = $DatabaseUrl
     $env:UNCIV_ENGINE_WORKER_ADDR = "127.0.0.1:$WorkerPort"
+    $env:UNCIV_V3_TRUSTED_PROXY = $TrustedProxy
     $api = Start-Process -FilePath (
         Resolve-Path (
             Join-Path $repositoryRoot (
@@ -92,6 +95,43 @@ try {
     ) {
         throw 'API returned an unexpected liveness/readiness shape'
     }
+    $proxy_authentication = 'not_tested'
+    if ($TrustedProxy -eq 'loopback') {
+        $credentials = @{
+            username = 'proxy-' + [guid]::NewGuid().ToString('N').Substring(0, 12)
+            password = 'ProxySmoke-' + [guid]::NewGuid().ToString('N') + '!A1'
+        } | ConvertTo-Json -Compress
+        $missing = Invoke-WebRequest -Uri (
+            "http://127.0.0.1:$ApiPort/api/v3/auth/register"
+        ) -Method Post -ContentType 'application/json' -Body $credentials `
+            -SkipHttpErrorCheck -TimeoutSec 5
+        $ambiguous = Invoke-WebRequest -Uri (
+            "http://127.0.0.1:$ApiPort/api/v3/auth/register"
+        ) -Method Post -ContentType 'application/json' -Body $credentials `
+            -Headers @{
+                'X-Forwarded-For' = '203.0.113.17'
+                'Forwarded' = 'for=198.51.100.8'
+            } -SkipHttpErrorCheck -TimeoutSec 5
+        $accepted = Invoke-WebRequest -Uri (
+            "http://127.0.0.1:$ApiPort/api/v3/auth/register"
+        ) -Method Post -ContentType 'application/json' -Body $credentials `
+            -Headers @{
+                'X-Forwarded-For' = '203.0.113.17'
+            } -SkipHttpErrorCheck -TimeoutSec 10
+        if (
+            $missing.StatusCode -ne 400 -or
+            $ambiguous.StatusCode -ne 400 -or
+            $accepted.StatusCode -ne 201
+        ) {
+            throw (
+                'Authentication route did not enforce the trusted-proxy boundary: ' +
+                "missing=$($missing.StatusCode), " +
+                "ambiguous=$($ambiguous.StatusCode), " +
+                "accepted=$($accepted.StatusCode)"
+            )
+        }
+        $proxy_authentication = 'passed'
+    }
     Stop-Process -Id $worker.Id -Force
     $worker.WaitForExit()
     $workerUnavailable = $null
@@ -120,6 +160,7 @@ try {
         postgres = $readiness.postgres
         engine_worker = $readiness.engine_worker
         worker_failure_status = $workerUnavailable.status
+        proxy_authentication = $proxy_authentication
     } | ConvertTo-Json -Compress
 }
 finally {

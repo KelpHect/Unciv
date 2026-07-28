@@ -30,6 +30,11 @@ pub(crate) async fn run() {
         .unwrap_or_else(|_| "127.0.0.1:3000".to_owned())
         .parse::<SocketAddr>()
         .expect("UNCIV_V3_BIND must be a socket address");
+    let trusted_proxy = TrustedProxyPolicy::from_environment()
+        .expect("authoritative API trusted-proxy policy must be valid");
+    if trusted_proxy.requires_loopback_listener() && !address.ip().is_loopback() {
+        panic!("loopback trusted-proxy mode requires a loopback UNCIV_V3_BIND");
+    }
     let database_url = std::env::var("UNCIV_V3_DATABASE_URL")
         .expect("UNCIV_V3_DATABASE_URL is required for the authoritative API");
     let database_config =
@@ -466,6 +471,7 @@ pub(crate) async fn run() {
             worker,
             notifications,
             websocket_policy,
+            trusted_proxy,
         });
     let listener = tokio::net::TcpListener::bind(address)
         .await

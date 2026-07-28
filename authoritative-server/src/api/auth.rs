@@ -15,9 +15,10 @@ use super::*;
 pub(super) async fn register(
     State(state): State<AppState>,
     ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(credentials): Json<CredentialsRequest>,
 ) -> Result<(StatusCode, Json<AccountResponse>), ApiError> {
-    let source_prefix = source_prefix(source.ip());
+    let source_prefix = source_prefix(state.trusted_proxy.client_ip(source, &headers)?);
     let identity = credentials.username.trim().to_ascii_lowercase();
     enforce_rate_limit(
         &state,
@@ -78,9 +79,10 @@ pub(super) async fn register(
 pub(super) async fn login(
     State(state): State<AppState>,
     ConnectInfo(source): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(credentials): Json<CredentialsRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
-    let source_prefix = source_prefix(source.ip());
+    let source_prefix = source_prefix(state.trusted_proxy.client_ip(source, &headers)?);
     let identity = credentials.username.trim().to_ascii_lowercase();
     enforce_rate_limit(
         &state,
@@ -287,7 +289,8 @@ pub(super) async fn change_password(
     Json(request): Json<ChangePasswordRequest>,
 ) -> Result<Json<SessionResponse>, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
-    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    let source = state.trusted_proxy.client_ip(source, &headers)?;
+    enforce_account_security_rate_limit(&state, actor.id, source).await?;
     let credential = match state
         .repository
         .change_password(actor.id, &request.current_password, &request.new_password)
@@ -300,7 +303,7 @@ pub(super) async fn change_password(
                 actor.id,
                 SecurityAuditEvent::PasswordChange,
                 SecurityAuditOutcome::Rejected,
-                source.ip(),
+                source,
             )
             .await;
             return Err(account_change_error(error));
@@ -311,7 +314,7 @@ pub(super) async fn change_password(
         actor.id,
         SecurityAuditEvent::PasswordChange,
         SecurityAuditOutcome::Success,
-        source.ip(),
+        source,
     )
     .await;
     Ok(Json(SessionResponse {
@@ -338,7 +341,8 @@ pub(super) async fn disable_account(
     Json(request): Json<ConfirmPasswordRequest>,
 ) -> Result<StatusCode, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
-    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    let source = state.trusted_proxy.client_ip(source, &headers)?;
+    enforce_account_security_rate_limit(&state, actor.id, source).await?;
     if let Err(error) = state
         .repository
         .disable_account(actor.id, &request.password)
@@ -349,7 +353,7 @@ pub(super) async fn disable_account(
             actor.id,
             SecurityAuditEvent::AccountDisable,
             SecurityAuditOutcome::Rejected,
-            source.ip(),
+            source,
         )
         .await;
         return Err(account_change_error(error));
@@ -359,7 +363,7 @@ pub(super) async fn disable_account(
         actor.id,
         SecurityAuditEvent::AccountDisable,
         SecurityAuditOutcome::Success,
-        source.ip(),
+        source,
     )
     .await;
     Ok(StatusCode::NO_CONTENT)
@@ -384,7 +388,8 @@ pub(super) async fn delete_account(
     Json(request): Json<ConfirmPasswordRequest>,
 ) -> Result<StatusCode, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
-    enforce_account_security_rate_limit(&state, actor.id, source.ip()).await?;
+    let source = state.trusted_proxy.client_ip(source, &headers)?;
+    enforce_account_security_rate_limit(&state, actor.id, source).await?;
     if let Err(error) = state
         .repository
         .delete_account(actor.id, &request.password)
@@ -395,7 +400,7 @@ pub(super) async fn delete_account(
             actor.id,
             SecurityAuditEvent::AccountDelete,
             SecurityAuditOutcome::Rejected,
-            source.ip(),
+            source,
         )
         .await;
         return Err(account_change_error(error));
@@ -405,7 +410,7 @@ pub(super) async fn delete_account(
         actor.id,
         SecurityAuditEvent::AccountDelete,
         SecurityAuditOutcome::Success,
-        source.ip(),
+        source,
     )
     .await;
     Ok(StatusCode::NO_CONTENT)

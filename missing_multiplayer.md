@@ -744,10 +744,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and enforceable JVM/cgroup limits. The release bundle now includes a dedicated
   migration executable; the Rust API and migrator have separate hardened
   systemd units, credentials, users, resource ceilings, and active dependency
-  readiness. PostgreSQL service hardening, reverse proxy/TLS, backup, and
-  upgrade units remain to complete this item.
-- [ ] Configure production TLS/HSTS and explicit trusted-proxy handling. Never
-  trust forwarding headers from an untrusted peer.
+  readiness. The public Caddy TLS proxy now has its own hardened unit, active
+  readiness gate, HSTS, and fail-closed client-IP boundary. PostgreSQL service
+  hardening, backup, and upgrade units remain to complete this item.
+- [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
+  2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
+  one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
+  one client address only from an explicitly configured loopback proxy,
+  requires a loopback listener in that mode, rejects ambiguous proxy input, and
+  ignores forwarding claims from every untrusted peer.
 - [ ] Create separate least-privilege PostgreSQL roles for runtime, migrations,
   backups, restores, and audit access; require encrypted database transport and
   credential rotation. Runtime and migration now have separate executables,
@@ -788,8 +793,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   16 exact HTTPS origins from a fail-closed environment setting, keeps native
   no-Origin clients working, bounds preflight methods/headers, and applies
   no-store, nosniff, no-referrer, and restrictive permissions headers to every
-  response. Existing stable API errors remain detail-redacted. TLS/HSTS,
-  scanning, SBOM, and provenance/signing work keep this broader item open.
+  response. Existing stable API errors remain detail-redacted. TLS/HSTS
+  termination tests now pass; scanning, SBOM, and provenance/signing work keep
+  this broader item open.
 - [ ] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
   malformed frames, WebSocket exhaustion, and expensive rulesets/commands.

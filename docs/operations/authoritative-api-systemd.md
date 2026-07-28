@@ -43,6 +43,7 @@ HTTP, and bounded runtime configuration:
 ```text
 UNCIV_V3_DATABASE_URL=postgres://unciv_runtime:...@127.0.0.1:5432/unciv_authoritative?sslmode=require
 UNCIV_V3_BIND=127.0.0.1:3000
+UNCIV_V3_TRUSTED_PROXY=loopback
 UNCIV_V3_DB_POOL_MAX=10
 UNCIV_V3_DB_POOL_MIN=1
 UNCIV_V3_DB_ACQUIRE_TIMEOUT_MS=5000
@@ -58,6 +59,14 @@ usage; it must not own the database/schema or receive `CREATE`. The migration
 role owns the schema objects. Rotate each password independently and restart
 only its consumer.
 
+`UNCIV_V3_TRUSTED_PROXY=loopback` is valid only with a loopback
+`UNCIV_V3_BIND`; startup rejects any public bind in that mode. The API then
+requires one unambiguous `X-Forwarded-For` address on authentication/account
+security routes from the loopback peer. Forwarding headers from every
+non-loopback peer are ignored. Caddy's protected default derives this header
+from its direct remote address, while the qualified configuration removes
+competing forwarding headers.
+
 ## Release activation
 
 Build and activate one verified release bundle as documented in
@@ -68,6 +77,7 @@ systemctl daemon-reload
 systemctl start unciv-authoritative-migrate.service
 systemctl restart unciv-authoritative-worker.service
 systemctl restart unciv-authoritative-api.service
+systemctl restart unciv-authoritative-proxy.service
 curl --fail http://127.0.0.1:3000/healthz
 curl --fail http://127.0.0.1:3000/readyz
 ```
@@ -77,6 +87,9 @@ PostgreSQL and the authenticated private worker are reachable; otherwise it
 returns HTTP 503 with component status and no private error detail. The reverse
 proxy/load balancer must use `/readyz` for admission and must never publish the
 worker listener.
+
+See `authoritative-tls-proxy.md` for the public HTTPS/HSTS boundary. Do not
+publish port 3000 or start the API with a wildcard bind.
 
 For a local release rehearsal against an already migrated disposable database,
 build the worker distribution and debug API, then run:

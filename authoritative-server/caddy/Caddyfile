@@ -1,0 +1,25 @@
+{
+	email {$UNCIV_V3_ACME_EMAIL}
+	admin 127.0.0.1:2019
+}
+
+{$UNCIV_V3_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	reverse_proxy {$UNCIV_V3_UPSTREAM:127.0.0.1:3000} {
+		health_uri /readyz
+		health_interval 10s
+		health_timeout 5s
+		health_status 200
+
+		header_up X-Forwarded-Proto "https"
+		header_up -Forwarded
+		header_up -X-Real-IP
+	}
+}

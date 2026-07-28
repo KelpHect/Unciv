@@ -1,5 +1,61 @@
 # Authoritative multiplayer v3 status
 
+## Production TLS, HSTS, and trusted client identity
+
+Implemented on 2026-07-28:
+
+- Added a production Caddy 2.11.4 automatic-HTTPS boundary and hardened systemd
+  unit. Only Caddy owns public ports; Rust stays on loopback. The proxy redirects
+  HTTP, emits one-year HSTS plus response hardening, removes its server header,
+  actively gates on `/readyz`, forces HTTPS forwarding context, and removes
+  competing `Forwarded`/`X-Real-IP` input.
+- Authentication and account-security rate limits no longer collapse every
+  proxied player into one loopback identity. `UNCIV_V3_TRUSTED_PROXY` is a
+  closed `disabled|loopback` policy. Loopback mode refuses a public Rust bind
+  and accepts exactly one syntactically valid, non-unspecified,
+  non-multicast `X-Forwarded-For` address from the loopback peer. Missing,
+  repeated, comma-chained, malformed, or competing values fail before
+  registration/login rate-limit logic or any account mutation. Every
+  forwarding claim from a non-loopback peer is ignored.
+- Added separate protected proxy configuration, ACME state, service identity,
+  resource/capability ceilings, deployment/rotation/failure guidance, a pinned
+  Caddy qualification image, a reusable live TLS smoke, and static policy
+  regression tests. No CDN/private-range trust shortcut is enabled.
+
+Verification on 2026-07-28:
+
+- `run-tls-proxy-smoke.ps1` passes against
+  `caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648`.
+  A real TLS connection receives `Strict-Transport-Security:
+  max-age=31536000` with no `Server` header; HTTP returns 308 to HTTPS; spoofed
+  `X-Forwarded-For`, `Forwarded`, and `X-Real-IP` input is replaced/removed and
+  the upstream receives one direct-peer IP plus HTTPS context.
+- The real Rust API, packaged Kotlin worker, and exact digest-pinned PostgreSQL
+  19 Beta 2 ran together in loopback-proxy mode. Authentication returned 400
+  for missing and ambiguous proxy identity, accepted the single Caddy-shaped
+  address with 201, and `/readyz` changed to 503 after the worker was killed.
+  A separate startup rehearsal proved loopback trust with a wildcard bind is
+  refused. The disposable database/container and all child processes were
+  removed.
+- Caddy configuration validation is clean. `systemd-analyze verify` passes for
+  the proxy unit in the pinned Ubuntu 24.04 qualification image. The focused
+  Kotlin release-compatibility test passes.
+- `cargo test --all-features` passes 176 active library tests, 28 HTTP/runtime
+  tests, two benchmark tests, eight systemd/package policy tests, and all other
+  active contract/binary tests; 37 prerequisite-gated cases remain ignored in
+  that lane. Warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`,
+  `cargo fmt --all -- --check`, OpenAPI parity, and source-size limits pass.
+- Iterative harness/configuration issues were fixed rather than deferred: the
+  first digest-addressed Caddy validation omitted the executable; explicit
+  `X-Forwarded-For` configuration produced an unnecessary-policy warning and
+  was removed in favor of Caddy's protected default; PowerShell initially
+  treated the expected 308 as an exception; and the first API smoke launched a
+  stale standalone binary even though the test harness had recompiled. The
+  corrected validator, no-redirect client, rebuilt binary, fresh database, and
+  complete smokes all pass. No source, test, TLS, proxy, permission, process,
+  container, or documentation error remains deferred.
+
 ## Split database migration authority and active API readiness
 
 Implemented on 2026-07-28:

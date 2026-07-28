@@ -6,6 +6,7 @@ pub(super) struct AppState {
     pub(super) worker: EngineWorkerClient,
     pub(super) notifications: NotificationHub,
     pub(super) websocket_policy: WebSocketRuntimePolicy,
+    pub(super) trusted_proxy: TrustedProxyPolicy,
 }
 
 pub(super) struct RateLimitPolicy {

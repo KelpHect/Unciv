@@ -29,6 +29,8 @@ also emits:
 - `Referrer-Policy: no-referrer`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 
-TLS and HSTS remain the responsibility of the separately qualified trusted
-reverse-proxy boundary. Do not add HSTS to a process that can still be reached
-over plain HTTP; qualify TLS termination first.
+TLS and HSTS are enforced by the separately qualified Caddy boundary documented
+in `authoritative-tls-proxy.md`. The Rust listener remains loopback plaintext
+and never emits HSTS because it is not publicly reachable. Caddy redirects HTTP
+to HTTPS, emits one-year HSTS only on the HTTPS site, and supplies the one
+trusted client address used by authentication rate limits.

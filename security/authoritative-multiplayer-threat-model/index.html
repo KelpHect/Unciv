@@ -1,0 +1,3876 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://yairm210.github.io/Unciv/security/authoritative-multiplayer-threat-model/">
+      
+      
+        <link rel="prev" href="../../operations/legacy-v3-isolation/">
+      
+      
+        <link rel="next" href="../projection-disclosure-policy/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Authoritative Multiplayer Threat Model - Unciv</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#authoritative-multiplayer-threat-model" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Unciv" class="md-header__button md-logo" aria-label="Unciv" data-md-component="logo">
+      
+  <img src="../../assets/Icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Unciv
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Authoritative Multiplayer Threat Model
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/yairm210/unciv" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    yairm210/unciv
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Unciv" class="md-nav__button md-logo" aria-label="Unciv" data-md-component="logo">
+      
+  <img src="../../assets/Icon.png" alt="logo">
+
+    </a>
+    Unciv
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/yairm210/unciv" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    yairm210/unciv
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome to Unciv!
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Guiding-Principles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guiding Principles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translating
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Translating
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translating - for translators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translation-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation generation - for developers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translation-mods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation generation - for modders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction to Mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Making-a-new-Civilization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    'My first mod' - Making a new Civilization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Images-and-Audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images and Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod file structure
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mod file structure
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/1-Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod file structure Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/2-Civilization-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Civilization-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/3-Map-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/4-Unit-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unit-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/5-Miscellaneous-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Miscellaneous JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Special Mods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Special Mods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Creating-a-custom-tileset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating a custom tileset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Creating-a-UI-skin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating a UI skin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Unique-parameters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/uniques/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uniques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Type-checking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Type Checking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Autoupdates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Autoupdates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Building-Locally/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building Locally
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Coding-standards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coding standards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/From-code-to-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From code to deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Game-Making-Tips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Making Tips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Map-rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Project-structure-and-major-classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Saved-games-and-transients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Saved games and transients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Testing-Android-Builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building for and testing on Android
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Translations%2C-mods%2C-and-modding-freedom-in-Open-Source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translations, mods, and modding freedom in Open Source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/UI-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Unique-replacement-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique replacement process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Uniques/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uniques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Force-rating-calculation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Force rating calculation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Installing-on-macOS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing on MacOS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Intentional-departures-from-Civ-V/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Intentional departures from Civ V
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Multiplayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multiplayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Regions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Simulations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Privacy-Policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Privacy Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Credits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Credits_trailer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trailer Audio Credits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multiplayer-command-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer command coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/authoritative-multiplayer-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer v3 status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/current-multiplayer-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Current multiplayer flow (verified 2026-07-18)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_3" id="__nav_11_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adr
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Adr
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/adr/0001-authoritative-multiplayer-v3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001: Rust control plane with a private Kotlin authoritative engine worker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Benchmarks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/authoritative-multiplayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legal/authoritative-multiplayer-licensing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer licensing boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-account-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative account recovery and session policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-api-systemd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative Rust API and database migration systemd deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-http-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative API HTTP security boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-incident-response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer incident response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-outbox-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative outbox operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-postgresql-19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative PostgreSQL 19 operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-reconciliation-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative reconciliation repair
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-release-bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 release bundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-ruleset-acquisition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative ruleset acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-schema-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative schema and capacity policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-security-audit-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit export and custody
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-snapshot-retention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative snapshot retention
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-supply-chain-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 supply-chain security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-tls-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative API TLS and trusted-proxy deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-websocket-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative WebSocket runtime policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-worker-identity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Private worker service identity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-worker-systemd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative worker systemd deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-game-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy game import
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-multiplayer-retirement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy multiplayer retirement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-v3-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy and authoritative multiplayer isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative Multiplayer Threat Model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative Multiplayer Threat Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-authority-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Final authority review
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Final authority review">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#security-objectives-and-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security objectives and assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threat-model-trust-boundaries-and-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threat Model, Trust Boundaries, and Assumptions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Threat Model, Trust Boundaries, and Assumptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#actors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trust-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attack-surface-mitigations-and-attacker-stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attack Surface, Mitigations, and Attacker Stories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attack Surface, Mitigations, and Attacker Stories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication-sessions-and-account-abuse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication, sessions, and account abuse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typed-commands-authorization-concurrency-and-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typed commands, authorization, concurrency, and replay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projection-confidentiality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projection confidentiality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#worker-protocol-and-rules-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worker protocol and rules execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-snapshots-outbox-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL, snapshots, outbox, and recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-multiplayer-and-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy multiplayer and migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saves-maps-mods-archives-and-remote-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saves, maps, mods, archives, and remote content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#websocket-notifications-and-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WebSocket notifications and availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-platform-and-local-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client platform and local data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operations-observability-and-administrative-tooling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operations, observability, and administrative tooling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-dependency-and-release-supply-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build, dependency, and release supply chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-validation-priorities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security validation priorities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#severity-calibration-critical-high-medium-low" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Severity Calibration (Critical, High, Medium, Low)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Severity Calibration (Critical, High, Medium, Low)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#low" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../projection-disclosure-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projection disclosure policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-authority-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Final authority review
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Final authority review">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#security-objectives-and-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security objectives and assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threat-model-trust-boundaries-and-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threat Model, Trust Boundaries, and Assumptions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Threat Model, Trust Boundaries, and Assumptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#actors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trust-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#attack-surface-mitigations-and-attacker-stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attack Surface, Mitigations, and Attacker Stories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attack Surface, Mitigations, and Attacker Stories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication-sessions-and-account-abuse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication, sessions, and account abuse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typed-commands-authorization-concurrency-and-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typed commands, authorization, concurrency, and replay
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projection-confidentiality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projection confidentiality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#worker-protocol-and-rules-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worker protocol and rules execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-snapshots-outbox-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL, snapshots, outbox, and recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-multiplayer-and-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy multiplayer and migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saves-maps-mods-archives-and-remote-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saves, maps, mods, archives, and remote content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#websocket-notifications-and-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WebSocket notifications and availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-platform-and-local-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client platform and local data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operations-observability-and-administrative-tooling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operations, observability, and administrative tooling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-dependency-and-release-supply-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build, dependency, and release supply chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-validation-priorities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security validation priorities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#severity-calibration-critical-high-medium-low" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Severity Calibration (Critical, High, Medium, Low)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Severity Calibration (Critical, High, Medium, Low)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#low" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="authoritative-multiplayer-threat-model">Authoritative Multiplayer Threat Model</h1>
+<h2 id="overview">Overview</h2>
+<p>This threat model covers the Unciv repository as it relates to multiplayer integrity and the transition from legacy file exchange to authoritative multiplayer API v3. Unciv is a moddable LibGDX game whose shared Kotlin engine is used by Android, desktop, tests, and the legacy Ktor server. The v3 design adds a public Rust control plane, PostgreSQL canonical storage, and a private Kotlin worker that reuses the game engine for rules execution.</p>
+<p>The model is intentionally repository-wide. Multiplayer correctness depends not only on HTTP handlers, but also on save and ruleset deserialization, mod acquisition, platform credential storage, database operations, worker isolation, deployment, and the release supply chain.</p>
+<h2 id="final-authority-review">Final authority review</h2>
+<p>Reviewed repository-wide on 2026-07-28. This section is the current closure
+assessment; later <code>Current controls</code> and <code>Required hardening</code> paragraphs retain
+the design history that led to it.</p>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Current enforced result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public writes</td>
+<td>The closed OpenAPI command-route inventory exactly matches the Kotlin API-v3 transport. Requests contain typed intent, command identity, and expected revision; no V3 route accepts <code>GameInfo</code>, snapshots, save replacement, arbitrary patches, actor civilizations, worker operations, or client RNG.</td>
+</tr>
+<tr>
+<td>Production client</td>
+<td>Every gameplay <code>*IfOpen</code> session mutation is referenced by the projection-only production UI. Source gates prohibit canonical <code>GameInfo</code>, <code>GameStarter</code>, legacy upload/download, local turn execution, and client autoplay in that UI. Whole-save access elsewhere must explicitly cross the <code>.legacy</code> façade.</td>
+</tr>
+<tr>
+<td>Rules and AI</td>
+<td>Only the private Kotlin worker loads canonical snapshots and executes the shared game engine. End turn runs every AI civilization in that worker before Rust may compare-and-swap the resulting revision. Rust performs identity, protocol, consistency, and persistence checks but contains no second rules engine.</td>
+</tr>
+<tr>
+<td>Mods</td>
+<td>New games resolve an operator-approved, content-addressed base-plus-mod manifest. Acquisition is bounded and fail-closed; fresh packaged workers validate and execute mod-defined generation and stateful commands. A client mod name or local content is never authoritative.</td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td>PostgreSQL transactions lock the head and bind actor, command meaning, expected revision, journal, snapshot, hash, membership effects, and outbox. Exact retries return the original result; stale or changed-meaning retries cannot add a revision. Recovery, restore, replica-race, worker/Rust crash, and reconciliation tests preserve one history.</td>
+</tr>
+<tr>
+<td>Confidentiality</td>
+<td>Players and spectators receive explicit bounded projections only. Sentinel, role, malformed-state, response-shape, cache, log, audit, notification, and public-route tests keep canonical snapshots and opponent secrets inside the trusted service boundary.</td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>Worker frames, deadlines, queue, circuit breaker, JVM/cgroup resources, WebSocket leases, HTTP sizes, rate limits, SQL timeouts, storage alarms, outbox retries, readiness, and operator recovery are bounded and fail closed. Notifications remain non-authoritative hints reconciled through HTTP.</td>
+</tr>
+<tr>
+<td>Release</td>
+<td>The Linux bundle is content-addressed and self-verifying, includes exact migrations, binaries, rulesets, license, and SPDX evidence, and is built only from immutable tags. PostgreSQL 19 Beta 2 and runtime images are digest-pinned. Hosted provenance, SBOM, secret-scan, RustSec, production-stack, worker-restart, and constrained-load evidence are release gates.</td>
+</tr>
+</tbody>
+</table>
+<p>The final mutation inventory found no untracked V3 gameplay family and no
+client path capable of changing canonical state without a typed server command.
+Approved mods are supported end to end. AI is deliberately unavailable as a
+client-side V3 automation feature because all AI players execute server-side.</p>
+<p>The accepted residual risks are operational rather than missing authority:
+PostgreSQL 19 Beta 2 may contain prerelease defects; a compromised trusted
+operator, Rust process, worker host, or database remains a server incident; and
+capacity is bounded by the measured release profile rather than advertised as
+unlimited. A later PostgreSQL 19 beta, RC, or final image must pass the
+documented upgrade/restore rehearsal before replacing Beta 2. Future
+gameplay/rules/mod/UI changes are governed by <code>AGENTS.md</code> and must preserve the
+inventories above.</p>
+<h3 id="security-objectives-and-assets">Security objectives and assets</h3>
+<ul>
+<li>Preserve the single canonical game history: game identity, monotonically increasing revision, canonical state hash, ruleset manifest, membership, turn ownership, and accepted command history.</li>
+<li>Prevent a player from acting for another account or civilization, learning hidden opponent state, replaying a command with different meaning, or replacing authoritative state with a client-produced save.</li>
+<li>Protect password verifiers, bearer sessions, account identities, audit data, database credentials, signing material, and operator credentials.</li>
+<li>Keep canonical snapshots and full rules-engine state inside trusted server components. Player clients receive only player-scoped projections and disposable cache data.</li>
+<li>Ensure the worker executes the exact immutable ruleset selected for the game and that accepted commands use the same engine semantics as supported Unciv clients.</li>
+<li>Preserve availability and recoverability of the control plane, worker pool, PostgreSQL revisions and snapshots, notification outbox, backups, and migration tooling.</li>
+<li>Preserve the integrity of downloaded mods, local saves, packaged applications, dependencies, CI workflows, and published artifacts where they can affect multiplayer behavior.</li>
+</ul>
+<h2 id="threat-model-trust-boundaries-and-assumptions">Threat Model, Trust Boundaries, and Assumptions</h2>
+<h3 id="actors">Actors</h3>
+<ul>
+<li><strong>Unauthenticated network attacker:</strong> can register and log in, enumerate public endpoints, send malformed or oversized traffic, open WebSockets, and operate many source addresses.</li>
+<li><strong>Malicious authenticated player:</strong> controls the client, local storage, requests, command IDs, revisions, timing, and local mods. They may collude with other players or own multiple accounts.</li>
+<li><strong>Honest player:</strong> expects turn integrity, hidden-information confidentiality, session security, and recovery after reconnects or stale commands.</li>
+<li><strong>Mod author or archive host:</strong> controls ruleset JSON, media, archive paths, compression ratios, metadata, and availability. A compromised host or repository is equivalent.</li>
+<li><strong>Operator or administrator:</strong> can access deployment configuration, databases, backups, worker hosts, logs, and migration tools. This is a privileged role whose mistakes or compromise can affect every game.</li>
+<li><strong>Developer, CI workflow, and dependency publisher:</strong> can influence source, generated artifacts, Gradle or Cargo dependencies, build plugins, release credentials, and distributed binaries.</li>
+<li><strong>Rust control plane, PostgreSQL, and Kotlin worker:</strong> trusted service identities. A compromise of any one is a server-side security incident, not a client trust assumption.</li>
+</ul>
+<h3 id="trust-boundaries">Trust boundaries</h3>
+<ol>
+<li><strong>Player client to public v3 HTTP/WebSocket service.</strong> Everything from the client is untrusted, including identifiers, expected revisions, hashes, command IDs, and WebSocket behavior. TLS termination and forwarding configuration sit on this boundary.</li>
+<li><strong>Rust control plane to PostgreSQL.</strong> The database is the durable source of truth for accounts, sessions, membership, manifests, revisions, snapshots, idempotency records, rate-limit buckets, audits, and outbox delivery. SQL credentials and schema migration authority are high-value capabilities.</li>
+<li><strong>Rust control plane to private Kotlin worker.</strong> Length-prefixed JSON carries canonical snapshots, actor identity, immutable ruleset manifests, typed operations, results, projections, and hashes. This channel must remain private and mutually attributable even if it is loopback-only today.</li>
+<li><strong>Kotlin worker to shared Unciv engine and rulesets.</strong> Existing game logic and deserializers become server security-critical. Ruleset selection, engine version, determinism, resource limits, and exception handling affect authoritative integrity and availability.</li>
+<li><strong>Canonical state to player projection.</strong> Full game state may contain fog-of-war, opponent plans, private resources, diplomacy, or other hidden data. Projection is an allowlist transformation; UI hiding is not an access control.</li>
+<li><strong>Legacy multiplayer to v3.</strong> The legacy Ktor routes exchange whole files and retain Basic-auth-style credentials and chat behavior. They must not be able to read, write, import into, or impersonate authoritative games without an explicit, validated migration path.</li>
+<li><strong>Network and local content to filesystem and parser.</strong> Save strings, maps, mod JSON, media, ZIP entries, URLs, response headers, and filenames cross into decompression, deserialization, and local file operations.</li>
+<li><strong>Application to Android/desktop operating system.</strong> Session tokens, saves, logs, clipboard or deep-link inputs, proxy settings, certificate validation, and local file permissions rely partly on platform controls.</li>
+<li><strong>Source and dependency ecosystem to release artifacts.</strong> GitHub workflows, Gradle and Cargo resolution, wrappers, signing, container builds, and package publication cross from third-party or contributor-controlled inputs into trusted binaries.</li>
+</ol>
+<h3 id="assumptions">Assumptions</h3>
+<ul>
+<li>Clients and client-side caches are fully attacker-controlled. A client-reported state hash is diagnostic input, never authority.</li>
+<li>PostgreSQL, the Rust process, the worker host, and authorized operators are trusted to access canonical state. Compromise of those components is addressed through isolation, least privilege, auditing, backup, and incident response rather than cryptographic concealment from the operator.</li>
+<li>Production uses correctly configured TLS and trusted forwarding. Source-prefix rate limits are meaningful only when the application receives a validated client address from a trusted proxy chain.</li>
+<li>The worker is not internet-accessible. Loopback binding reduces exposure but is not a substitute for process identity, least privilege, framing limits, and timeouts.</li>
+<li>Rulesets used for authoritative games are immutable, content-addressed, size-bounded, and accepted by server policy. A local client mod with the same display name is not necessarily the same content.</li>
+<li>Mod rulesets are data interpreted by Unciv rather than intentionally executable native code. Nevertheless, parsers, unique-expression evaluation, media handling, and pathological data can expose denial-of-service or implementation vulnerabilities.</li>
+<li>WebSocket notifications are hints. Correctness comes from authenticated HTTP projection reconciliation, so notifications may be delayed, duplicated, reordered, or lost without changing canonical state.</li>
+<li>Single-player and hotseat cheating on a user's own device is outside the multiplayer authority boundary unless that data can be imported as authoritative state.</li>
+</ul>
+<h3 id="required-invariants">Required invariants</h3>
+<ul>
+<li>Only the server creates or advances canonical revisions. Each commit compares the expected head, changes the head exactly once, stores the snapshot and canonical hash together, and emits its outbox event in the same transaction.</li>
+<li>A command's actor comes from a valid server session and game membership, never from a client-supplied account or civilization field.</li>
+<li>A command ID is idempotent within its defined scope: retrying the same command yields the original result, while reuse with different game, actor, revision, or payload is rejected.</li>
+<li>Clients cannot upload, replace, or directly download canonical snapshots through v3. Only typed, versioned, size-bounded commands cross the public write boundary.</li>
+<li>Only the private worker executes gameplay rules. The Rust control plane validates protocol, identity, concurrency, persistence, and result consistency; it does not independently invent gameplay outcomes.</li>
+<li>Every player response is produced by an explicit projection schema. Unknown fields fail closed, and tests use sentinel secrets to prove they cannot cross the boundary.</li>
+<li>A game's ruleset manifest binds content hashes, sizes, engine/protocol compatibility, and policy. Worker output is rejected if revision or state hash relationships are inconsistent.</li>
+<li>Bearer tokens are high-entropy, stored server-side only as digests, revocable, rotatable, expiry-checked, and never written to logs or audit details.</li>
+<li>Audit records identify security-relevant outcomes without retaining passwords, bearer tokens, raw request bodies, or unnecessarily precise network identifiers.</li>
+<li>Legacy file multiplayer and v3 have separate namespaces, credentials, storage, routing, and operational policy until a one-way migration validates ownership and content.</li>
+</ul>
+<h2 id="attack-surface-mitigations-and-attacker-stories">Attack Surface, Mitigations, and Attacker Stories</h2>
+<h3 id="authentication-sessions-and-account-abuse">Authentication, sessions, and account abuse</h3>
+<p><strong>Attacker story:</strong> An attacker sprays passwords, registers accounts until storage or operator attention is exhausted, steals a bearer token from insecure local storage or logs, reuses a session after logout, or bypasses a source-address limit through proxy-header confusion.</p>
+<p>Current v3 controls include password hashing, opaque session issuance, digest-only server storage, expiry, rotation and revocation, durable fixed-window login and registration limits, stable <code>429</code> responses, prefix-reduced network audit data, and one-way identity hashes. Handlers derive the actor from the bearer session.</p>
+<p>Required hardening includes production TLS/HSTS policy, an explicit trusted-proxy configuration, secure Android and desktop token storage, bounded session counts, credential-stuffing monitoring, audit retention and access policy, account recovery policy, database credential rotation, and tests proving credentials never enter errors, traces, projections, or worker frames. Rate limiting must remain effective across replicas and must avoid becoming an account-lockout oracle.</p>
+<h3 id="typed-commands-authorization-concurrency-and-replay">Typed commands, authorization, concurrency, and replay</h3>
+<p><strong>Attacker story:</strong> A player changes a game or unit ID to act across tenants, submits an action for another civilization, races two legal commands at one head revision, replays an accepted command with a changed payload, or uses a stale local view to overwrite newer play.</p>
+<p>Current v3 controls bind sessions to memberships, expose typed join, move-unit, and end-turn commands, use expected revisions and transactional compare-and-swap commits, persist command IDs for idempotency, enforce turn ownership, assign civilizations server-side, and execute movement and turn rules in the worker. PostgreSQL is the durable authority.</p>
+<p>The closed envelope and invariants now cover every tracked gameplay action.
+Command IDs are unique per game, and durable retries compare protocol, game,
+command ID, expected revision, and typed command against the original journal
+payload before worker execution and again inside the locked commit transaction.
+Changed-meaning reuse receives a stable conflict while an exact retry may vary
+only its explicitly diagnostic observed-state hash. Bounded IDs/payloads,
+normalized authorization failures, controlled multi-replica races, and worker
+fault tests prove rejected or failed executions cannot partially mutate
+membership, head, snapshot, journal, or outbox state.</p>
+<h3 id="projection-confidentiality">Projection confidentiality</h3>
+<p><strong>Attacker story:</strong> A legitimate member requests another player's view, discovers hidden state in a nested or newly added field, correlates hashes or metadata to infer fog-of-war information, or obtains a full snapshot through diagnostics, errors, logs, or an administrative endpoint.</p>
+<p>Current v3 controls require membership for projection access, send the full snapshot only to the private worker, return an allowlisted projection DTO, and include sentinel-leak tests. Game metadata does not serve the canonical snapshot.</p>
+<p>Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.</p>
+<h3 id="worker-protocol-and-rules-execution">Worker protocol and rules execution</h3>
+<p><strong>Attacker story:</strong> A malicious command or snapshot triggers excessive CPU, memory, recursion, or an engine crash; a local process impersonates the worker; malformed length prefixes desynchronize the stream; a compromised worker returns an invalid snapshot/hash pair; or nondeterministic engine behavior creates divergent outcomes.</p>
+<p>Current controls keep the worker protocol off the public router, use typed JSON
+operations and bounded response frames, bind actor civilization server-side,
+and verify worker-produced canonical hashes before persistence. Protocol v2
+also authenticates every request and response with direction-separated
+HMAC-SHA256 over a fresh request nonce, length, and exact payload; both
+processes fail startup when the shared 256-bit service secret is absent or
+malformed. The worker verifies identity before JSON parsing or rule execution,
+and Rust verifies the response before parsing or persistence. The worker reuses
+Unciv's game engine instead of accepting client outcomes.</p>
+<p>Implemented controls include strict request/response frame limits, independently
+bounded connect/write/read/total deadlines, authenticated direction-separated
+local IPC, schema negotiation, deterministic replay tests, redacted errors, and
+a shared fail-fast circuit breaker with a single recovery probe. PostgreSQL
+keeps the old canonical head on every worker failure. Remaining hardening
+includes live Linux qualification of the checked-in hard command watchdog,
+systemd crash recycling, and JVM/cgroup CPU-memory limits, plus manifest
+verification inside the worker.</p>
+<h3 id="postgresql-snapshots-outbox-and-recovery">PostgreSQL, snapshots, outbox, and recovery</h3>
+<p><strong>Attacker story:</strong> SQL injection or an overprivileged service identity exposes accounts and games; a migration corrupts history; backup restore rolls a game backward; snapshot/hash rows become inconsistent; two replicas publish conflicting heads; or a notification lease is abused to exhaust the outbox.</p>
+<p>Current v3 code uses parameterized SQL, transactional head comparison, immutable revision/snapshot records, canonical hashes, membership constraints, durable session and rate-limit state, and leased outbox dispatch. WebSocket messages contain revision hints rather than authoritative state.</p>
+<p>Required hardening includes least-privilege database roles for runtime, migration, backup, and audit access; encrypted transport and backups; point-in-time recovery drills; restore validation against revision/hash invariants; schema downgrade policy; outbox retention and poison-event handling; replica/load tests; database statement and lock timeouts; capacity alerts; and reconciliation that detects missing snapshots, orphan revisions, duplicate memberships, or a head without its committed outbox event.</p>
+<h3 id="legacy-multiplayer-and-migration">Legacy multiplayer and migration</h3>
+<p><strong>Attacker story:</strong> A player uploads a fabricated whole-game save through legacy <code>/files/{fileName}</code>, exploits filename handling, relies on weak or absent legacy credentials, subscribes to chat channels without game membership validation, or causes legacy data to be treated as a v3 canonical game.</p>
+<p>The repository currently keeps legacy Ktor routes separate from <code>/api/v3</code>, while v3 capability discovery explicitly forbids whole-state uploads. That separation is a transition control, not proof that legacy play is authoritative.</p>
+<p>Required hardening includes separate origins or network listeners, storage roots and credentials; canonical path validation and request-size limits on legacy filenames/uploads; explicit deprecation telemetry; no shared session interpretation; and a one-way migration tool that authenticates game ownership, validates and size-bounds the save, pins a server-approved manifest, records provenance, and creates revision zero exactly once. Operators must be able to disable legacy writes without disabling v3.</p>
+<h3 id="saves-maps-mods-archives-and-remote-content">Saves, maps, mods, archives, and remote content</h3>
+<p><strong>Attacker story:</strong> An archive entry such as <code>../target</code> escapes the mod staging directory; a ZIP bomb or huge JSON exhausts disk or memory; a redirect reaches an unintended host; crafted ruleset/save data crashes or stalls the engine; a mutable remote mod changes after a game starts; or media parsing exploits a platform library.</p>
+<p>The client downloads GitHub or direct ZIP content into a staging area and parses saves, maps, and ruleset JSON through shared code. This is a distinct untrusted-content boundary. The observed ZIP extraction builds destinations from entry names, so containment must be enforced by canonical-path checks rather than assumed from staging.</p>
+<p>Current v3 acquisition is an offline operator boundary with a closed exact-hash policy. It permits HTTPS only, requires an exact allowlisted host, disables redirects and environment proxies, keeps optional bearer credentials in environment memory, streams into bounded new staging files, verifies archive hashes before parsing, and rejects unsafe paths, links, special files, unsupported compression, collisions, and archive bombs. It extracts only the selected JSON subtree, validates exact component hashes and combined ruleset semantics in the packaged worker, atomically installs immutable versions, and prevents garbage collection from racing new-game creation. Clients and authoritative workers have no arbitrary URL-fetch surface.</p>
+<p>Remaining hardening includes live Linux/systemd failure qualification, parser and decompressor fuzzing beyond the deterministic adversarial fixtures, media limits for any future server-side media ingestion, release-level worker/control-plane bundle pinning, and continued dependency and parser review.</p>
+<h3 id="websocket-notifications-and-availability">WebSocket notifications and availability</h3>
+<p><strong>Attacker story:</strong> A client opens many authenticated sockets, reads slowly, causes unbounded queues, repeatedly reconnects, or treats a forged/stale notification as authority. A process crash loses in-memory fanout after an outbox row is leased.</p>
+<p>Current controls authenticate the notification endpoint, scope fanout by
+account, persist outbox events, lease delivery, and instruct clients to
+reconcile revisions through HTTP. Notifications do not contain full state.
+Each Rust process now bounds global and per-account sockets, frame/message and
+write-buffer sizes, account hint queues, idle lifetime, and every write.
+Admission occurs after authentication and before upgrade; exact drop guards
+release permits and remove unused channel state. Ping/pong control traffic is
+required to remain live, arbitrary data frames cannot extend the deadline, and
+a lagged account receives only <code>resync_required</code>. A durable outbox claimant now
+publishes a closed 1 KiB PostgreSQL notification to every replica; each replica
+re-resolves authoritative membership before local delivery. Publish precedes
+outbox acknowledgement, duplicates are harmless, and listener gaps or rejected
+shared payloads force HTTP resynchronization.</p>
+<p>Fleet-wide PostgreSQL leases now enforce global/per-account admission across
+replicas, clients use bounded reconnect jitter, and bounded metrics cover lag,
+drops, rejections, and lease-loss disconnects. Deterministic notification tests
+exercise duplicate, missing, reordered, lagged, and oversized traffic without
+canonical mutation. Sustained low-resource full-stack load qualification
+remains tracked separately in the release checklist.</p>
+<h3 id="client-platform-and-local-data">Client platform and local data</h3>
+<p><strong>Attacker story:</strong> Malware or another local user steals a session from plaintext preferences, an exported Android component injects a URI or file, a malicious save/mod name escapes a storage root, logs expose identifiers or tokens, or a stale client displays a move as accepted when the server rejected it.</p>
+<p>Required controls include platform keystore/keychain-backed session storage where available, restrictive file permissions and Android component exports, URI and path validation, certificate validation, redacted diagnostics, projection cache invalidation on account/game changes, clear pending/rejected command UI, and treating all local saves and mods as untrusted on import. A compromised player device is not trusted to preserve multiplayer secrets already revealed to that player.</p>
+<h3 id="operations-observability-and-administrative-tooling">Operations, observability, and administrative tooling</h3>
+<p><strong>Attacker story:</strong> An operator runs an unsafe migration, exposes a debug endpoint, copies production snapshots into insecure test storage, leaks secrets through metrics, or cannot distinguish abuse from a broken worker during an incident.</p>
+<p>Required controls include separate administrative authentication and network policy, least-privilege runbooks, secret-manager integration, redacted structured logs, immutable security audit export, metrics without credentials or hidden state, alerting for auth abuse/stale conflicts/worker failures/outbox lag, tested backup and rollback procedures, incident-response ownership, and auditable break-glass access. Health endpoints should disclose only what unauthenticated load balancers require.</p>
+<h3 id="build-dependency-and-release-supply-chain">Build, dependency, and release supply chain</h3>
+<p><strong>Attacker story:</strong> A dependency or Gradle plugin is compromised, an untrusted pull request gains release credentials, a workflow action changes behavior, generated protocol artifacts drift, or a signing key publishes a malicious Android, desktop, container, or server build.</p>
+<p>Required controls include pinned and reviewed workflow actions, least-privilege GitHub tokens, protected release environments, isolated signing credentials, dependency locking and verification, reproducible or provenance-attested artifacts where practical, secret scanning, code review for protocol/schema changes, SBOM and vulnerability monitoring, and release tests that bind client capability declarations, server protocol, worker engine version, and database migrations. Reference implementations may inform behavior but must not introduce license-incompatible code into distributed components.</p>
+<p>The public API now treats browser origin as an explicit boundary. Native
+clients without an <code>Origin</code> header remain supported, while a request carrying
+an origin not present in the bounded exact-HTTPS allowlist is rejected before
+route execution. CORS never reflects arbitrary origins, never enables
+credentials, and permits only the API methods plus bearer/content-type request
+headers. All responses are non-cacheable and carry nosniff, no-referrer, and
+restricted browser-feature policies. TLS/HSTS and trusted-proxy qualification
+remain separate required controls; see
+<code>docs/operations/authoritative-http-security.md</code>.</p>
+<h3 id="security-validation-priorities">Security validation priorities</h3>
+<p>The highest-value adversarial tests are: cross-account/cross-civilization command attempts; idempotency-key reuse with changed content; multi-replica revision races; sentinel hidden-state projection tests; worker frame, timeout, crash and resource-exhaustion tests; archive traversal and decompression bombs; legacy/v3 namespace isolation; token/audit/log leakage searches; backup restore and rollback drills; and sustained HTTP/WebSocket/load tests against bounded resources.</p>
+<h2 id="severity-calibration-critical-high-medium-low">Severity Calibration (Critical, High, Medium, Low)</h2>
+<p>Severity combines exploitability with confidentiality, integrity, availability, and recovery impact in Unciv's multiplayer context. Gameplay balance defects without a trust-boundary violation are ordinary correctness bugs; the same defect becomes a security issue when a malicious player can use it to violate authoritative state or another player's confidentiality.</p>
+<h3 id="critical">Critical</h3>
+<ul>
+<li>Remote code execution in the public service or authoritative worker through commands, saves, mods, archives, or deserialization.</li>
+<li>Unauthenticated arbitrary replacement of canonical state or execution of arbitrary commands across games at scale.</li>
+<li>Exfiltration of production signing keys, database superuser credentials, or secrets sufficient to compromise essentially all accounts and games.</li>
+<li>A systemic endpoint that exposes full canonical snapshots, credentials, or hidden state for most games without membership.</li>
+</ul>
+<h3 id="high">High</h3>
+<ul>
+<li>Authentication or authorization bypass allowing cross-account or cross-civilization actions in authoritative games.</li>
+<li>Reliable revision rollback, split-brain canonical histories, or idempotency failure that lets a player duplicate or change an accepted action.</li>
+<li>SQL injection or path traversal that reads or overwrites account, game, server, or release data with substantial scope.</li>
+<li>Persistent bearer-session theft through server logs, responses, insecure server storage, or a remotely triggerable client flaw.</li>
+<li>Projection leakage of strategically significant hidden state across games or players.</li>
+</ul>
+<h3 id="medium">Medium</h3>
+<ul>
+<li>Targeted remote denial of service through expensive engine operations, worker crashes, WebSocket exhaustion, large frames, or pathological rulesets where recovery is available and scope is bounded.</li>
+<li>Limited hidden-information disclosure affecting one game or a narrow field without full canonical-state access.</li>
+<li>Rate-limit or audit bypass that materially enables credential attacks but does not itself bypass authentication.</li>
+<li>A backup, migration, or outbox defect that causes bounded loss, delay, or rollback and is recoverable from verified durable history.</li>
+<li>Local save or mod corruption that requires user interaction but can affect an authoritative migration unless the server rejects it.</li>
+</ul>
+<h3 id="low">Low</h3>
+<ul>
+<li>Disclosure of non-sensitive service metadata with no useful exploit chain.</li>
+<li>An isolated client crash, stale display, or lost notification that is corrected by authenticated HTTP reconciliation and cannot change canonical state.</li>
+<li>Minor resource consumption bounded by existing quotas and affecting only the attacker's session.</li>
+<li>Local-only manipulation requiring control of the player's own device, with no privilege gain, hidden-state exposure, or authoritative multiplayer impact.</li>
+</ul>
+<p>Repository: https://github.com/KelpHect/Unciv
+Reviewed runtime version: authoritative-v3-0.1.0-beta.2.8
+(<code>1fb6d174c3316f8755570f583e25b94a799a2643</code>)</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

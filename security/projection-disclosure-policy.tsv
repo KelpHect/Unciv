@@ -1,0 +1,386 @@
+# audience	path	classification	rationale
+player	player.cityStatePartners[].availableGoldGifts[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].canDeclareWar	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].canDemandWorker	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].canNegotiatePeace	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].canPledgeProtection	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].canRevokeProtection	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].civilizationId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].diplomaticMarriageCost	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].improvementGifts[].goldCost	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].improvementGifts[].improvementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].improvementGifts[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].improvementGifts[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].tributeGoldAmount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.currentPlayerCivilizationId	public	Public protocol or turn metadata required to synchronize the player presentation.
+player	player.diplomacyPartners[].adoptedPolicyBranches[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].availableDemands[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].canDeclareWar	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].canDenounce	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].canOfferFriendship	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].civilizationId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPrompts[].availableCityStateResponses[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomacyPrompts[].cityStateCivilizationId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomacyPrompts[].demand	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomacyPrompts[].promptId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomacyPrompts[].requestingCivilizationId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomacyPrompts[].type	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.diplomaticVoteCandidates[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].choices[].choiceId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].choices[].text	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].eventName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].promptId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].text	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.eventPrompts[].unitId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.exploredTiles[].baseTerrain	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].improvementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].improvementPillaged	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].naturalWonderName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].resourceAmount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].resourceName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].roadPillaged	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].roadStatus	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].terrainFeatures[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].visible	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.exploredTiles[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.gold	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.isCurrentTurn	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.knownCivilizations[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.ownCities[].assignableTiles[].locked	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].assignableTiles[].worked	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].assignableTiles[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].assignableTiles[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].availableConstructions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].availableGovernanceActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].avoidGrowth	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].bombardTargets[].preview.attackerBaseStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerEffectiveStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerMaxHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerMaxRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerMinRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerModifiers[].label	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.attackerModifiers[].percent	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderBaseStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderEffectiveStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderMaxHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderMaxRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderMinRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderModifiers[].label	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.defenderModifiers[].percent	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].preview.outcome	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].bombardTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].citizenFocus	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].availableActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].estimatedTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].kind	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].placementTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].placementTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].productionCost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].purchases[].allowed	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].purchases[].availableAmount	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].purchases[].cost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].purchases[].currency	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].purchases[].legalTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].purchases[].legalTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionOptions[].purchases[].requiresTile	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].queueable	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionOptions[].storedProduction	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].availableActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionQueueEntries[].estimatedTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].productionCost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].purchases[].allowed	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].purchases[].availableAmount	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionQueueEntries[].purchases[].cost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].purchases[].currency	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].purchases[].legalTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionQueueEntries[].purchases[].legalTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].constructionQueueEntries[].purchases[].requiresTile	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueueEntries[].storedProduction	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].constructionQueue[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].health	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].id	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].isBeingRazed	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].isPuppet	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].manualSpecialists	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].population	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].selectableCitizenFocuses[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownCities[].sellableBuildings[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].specialists[].assigned	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].specialists[].capacity	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].specialists[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileBatchPurchases[].affordable	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileBatchPurchases[].goldCost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileBatchPurchases[].ring	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileBatchPurchases[].tileCount	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tilePurchases[].affordable	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tilePurchases[].goldCost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tilePurchases[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tilePurchases[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].locked	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].ownedByActor	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].owningCityId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].worked	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].workingCityId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].tileStates[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].unitPromotionPreferences[].baseUnitName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].unitPromotionPreferences[].enabled	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].unitPromotionPreferences[].savedPromotions[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].airSweepTargets[].attackerBaseStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].attackerHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].attackerMaxHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].attackerModifiers[].label	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].attackerModifiers[].percent	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].interceptorDisclosure	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].airSweepTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].attackFromX	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].attackFromY	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerBaseStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerEffectiveStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerMaxHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerMaxRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerMinRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerModifiers[].label	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.attackerModifiers[].percent	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderBaseStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderEffectiveStrength	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderMaxHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderMaxRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderMinRemainingHealth	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderModifiers[].label	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.defenderModifiers[].percent	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].preview.outcome	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].attackTargets[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].automated	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].availableGreatPersonActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableImprovementOrders[].improvementName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableImprovementOrders[].queuedImprovementName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableInstantImprovementActions[].actionId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableInstantImprovementActions[].title	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availablePostures[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availablePromotions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableReligiousActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableRoadDestinations[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableRoadDestinations[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableTransformActions[].actionId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableTransformActions[].targetUnitName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableTriggerActions[].actionId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableTriggerActions[].title	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableUpgradeTargets[].goldCost	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].availableUpgradeTargets[].targetUnitName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].canDisband	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].canFoundCity	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].canGift	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].canPillage	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].canRename	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].capitalProjectName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].currentMovement	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].exploring	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].health	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].id	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].improvementOrder[].improvementName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].improvementOrder[].turnsRemaining	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].instanceName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].moveDestinations[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].moveDestinations[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].moveTowardDestinations[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].moveTowardDestinations[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].movementDestinationX	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].movementDestinationY	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].movementEscortUnitId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].nextPromotionXp	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].nuclearTargetCandidates[].blastRadius	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].nuclearTargetCandidates[].effectDisclosure	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].nuclearTargetCandidates[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].nuclearTargetCandidates[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].paradropDestinations[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].paradropDestinations[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].posture	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].promotionXp	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].promotions[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].roadConnectionDestinationX	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].roadConnectionDestinationY	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].roadConnectionPath[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].roadConnectionPath[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].swapDestinations[].x	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].swapDestinations[].y	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.ownUnits[].x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownUnits[].y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.pendingCityDispositions[].availableActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingCityDispositions[].cityId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingCityDispositions[].cityName	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].requestId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].requestingCivilizationId	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.ourOffers[].amount	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.ourOffers[].duration	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.ourOffers[].name	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.ourOffers[].type	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.theirOffers[].amount	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.theirOffers[].duration	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.theirOffers[].name	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTradeRequests[].trade.theirOffers[].type	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.pendingTurnActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.policies.adoptedPolicies[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.policies.cultureNeededForNextPolicy	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.policies.freePolicies	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.policies.selectablePolicies[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.policies.storedCulture	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.protocolVersion	public	Public protocol or turn metadata required to synchronize the player presentation.
+player	player.religionChoice.availableBeliefs[].name	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.religionChoice.availableBeliefs[].type	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.religionChoice.availableReligionIcons[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.religionChoice.requiredBeliefTypes[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.religionChoice.requiresReligionIdentity	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.research.appendableTargets[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.research.completionPrompts[].promptId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.completionPrompts[].technologyName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.currentTechnology	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.freeTechnologyChoices[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.overflowScience	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.queueEntries[].availableActions[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.research.queueEntries[].cost	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.queueEntries[].estimatedTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.queueEntries[].storedScience	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.queueEntries[].technologyName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.queue[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.researchedTechnologies[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.research.selectableTargets[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.selectableGreatPeople[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.spies[].action	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.spies[].availableCityIds[]	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.spies[].canCancelCoup	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.spies[].canMoveToHideout	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.spies[].canStageCoup	action_allowlist	Server-derived legal input or prompt allowlist; the client cannot establish authority.
+player	player.spies[].cityId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.spies[].civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.spies[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.spies[].rank	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.spies[].turnsRemaining	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].hasPendingOutgoingOffer	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].ourAvailableOffers[].amount	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].ourAvailableOffers[].duration	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].ourAvailableOffers[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].ourAvailableOffers[].type	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].theirAvailableOffers[].amount	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].theirAvailableOffers[].duration	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].theirAvailableOffers[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.tradePartners[].theirAvailableOffers[].type	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.turn	public	Public protocol or turn metadata required to synchronize the player presentation.
+player	player.visibleForeignUnits[].airSweepTargets[].attackerBaseStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].attackerHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].attackerMaxHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].attackerModifiers[].label	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].attackerModifiers[].percent	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].interceptorDisclosure	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].airSweepTargets[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].attackFromX	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].attackFromY	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerBaseStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerEffectiveStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerMaxHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerMaxRemainingHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerMinRemainingHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerModifiers[].label	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.attackerModifiers[].percent	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderBaseStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderEffectiveStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderMaxHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderMaxRemainingHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderMinRemainingHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderModifiers[].label	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.defenderModifiers[].percent	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].preview.outcome	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].attackTargets[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].automated	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableGreatPersonActions[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableImprovementOrders[].improvementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableImprovementOrders[].queuedImprovementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableInstantImprovementActions[].actionId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableInstantImprovementActions[].title	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availablePostures[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availablePromotions[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableReligiousActions[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableRoadDestinations[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableRoadDestinations[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableTransformActions[].actionId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableTransformActions[].targetUnitName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableTriggerActions[].actionId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableTriggerActions[].title	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableUpgradeTargets[].goldCost	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].availableUpgradeTargets[].targetUnitName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].canDisband	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].canFoundCity	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].canGift	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].canPillage	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].canRename	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].capitalProjectName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].civilizationId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].currentMovement	redacted	Exact remaining movement is private tactical state and must serialize as null for foreign units.
+player	player.visibleForeignUnits[].exploring	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].health	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].id	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].improvementOrder[].improvementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].improvementOrder[].turnsRemaining	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].instanceName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].moveDestinations[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].moveDestinations[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].moveTowardDestinations[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].moveTowardDestinations[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].movementDestinationX	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].movementDestinationY	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].movementEscortUnitId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].name	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].nextPromotionXp	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].nuclearTargetCandidates[].blastRadius	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].nuclearTargetCandidates[].effectDisclosure	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].nuclearTargetCandidates[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].nuclearTargetCandidates[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].paradropDestinations[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].paradropDestinations[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].posture	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].promotionXp	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].promotions[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].roadConnectionDestinationX	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].roadConnectionDestinationY	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].roadConnectionPath[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].roadConnectionPath[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].swapDestinations[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].swapDestinations[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.visibleForeignUnits[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].builderCivilizationId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].cityId	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].cityName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].completionTurn	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].effectSummary	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].wonderName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.wonderEvents[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+spectator	spectator.currentPlayerCivilizationId	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.majorCivilizations[].civilizationId	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.majorCivilizations[].defeated	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.majorCivilizations[].displayName	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.majorCivilizations[].humanControlled	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.protocolVersion	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.turn	public	Explicit public spectator summary; canonical private state is intentionally absent.

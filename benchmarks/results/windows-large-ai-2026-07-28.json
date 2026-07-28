@@ -1,0 +1,79 @@
+{
+  "address": "127.0.0.1:43172",
+  "architecture": "x86_64",
+  "available_parallelism": 24,
+  "handshake": {
+    "iterations": 50,
+    "max_ms": 0.64,
+    "mean_ms": 0.45,
+    "min_ms": 0.34,
+    "p50_ms": 0.44,
+    "p95_ms": 0.57,
+    "p99_ms": 0.64
+  },
+  "operating_system": "windows",
+  "representative_large_game": {
+    "creation": {
+      "iterations": 3,
+      "max_ms": 234.77,
+      "mean_ms": 217.5,
+      "min_ms": 183.75,
+      "p50_ms": 233.99,
+      "p95_ms": 234.77,
+      "p99_ms": 234.77
+    },
+    "first_end_turn_with_server_ai": {
+      "iterations": 3,
+      "max_ms": 428.88,
+      "mean_ms": 289.13,
+      "min_ms": 119.38,
+      "p50_ms": 319.13,
+      "p95_ms": 428.88,
+      "p99_ms": 428.88
+    },
+    "initial_projection": {
+      "iterations": 3,
+      "max_ms": 187.81,
+      "mean_ms": 103.43,
+      "min_ms": 17.15,
+      "p50_ms": 105.32,
+      "p95_ms": 187.81,
+      "p99_ms": 187.81
+    },
+    "initial_snapshot_bytes": {
+      "max": 234548,
+      "mean": 231048,
+      "min": 229159,
+      "samples": 3
+    },
+    "post_ai_snapshot_bytes": {
+      "max": 277162,
+      "mean": 273077,
+      "min": 270098,
+      "samples": 3
+    },
+    "setup": {
+      "barbarians": "normal",
+      "city_states": 12,
+      "espionage_enabled": true,
+      "major_civilizations": 8,
+      "map_size": "large"
+    }
+  },
+  "schema_version": 2,
+  "tiny_game_creation": {
+    "iterations": 5,
+    "max_ms": 339.96,
+    "mean_ms": 101.79,
+    "min_ms": 33.88,
+    "p50_ms": 38.95,
+    "p95_ms": 339.96,
+    "p99_ms": 339.96
+  },
+  "worker": {
+    "connection_model": "one authenticated command per fresh loopback TCP connection",
+    "engine_build": "4.21.1 (Build 1236)",
+    "execution_parallelism": 1,
+    "queue_capacity": 64
+  }
+}

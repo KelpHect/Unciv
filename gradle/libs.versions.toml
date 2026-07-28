@@ -20,6 +20,8 @@ detekt = "1.23.8"
 # tests
 junit = "4.13.2"
 mockito = "5.20.0"
+androidxTestRunner = "1.7.0"
+androidxTestExtJunit = "1.3.0"
 
 #android
 ktxCore = "1.16.0"
@@ -76,6 +78,8 @@ android-ktx-runtime = { group = "androidx.work", name = "work-runtime-ktx", vers
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 mockito = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
 
 
 [bundles]

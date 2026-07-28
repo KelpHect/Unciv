@@ -82,8 +82,17 @@ class AuthoritativeProductionRoutingTests {
     fun productionStartupRestoresOnlyOsProtectedServerScopedCredentials() {
         val game = sourceFile("core/src/com/unciv/UncivGame.kt").readText()
         val platform = sourceFile("core/src/com/unciv/utils/PlatformSpecific.kt").readText()
-        val desktop = sourceFile(
+        val windows = sourceFile(
             "desktop/src/com/unciv/app/desktop/WindowsApiV3SessionTokenStore.kt",
+        ).readText()
+        val macOs = sourceFile(
+            "desktop/src/com/unciv/app/desktop/MacOsApiV3SessionTokenStore.kt",
+        ).readText()
+        val linux = sourceFile(
+            "desktop/src/com/unciv/app/desktop/LinuxApiV3SessionTokenStore.kt",
+        ).readText()
+        val desktopRouting = sourceFile(
+            "desktop/src/com/unciv/app/desktop/DesktopGame.kt",
         ).readText()
         val android = sourceFile(
             "android/src/com/unciv/app/AndroidApiV3SessionTokenStore.kt",
@@ -92,9 +101,16 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(game.contains("restoreConfiguredAuthoritativeSession("))
         assertTrue(game.contains("::createApiV3SessionTokenStore"))
         assertTrue(platform.contains("createApiV3SessionTokenStore(serverBaseUrl: String)"))
-        assertTrue(desktop.contains("Crypt32Util.cryptProtectData"))
-        assertTrue(desktop.contains("Crypt32Util.cryptUnprotectData"))
-        assertFalse(desktop.contains("writeString"))
+        assertTrue(windows.contains("Crypt32Util.cryptProtectData"))
+        assertTrue(windows.contains("Crypt32Util.cryptUnprotectData"))
+        assertFalse(windows.contains("writeString"))
+        assertTrue(macOs.contains("SecKeychainAddGenericPassword"))
+        assertTrue(macOs.contains("SecKeychainFindGenericPassword"))
+        assertTrue(linux.contains("\"secret-tool\""))
+        assertTrue(linux.contains("process.outputStream"))
+        assertFalse(linux.contains("environment()["))
+        assertTrue(desktopRouting.contains("MacOsApiV3SessionTokenStore(scope)"))
+        assertTrue(desktopRouting.contains("LinuxApiV3SessionTokenStore.create(scope)"))
         assertTrue(android.contains("AndroidKeyStore"))
         assertTrue(android.contains("AES/GCM/NoPadding"))
         assertTrue(android.contains("apiV3CredentialScope(serverBaseUrl)"))

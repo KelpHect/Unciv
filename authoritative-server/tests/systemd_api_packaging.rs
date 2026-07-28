@@ -21,6 +21,10 @@ const CAPACITY_CHECK: &str = include_str!("../postgresql/check-capacity.sh");
 const DISK_FULL_SMOKE: &str = include_str!("run-postgres-disk-full-smoke.ps1");
 const CADDYFILE: &str = include_str!("../caddy/Caddyfile");
 const TLS_SMOKE: &str = include_str!("run-tls-proxy-smoke.ps1");
+const LEGACY_SERVER_SOURCE: &str =
+    include_str!("../../server/src/com/unciv/app/server/UncivServer.kt");
+const LEGACY_ISOLATION_TEST: &str = include_str!("legacy_v3_isolation.rs");
+const LEGACY_ISOLATION_RUNNER: &str = include_str!("run-legacy-v3-isolation.ps1");
 
 #[test]
 fn api_unit_is_bounded_private_and_depends_on_the_worker() {
@@ -44,6 +48,35 @@ fn api_unit_is_bounded_private_and_depends_on_the_worker() {
         );
     }
     assert!(!API_SERVICE.contains("UNCIV_V3_MIGRATION_DATABASE_URL"));
+}
+
+#[test]
+fn legacy_file_service_has_no_v3_runtime_or_storage_path() {
+    for production_surface in [API_SERVICE, MIGRATION_SERVICE, PROXY_SERVICE, CADDYFILE] {
+        for forbidden in ["UncivServer.jar", "/files/"] {
+            assert!(
+                !production_surface.contains(forbidden),
+                "v3 production surface exposes legacy endpoint {forbidden}"
+            );
+        }
+    }
+    for forbidden in ["UNCIV_V3_", "UNCIV_ENGINE_WORKER_", "PostgreSQL", "/api/v3"] {
+        assert!(
+            !LEGACY_SERVER_SOURCE.contains(forbidden),
+            "legacy server gained v3 authority path {forbidden}"
+        );
+    }
+    for removed_secret in [
+        ".env_remove(\"UNCIV_V3_DATABASE_URL\")",
+        ".env_remove(\"UNCIV_V3_MIGRATION_DATABASE_URL\")",
+        ".env_remove(\"UNCIV_ENGINE_WORKER_ADDR\")",
+        ".env_remove(\"UNCIV_ENGINE_WORKER_SECRET\")",
+    ] {
+        assert!(LEGACY_ISOLATION_TEST.contains(removed_secret));
+    }
+    assert!(LEGACY_ISOLATION_RUNNER.contains(
+        "postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5"
+    ));
 }
 
 #[test]

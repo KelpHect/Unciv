@@ -1,5 +1,41 @@
 # Authoritative multiplayer v3 status
 
+## Legacy and v3 runtime isolation
+
+Implemented and live-qualified on 2026-07-28:
+
+- The deployment contract keeps legacy and v3 on separate origins/listeners,
+  operating-system identities, credentials, storage, and session namespaces.
+  The v3 systemd/Caddy surface does not route legacy `/files/`, `/auth`, or
+  `/chat`; legacy receives no PostgreSQL role, worker secret, worker address, or
+  v3 release storage.
+- The one-way, operator-only legacy importer remains the sole bridge. Matching
+  usernames or game UUIDs never link legacy files and v3 canonical state.
+- A static packaging test rejects v3 services that expose legacy endpoints,
+  legacy source that gains a v3 runtime/storage path, a live-test child process
+  that inherits v3 database/worker variables, or a runner that changes from the
+  sole pinned PostgreSQL 19 Beta 2 digest.
+- The live test packaged the real legacy server, created a real v3
+  PostgreSQL-backed game, and used the same UUID to upload and read an
+  attacker-controlled legacy save. Legacy returned only its own payload while
+  the v3 head revision, canonical snapshot hash, game/revision counts, command
+  journal, and repository reconciliation remained unchanged.
+
+Verification on 2026-07-28:
+
+- `.\authoritative-server\tests\run-legacy-v3-isolation.ps1` passes the live
+  same-UUID isolation scenario against
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The packaged legacy server completed the attack scenario in 1.32 seconds and
+  the disposable PostgreSQL container and file root were removed.
+- `.\gradlew.bat :server:dist --no-daemon` succeeds and produces the legacy jar
+  exercised by the test.
+- `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+  --no-fail-fast` passes 181 library tests, 29 API tests, and all 19 active
+  integration/packaging tests. Warnings-as-errors Clippy, formatting, diff
+  hygiene, the 800-line Rust source limit, and disposable-container cleanup
+  pass.
+
 ## Production account management and recovery UI
 
 Implemented on 2026-07-28:

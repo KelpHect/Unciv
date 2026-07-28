@@ -870,9 +870,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   projection provenance. Exact operation retries return the original result;
   changed meaning and a second import of the same legacy origin/game fail
   closed. Source files are read-only and unchanged.
-- [ ] Keep legacy and v3 origins/listeners, credentials, namespaces, storage, and
-  sessions isolated. Add automated tests proving legacy endpoints cannot read or
-  mutate a v3 game.
+- [x] Keep legacy and v3 origins/listeners, credentials, namespaces, storage,
+  and sessions isolated. The operations contract forbids routing legacy
+  endpoints from the v3 proxy or giving legacy any v3 database/worker secret.
+  A live same-UUID attack against the packaged legacy server and a real
+  PostgreSQL-backed v3 game proves legacy can read/write only its isolated file
+  while the v3 head, snapshot hash, game/revision counts, and command journal
+  remain unchanged. A static packaging guard rejects boundary drift.
 - [ ] Add deprecation telemetry and an operator switch that disables legacy writes
   without disabling v3; define the user migration and final retirement plan.
 

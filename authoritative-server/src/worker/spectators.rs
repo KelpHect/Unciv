@@ -1,4 +1,5 @@
 use super::*;
+use crate::projection::SpectatorProjection;
 
 impl EngineWorkerClient {
     pub async fn project_spectator_state(
@@ -17,10 +18,12 @@ impl EngineWorkerClient {
         let projection = response
             .spectator_projection
             .ok_or(WorkerClientError::Incomplete)?;
-        Ok(ProjectedSpectatorState {
-            projection: serde_json::from_value(projection)
-                .map_err(|_| WorkerClientError::Protocol)?,
-        })
+        let projection: SpectatorProjection =
+            serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
+        if !projection.victory_is_consistent() {
+            return Err(WorkerClientError::Protocol);
+        }
+        Ok(ProjectedSpectatorState { projection })
     }
 }
 

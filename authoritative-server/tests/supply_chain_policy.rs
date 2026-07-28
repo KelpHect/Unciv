@@ -31,18 +31,20 @@ fn every_supply_chain_action_is_pinned_to_an_immutable_commit() {
 
 #[test]
 fn pull_requests_cannot_receive_release_or_repository_write_authority() {
-    assert!(WORKFLOW.contains("permissions:\n  contents: read"));
-    assert!(WORKFLOW.contains("github.event_name == 'schedule' ||"));
-    assert!(WORKFLOW.contains("github.ref == 'refs/heads/master' ||"));
-    assert!(WORKFLOW.contains("github.ref == 'refs/heads/main'"));
-    assert!(WORKFLOW.contains("if: startsWith(github.ref, 'refs/tags/authoritative-v3-')"));
-    assert!(!WORKFLOW.contains("pull_request_target"));
-    assert!(!WORKFLOW.contains("secrets."));
-    assert!(!WORKFLOW.contains("persist-credentials: true"));
+    let workflow = WORKFLOW.replace("\r\n", "\n");
+    assert!(workflow.contains("permissions:\n  contents: read"));
+    assert!(workflow.contains("github.event_name == 'schedule' ||"));
+    assert!(workflow.contains("github.ref == 'refs/heads/master' ||"));
+    assert!(workflow.contains("github.ref == 'refs/heads/main'"));
+    assert!(workflow.contains("if: startsWith(github.ref, 'refs/tags/authoritative-v3-')"));
+    assert!(!workflow.contains("pull_request_target"));
+    assert!(!workflow.contains("secrets."));
+    assert!(!workflow.contains("persist-credentials: true"));
 }
 
 #[test]
 fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
+    let workflow = WORKFLOW.replace("\r\n", "\n");
     for required in [
         "fail-on-severity: moderate",
         "fetch-depth: 0",
@@ -69,7 +71,7 @@ fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
         "authoritative-v3-linux-x86_64.tar.gz.sha256",
     ] {
         assert!(
-            WORKFLOW.contains(required),
+            workflow.contains(required),
             "missing supply-chain control: {required}"
         );
     }

@@ -23,8 +23,10 @@ import com.unciv.models.stats.Stats
 import com.unciv.models.translations.equalsPlaceholderText
 import com.unciv.models.translations.getPlaceholderParameters
 import com.unciv.utils.debug
+import com.unciv.utils.hashOf
 import yairm210.purity.annotations.LocalState
 import yairm210.purity.annotations.Readonly
+import kotlin.random.Random
 
 /**
  * Starts a new game
@@ -51,7 +53,10 @@ class GameStarter private constructor(
         executionContext.canonicalGameId?.let { gameId = it }
         currentTurnStartTime = executionContext.clockMillis()
     }
-    private val rng = GameContext(gameInfo = gameInfo).stateBasedRandom("GameStarter")
+    // GameContext's structural hash includes object references and is therefore unsuitable for
+    // fresh-process replay. The serialized game ID is stable for both local saves and the
+    // authoritative canonical game ID supplied by the server.
+    private val rng = Random(hashOf("GameStarter".hashCode(), gameInfo.gameId.hashCode()))
     private val ruleset: Ruleset
     private lateinit var tileMap: TileMap
 

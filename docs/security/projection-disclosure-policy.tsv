@@ -283,6 +283,9 @@ player	player.tradePartners[].theirAvailableOffers[].duration	player_private	Aut
 player	player.tradePartners[].theirAvailableOffers[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.tradePartners[].theirAvailableOffers[].type	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.turn	public	Public protocol or turn metadata required to synchronize the player presentation.
+player	player.victory.victoryTurn	public	Canonical completed-game result shown identically to every authorized participant.
+player	player.victory.victoryType	public	Canonical completed-game result shown identically to every authorized participant.
+player	player.victory.winningCivilizationId	public	Canonical completed-game result shown identically to every authorized participant.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerBaseStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerMaxHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
@@ -384,3 +387,6 @@ spectator	spectator.majorCivilizations[].displayName	public	Explicit public spec
 spectator	spectator.majorCivilizations[].humanControlled	public	Explicit public spectator summary; canonical private state is intentionally absent.
 spectator	spectator.protocolVersion	public	Explicit public spectator summary; canonical private state is intentionally absent.
 spectator	spectator.turn	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.victory.victoryTurn	public	Completed-game result is public while canonical private state remains absent.
+spectator	spectator.victory.victoryType	public	Completed-game result is public while canonical private state remains absent.
+spectator	spectator.victory.winningCivilizationId	public	Completed-game result is public while canonical private state remains absent.

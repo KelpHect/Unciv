@@ -75,14 +75,15 @@ fn observability_is_private_bounded_and_release_packaged() {
 
 #[test]
 fn hosted_qualification_is_least_privilege_and_immutable() {
-    assert!(WORKFLOW.contains("permissions:\n  contents: read"));
-    assert!(WORKFLOW.contains("rustup toolchain install 1.97.0"));
-    assert!(WORKFLOW.contains("cargo clippy --all-targets --all-features -- -D warnings"));
-    assert!(WORKFLOW.contains("cargo test --all-targets --all-features"));
-    assert!(WORKFLOW.contains(
+    let workflow = WORKFLOW.replace("\r\n", "\n");
+    assert!(workflow.contains("permissions:\n  contents: read"));
+    assert!(workflow.contains("rustup toolchain install 1.97.0"));
+    assert!(workflow.contains("cargo clippy --all-targets --all-features -- -D warnings"));
+    assert!(workflow.contains("cargo test --all-targets --all-features"));
+    assert!(workflow.contains(
         "prom/prometheus@sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80"
     ));
-    for line in WORKFLOW
+    for line in workflow
         .lines()
         .filter(|line| line.trim().starts_with("uses:"))
     {

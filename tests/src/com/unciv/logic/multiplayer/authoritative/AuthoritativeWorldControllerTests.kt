@@ -667,10 +667,12 @@ class AuthoritativeWorldControllerTests {
         val projection = gameProjection(7).projection
         val withAdoptedPolicy = projection.copy(
             policies = projection.policies.copy(adoptedPolicies = listOf("Tradition")),
+            victory = ProjectedVictory("Rome", "Domination", 246),
         )
         assertEquals(
             listOf(
                 "Civilization: Rome",
+                "Rome won a Domination victory on turn 246",
                 "Current player: Rome",
                 "Treasury: 321 gold",
                 "Known civilizations: Greece",
@@ -783,7 +785,7 @@ class AuthoritativeWorldControllerTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v59.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v60.fixture.json") }
         .first { it.isFile }
 
     private fun sourceFile(path: String): File = generateSequence(

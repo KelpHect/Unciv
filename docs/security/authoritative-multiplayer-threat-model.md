@@ -80,6 +80,13 @@ restoration from multiplying authenticated pollers. Desktop attention is
 process-local and receives only a false-to-true turn transition after the same
 authenticated HTTP reconciliation used by the active session.
 
+Terminal state crosses the projection boundary only as the winning
+civilization identity, victory type, and victory turn. The private canonical
+state and victory evaluation remain in the Kotlin worker. Once canonical
+victory data exists, player projections advertise no turn authority and normal
+snapshot loading rejects every further mutation; player and spectator
+projections remain readable for result presentation and reconciliation.
+
 ### Assumptions
 
 - Clients and client-side caches are fully attacker-controlled. A client-reported state hash is diagnostic input, never authority.

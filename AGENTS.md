@@ -84,6 +84,10 @@ live in `docs/architecture/authoritative-multiplayer-status.md` and
 - If the engine model gains hidden or mutable state, update the explicit player
   and spectator projections, Rust fail-closed validation, sentinel leak tests,
   compatibility version, cache/reconnect behavior, and size limits.
+- If a change affects victory evaluation or game termination, preserve the
+  worker-owned canonical result, project only the public winner/type/turn,
+  disable every terminal client control, reject post-victory mutations, and
+  rerun both the packaged handoff preflight and the two-person full-match gate.
 - Run the smallest focused V3 tests first, then all affected Rust, server,
   desktop, Android, PostgreSQL 19 Beta 2, packaging, mod-parity, and legacy
   regression gates. Do not dismiss a discovered failure as unrelated.

@@ -383,7 +383,9 @@ class MapGenerator(val ruleset: Ruleset, private val coroutineScope: CoroutineSc
             val maxLakeSize = ruleset.modOptions.constants.maxLakeSize
 
             while (waterTiles.isNotEmpty()) {
-                val initialWaterTile = waterTiles.first()
+                val initialWaterTile = waterTiles.minWith(
+                    compareBy<Tile> { it.position.x }.thenBy { it.position.y }
+                )
                 waterTiles.remove(initialWaterTile)
                 tilesInArea += initialWaterTile
                 tilesToCheck += initialWaterTile

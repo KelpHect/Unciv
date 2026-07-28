@@ -24,8 +24,37 @@ Implemented and qualified on 2026-07-28:
   This is the supported in-app-only policy for Windows, macOS, and Linux; Unciv
   does not install a background tray daemon when the desktop process is closed.
 - Focused Kotlin worker, command-bus, session, polling, production-routing, and
-  upstream city-state tests pass. Rust's 189 active library tests pass, and
-  `cargo fmt` plus warnings-as-errors Clippy are clean.
+  upstream city-state tests pass. The complete core suite (`:tests:test`) and
+  all 60 server tests pass serially, with only their documented intentional
+  skips. Android debug Kotlin compilation passes. Rust's 190 active library
+  tests, 29 API binary tests, and all ordinary non-environment-gated
+  all-target tests pass; `cargo fmt`, generated OpenAPI/AsyncAPI parity, and
+  warnings-as-errors Clippy are clean.
+- A new ignored packaged-stack `account_handoff` preflight passed against the
+  exact PostgreSQL 19 Beta 2 digest. Separate Android-labelled and freshly
+  restored desktop sessions for one account reopened the same revision and
+  projection hash; a second account joined; and a desktop resignation advanced
+  through the remaining packaged-worker AI to that second human.
+- The preflight exposed a previously missing terminal contract. Projection v60
+  and spectator projection v2 now publish only the canonical winning
+  civilization, victory type, and victory turn. Terminal projections advertise
+  no turn actions, the projection-only UI renders the result, the worker
+  rejects every later mutation, and `GameInfo.nextTurn()` stops AI processing
+  once canonical victory data exists.
+- Fresh-process parity after the upstream merge exposed two additional
+  nondeterministic inputs: `GameContext` delegated RNG seeding to JVM object
+  identity, and upstream region-start selection used identity-hashed
+  `Tile` sets without tie-breaks. RNG context now hashes only serialized
+  identities/coordinates; new-game setup uses the canonical game UUID; region
+  starts and lake traversal have coordinate tie-breaks. The complete packaged
+  server suite, including generated-map, espionage, city-context, and
+  diplomatic-marriage fresh-worker parity, passes.
+- The actual two-person Android/desktop Domination release run remains
+  deliberately unchecked. Letting both clients resign and attempting to finish
+  the match as one synchronous all-AI worker request exceeded the bounded
+  execution model and was not accepted as equivalent evidence. The exact human
+  run is specified in
+  `docs/operations/authoritative-full-match-qualification.md`.
 
 Audited on 2026-07-28 after fast-forwarding V3 to `master`:
 
@@ -36,9 +65,11 @@ Audited on 2026-07-28 after fast-forwarding V3 to `master`:
   implemented as described above. Legacy polling remains isolated for API v1/v2.
 - The server permits multiple active sessions per account, both Android and
   desktop have protected token stores, and authenticated game discovery opens
-  server-owned projections. These components support cross-device continuation,
-  but no production E2E test yet proves an Android-to-desktop handoff for one
-  account.
+  server-owned projections. The packaged-stack preflight proves an
+  Android-labelled session handing the same account to a fresh desktop session
+  at an identical revision and projection hash. The remaining manual evidence
+  is the production Android/desktop UI handoff inside a two-human match played
+  through Domination.
 - The complete command inventory, representative AI turns, mod parity, and
   constrained-load scenarios do not constitute a two-human match played from
   creation through an actual Domination terminal state. That qualification is

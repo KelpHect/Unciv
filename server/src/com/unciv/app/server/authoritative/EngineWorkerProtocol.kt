@@ -1402,12 +1402,12 @@ class AuthoritativeEngineWorker(
                 responseForGame(engine, result.game)
             }
             is WorkerOperation.ProjectState -> {
-                val game = engine.loadSnapshot(operation.snapshot)
+                val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
                 val projection = engine.playerProjection(game, operation.actorCivilizationId)
                 WorkerResponse(playerProjection = projection)
             }
             is WorkerOperation.ProjectSpectatorState -> {
-                val game = engine.loadSnapshot(operation.snapshot)
+                val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
                 WorkerResponse(spectatorProjection = engine.spectatorProjection(game))
             }
         }.copy(serverTimeMillis = serverTimeMillis)

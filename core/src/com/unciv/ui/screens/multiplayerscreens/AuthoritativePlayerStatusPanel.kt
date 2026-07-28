@@ -20,6 +20,12 @@ internal class AuthoritativePlayerStatusPanel(
 object AuthoritativePlayerStatusPresentation {
     fun rows(projection: PlayerProjection): List<String> = buildList {
         add("Civilization: ${projection.civilizationId}")
+        projection.victory?.let {
+            add(
+                "${it.winningCivilizationId} won a ${it.victoryType} victory " +
+                    "on turn ${it.victoryTurn}"
+            )
+        }
         add("Current player: ${projection.currentPlayerCivilizationId}")
         add("Treasury: ${projection.gold} gold")
         if (projection.knownCivilizations.isNotEmpty()) {

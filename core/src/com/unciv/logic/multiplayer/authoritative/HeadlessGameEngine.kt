@@ -1948,7 +1948,12 @@ class HeadlessGameEngine(
      * Snapshot validation, size limits, and version selection belong to the
      * Rust control plane before a worker receives this payload.
      */
-    fun loadSnapshot(snapshot: String): GameInfo = UncivFiles.gameInfoFromString(snapshot)
+    fun loadSnapshot(snapshot: String, allowTerminal: Boolean = false): GameInfo =
+        UncivFiles.gameInfoFromString(snapshot).also {
+            require(allowTerminal || it.victoryData == null) {
+                "The authoritative game has already ended"
+            }
+        }
 
     fun serializeSnapshot(game: GameInfo): String =
         UncivFiles.gameInfoToString(game, forceZip = false, updateChecksum = false)

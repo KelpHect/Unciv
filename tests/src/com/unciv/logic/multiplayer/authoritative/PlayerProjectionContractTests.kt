@@ -222,6 +222,6 @@ class PlayerProjectionContractTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,
-    ).map { File(it, "protocol/player-projection-v59.fixture.json") }
+    ).map { File(it, "protocol/player-projection-v60.fixture.json") }
         .first { it.isFile }
 }

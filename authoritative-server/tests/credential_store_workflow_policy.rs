@@ -2,8 +2,9 @@ const WORKFLOW: &str = include_str!("../../.github/workflows/authoritativeV3Cred
 
 #[test]
 fn credential_store_workflow_uses_least_privilege_and_pinned_actions() {
-    assert!(WORKFLOW.contains("permissions:\n  contents: read"));
-    for line in WORKFLOW.lines().map(str::trim) {
+    let workflow = WORKFLOW.replace("\r\n", "\n");
+    assert!(workflow.contains("permissions:\n  contents: read"));
+    for line in workflow.lines().map(str::trim) {
         let Some(reference) = line.strip_prefix("uses: ") else {
             continue;
         };
@@ -28,6 +29,7 @@ fn credential_store_workflow_uses_least_privilege_and_pinned_actions() {
 
 #[test]
 fn credential_store_workflow_executes_every_supported_secure_store() {
+    let workflow = WORKFLOW.replace("\r\n", "\n");
     for required in [
         "MacOsApiV3SessionTokenStoreTests",
         "LinuxApiV3SessionTokenStoreTests",
@@ -41,7 +43,7 @@ fn credential_store_workflow_executes_every_supported_secure_store() {
         "test -f \"$ANDROID_AVD_HOME/unciv-api-v3.ini\"",
     ] {
         assert!(
-            WORKFLOW.contains(required),
+            workflow.contains(required),
             "credential-store workflow is missing {required}"
         );
     }

@@ -94,6 +94,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   region generation, start normalization, and luxury/strategic placement now
   use stable ordering and explicit state-based RNG instead of ambient shuffles;
   the worker test compares both the complete snapshot and SHA-256 hash.
+  Post-upstream fresh-process qualification also removed JVM object identities
+  from `GameContext` RNG seeds and added coordinate tie-breaks for identity-set
+  region starts and lake traversal.
 - [x] Build a dedicated self-contained `UncivAuthoritativeWorker.jar` and prove
   process-boundary parity through that packaged artifact. Independent fresh
   JVMs produce byte-identical snapshots and hashes for seeded creation with
@@ -152,7 +155,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   reconnect after suspension/restart, and play deterministically through an
   actual Domination terminal state. Existing command inventory, projection,
   AI, mod-parity, and load tests are necessary but do not by themselves prove a
-  full human match or the cross-device production UI flow.
+  full human match or the cross-device production UI flow. The packaged-stack
+  `account_handoff` preflight now proves separate-account join, identical
+  Android-to-desktop projection restoration for one account, and server-AI
+  advancement on the exact PostgreSQL 19 Beta 2 target. Projection v60 also
+  publishes the canonical winner/type/turn, disables terminal controls, and
+  rejects post-victory worker mutations. The remaining unchecked evidence is
+  the two-person Android/desktop release run through an actual Domination
+  result described in
+  `docs/operations/authoritative-full-match-qualification.md`; an attempted
+  all-AI resignation shortcut was rejected because it exceeded the bounded
+  synchronous worker model and is not equivalent to a human match.
 - [x] Remove the opaque revision-zero worker setup blob and client-selectable
   seed path. The control plane now generates an independent OS-backed secret
   map seed that is not derivable from the public game UUID; the private
@@ -1042,10 +1055,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
-- `./gradlew :android:assembleDebug :tests:test :server:test :desktop:dist
-  --no-parallel` passes (1,116 JVM/server cases: 1,102 executed, 14 intentional
-  skips), and `:android:lint` passes.
-- Rust passes 189 active library tests and 29 HTTP/OpenAPI/AsyncAPI/runtime
+- The current focused milestone passes `:tests:test` and all 60 `:server:test`
+  cases serially (with only documented intentional skips), plus
+  `:android:compileDebugKotlin`. Earlier full Android assemble/lint and desktop
+  distribution qualifications remain recorded in the status document.
+- Rust passes 190 active library tests and 29 HTTP/OpenAPI/AsyncAPI/runtime
   tests; all 39 ordinary serialized PostgreSQL integration tests pass on the
   exact PostgreSQL 19 Beta
   2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death

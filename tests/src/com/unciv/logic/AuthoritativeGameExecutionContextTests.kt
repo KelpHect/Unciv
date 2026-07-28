@@ -93,6 +93,49 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
+    fun terminalVictoryIsProjectedButRejectsEveryFurtherMutation() {
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(testSetup()).game
+        val winner = game.getCivilization("Rome")
+        game.victoryData = VictoryData(winner, "Domination", 37)
+        val snapshot = engine.serializeSnapshot(game)
+
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            engine.loadSnapshot(snapshot)
+        }
+        val terminal = engine.loadSnapshot(snapshot, allowTerminal = true)
+        val player = engine.playerProjection(terminal, "Rome")
+        val spectator = engine.spectatorProjection(terminal)
+
+        Assert.assertFalse(player.isCurrentTurn)
+        Assert.assertTrue(player.pendingTurnActions.isEmpty())
+        Assert.assertEquals("Rome", player.victory?.winningCivilizationId)
+        Assert.assertEquals("Domination", player.victory?.victoryType)
+        Assert.assertEquals(37, player.victory?.victoryTurn)
+        Assert.assertEquals(player.victory, spectator.victory)
+    }
+
+    @Test
+    fun canonicalVictoryStopsFurtherAiTurnProcessing() {
+        val setup = testSetup().apply {
+            gameParameters.players.add(
+                1,
+                Player("Egypt", PlayerType.AI, ""),
+            )
+        }
+        val engine = HeadlessGameEngine(serverContext { serverTime })
+        val game = engine.createGame(setup).game
+        val egypt = game.getCivilization("Egypt")
+        egypt.hasMovedAutomatedUnits = false
+        game.victoryData = VictoryData(game.getCivilization("Rome"), "Domination", 12)
+
+        game.nextTurn(executionContext = serverContext { serverTime + 1 })
+
+        Assert.assertFalse(egypt.hasMovedAutomatedUnits)
+        Assert.assertEquals("Domination", game.victoryData?.victoryType)
+    }
+
+    @Test
     fun serverOwnsTheAutomatedOrderPhaseBeforeEndingTheTurn() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game

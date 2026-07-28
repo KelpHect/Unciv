@@ -7,6 +7,7 @@ pub struct SpectatorProjection {
     pub protocol_version: u16,
     pub turn: i32,
     pub current_player_civilization_id: String,
+    pub victory: Option<crate::projection::ProjectedVictory>,
     pub major_civilizations: Vec<SpectatorCivilization>,
 }
 
@@ -17,4 +18,20 @@ pub struct SpectatorCivilization {
     pub display_name: String,
     pub human_controlled: bool,
     pub defeated: bool,
+}
+
+impl SpectatorProjection {
+    pub fn victory_is_consistent(&self) -> bool {
+        self.victory.as_ref().is_none_or(|victory| {
+            !victory.winning_civilization_id.is_empty()
+                && victory.winning_civilization_id.chars().count() <= 128
+                && self.major_civilizations.iter().any(|civilization| {
+                    civilization.civilization_id == victory.winning_civilization_id
+                })
+                && !victory.victory_type.is_empty()
+                && victory.victory_type.chars().count() <= 128
+                && victory.victory_turn >= 0
+                && victory.victory_turn <= self.turn
+        })
+    }
 }

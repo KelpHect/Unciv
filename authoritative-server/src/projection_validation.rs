@@ -77,6 +77,19 @@ impl ProjectedCombatPreview {
 }
 
 impl PlayerProjection {
+    pub fn victory_is_consistent(&self) -> bool {
+        self.victory.as_ref().is_none_or(|victory| {
+            !self.is_current_turn
+                && self.pending_turn_actions.is_empty()
+                && !victory.winning_civilization_id.is_empty()
+                && victory.winning_civilization_id.chars().count() <= 128
+                && !victory.victory_type.is_empty()
+                && victory.victory_type.chars().count() <= 128
+                && victory.victory_turn >= 0
+                && victory.victory_turn <= self.turn
+        })
+    }
+
     pub fn tiles_are_consistent(&self) -> bool {
         self.explored_tiles.len() <= 1_000_000
             && self

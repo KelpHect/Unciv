@@ -20,6 +20,12 @@ import yairm210.purity.annotations.Pure
 import kotlin.math.roundToInt
 
 object RegionStartFinder {
+    // HashSet<Tile> iteration follows identity hashes, so equal-scoring candidates need an
+    // explicit coordinate tie-breaker for fresh-process replay.
+    private fun startScoreComparator(tileData: TileDataMap) =
+        compareBy<Tile> { tileData[it]!!.startScore }
+            .thenByDescending { it.position.x }
+            .thenByDescending { it.position.y }
 
     /** Attempts to find a good start close to the center of [region]. Calls setRegionStart with the position*/
     internal fun findStart(region: Region, tileData: TileDataMap) {
@@ -65,11 +71,11 @@ object RegionStartFinder {
         for (list in sequenceOf(riverTiles, wetTiles, dryTiles)) {
             if (list.any { tileData[it]!!.isGoodStart }) {
                 setRegionStart(region, list
-                    .filter { tileData[it]!!.isGoodStart }.maxByOrNull { tileData[it]!!.startScore }!!.position, tileData)
+                    .filter { tileData[it]!!.isGoodStart }.maxWith(startScoreComparator(tileData)).position, tileData)
                 return true
             }
             if (list.isNotEmpty()) // Save the best not-good-enough spots for later fallback
-                fallbackTiles.add(list.maxByOrNull { tileData[it]!!.startScore }!!)
+                fallbackTiles.add(list.maxWith(startScoreComparator(tileData)))
         }
         return false
     }
@@ -95,11 +101,15 @@ object RegionStartFinder {
             // Find the one closest to the center
             val center = region.rect.getCenter(Vector2())
             val closestToCenter = dryTiles.filter { tileData[it]!!.isGoodStart }
-                .minByOrNull {
-                (region.tileMap.getIfTileExistsOrNull(center.x.roundToInt(), center.y.roundToInt())
-                    ?: region.tileMap.values.first())
-                    .aerialDistanceTo(it)
-            }!!
+                .minWith(
+                    compareBy<Tile> {
+                        (region.tileMap.getIfTileExistsOrNull(center.x.roundToInt(), center.y.roundToInt())
+                            ?: region.tileMap.values.first())
+                            .aerialDistanceTo(it)
+                    }
+                        .thenBy { it.position.x }
+                        .thenBy { it.position.y }
+                )
 
             setRegionStart(
                 region,
@@ -109,7 +119,7 @@ object RegionStartFinder {
             return true
         }
         if (dryTiles.isNotEmpty())
-            fallbackTiles.add(dryTiles.maxByOrNull { tileData[it]!!.startScore }!!)
+            fallbackTiles.add(dryTiles.maxWith(startScoreComparator(tileData)))
         return false
     }
 
@@ -119,7 +129,7 @@ object RegionStartFinder {
         region: Region
     ) {
         // Fallback time. Just pick the one with best score
-        val fallbackPosition = fallbackTiles.maxByOrNull { tileData[it]!!.startScore }
+        val fallbackPosition = fallbackTiles.maxWithOrNull(startScoreComparator(tileData))
         if (fallbackPosition != null) {
             setRegionStart(region, fallbackPosition.position, tileData)
             return

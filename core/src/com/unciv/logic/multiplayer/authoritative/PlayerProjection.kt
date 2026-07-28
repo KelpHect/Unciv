@@ -18,6 +18,7 @@ data class PlayerProjection(
     val turn: Int,
     val currentPlayerCivilizationId: String,
     val isCurrentTurn: Boolean,
+    val victory: ProjectedVictory? = null,
     val pendingTurnActions: List<PendingEndTurnAction>,
     val research: ProjectedResearch,
     val policies: ProjectedPolicies,
@@ -41,9 +42,16 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 59
+        const val CURRENT_PROJECTION_VERSION = 60
     }
 }
+
+@Serializable
+data class ProjectedVictory(
+    val winningCivilizationId: String,
+    val victoryType: String,
+    val victoryTurn: Int,
+)
 
 @Serializable
 data class ProjectedEventPrompt(
@@ -336,7 +344,8 @@ data class ProjectedTileVisibility(
 
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
-        val canIssueTurnCommands = game.currentPlayer == actor.civID
+        val canIssueTurnCommands =
+            game.victoryData == null && game.currentPlayer == actor.civID
         val ownUnits = actor.units.getCivUnits()
             .map { unitProjection(it, includePrivateOrders = true, canIssueTurnCommands) }
             .sortedBy { it.id }
@@ -353,8 +362,12 @@ object PlayerProjectionBuilder {
             civilizationId = actor.civID,
             turn = game.turns,
             currentPlayerCivilizationId = game.currentPlayer,
-            isCurrentTurn = game.currentPlayer == actor.civID,
-            pendingTurnActions = AuthoritativeTurnReadiness.pendingActions(actor),
+            isCurrentTurn = canIssueTurnCommands,
+            victory = game.victoryData?.let {
+                ProjectedVictory(it.winningCiv, it.victoryType, it.victoryTurn)
+            },
+            pendingTurnActions = if (canIssueTurnCommands)
+                AuthoritativeTurnReadiness.pendingActions(actor) else emptyList(),
             research = researchProjection(actor),
             policies = policyProjection(actor),
             gold = actor.gold,

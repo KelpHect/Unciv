@@ -14,7 +14,7 @@ class PackagedWorkerCityStateMarriageParityTests {
     fun diplomaticMarriageIsStableAcrossFreshWorkers() {
         val fixture = PackagedWorkerScenarioFixture(
             actorId = actorId,
-            gameId = "00000000-0000-4000-8000-000000000024",
+            gameId = "00000000-0000-4000-8000-000000000035",
             serverSeed = 941_278_360L,
             baseName = "Civ V - Gods & Kings",
             cityStates = 1,

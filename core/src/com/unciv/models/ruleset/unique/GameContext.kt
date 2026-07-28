@@ -87,8 +87,39 @@ data class GameContext(
     }
     
     @Readonly
-    fun stateBasedRandom(caller: String, seed: Int=31) =
-        Random(hashOf(caller.hashCode(), seed, this.hashCode()))
+    fun stateBasedRandom(caller: String, seed: Int=31): Random {
+        fun tileHash(value: Tile?) = value?.position?.let { hashOf(it.x, it.y) } ?: 0
+        fun combatantHash(value: ICombatant?) = value?.let {
+            hashOf(
+                it::class.qualifiedName.hashCode(),
+                it.getCivInfo().civID.hashCode(),
+                tileHash(it.getTile()),
+                (it as? MapUnitCombatant)?.unit?.id ?: 0,
+                (it as? CityCombatant)?.city?.id?.hashCode() ?: 0,
+            )
+        } ?: 0
+
+        // Data-class hashCode would delegate to identity hashes on GameInfo, Civilization, City,
+        // MapUnit, and Tile. That made the same canonical state select different random results
+        // after a worker restart. Use only serialized identities and coordinates so replay remains
+        // stable across processes without exposing a mutable RNG stream in the save.
+        val contextHash = hashOf(
+            gameInfo?.gameId?.hashCode() ?: 0,
+            civInfo?.civID?.hashCode() ?: 0,
+            city?.id?.hashCode() ?: 0,
+            unit?.id ?: 0,
+            tileHash(tile),
+            combatantHash(ourCombatant),
+            combatantHash(theirCombatant),
+            tileHash(attackedTile),
+            combatAction?.ordinal ?: 0,
+            otherCiv?.civID?.hashCode() ?: 0,
+            region?.continentID ?: 0,
+            region?.startPosition?.let { hashOf(it.x, it.y) } ?: 0,
+            ignoreConditionals.hashCode(),
+        )
+        return Random(hashOf(caller.hashCode(), seed, contextHash))
+    }
         
     @Readonly
     fun getResourceAmount(resourceName: String): Int {
@@ -151,4 +182,3 @@ data class GameContext(
 
 
 }
-

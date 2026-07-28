@@ -60,7 +60,7 @@ class AuthoritativePlayerGameOpeningTests {
     private fun projectionFixture(): File = generateSequence(
         File(System.getProperty("user.dir")),
     ) { it.parentFile }
-        .map { File(it, "protocol/player-projection-v59.fixture.json") }
+        .map { File(it, "protocol/player-projection-v60.fixture.json") }
         .first(File::isFile)
 
     private companion object {

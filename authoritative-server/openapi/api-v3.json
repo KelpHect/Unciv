@@ -11377,7 +11377,11 @@
           "add_to_top",
           "add_to_all_cities",
           "add_or_move_to_top_all_cities",
-          "remove_from_all_cities"
+          "remove_from_all_cities",
+          "disable_in_city",
+          "disable_in_all_cities",
+          "enable_in_city",
+          "enable_in_all_cities"
         ]
       },
       "CounterTradeRequest": {
@@ -12939,6 +12943,16 @@
           "turn": {
             "type": "integer",
             "format": "int32"
+          },
+          "victory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedVictory"
+              }
+            ]
           },
           "visibleForeignUnits": {
             "type": "array",
@@ -14841,6 +14855,27 @@
         },
         "additionalProperties": false
       },
+      "ProjectedVictory": {
+        "type": "object",
+        "required": [
+          "winningCivilizationId",
+          "victoryType",
+          "victoryTurn"
+        ],
+        "properties": {
+          "victoryTurn": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "victoryType": {
+            "type": "string"
+          },
+          "winningCivilizationId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedWonderEvent": {
         "type": "object",
         "required": [
@@ -16241,6 +16276,16 @@
           "turn": {
             "type": "integer",
             "format": "int32"
+          },
+          "victory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedVictory"
+              }
+            ]
           }
         },
         "additionalProperties": false

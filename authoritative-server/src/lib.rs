@@ -50,8 +50,8 @@ pub use projection_delta::*;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 3;
-pub const PROJECTION_VERSION: u16 = 59;
-pub const SPECTATOR_PROJECTION_VERSION: u16 = 1;
+pub const PROJECTION_VERSION: u16 = 60;
+pub const SPECTATOR_PROJECTION_VERSION: u16 = 2;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

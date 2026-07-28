@@ -23,6 +23,7 @@ pub struct PlayerProjection {
     pub turn: i32,
     pub current_player_civilization_id: String,
     pub is_current_turn: bool,
+    pub victory: Option<ProjectedVictory>,
     pub pending_turn_actions: Vec<PendingEndTurnAction>,
     pub research: ProjectedResearch,
     pub policies: ProjectedPolicies,
@@ -44,6 +45,14 @@ pub struct PlayerProjection {
     pub spies: Vec<ProjectedSpy>,
     pub event_prompts: Vec<ProjectedEventPrompt>,
     pub wonder_events: Vec<ProjectedWonderEvent>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedVictory {
+    pub winning_civilization_id: String,
+    pub victory_type: String,
+    pub victory_turn: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -509,7 +518,7 @@ mod tests {
 
     #[test]
     fn shared_projection_fixture_is_closed_and_round_trips_semantically() {
-        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v60.fixture.json");
         let expected: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let projection: PlayerProjection = serde_json::from_value(expected.clone()).unwrap();
         assert_eq!(projection.protocol_version, 3);
@@ -731,8 +740,28 @@ mod tests {
     }
 
     #[test]
+    fn terminal_victory_is_bounded_and_disables_turn_actions() {
+        let fixture = include_str!("../../protocol/player-projection-v60.fixture.json");
+        let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
+        projection.is_current_turn = false;
+        projection.pending_turn_actions.clear();
+        projection.victory = Some(ProjectedVictory {
+            winning_civilization_id: "Rome".to_owned(),
+            victory_type: "Domination".to_owned(),
+            victory_turn: projection.turn,
+        });
+        assert!(projection.victory_is_consistent());
+
+        projection.is_current_turn = true;
+        assert!(!projection.victory_is_consistent());
+        projection.is_current_turn = false;
+        projection.victory.as_mut().unwrap().victory_type = String::new();
+        assert!(!projection.victory_is_consistent());
+    }
+
+    #[test]
     fn inconsistent_research_queue_metadata_fails_semantic_validation() {
-        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v60.fixture.json");
         let mut projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
         projection.research.queue_entries[0].technology_name = "Writing".into();
         assert!(!projection.research.is_consistent());
@@ -746,7 +775,7 @@ mod tests {
 
     #[test]
     fn tile_metadata_rejects_hidden_mutations_and_incoherent_resources() {
-        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v60.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden_improvement = projection.clone();
@@ -766,7 +795,7 @@ mod tests {
 
     #[test]
     fn movement_metadata_rejects_hidden_unsorted_foreign_and_out_of_turn_options() {
-        let fixture = include_str!("../../protocol/player-projection-v59.fixture.json");
+        let fixture = include_str!("../../protocol/player-projection-v60.fixture.json");
         let projection: PlayerProjection = serde_json::from_str(fixture).unwrap();
 
         let mut hidden = projection.clone();

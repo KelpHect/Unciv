@@ -421,10 +421,11 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
                     || civilizations.first { it.isHuman() } != player))
 
         // We process player automatically if:
-        while (isSimulation() ||                    // simulation is active
+        while (victoryData == null && (
+                isSimulation() ||                   // simulation is active
                 player.isAI() ||                    // or player is AI
             shouldAutoProcessHotseatPlayer() ||     // or a player is defeated in hotseat
-            shouldAutoProcessOnlinePlayer())        // or player is online spectator
+            shouldAutoProcessOnlinePlayer()))       // or player is online spectator
         {
 
             // Starting preparations
@@ -462,7 +463,8 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
         currentPlayerCiv = player
 
         // Starting their turn
-        TurnManager(player).startTurn(progressBar)
+        if (victoryData == null)
+            TurnManager(player).startTurn(progressBar)
 
         // No popups for spectators
         if (currentPlayerCiv.isSpectator())

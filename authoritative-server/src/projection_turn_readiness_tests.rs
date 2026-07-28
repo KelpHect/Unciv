@@ -2,7 +2,7 @@ use crate::projection::{PendingEndTurnAction, PlayerProjection};
 
 fn fixture() -> PlayerProjection {
     serde_json::from_str(include_str!(
-        "../../protocol/player-projection-v59.fixture.json"
+        "../../protocol/player-projection-v60.fixture.json"
     ))
     .unwrap()
 }

@@ -109,7 +109,7 @@ proptest! {
         unknown_suffix in "[a-z]{1,16}",
     ) {
         let mut fixture: Value = serde_json::from_str(include_str!(
-            "../../protocol/player-projection-v59.fixture.json"
+            "../../protocol/player-projection-v60.fixture.json"
         ))
         .unwrap();
         fixture["turn"] = json!(turn);

@@ -9,6 +9,8 @@ mod administration;
 mod game_creation;
 #[path = "invitation_integration_tests.rs"]
 mod invitations;
+#[path = "legacy_import_integration_tests.rs"]
+mod legacy_import;
 #[path = "manifest_integration_tests.rs"]
 mod manifests;
 #[path = "outbox_operations_integration_tests.rs"]

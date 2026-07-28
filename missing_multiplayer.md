@@ -772,18 +772,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: legacy migration and retirement
 
-- [ ] Build a one-way, dry-run-first legacy importer that authenticates ownership,
+- [x] Build a one-way, dry-run-first legacy importer that authenticates ownership,
   bounds and validates the save, pins an approved manifest, records provenance,
   handles two divergent candidates as a conflict, and creates revision zero once.
-  The private Kotlin worker now has a typed `normalize_legacy_game` boundary:
-  it validates the expected legacy identity and online-game shape, requires an
-  exhaustive one-to-one mapping of human player IDs to normalized v3 account
-  UUIDs, requires the authenticated owner to own exactly one civilization,
-  assigns a new canonical UUID, rebuilds transients under the pinned manifest,
-  and returns only normalized canonical bytes/hash. Rust has a focused client
-  module for that operation. The dry-run/apply operator CLI, bounded candidate
-  reader, divergent-candidate report, provenance migration, account checks, and
-  idempotent revision-zero transaction remain before this item can be checked.
+  The operator-only CLI defaults to dry run, bounds and normalizes every
+  explicitly listed candidate in the private Kotlin engine, reports turn,
+  current-player, and canonical-hash divergence without guessing, requires an
+  explicit selected index and exhaustive legacy-ID-to-account mapping, and
+  generates leak-scanned player/spectator projections. Apply revalidates active
+  accounts and the installed content-addressed manifest under locks, then
+  atomically creates one deterministic revision-zero game, memberships,
+  immutable snapshot history, outbox state, and append-only source/conflict/
+  projection provenance. Exact operation retries return the original result;
+  changed meaning and a second import of the same legacy origin/game fail
+  closed. Source files are read-only and unchanged.
 - [ ] Keep legacy and v3 origins/listeners, credentials, namespaces, storage, and
   sessions isolated. Add automated tests proving legacy endpoints cannot read or
   mutate a v3 game.

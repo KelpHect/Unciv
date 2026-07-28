@@ -1,5 +1,62 @@
 # Authoritative multiplayer v3 status
 
+## Dry-run-first one-way legacy migration
+
+Implemented on 2026-07-28:
+
+- `unciv-v3-import-legacy` is a focused operator-only binary and defaults to a
+  read-only dry run. It accepts only bounded candidate paths, a caller-stable
+  operation UUID, an explicit selected candidate index, the approved manifest
+  hash, and an exhaustive legacy-player-to-v3-account mapping. It never exposes
+  an HTTP whole-save endpoint and never edits or removes a source file.
+- Every candidate is read through the 16 MiB cap and normalized independently
+  by the private Kotlin engine under the installed content-addressed manifest.
+  The report records source/path hashes and independently identifies turn,
+  current-player, and canonical-state-hash divergence. The tool never chooses
+  between divergent candidates implicitly.
+- Before apply, the CLI generates each initial player or spectator projection,
+  validates the closed Rust projection contract, and scans its serialized bytes
+  for every legacy player identity. A leak, malformed projection, unavailable
+  account, unavailable manifest bundle, worker error, or changed retry fails
+  closed.
+- Migration `0022_legacy_game_imports.sql` and the focused PostgreSQL repository
+  transaction atomically create one deterministic API-v3 game at revision zero,
+  all worker-derived memberships, immutable genesis state, and append-only
+  provenance/conflict/projection evidence. Exact operation retries return the
+  original result; changed-meaning reuse and a second operation for the same
+  `(legacy origin, legacy game ID)` are rejected.
+- The complete operator procedure and retry contract are documented in
+  `docs/operations/legacy-game-import.md`.
+
+Verification on 2026-07-28:
+
+- `cargo test --lib legacy_import` passes seven focused unit/contract tests;
+  the two database cases are intentionally gated in that lane.
+- `cargo test --lib` passes 175 active Rust tests with 30 explicitly gated
+  PostgreSQL cases. `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` pass.
+- Both focused PostgreSQL integration tests pass against the sole pinned image
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`;
+  the running server reports `PostgreSQL 19beta2`. They prove atomic genesis,
+  exact idempotent retry, source uniqueness, owner/player/spectator membership,
+  changed-meaning rejection, projection-evidence enforcement, and rollback with
+  zero game/provenance rows on invalid input. The disposable container was
+  removed.
+- The focused Kotlin legacy-normalization test passes through
+  `:server:test`, proving canonical rekeying, exhaustive human mapping, and
+  fail-closed legacy identity validation.
+- The first Rust compile found a duplicate façade re-export already present
+  from the persistence milestone; it was removed and the focused suite reran
+  cleanly. The first integration-test compile found a local fixture binding
+  shadowing its builder; it was renamed and both the compile-only and live
+  PostgreSQL lanes passed. The broad Rust bundle test then exposed that
+  migration 22 had not advanced the release compatibility contract; both Rust
+  and Kotlin compatibility assertions now require 22 and their reruns pass.
+  Two exploratory PowerShell commands had quoting errors and were replaced
+  with direct checks; neither changed repository or database state. No
+  discovered source, test, database, or cleanup error is deferred.
+
 ## Outbox acknowledgement process-death recovery
 
 Implemented on 2026-07-26:

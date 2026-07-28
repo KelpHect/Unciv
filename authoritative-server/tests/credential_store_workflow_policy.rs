@@ -34,6 +34,8 @@ fn credential_store_workflow_executes_every_supported_secure_store() {
         "api-level:\n          - 21\n          - 23",
         ":android:connectedDebugAndroidTest",
         "gnome-keyring-daemon",
+        "$ANDROID_SDK_ROOT/emulator/emulator",
+        "timeout 180 \"$ADB\" wait-for-device",
     ] {
         assert!(
             WORKFLOW.contains(required),

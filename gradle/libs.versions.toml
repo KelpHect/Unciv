@@ -10,9 +10,19 @@ gdx = "1.14.0"
 discord = "v2.0.1"
 
 jna = "5.17.0"
-ktor = "3.2.3"
-logback = "1.5.21"
+ktor = "3.5.0"
+netty = "4.2.16.Final"
+logback = "1.5.34"
 clikt = "5.0.3"
+
+# Security floors for transitive Android/Gradle build tooling. Keep these until
+# the Android Gradle Plugin's own dependency graph reaches the same versions.
+bouncyCastle = "1.84"
+commonsCompress = "1.26.0"
+jdom = "2.0.6.1"
+jose4j = "0.9.6"
+netty4 = "4.1.136.Final"
+protobuf = "3.25.5"
 
 purity = "1.7.0"
 detekt = "1.23.8"
@@ -65,6 +75,7 @@ ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref
 ktor-server-auth = { group = "io.ktor", name = "ktor-server-auth", version.ref = "ktor" }
 ktor-server-contentnegotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-websockets = { group = "io.ktor", name = "ktor-server-websockets", version.ref = "ktor" }
+netty-bom = { group = "io.netty", name = "netty-bom", version.ref = "netty" }
 
 logback = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 clikt = { group = "com.github.ajalt.clikt", name = "clikt", version.ref = "clikt" }

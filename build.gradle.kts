@@ -16,6 +16,29 @@ buildscript {
         classpath(libs.kotlinPlugin)
         classpath(libs.agp)
     }
+    configurations.classpath {
+        resolutionStrategy.force(
+            "org.bouncycastle:bcprov-jdk18on:${libs.versions.bouncyCastle.get()}",
+            "org.bouncycastle:bcpkix-jdk18on:${libs.versions.bouncyCastle.get()}",
+            "org.bouncycastle:bcutil-jdk18on:${libs.versions.bouncyCastle.get()}",
+            "org.apache.commons:commons-compress:${libs.versions.commonsCompress.get()}",
+            "org.jdom:jdom2:${libs.versions.jdom.get()}",
+            "org.bitbucket.b_c:jose4j:${libs.versions.jose4j.get()}",
+            "io.netty:netty-buffer:${libs.versions.netty4.get()}",
+            "io.netty:netty-codec:${libs.versions.netty4.get()}",
+            "io.netty:netty-codec-http:${libs.versions.netty4.get()}",
+            "io.netty:netty-codec-http2:${libs.versions.netty4.get()}",
+            "io.netty:netty-codec-socks:${libs.versions.netty4.get()}",
+            "io.netty:netty-common:${libs.versions.netty4.get()}",
+            "io.netty:netty-handler:${libs.versions.netty4.get()}",
+            "io.netty:netty-handler-proxy:${libs.versions.netty4.get()}",
+            "io.netty:netty-resolver:${libs.versions.netty4.get()}",
+            "io.netty:netty-transport:${libs.versions.netty4.get()}",
+            "io.netty:netty-transport-native-unix-common:${libs.versions.netty4.get()}",
+            "com.google.protobuf:protobuf-java:${libs.versions.protobuf.get()}",
+            "com.google.protobuf:protobuf-java-util:${libs.versions.protobuf.get()}",
+        )
+    }
 }
 
 // Fixes the error "Please initialize at least one Kotlin target in 'Unciv (:)'"
@@ -134,6 +157,7 @@ project(":server") {
         // HeadlessApplication still loads the platform LibGDX native shim.
         "runtimeOnly"(gdxNatives("desktop"))
         // For server-side
+        "implementation"(enforcedPlatform(rootProject.libs.netty.bom))
         "api"(rootProject.libs.bundles.ktor.server)
         "implementation"(rootProject.libs.logback)
         "implementation"(rootProject.libs.clikt)

@@ -1,5 +1,27 @@
 # Authoritative multiplayer v3 status
 
+## Ktor and transitive dependency security refresh
+
+Implemented and qualified on 2026-07-29:
+
+- The public Kotlin server is aligned on Ktor 3.5.0 and Logback 1.5.34.
+  An enforced Netty BOM keeps its complete runtime family on 4.2.16.Final
+  instead of accepting Ktor's older transitive selection.
+- Android Gradle build tooling is forced above the repository's GitHub
+  vulnerability findings: Bouncy Castle 1.84, Commons Compress 1.26.0,
+  JDOM 2.0.6.1, jose4j 0.9.6, Netty 4.1.136.Final, and Protobuf 3.25.5.
+  These are build-classpath floors only and can be removed once the Android
+  Gradle Plugin's own graph reaches or exceeds them.
+- Gradle dependency evidence resolves server Netty to 4.2.16.Final and the
+  build-tool Netty family to 4.1.136.Final. Android debug Kotlin compilation
+  and all 60 server tests pass on the final graph. The complete core test suite
+  is recorded with the verification health below.
+- This refresh changes no V3 command, projection, persistence, or authority
+  boundary. It does harden the public Ktor transport and the tooling that
+  produces Android artifacts, so future Ktor/Netty/Android Gradle Plugin
+  changes must preserve whole-family alignment and rerun V3 server, Android,
+  and dependency-submission gates.
+
 ## Upstream synchronization and V3 turn notification closure
 
 Implemented and qualified on 2026-07-28:

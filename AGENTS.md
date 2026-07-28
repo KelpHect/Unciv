@@ -84,6 +84,10 @@ live in `docs/architecture/authoritative-multiplayer-status.md` and
 - If the engine model gains hidden or mutable state, update the explicit player
   and spectator projections, Rust fail-closed validation, sentinel leak tests,
   compatibility version, cache/reconnect behavior, and size limits.
+- If Ktor, Netty, Logback, the Android Gradle Plugin, or security-forced build
+  transitives change, preserve whole-family version alignment, inspect both
+  server runtime and Gradle build graphs, rerun V3 server and Android gates,
+  and confirm hosted dependency submission does not reopen fixed advisories.
 - If a change affects victory evaluation or game termination, preserve the
   worker-owned canonical result, project only the public winner/type/turn,
   disable every terminal client control, reject post-victory mutations, and

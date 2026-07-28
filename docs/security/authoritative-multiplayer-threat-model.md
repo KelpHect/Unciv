@@ -237,6 +237,14 @@ Required controls include separate administrative authentication and network pol
 
 Required controls include pinned and reviewed workflow actions, least-privilege GitHub tokens, protected release environments, isolated signing credentials, dependency locking and verification, reproducible or provenance-attested artifacts where practical, secret scanning, code review for protocol/schema changes, SBOM and vulnerability monitoring, and release tests that bind client capability declarations, server protocol, worker engine version, and database migrations. Reference implementations may inform behavior but must not introduce license-incompatible code into distributed components.
 
+Current dependency controls align the public Kotlin server on Ktor 3.5.0 and
+Logback 1.5.34, enforce the complete Netty runtime family at 4.2.16.Final, and
+force reviewed patched floors for vulnerable Android Gradle build-tool
+transitives. The Gradle graph and V3 server/Android tests are release evidence;
+upgrading Ktor or the Android Gradle Plugin must not silently lower or split
+these families. Hosted dependency submission and vulnerability monitoring
+remain the source of truth for newly disclosed advisories.
+
 The public API now treats browser origin as an explicit boundary. Native
 clients without an `Origin` header remain supported, while a request carrying
 an origin not present in the bounded exact-HTTPS allowlist is rejected before

@@ -1055,6 +1055,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
+- The public Kotlin server now resolves Ktor 3.5.0, Logback 1.5.34, and the
+  complete Netty runtime family through an enforced 4.2.16.Final BOM. Android
+  Gradle build tooling resolves the reviewed security floors Bouncy Castle
+  1.84, Commons Compress 1.26.0, JDOM 2.0.6.1, jose4j 0.9.6, Netty
+  4.1.136.Final, and Protobuf 3.25.5 instead of the vulnerable transitive
+  versions reported for the repository.
 - The current focused milestone passes `:tests:test` and all 60 `:server:test`
   cases serially (with only documented intentional skips), plus
   `:android:compileDebugKotlin`. Earlier full Android assemble/lint and desktop

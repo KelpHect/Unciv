@@ -185,6 +185,12 @@ private class UncivServerRunner : CliktCommand() {
         help = "Display each operation archive request IP to assist management personnel"
     ).flag("-no-Identify", default = false)
 
+    private val legacyWritesEnabled by option(
+        "-legacy-writes",
+        envvar = "UncivServerLegacyWrites",
+        help = "Allow legacy whole-save and authentication writes during migration"
+    ).flag("-no-legacy-writes", default = true)
+
     lateinit var isAliveInfo: IsAliveInfo
 
     override fun run() {
@@ -200,6 +206,7 @@ private class UncivServerRunner : CliktCommand() {
     private val authMap: MutableMap<Uuid, String> = mutableMapOf()
 
     private val wsSessionManager = WebSocketSessionManager()
+    private val legacyWriteControl by lazy { LegacyWriteControl(legacyWritesEnabled) }
 
     @OptIn(ExperimentalUuidApi::class)
     private fun loadAuthFile() {
@@ -283,9 +290,18 @@ private class UncivServerRunner : CliktCommand() {
                     call.application.log.info("Received isalive request from ${call.request.local.remoteHost}")
                     call.respond(isAliveInfo)
                 }
+                get("/legacy-status") {
+                    call.respond(legacyWriteControl.snapshot())
+                }
 
                 @OptIn(ExperimentalUuidApi::class) authenticate {
                     put("/files/{fileName}") {
+                        if (legacyWriteControl.rejectIfDisabled(LegacyWriteKind.File)) {
+                            return@put call.respond(
+                                HttpStatusCode.Gone,
+                                "Legacy multiplayer writes are disabled; migrate this game to API v3"
+                            )
+                        }
                         val fileName = call.parameters["fileName"] ?: return@put call.respond(
                             HttpStatusCode.BadRequest, "Missing filename!"
                         )
@@ -309,6 +325,7 @@ private class UncivServerRunner : CliktCommand() {
                                 call.request.receiveChannel().toInputStream().copyTo(it)
                             }
                         }
+                        legacyWriteControl.recordAccepted(LegacyWriteKind.File)
                         call.respond(HttpStatusCode.OK)
                     }
                     get("/files/{fileName}") {
@@ -353,6 +370,12 @@ private class UncivServerRunner : CliktCommand() {
                             }
                         }
                         put("/auth") {
+                            if (legacyWriteControl.rejectIfDisabled(LegacyWriteKind.Authentication)) {
+                                return@put call.respond(
+                                    HttpStatusCode.Gone,
+                                    "Legacy multiplayer writes are disabled; use an API v3 account"
+                                )
+                            }
                             call.application.log.info("Received auth password set from ${call.request.local.remoteHost}")
 
                             val authInfo = call.principal<BasicAuthInfo>() ?: return@put call.respond(
@@ -366,6 +389,7 @@ private class UncivServerRunner : CliktCommand() {
                                     HttpStatusCode.BadRequest, "Password should be at least 6 characters long"
                                 )
                                 authMap[authInfo.userId] = newPassword
+                                legacyWriteControl.recordAccepted(LegacyWriteKind.Authentication)
                                 call.respond(HttpStatusCode.OK)
                             } else {
                                 call.respond(HttpStatusCode.Unauthorized)

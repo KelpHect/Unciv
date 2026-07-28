@@ -21,6 +21,8 @@ They must not share authority, credentials, storage, or sessions.
 - The operator-only, one-way legacy importer is the sole supported bridge. It
   reads bounded legacy source files and creates a new validated v3 game; v3
   never writes back to the legacy service.
+- The staged write cutoff and retirement process are defined in
+  `legacy-multiplayer-retirement.md`.
 
 ## Automated proof
 

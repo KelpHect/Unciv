@@ -135,6 +135,92 @@ async fn same_uuid_legacy_upload_cannot_read_or_mutate_v3_canonical_state() {
     );
 }
 
+#[tokio::test]
+#[ignore = "requires UNCIV_LEGACY_SERVER_JAR"]
+async fn retirement_switch_rejects_writes_but_preserves_legacy_reads() {
+    let legacy_jar = PathBuf::from(
+        std::env::var("UNCIV_LEGACY_SERVER_JAR").expect("explicit legacy server jar"),
+    );
+    assert!(legacy_jar.is_file(), "legacy server jar must exist");
+    let port = reserve_loopback_port();
+    let root = std::env::temp_dir().join(format!("unciv-legacy-isolation-{}", Uuid::new_v4()));
+    let files = root.join("legacy-files");
+    std::fs::create_dir_all(&files).unwrap();
+    let game_id = Uuid::new_v4();
+    let preserved_payload = "existing-legacy-save-remains-readable";
+    std::fs::write(files.join(game_id.to_string()), preserved_payload).unwrap();
+    let child = Command::new(java_executable())
+        .args([
+            "-jar",
+            legacy_jar.to_str().unwrap(),
+            "-p",
+            &port.to_string(),
+            "-f",
+            files.to_str().unwrap(),
+            "-no-chat",
+            "-no-legacy-writes",
+        ])
+        .env_remove("UNCIV_V3_DATABASE_URL")
+        .env_remove("UNCIV_V3_MIGRATION_DATABASE_URL")
+        .env_remove("UNCIV_ENGINE_WORKER_ADDR")
+        .env_remove("UNCIV_ENGINE_WORKER_SECRET")
+        .current_dir(&root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let _guard = LegacyServerGuard { child, root };
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{port}");
+    wait_until_ready(&client, &base_url).await;
+    let file_url = format!("{base_url}/files/{game_id}");
+    let legacy_user = Uuid::new_v4().to_string();
+
+    let download = client
+        .get(&file_url)
+        .basic_auth(&legacy_user, Some("legacy-password"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(download.status(), StatusCode::OK);
+    assert_eq!(download.text().await.unwrap(), preserved_payload);
+    let upload = client
+        .put(&file_url)
+        .basic_auth(&legacy_user, Some("legacy-password"))
+        .body("forbidden-replacement")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(upload.status(), StatusCode::GONE);
+    let authentication_write = client
+        .put(format!("{base_url}/auth"))
+        .basic_auth(&legacy_user, Some("legacy-password"))
+        .body("forbidden-new-password")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(authentication_write.status(), StatusCode::GONE);
+    assert_eq!(
+        std::fs::read_to_string(files.join(game_id.to_string())).unwrap(),
+        preserved_payload,
+    );
+
+    let telemetry_response = client
+        .get(format!("{base_url}/legacy-status"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(telemetry_response.status(), StatusCode::OK);
+    let telemetry: serde_json::Value =
+        serde_json::from_str(&telemetry_response.text().await.unwrap()).unwrap();
+    assert_eq!(telemetry["writesEnabled"], false);
+    assert_eq!(telemetry["acceptedFileWrites"], 0);
+    assert_eq!(telemetry["rejectedFileWrites"], 1);
+    assert_eq!(telemetry["acceptedAuthenticationWrites"], 0);
+    assert_eq!(telemetry["rejectedAuthenticationWrites"], 1);
+}
+
 async fn canonical_evidence(pool: &PgPool, game_id: Uuid) -> (i64, String, i64, i64, i64) {
     sqlx::query_as(
         "SELECT g.head_revision, r.canonical_state_hash,

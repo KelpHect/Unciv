@@ -1,5 +1,56 @@
 # Authoritative multiplayer v3 status
 
+## Legacy write telemetry and staged retirement
+
+Implemented and live-qualified on 2026-07-28:
+
+- The legacy file service now has a dedicated, content-free write-control
+  component outside its runner. Process-local telemetry counts completed and
+  rejected whole-save/authentication writes without storing identity,
+  filenames, addresses, credentials, save data, or any v3 state.
+- `GET /legacy-status` exposes the bounded aggregate snapshot for external
+  scraping. Operators can enable `-no-legacy-writes` or
+  `UncivServerLegacyWrites=false`; both legacy PUT routes then return
+  `410 Gone`, while existing legacy reads, health, and the independently
+  deployed API-v3 service remain available.
+- The retirement runbook defines client labeling, a complete observation
+  cycle, owner notification, dry-run/import conflict handling, pilot and
+  fleet-wide cutoff, a read-only recovery window, rollback, and audited final
+  listener-removal gates. Low traffic alone is explicitly insufficient
+  evidence for deletion.
+
+Verification on 2026-07-28:
+
+- `.\gradlew.bat :server:test --tests
+  com.unciv.app.server.LegacyWriteControlTests --no-daemon` passes both focused
+  counter/state tests.
+- `.\authoritative-server\tests\run-legacy-v3-isolation.ps1` packages the real
+  legacy jar and passes two live process tests against the sole pinned
+  PostgreSQL 19 Beta 2 digest. The retirement case reads a pre-existing save,
+  rejects its replacement and a password write with `410 Gone`, preserves the
+  file byte-for-byte, and reports exactly one rejected request for each class.
+  The same-UUID v3 isolation attack continues to pass. Both cases complete in
+  2.21 seconds; the disposable container and file roots are removed.
+- The first focused compile exposed JUnit 5 imports in the JUnit 4 server test
+  module, and the first Rust compile exposed reqwest's intentionally disabled
+  JSON convenience feature. The test was aligned with JUnit 4 and uses the
+  existing `serde_json` dependency directly; both gates then passed with no
+  deferred error.
+- The broad server gate also exposed a stale Kotlin migration assertion and an
+  intermittent fresh-worker AI divergence. The release assertion now matches
+  migration 23. Root-cause diagnostics identified unordered first-contact
+  discovery, unordered seeded AI policy candidates, and unordered
+  `LastSeenImprovement` serialization. Civilization IDs and encounter
+  coordinates are now sorted, policy candidates have a stable name order, and
+  improvement keys serialize by coordinate. The 24-round late-era campaign
+  passes twice across fresh worker processes with identical snapshot bytes and
+  canonical hashes.
+- `.\gradlew.bat :tests:cleanTest :server:cleanTest :tests:test :server:test
+  :android:assembleDebug --no-parallel --no-build-cache --no-daemon
+  --console=plain` passes 1,157 JVM/server tests (1,143 executed, 14 intentional
+  skips) and builds the Android debug APK. The existing Android SDK XML version
+  warning is non-fatal and skips no task.
+
 ## Legacy and v3 runtime isolation
 
 Implemented and live-qualified on 2026-07-28:

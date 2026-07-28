@@ -36,8 +36,7 @@ try {
     $env:UNCIV_LEGACY_SERVER_JAR = $serverJar
     cargo test --manifest-path (Join-Path $projectRoot 'authoritative-server\Cargo.toml') `
         --test legacy_v3_isolation `
-        same_uuid_legacy_upload_cannot_read_or_mutate_v3_canonical_state `
-        -- --ignored --exact --nocapture
+        -- --ignored --test-threads=1 --nocapture
     if ($LASTEXITCODE -ne 0) {
         throw 'Legacy/v3 live isolation test failed'
     }

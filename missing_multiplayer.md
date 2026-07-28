@@ -877,8 +877,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   PostgreSQL-backed v3 game proves legacy can read/write only its isolated file
   while the v3 head, snapshot hash, game/revision counts, and command journal
   remain unchanged. A static packaging guard rejects boundary drift.
-- [ ] Add deprecation telemetry and an operator switch that disables legacy writes
-  without disabling v3; define the user migration and final retirement plan.
+- [x] Add deprecation telemetry and an operator switch that disables legacy
+  writes without disabling v3. The content-free `/legacy-status` counters
+  distinguish accepted/rejected file and authentication writes. Explicit
+  `-no-legacy-writes`/`UncivServerLegacyWrites=false` retirement mode returns
+  `410 Gone` for both legacy write paths while preserving reads and the
+  separately deployed v3 service. Unit tests and a packaged live process prove
+  the cutoff and counters; the operator runbook defines observation, owner
+  notification, dry-run/import, pilot, fleet cutoff, recovery window, rollback,
+  and final listener-removal gates.
 
 ## P2: performance, capacity, and final release evidence
 

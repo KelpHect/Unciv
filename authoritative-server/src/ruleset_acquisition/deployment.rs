@@ -75,6 +75,7 @@ async fn acquire(
     let policy = read_policy(policy_path)?;
     policy.validate()?;
     reject_link_or_non_file(worker_jar)?;
+    let worker_jar = dunce::canonicalize(worker_jar).map_err(AcquisitionError::io)?;
     let database_url =
         std::env::var("UNCIV_V3_DATABASE_URL").map_err(|_| AcquisitionError::Registration)?;
     let repository = PostgresGameRepository::connect(&database_url)
@@ -95,7 +96,7 @@ async fn acquire(
     if !final_path.exists() {
         let staging_path = versions.join(format!(".stage-{}", uuid::Uuid::new_v4()));
         let mut staging = StagingDirectory::create(staging_path)?;
-        stage_version(&policy, base_assets, worker_jar, staging.path())?;
+        stage_version(&policy, base_assets, &worker_jar, staging.path())?;
         sync_directory(staging.path())?;
         std::fs::rename(staging.path(), &final_path).map_err(AcquisitionError::io)?;
         staging.commit();
@@ -170,7 +171,7 @@ fn validate_with_worker(
         .current_dir(staging)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::inherit())
         .spawn()
         .map_err(|_| AcquisitionError::WorkerValidation)?;
     let started = Instant::now();

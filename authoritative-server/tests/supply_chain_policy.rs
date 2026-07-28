@@ -2,6 +2,7 @@ const WORKFLOW: &str = include_str!("../../.github/workflows/authoritativeV3Supp
 const RUNBOOK: &str = include_str!("../../docs/operations/authoritative-supply-chain-security.md");
 const GITLEAKS_IGNORE: &str = include_str!("../../.gitleaksignore");
 const LINUX_SMOKE: &str = include_str!("run-linux-production-smoke.sh");
+const LOW_RESOURCE_LOAD: &str = include_str!("run-linux-low-resource-load.sh");
 
 #[test]
 fn every_supply_chain_action_is_pinned_to_an_immutable_commit() {
@@ -101,6 +102,37 @@ fn tagged_bundle_runs_a_bounded_linux_production_smoke() {
     }
     assert!(!LINUX_SMOKE.contains("UNCIV_V3_UNPACKAGED_DEV"));
     assert!(!LINUX_SMOKE.contains("postgres:16"));
+}
+
+#[test]
+fn tagged_bundle_runs_the_real_stack_inside_one_cpu_and_one_gibibyte() {
+    for required in [
+        "postgres:19beta2-alpine@sha256:bc62313e",
+        "eclipse-temurin:21-jre@sha256:273396e",
+        "--cpus 0.25 --memory 288m",
+        "--cpus 0.65 --memory 512m",
+        "--cpus 0.10 --memory 192m",
+        "--memory-swap 288m",
+        "--memory-swap 512m",
+        "--memory-swap 192m",
+        "\"$bundle_root/bin/unciv-v3-rulesets\" acquire",
+        "UNCIV_V3_LOAD_SCENARIOS",
+        "UNCIV_V3_LOAD_CONTENTION",
+        "expected_stale_conflicts",
+        "websocket_notifications",
+        "database_growth_bytes",
+        "cpu_cores: 1.0",
+        "memory_mib: 992",
+    ] {
+        assert!(
+            LOW_RESOURCE_LOAD.contains(required),
+            "missing low-resource load invariant: {required}"
+        );
+    }
+    assert!(WORKFLOW.contains("run-linux-low-resource-load.sh"));
+    assert!(WORKFLOW.contains("release-output/low-resource-load.json"));
+    assert!(!LOW_RESOURCE_LOAD.contains("UNCIV_V3_UNPACKAGED_DEV"));
+    assert!(!LOW_RESOURCE_LOAD.contains("postgres:16"));
 }
 
 #[test]

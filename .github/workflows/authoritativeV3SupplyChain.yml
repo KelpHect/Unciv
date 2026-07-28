@@ -133,7 +133,8 @@ jobs:
             --bin unciv-v3-migrate \
             --bin unciv-v3-export-security-audit \
             --bin unciv-v3-bundle \
-            --bin unciv-v3-rulesets
+            --bin unciv-v3-rulesets \
+            --bin unciv-v3-load
       - name: Derive and validate the exact vanilla ruleset manifest
         shell: bash
         run: |
@@ -213,6 +214,11 @@ jobs:
           bash authoritative-server/tests/run-linux-production-smoke.sh \
             release-output/bundle
 
+          bash authoritative-server/tests/run-linux-low-resource-load.sh \
+            release-output/bundle \
+            authoritative-server/target/release/unciv-v3-load \
+            > release-output/low-resource-load.json
+
           source_date_epoch="$(git show -s --format=%ct HEAD)"
           tar --sort=name --mtime="@${source_date_epoch}" \
             --owner=0 --group=0 --numeric-owner \
@@ -238,5 +244,6 @@ jobs:
             authoritative-v3-linux-x86_64.tar.gz.sha256
             release-output/bundle/bundle-manifest.json
             release-output/bundle/evidence/sbom.spdx.json
+            release-output/low-resource-load.json
           if-no-files-found: error
           retention-days: 90

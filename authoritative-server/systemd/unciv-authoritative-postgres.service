@@ -1,0 +1,35 @@
+[Unit]
+Description=Unciv authoritative PostgreSQL 19 Beta 2
+Documentation=file:/opt/unciv-authoritative/docs/authoritative-postgresql-19.md
+Requires=docker.service
+After=docker.service local-fs.target
+Before=unciv-authoritative-migrate.service unciv-authoritative-api.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/etc/unciv-authoritative/postgres
+ExecStartPre=/usr/bin/docker compose --file compose.yaml config --quiet
+ExecStart=/usr/bin/docker compose --file compose.yaml up --detach --wait postgres
+ExecStop=/usr/bin/docker compose --file compose.yaml stop --timeout 60 postgres
+TimeoutStartSec=5min
+TimeoutStopSec=90s
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/run/docker.sock
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

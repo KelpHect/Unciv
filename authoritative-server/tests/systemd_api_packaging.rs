@@ -7,6 +7,14 @@ const BASE_BACKUP: &str = include_str!("../postgresql/base-backup.sh");
 const ARCHIVE_WAL: &str = include_str!("../postgresql/archive-wal.sh");
 const PITR_CONFIG: &str = include_str!("../postgresql/authoritative-pitr.conf");
 const PITR_SMOKE: &str = include_str!("run-postgres-pitr-smoke.ps1");
+const POSTGRES_SERVICE: &str = include_str!("../systemd/unciv-authoritative-postgres.service");
+const POSTGRES_COMPOSE: &str = include_str!("../postgresql/compose.production.yaml");
+const POSTGRES_CONFIG: &str = include_str!("../postgresql/production-postgresql.conf");
+const POSTGRES_TLS: &str = include_str!("../postgresql/production-tls.conf");
+const POSTGRES_HBA: &str = include_str!("../postgresql/production-pg_hba.conf");
+const POSTGRES_ROLES: &str = include_str!("../postgresql/bootstrap-roles.sql");
+const POSTGRES_ROTATION: &str = include_str!("../postgresql/rotate-role-password.sql");
+const POSTGRES_SECURITY_SMOKE: &str = include_str!("run-postgres-security-smoke.ps1");
 const CADDYFILE: &str = include_str!("../caddy/Caddyfile");
 const TLS_SMOKE: &str = include_str!("run-tls-proxy-smoke.ps1");
 
@@ -16,7 +24,7 @@ fn api_unit_is_bounded_private_and_depends_on_the_worker() {
         "User=unciv-api",
         "Group=unciv-api",
         "EnvironmentFile=/etc/unciv-authoritative/api/api.env",
-        "Requires=unciv-authoritative-worker.service",
+        "Requires=unciv-authoritative-postgres.service unciv-authoritative-worker.service",
         "ExecStart=/opt/unciv-authoritative/releases/current/bin/unciv-authoritative-server",
         "CPUQuota=60%",
         "MemoryMax=192M",
@@ -41,6 +49,7 @@ fn migration_unit_has_a_separate_identity_and_one_shot_executable() {
         "User=unciv-migrate",
         "Group=unciv-migrate",
         "EnvironmentFile=/etc/unciv-authoritative/migration/migration.env",
+        "Requires=unciv-authoritative-postgres.service",
         "ExecStart=/opt/unciv-authoritative/releases/current/bin/unciv-v3-migrate",
         "MemoryMax=192M",
         "MemorySwapMax=0",
@@ -114,6 +123,7 @@ fn backup_unit_is_scheduled_bounded_and_separately_credentialed() {
         "User=unciv-backup",
         "Group=unciv-backup",
         "EnvironmentFile=/etc/unciv-authoritative/backup/backup.env",
+        "Requires=unciv-authoritative-postgres.service",
         "ExecStart=/bin/sh /opt/unciv-authoritative/releases/current/postgresql/base-backup.sh",
         "ReadWritePaths=/var/backups/unciv-authoritative/base",
         "MemoryMax=192M",
@@ -190,6 +200,127 @@ fn physical_backup_and_wal_archive_are_verified_and_fail_closed() {
         assert!(
             PITR_SMOKE.contains(required),
             "missing restore-drill invariant: {required}"
+        );
+    }
+}
+
+#[test]
+fn postgres_service_is_digest_pinned_private_bounded_and_tls_only() {
+    for required in [
+        "Requires=docker.service",
+        "Before=unciv-authoritative-migrate.service unciv-authoritative-api.service",
+        "docker compose --file compose.yaml up --detach --wait postgres",
+        "NoNewPrivileges=yes",
+        "ProtectSystem=strict",
+        "ReadWritePaths=/run/docker.sock",
+    ] {
+        assert!(
+            POSTGRES_SERVICE.contains(required),
+            "missing PostgreSQL unit policy: {required}"
+        );
+    }
+    for required in [
+        "postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5",
+        "network_mode: host",
+        "POSTGRES_PASSWORD_FILE:",
+        "cpus: 0.40",
+        "mem_limit: 384m",
+        "pids_limit: 128",
+        "no-new-privileges:true",
+        "cap_drop:",
+    ] {
+        assert!(
+            POSTGRES_COMPOSE.contains(required),
+            "missing PostgreSQL container policy: {required}"
+        );
+    }
+    for required in [
+        "data_directory = '/var/lib/postgresql/data'",
+        "max_connections = 64",
+        "shared_buffers = '192MB'",
+        "io_method = worker",
+        "include = '/etc/unciv-authoritative/postgres/tls.conf'",
+        "include = '/etc/unciv-authoritative/postgres/pitr.conf'",
+    ] {
+        assert!(
+            POSTGRES_CONFIG.contains(required),
+            "missing PostgreSQL runtime policy: {required}"
+        );
+    }
+    for required in [
+        "listen_addresses = '127.0.0.1,::1'",
+        "ssl = on",
+        "ssl_min_protocol_version = 'TLSv1.2'",
+        "password_encryption = 'scram-sha-256'",
+    ] {
+        assert!(
+            POSTGRES_TLS.contains(required),
+            "missing PostgreSQL TLS policy: {required}"
+        );
+    }
+    assert!(POSTGRES_HBA.contains("hostnossl all"));
+    for role in [
+        "unciv_runtime",
+        "unciv_migrate",
+        "unciv_backup",
+        "unciv_audit",
+    ] {
+        assert!(
+            POSTGRES_HBA.contains(role),
+            "missing TLS-only HBA role: {role}"
+        );
+    }
+}
+
+#[test]
+fn postgres_roles_and_rotation_are_closed_and_least_privilege() {
+    for required in [
+        "ALTER ROLE unciv_runtime",
+        "ALTER ROLE unciv_migrate",
+        "ALTER ROLE unciv_backup",
+        "ALTER ROLE unciv_restore",
+        "ALTER ROLE unciv_audit",
+        "NOBYPASSRLS",
+        "REVOKE ALL ON DATABASE unciv_authoritative FROM PUBLIC",
+        "GRANT CONNECT ON DATABASE unciv_authoritative TO",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO unciv_runtime",
+        "GRANT SELECT ON TABLES TO unciv_audit",
+        "default_transaction_read_only = on",
+        "REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC",
+    ] {
+        assert!(
+            POSTGRES_ROLES.contains(required),
+            "missing role invariant: {required}"
+        );
+    }
+    for role in [
+        "'unciv_runtime'",
+        "'unciv_migrate'",
+        "'unciv_backup'",
+        "'unciv_restore'",
+        "'unciv_audit'",
+    ] {
+        assert!(
+            POSTGRES_ROTATION.contains(role),
+            "rotation allowlist omits {role}"
+        );
+    }
+    assert!(!POSTGRES_ROTATION.contains("ALTER ROLE :"));
+    for required in [
+        "PGSSLMODE=require",
+        "PGSSLMODE=$SslMode",
+        "pg_stat_ssl",
+        "CREATE TABLE runtime_must_not_create",
+        "pg_basebackup",
+        "pg_verifybackup",
+        "unciv_restore",
+        "runtime_rotation_old_credential",
+        "runtime_rotation_new_credential",
+        "--bin', 'unciv-v3-reconcile",
+    ] {
+        assert!(
+            POSTGRES_SECURITY_SMOKE.contains(required),
+            "missing live PostgreSQL security assertion: {required}"
         );
     }
 }

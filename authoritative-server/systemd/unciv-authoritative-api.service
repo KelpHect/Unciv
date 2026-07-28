@@ -2,8 +2,8 @@
 Description=Unciv API v3 authoritative Rust control plane
 Documentation=file:/opt/unciv-authoritative/docs/authoritative-api-systemd.md
 Wants=network-online.target
-After=network-online.target unciv-authoritative-worker.service
-Requires=unciv-authoritative-worker.service
+After=network-online.target unciv-authoritative-postgres.service unciv-authoritative-worker.service
+Requires=unciv-authoritative-postgres.service unciv-authoritative-worker.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
 

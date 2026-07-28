@@ -2,7 +2,8 @@
 Description=Apply the exact Unciv API v3 PostgreSQL migration set
 Documentation=file:/opt/unciv-authoritative/docs/authoritative-api-systemd.md
 Wants=network-online.target
-After=network-online.target
+After=network-online.target unciv-authoritative-postgres.service
+Requires=unciv-authoritative-postgres.service
 
 [Service]
 Type=oneshot

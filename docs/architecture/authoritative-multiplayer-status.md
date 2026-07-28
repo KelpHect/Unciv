@@ -6872,6 +6872,54 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## PostgreSQL 19 TLS, service isolation, and credential rotation
+
+Implemented and live-qualified on 2026-07-28:
+
+- An exact-digest PostgreSQL 19 Beta 2 production compose service is owned by a
+  hardened systemd orchestrator, listens only on Linux loopback host networking,
+  reads the bootstrap secret from a file, starts before migration/API/backup,
+  and bounds CPU, memory, shared memory, PIDs, and Linux capabilities.
+- Checked production configuration enables TLS 1.2 or newer, SCRAM-SHA-256,
+  PostgreSQL 19 worker I/O, bounded connections and memory, continuous WAL
+  archiving, and TLS-aware health. HBA rejects every non-TLS TCP session and
+  admits each service role only to its required database or replication scope.
+- The idempotent role bootstrap creates separate runtime, migration, backup,
+  restore, and audit identities. All are non-superuser, non-createdb,
+  non-createrole, and non-bypass-RLS. Runtime gets DML without DDL; migration
+  owns schema evolution; backup gets replication without table reads; restore
+  has no production admission; audit is read-only. Public database, schema,
+  function, table, and sequence authority is removed or replaced with explicit
+  current/default grants.
+- Closed password rotation accepts only those five identities. The runbook
+  requires independent protected credentials, consumer restart/readiness,
+  denial of the old password, acceptance of the replacement over TLS, old
+  session termination, and credential-free audit records.
+
+Verification on 2026-07-28:
+
+- `docker compose --file
+  authoritative-server/postgresql/compose.production.yaml config --quiet`
+  passes, the static systemd/config/role suite passes 8/8, and
+  `systemd-analyze verify` accepts the PostgreSQL, migration, API, backup,
+  worker, and proxy dependency graph in the pinned Linux qualification image.
+- `pwsh -NoProfile -File
+  authoritative-server/tests/run-postgres-security-smoke.ps1` passes against
+  only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The live server negotiated TLS 1.3. Runtime DML succeeded while DDL failed;
+  migration DDL succeeded; audit read and zero-finding reconciliation succeeded
+  while audit writes failed; backup completed `pg_basebackup` plus
+  `pg_verifybackup`; restore and non-TLS production connections failed.
+- PostgreSQL reported SCRAM password storage for all five service roles and the
+  expected closed attributes, with replication true only for backup. Rotating
+  runtime credentials made the old password fail and the replacement succeed.
+  The disposable container, data volume, private CA, certificates, keys, and
+  backup were removed.
+- The first qualification correctly rejected a multi-statement `ALTER SYSTEM`
+  query because PostgreSQL forbids it inside a transaction block. The script
+  now applies each setting independently; no error remains deferred.
+
 ## PostgreSQL 19 physical backup and point-in-time recovery
 
 Implemented and destructively qualified on 2026-07-28:

@@ -744,22 +744,31 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and enforceable JVM/cgroup limits. The release bundle now includes a dedicated
   migration executable; the Rust API and migrator have separate hardened
   systemd units, credentials, users, resource ceilings, and active dependency
-  readiness. The public Caddy TLS proxy now has its own hardened unit, active
-  readiness gate, HSTS, and fail-closed client-IP boundary. PostgreSQL service
-  hardening, backup, and upgrade units remain to complete this item.
+  readiness. PostgreSQL 19 Beta 2 now has an exact-digest production compose
+  service owned by systemd, loopback-only TLS/SCRAM admission, dependency
+  ordering, health gating, bounded CPU/memory/PIDs/shared memory/capabilities,
+  and continuous WAL/base-backup integration. The public Caddy TLS proxy has its
+  own hardened unit, active readiness gate, HSTS, and fail-closed client-IP
+  boundary. Prerelease upgrade/rollback qualification remains to complete this
+  item.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
   2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
   one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
   one client address only from an explicitly configured loopback proxy,
   requires a loopback listener in that mode, rejects ambiguous proxy input, and
   ignores forwarding claims from every untrusted peer.
-- [ ] Create separate least-privilege PostgreSQL roles for runtime, migrations,
+- [x] Create separate least-privilege PostgreSQL roles for runtime, migrations,
   backups, restores, and audit access; require encrypted database transport and
   credential rotation. Runtime and migration now have separate executables,
   Linux users/groups, protected credential directories, and documented SQL
   privilege boundaries; a live runtime-role smoke proves schema `CREATE` is
-  denied while API readiness works. Backup, restore, audit roles plus automated
-  TLS and rotation qualification remain.
+  denied while API readiness works. The five-role bootstrap now closes role
+  attributes, public access, default privileges, and production HBA scope.
+  A pinned PostgreSQL 19 Beta 2 live smoke proves TLS 1.3, non-TLS denial,
+  runtime DML/DDL separation, migration DDL, audit read-only access,
+  replication-only verified backup, restore production denial, SCRAM storage,
+  clean audit-only reconciliation, and old-denied/new-accepted runtime
+  credential rotation.
 - [x] Implement automated backups and point-in-time recovery, then run and record
   destructive restore drills that validate head revision, snapshot hash,
   journal, membership, session, audit, and outbox invariants. PostgreSQL 19 Beta

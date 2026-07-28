@@ -61,7 +61,7 @@ overwrites an existing archive object.
 Create separate roots with no shared write access:
 
 ```text
-install -d -m 0700 -o postgres -g postgres /var/backups/unciv-authoritative/wal
+install -d -m 0700 -o 70 -g 70 /var/backups/unciv-authoritative/wal
 install -d -m 0700 -o unciv-backup -g unciv-backup /var/backups/unciv-authoritative/base
 ```
 
@@ -150,6 +150,86 @@ Before changing the pinned image:
 6. Promote only after rollback has been rehearsed; never point two major/beta
 versions at the same data directory.
 
+## Production service
+
+Production uses
+`authoritative-server/postgresql/compose.production.yaml`, owned by the
+`unciv-authoritative-postgres.service` systemd unit. The compose file names only
+the exact accepted PostgreSQL 19 Beta 2 image digest, uses Linux host networking
+with PostgreSQL listening on loopback only, bounds CPU, memory, PIDs, shared
+memory, and capabilities, and reads the bootstrap password from a root-owned
+file. The systemd unit validates the compose model, waits for the TLS-enabled
+healthcheck, and starts before migration and API units.
+
+Install these root-owned files:
+
+```text
+install -d -o root -g root -m 0750 /etc/unciv-authoritative/postgres
+install -d -o 70 -g 70 -m 0700 /etc/unciv-authoritative/postgres/tls
+install -o root -g root -m 0644 authoritative-server/postgresql/compose.production.yaml /etc/unciv-authoritative/postgres/compose.yaml
+install -o root -g root -m 0644 authoritative-server/postgresql/production-postgresql.conf /etc/unciv-authoritative/postgres/postgresql.conf
+install -o root -g root -m 0644 authoritative-server/postgresql/production-pg_hba.conf /etc/unciv-authoritative/postgres/pg_hba.conf
+install -o root -g root -m 0644 authoritative-server/postgresql/production-tls.conf /etc/unciv-authoritative/postgres/tls.conf
+install -o root -g root -m 0644 authoritative-server/postgresql/authoritative-pitr.conf /etc/unciv-authoritative/postgres/pitr.conf
+install -o root -g root -m 0644 authoritative-server/systemd/unciv-authoritative-postgres.service /etc/systemd/system/
+```
+
+Install a CA-issued certificate for the database endpoint as `server.crt`, its
+private key as `server.key`, and the issuing chain as `ca.crt`. The key must be
+owned by UID/GID 70 used by the exact pinned Alpine image and mode `0600`;
+PostgreSQL refuses an overly permissive key. The production HBA rejects all
+non-TLS TCP sessions
+before considering SCRAM authentication. It admits runtime, migration, and
+audit only to `unciv_authoritative`, admits backup only to the replication
+pseudo-database, and has no production admission for the restore role.
+
+Generate the one-time bootstrap password outside shell history, store it at
+`/etc/unciv-authoritative/postgres/postgres-bootstrap-password` mode `0600`,
+then run:
+
+```text
+docker compose --file /etc/unciv-authoritative/postgres/compose.yaml config --quiet
+systemd-analyze verify /etc/systemd/system/unciv-authoritative-postgres.service
+systemctl enable --now unciv-authoritative-postgres.service
+```
+
+After creating the five role passwords in protected temporary variables, run
+`bootstrap-roles.sql` locally as the `postgres` OS identity with psql variables
+`runtime_password`, `migration_password`, `backup_password`,
+`restore_password`, and `audit_password`. It is idempotent: it closes role
+attributes, revokes public database/schema/function access, makes migration the
+database/schema owner, installs future default grants, and reapplies exact
+grants to existing objects. Do not place those variable values in a checked-in
+file or command transcript. Remove or lock the bootstrap superuser password
+after validating all five roles.
+
+The roles have deliberately different authority:
+
+- `unciv_runtime`: TLS login, schema usage, table DML, and sequence use; no DDL.
+- `unciv_migrate`: TLS login and ownership/DDL; no superuser or role creation.
+- `unciv_backup`: TLS physical-replication login only; no table access.
+- `unciv_restore`: no production database admission; use only after granting it
+  access inside an isolated restored cluster.
+- `unciv_audit`: TLS read-only login with table/sequence reads and bounded
+  timeouts; no writes or DDL.
+
+## Credential rotation
+
+Rotate one consumer at a time. Generate a new password without logging it, run
+`rotate-role-password.sql` locally as the PostgreSQL administrator with
+`role_name` and `new_password` psql variables, update only that consumer's
+protected credential or pgpass file, restart that consumer, and require its
+readiness/operation check. Then prove a new session with the old credential is
+denied and a new TLS session with the replacement succeeds. Terminate any old
+long-lived sessions after the consumer is healthy and record the role, time,
+operator, reason, and validation result without recording either credential.
+
+The rotation SQL accepts exactly the five named service roles and refuses every
+other target. Rotation does not grant privileges and does not weaken TLS/HBA.
+For suspected disclosure, stop the affected consumer first, rotate immediately,
+terminate its sessions, inspect audit and connection logs, and revoke `LOGIN`
+until the incident is understood.
+
 ## Read-only canonical reconciliation
 
 Run reconciliation with a database role that has `SELECT` access only. The CLI
@@ -215,3 +295,15 @@ snapshot/payload hashes, two revision and one command journal rows, membership,
 session, audit, and outbox rows. Reconciliation scanned one game, two revisions,
 and two snapshots with zero findings. All disposable containers, volumes, and
 the network were removed.
+
+Also on 2026-07-28,
+`authoritative-server/tests/run-postgres-security-smoke.ps1` passed against the
+same exact digest. PostgreSQL negotiated TLS 1.3; non-TLS and restore-role
+production connections were denied. Runtime DML succeeded while runtime DDL
+failed; migration DDL succeeded; audit reads and reconciliation succeeded while
+audit writes failed; and the replication-only role completed and verified a
+physical base backup. All roles were non-superuser, non-createdb,
+non-createrole, and non-bypass-RLS; only backup had replication, and all five
+passwords were SCRAM. Runtime password rotation denied the old credential and
+accepted the replacement. The disposable container, volume, private CA,
+certificates, and keys were removed.

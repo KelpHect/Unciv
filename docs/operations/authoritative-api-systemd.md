@@ -13,8 +13,10 @@ Create locked service accounts without login shells:
 ```text
 groupadd --system unciv-api
 groupadd --system unciv-migrate
+groupadd --system unciv-backup
 useradd --system --gid unciv-api --home /nonexistent --shell /usr/sbin/nologin unciv-api
 useradd --system --gid unciv-migrate --home /nonexistent --shell /usr/sbin/nologin unciv-migrate
+useradd --system --gid unciv-backup --home /nonexistent --shell /usr/sbin/nologin unciv-backup
 install -o root -g root -m 0444 docs/operations/authoritative-api-systemd.md /opt/unciv-authoritative/docs/
 install -o root -g root -m 0644 authoritative-server/systemd/unciv-authoritative-api.service /etc/systemd/system/
 install -o root -g root -m 0644 authoritative-server/systemd/unciv-authoritative-migrate.service /etc/systemd/system/
@@ -23,6 +25,7 @@ install -d -o root -g unciv-api -m 0750 /etc/unciv-authoritative/api
 install -d -o root -g unciv-migrate -m 0750 /etc/unciv-authoritative/migration
 systemd-analyze verify /etc/systemd/system/unciv-authoritative-api.service
 systemd-analyze verify /etc/systemd/system/unciv-authoritative-migrate.service
+systemd-analyze verify /etc/systemd/system/unciv-authoritative-backup.service
 ```
 
 `/etc/unciv-authoritative/migration/migration.env` is root-owned mode `0640`, group
@@ -53,11 +56,13 @@ UNCIV_V3_DB_STATEMENT_TIMEOUT_MS=15000
 UNCIV_V3_DB_LOCK_TIMEOUT_MS=5000
 ```
 
-Never put both database credentials in one file. PostgreSQL must grant the
+Never put database credentials for different roles in one file. PostgreSQL must grant the
 runtime role only `CONNECT`, schema `USAGE`, required table DML, and sequence
 usage; it must not own the database/schema or receive `CREATE`. The migration
 role owns the schema objects. Rotate each password independently and restart
-only its consumer.
+only its consumer. The exact grants, TLS-only HBA, backup/restore/audit roles,
+and credential-rotation gate are documented in
+`authoritative-postgresql-19.md`.
 
 `UNCIV_V3_TRUSTED_PROXY=loopback` is valid only with a loopback
 `UNCIV_V3_BIND`; startup rejects any public bind in that mode. The API then

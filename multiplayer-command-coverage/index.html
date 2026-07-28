@@ -2314,6 +2314,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/authoritative-full-match-qualification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative V3 full-match qualification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/authoritative-http-security/" class="md-nav__link">
         
   
@@ -3184,7 +3212,7 @@ implemented outside the gameplay command union.</p>
 <td><code>QueueConstruction</code>, <code>QueueConstructionAtTile</code>, <code>RemoveConstruction</code>, <code>MoveConstruction</code>, <code>SetPerpetualConstruction</code>, and closed-enum <code>ManageConstructionQueues</code> implement every inventoried queue operation: move to top/end, add to top, add to all cities, add-or-move to top in all cities, remove from all cities, and enable/disable construction automation in one or every city</td>
 <td>Shared <code>CityConstructions</code> and canonical city/civilization disabled-construction state through <code>HeadlessGameEngine</code>; the worker derives the bounded target-city set and applies an all-or-reject canonical proposal. Tile-targeted buildings have a distinct coordinate-bearing command and perpetual choices use a distinct replacement command</td>
 <td>Membership-derived civilization/current turn, anchor-city ownership, exact optional queue index/name, canonical candidate cities, puppet/resistance/razed exclusions, constructability/capacity, wonder and tile-target restrictions, idle-construction exclusion, and at least one real mutation. Clients cannot send target cities, actor, legality, partial results, or outcomes</td>
-<td>Projection v59 retains the ordered queue, cost/turn metadata, exact queueable choices, placement targets, and sorted closed action allowlists, including the four canonical automation actions. It also publishes durable world-wonder completion events with ruleset-derived effect summaries, knowledge-gated builder identity, and exploration-gated city/location fields</td>
+<td>Projection v60 retains the ordered queue, cost/turn metadata, exact queueable choices, placement targets, and sorted closed action allowlists, including the four canonical automation actions. It also publishes durable world-wonder completion events with ruleset-derived effect summaries, knowledge-gated builder identity, and exploration-gated city/location fields, plus the public canonical victory result</td>
 <td>Production queue controls submit all context actions only when advertised by the cached projection. The projection-only history panel renders exact public wonder events without reconstructing hidden builder or location context. Accepted, stale, and retry behavior reconciles through the command bus/session; local, hotseat, and legacy behavior remains local</td>
 <td><strong>Complete for inventoried queue controls and public wonder completion/effect projection</strong></td>
 </tr>

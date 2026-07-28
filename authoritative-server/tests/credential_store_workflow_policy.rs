@@ -37,6 +37,8 @@ fn credential_store_workflow_executes_every_supported_secure_store() {
         "$ANDROID_SDK_ROOT/emulator/emulator",
         "timeout 180 \"$ADB\" wait-for-device",
         "timeout 10 \"$ANDROID_SDK_ROOT/platform-tools/adb\" logcat",
+        "ANDROID_AVD_HOME: ${{ runner.temp }}/unciv-avd",
+        "test -f \"$ANDROID_AVD_HOME/unciv-api-v3.ini\"",
     ] {
         assert!(
             WORKFLOW.contains(required),

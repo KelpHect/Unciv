@@ -13,7 +13,8 @@ From one clean commit, build every artifact that will ship:
 ./gradlew :server:authoritativeWorkerDist :desktop:dist
 cargo build --release --manifest-path authoritative-server/Cargo.toml \
   --bin unciv-authoritative-server --bin unciv-v3-migrate \
-  --bin unciv-v3-export-security-audit --bin unciv-v3-bundle
+  --bin unciv-v3-export-security-audit --bin unciv-v3-bundle \
+  --bin unciv-v3-rulesets
 ```
 
 Copy the active ruleset version's `manifest.json` to a root-owned review
@@ -37,6 +38,7 @@ authoritative-server/target/release/unciv-v3-bundle create \
   authoritative-server/target/release/unciv-v3-migrate \
   authoritative-server/target/release/unciv-v3-export-security-audit \
   authoritative-server/target/release/unciv-v3-bundle \
+  authoritative-server/target/release/unciv-v3-rulesets \
   server/build/libs/UncivAuthoritativeWorker.jar \
   desktop/build/libs/Unciv.jar \
   /opt/unciv-authoritative/rulesets/active/manifest.json \

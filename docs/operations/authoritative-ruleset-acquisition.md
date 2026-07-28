@@ -4,16 +4,15 @@
 API-v3 worker. It is an offline operator tool, not an HTTP endpoint. Clients
 cannot supply a URL, archive, path, hash, host, or ruleset byte.
 
-## Build and install
+## Install
 
-Build the exact Rust control-plane commit and packaged worker together:
+Install only the ruleset manager from the verified active production bundle:
 
 ```text
-cargo build --release --manifest-path authoritative-server/Cargo.toml \
-  --bin unciv-v3-rulesets
-./gradlew :server:authoritativeWorkerDist
+/opt/unciv-authoritative/releases/current/bin/unciv-v3-bundle verify \
+  /opt/unciv-authoritative/releases/current
 install -o root -g root -m 0555 \
-  authoritative-server/target/release/unciv-v3-rulesets \
+  /opt/unciv-authoritative/releases/current/bin/unciv-v3-rulesets \
   /usr/local/sbin/unciv-v3-rulesets
 ```
 

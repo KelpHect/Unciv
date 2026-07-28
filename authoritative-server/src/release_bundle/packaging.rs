@@ -36,6 +36,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
             migrator,
             audit_exporter,
             bundle_verifier,
+            ruleset_manager,
             worker,
             client,
             ruleset,
@@ -47,6 +48,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), ReleaseBundleError>
                 migrator,
                 audit_exporter,
                 bundle_verifier,
+                ruleset_manager,
                 worker,
                 client,
                 ruleset,
@@ -62,6 +64,7 @@ struct PackageSources<'a> {
     migrator: &'a str,
     audit_exporter: &'a str,
     bundle_verifier: &'a str,
+    ruleset_manager: &'a str,
     worker: &'a str,
     client: &'a str,
     ruleset: &'a str,
@@ -102,6 +105,10 @@ fn create(output: &Path, sources: PackageSources<'_>) -> Result<(), ReleaseBundl
     copy_executable(
         &source_path(sources.bundle_verifier)?,
         &staging.join("bin/unciv-v3-bundle"),
+    )?;
+    copy_executable(
+        &source_path(sources.ruleset_manager)?,
+        &staging.join("bin/unciv-v3-rulesets"),
     )?;
     copy_exact(
         &source_path(sources.worker)?,
@@ -312,6 +319,7 @@ mod tests {
         fs::write(sources.join("migrator"), "migrator").unwrap();
         fs::write(sources.join("audit-exporter"), "audit-exporter").unwrap();
         fs::write(sources.join("bundle-verifier"), "bundle-verifier").unwrap();
+        fs::write(sources.join("ruleset-manager"), "ruleset-manager").unwrap();
         create_compatible_zip(&sources.join("worker"));
         create_compatible_zip(&sources.join("client"));
         let ruleset = WorkerManifest {
@@ -349,6 +357,7 @@ mod tests {
                 migrator: sources.join("migrator").to_str().unwrap(),
                 audit_exporter: sources.join("audit-exporter").to_str().unwrap(),
                 bundle_verifier: sources.join("bundle-verifier").to_str().unwrap(),
+                ruleset_manager: sources.join("ruleset-manager").to_str().unwrap(),
                 worker: sources.join("worker").to_str().unwrap(),
                 client: sources.join("client").to_str().unwrap(),
                 ruleset: sources.join("ruleset.json").to_str().unwrap(),

@@ -174,6 +174,7 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
         "bin/unciv-v3-export-security-audit",
         "bin/unciv-v3-bundle",
         "bin/unciv-v3-migrate",
+        "bin/unciv-v3-rulesets",
         "client/unciv-client",
         "contracts/api-v3.json",
         "contracts/compatibility.json",

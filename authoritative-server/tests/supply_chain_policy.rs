@@ -1,6 +1,7 @@
 const WORKFLOW: &str = include_str!("../../.github/workflows/authoritativeV3SupplyChain.yml");
 const RUNBOOK: &str = include_str!("../../docs/operations/authoritative-supply-chain-security.md");
 const GITLEAKS_IGNORE: &str = include_str!("../../.gitleaksignore");
+const LINUX_SMOKE: &str = include_str!("run-linux-production-smoke.sh");
 
 #[test]
 fn every_supply_chain_action_is_pinned_to_an_immutable_commit() {
@@ -59,6 +60,7 @@ fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
         "SYFT_LINUX_AMD64_SHA256: 7aa2f03e",
         "unciv-v3-bundle create",
         "unciv-v3-bundle \\\n            verify release-output/bundle",
+        "run-linux-production-smoke.sh",
         "name: Sign production bundle provenance",
         "name: Bind the SPDX SBOM to the production bundle",
         "subject-path: authoritative-v3-linux-x86_64.tar.gz",
@@ -70,6 +72,30 @@ fn workflow_covers_vulnerabilities_secrets_sbom_and_signed_tag_evidence() {
             "missing supply-chain control: {required}"
         );
     }
+}
+
+#[test]
+fn tagged_bundle_runs_a_bounded_linux_production_smoke() {
+    for required in [
+        "postgres:19beta2-alpine@sha256:bc62313e",
+        "\"$bundle_root/bin/unciv-v3-bundle\" verify",
+        "test -x \"$bundle_root/bin/unciv-v3-rulesets\"",
+        "\"$bundle_root/bin/unciv-v3-migrate\"",
+        "\"$bundle_root/bin/unciv-authoritative-server\"",
+        "\"$bundle_root/worker/UncivAuthoritativeWorker.jar\"",
+        "UNCIV_V3_RELEASE_BUNDLE_ROOT",
+        "UNCIV_V3_RELEASE_BUNDLE_ID",
+        "wait_for_ready ready 200",
+        "wait_for_ready unready 503",
+        "registration: \"created\"",
+    ] {
+        assert!(
+            LINUX_SMOKE.contains(required),
+            "missing Linux production smoke invariant: {required}"
+        );
+    }
+    assert!(!LINUX_SMOKE.contains("UNCIV_V3_UNPACKAGED_DEV"));
+    assert!(!LINUX_SMOKE.contains("postgres:16"));
 }
 
 #[test]

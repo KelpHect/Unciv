@@ -132,7 +132,8 @@ jobs:
             --bin unciv-authoritative-server \
             --bin unciv-v3-migrate \
             --bin unciv-v3-export-security-audit \
-            --bin unciv-v3-bundle
+            --bin unciv-v3-bundle \
+            --bin unciv-v3-rulesets
       - name: Derive and validate the exact vanilla ruleset manifest
         shell: bash
         run: |
@@ -175,6 +176,8 @@ jobs:
             release-inputs/unciv-v3-export-security-audit
           cp authoritative-server/target/release/unciv-v3-bundle \
             release-inputs/unciv-v3-bundle
+          cp authoritative-server/target/release/unciv-v3-rulesets \
+            release-inputs/unciv-v3-rulesets
           cp server/build/libs/UncivAuthoritativeWorker.jar \
             release-inputs/UncivAuthoritativeWorker.jar
           cp desktop/build/libs/Unciv.jar release-inputs/Unciv.jar
@@ -199,12 +202,16 @@ jobs:
             release-inputs/unciv-v3-migrate \
             release-inputs/unciv-v3-export-security-audit \
             release-inputs/unciv-v3-bundle \
+            release-inputs/unciv-v3-rulesets \
             release-inputs/UncivAuthoritativeWorker.jar \
             release-inputs/Unciv.jar \
             release-inputs/ruleset-manifest.json \
             release-inputs.spdx.json
           authoritative-server/target/release/unciv-v3-bundle \
             verify release-output/bundle
+
+          bash authoritative-server/tests/run-linux-production-smoke.sh \
+            release-output/bundle
 
           source_date_epoch="$(git show -s --format=%ct HEAD)"
           tar --sort=name --mtime="@${source_date_epoch}" \

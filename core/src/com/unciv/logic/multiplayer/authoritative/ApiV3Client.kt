@@ -197,6 +197,32 @@ class ApiV3Client(
         if (!response.status.isSuccess()) throw response.toApiException()
     }
 
+    override suspend fun gameChat(
+        gameId: String,
+        before: String?,
+        limit: Int,
+    ): ApiV3GameChatPage {
+        requireUuid(gameId, "Game ID")
+        require(limit in 1..100) { "Game chat page limit must be between 1 and 100" }
+        before?.let { requireUuid(it, "Game chat cursor") }
+        return decode(client.get("api/v3/games/$gameId/chat") {
+            authenticate()
+            parameter("limit", limit)
+            before?.let { parameter("before", it) }
+        })
+    }
+
+    override suspend fun postGameChat(gameId: String, request: ApiV3PostGameChatRequest) {
+        requireUuid(gameId, "Game ID")
+        requireUuid(request.messageId, "Game chat message ID")
+        val response = client.post("api/v3/games/$gameId/chat") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) throw response.toApiException()
+    }
+
     override suspend fun listRulesetManifests(
         after: String?,
         limit: Int,

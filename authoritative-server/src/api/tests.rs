@@ -148,6 +148,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/ruleset-manifests",
         "/api/v3/games",
         "/api/v3/games/{game_id}",
+        "/api/v3/games/{game_id}/chat",
         "/api/v3/games/{game_id}/owner",
         "/api/v3/games/{game_id}/player-invitations",
         "/api/v3/player-invitations",

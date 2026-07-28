@@ -705,14 +705,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Password/session/recovery fields are forbidden from worker and projection
   schemas and sensitive log interpolation. The exact PostgreSQL 19 Beta 2
   focused and 33-test ordinary persistence lanes pass.
-- [ ] Decide and implement v3 chat, friends, invitations, and lobby behavior as
+- [x] Decide and implement v3 chat, friends, invitations, and lobby behavior as
   separate non-canonical services with membership, size, content, privacy, and
   rate limits. Do not put chat/social data into `GameInfo` revisions.
-  Durable account friendships and retry-safe friend requests are implemented
-  behind authenticated bounded API-v3 routes and a desktop/Android-shared
-  client popup. Owner player invitations were already implemented. Game-member
-  chat and the final pregame lobby/readiness behavior remain before this
-  combined item can be checked.
+  Durable friendships, retry-safe friend requests, owner invitations, and
+  membership-scoped per-game chat use separate PostgreSQL tables and
+  authenticated bounded API-v3 routes. Chat is capped by UTF-8 bytes, page
+  size, per-game retention, and durable sender/game rate limits. Desktop and
+  Android share the same friends, invitation, and chat clients/popups. The v3
+  lobby policy is the server-created revision-zero membership/directory plus
+  invitation inbox: the owner can enter immediately, invitees receive a
+  server-assigned civilization and projection on acceptance, and late joins
+  extend the current revision rather than requiring unsafe client-held setup
+  state or a separate readiness authority.
 - [x] Finish reconnect, offline/stale presentation, retry UX, projection upgrade,
   cache replacement, and explicit legacy/v3 game labeling on supported clients.
   Desktop and Android share one projection-only client state machine. Failed

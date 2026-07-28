@@ -37,6 +37,13 @@ interface ApiV3Transport {
         error("Friend request removal is unsupported by this transport")
     suspend fun removeFriend(username: String): Unit =
         error("Friend removal is unsupported by this transport")
+    suspend fun gameChat(
+        gameId: String,
+        before: String? = null,
+        limit: Int = 50,
+    ): ApiV3GameChatPage = error("Game chat is unsupported by this transport")
+    suspend fun postGameChat(gameId: String, request: ApiV3PostGameChatRequest): Unit =
+        error("Posting game chat is unsupported by this transport")
     suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest)
     suspend fun createGame(
         operationId: String,

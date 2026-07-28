@@ -9,6 +9,8 @@ mod administration;
 mod backup_restore;
 #[path = "disk_full_integration_tests.rs"]
 mod disk_full;
+#[path = "game_chat_integration_tests.rs"]
+mod game_chat;
 #[path = "game_creation_integration_tests.rs"]
 mod game_creation;
 #[path = "invitation_integration_tests.rs"]

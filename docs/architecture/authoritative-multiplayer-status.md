@@ -7562,6 +7562,62 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Membership-scoped game chat and completed social/lobby policy
+
+Implemented on 2026-07-28:
+
+- API v3 now exposes bounded, paginated per-game chat to current owner, player,
+  and spectator memberships. Posting is bound to a caller-supplied nonzero
+  message UUID; an exact retry succeeds once, while changed actor/body reuse
+  fails with the stable idempotency conflict.
+- Chat lives only in `game_chat_messages`. It never calls the worker or changes
+  `GameInfo`, snapshots, revisions, the command journal, projections, outbox,
+  turn state, AI, RNG, or canonical hashes. Per-game advisory serialization
+  makes the 500-message retention cap reliable across API replicas.
+- Bodies are trimmed, nonempty, limited to 1,000 UTF-8 bytes, and reject
+  unsupported control characters. Pages are capped at 100 and use opaque UUID
+  cursors. Posting has a durable 10-per-minute account/game limit with a
+  60-second block.
+- The shared Kotlin client validates every page, retains one message UUID
+  across ambiguous exact retries, and provides the same production chat popup
+  on desktop and Android. Removed memberships immediately lose both read and
+  write access.
+- The lobby policy is now explicit: the authenticated directory plus
+  server-created revision-zero membership and invitation inbox are the lobby.
+  Owners may enter immediately; invitees accept a durable invitation, receive
+  an unclaimed civilization from the Kotlin worker, rediscover membership, and
+  open only their projection. Joining extends the current revision, so a late
+  invitee does not depend on a client-held setup screen or a second readiness
+  authority.
+
+Verification on 2026-07-28:
+
+- All 12 focused Rust HTTP/OpenAPI tests pass after regenerating the checked-in
+  contract. The public route inventory includes the combined game-chat
+  GET/POST resource without exposing canonical or worker-private fields.
+- The focused PostgreSQL test passes against only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`;
+  the live server reported `19beta2`. It proves membership read/write
+  authorization, outsider denial, exact retries, changed-meaning conflict,
+  byte/control validation, pagination/cursor rejection, sender identity, and
+  exact 500-row retention. The disposable container was removed.
+- `./gradlew.bat :tests:test --tests
+  com.unciv.logic.multiplayer.authoritative.AuthoritativeGameChatCoordinatorTests
+  --no-daemon` passes all three focused client tests after compiling production
+  UI. The initial compile exposed one GL-thread helper called outside its
+  coroutine receiver; the success callback was moved to the existing
+  GL-thread boundary and the clean rerun passed.
+- `./gradlew.bat :tests:test :server:test :android:assembleDebug --no-parallel
+  --no-daemon` passes the complete shared client, game/core, and worker/server
+  regression lane and produces the Android debug APK: 1,171 tests discovered,
+  1,155 executed, 16 intentionally skipped, zero failures, and zero errors.
+  The repository's existing SDK XML-version warning remains non-fatal.
+- Two initial disposable-database attempts found harness/fixture errors before
+  the passing run: PostgreSQL's temporary bootstrap server briefly reported
+  ready before restart, and the fixture named a nonexistent
+  `game_members.joined_revision` column. Stable role-bootstrap polling and the
+  actual schema fixed both; neither error was deferred.
+
 ## Separate account friendship service
 
 Implemented on 2026-07-28:

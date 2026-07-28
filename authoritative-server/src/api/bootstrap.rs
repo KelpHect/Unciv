@@ -150,6 +150,10 @@ pub(crate) async fn run() {
         .route("/api/v3/ruleset-manifests", get(list_ruleset_manifests))
         .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/games/{game_id}", get(game_metadata))
+        .route(
+            "/api/v3/games/{game_id}/chat",
+            get(list_game_chat).post(post_game_chat),
+        )
         .route("/api/v3/games/{game_id}/owner", put(transfer_ownership))
         .route(
             "/api/v3/games/{game_id}/player-invitations",

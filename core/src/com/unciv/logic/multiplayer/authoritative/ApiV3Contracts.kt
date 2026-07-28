@@ -122,6 +122,26 @@ data class ApiV3CreateFriendRequest(
 )
 
 @Serializable
+data class ApiV3GameChatMessage(
+    @SerialName("message_id") val messageId: String,
+    @SerialName("sender_username") val senderUsername: String,
+    val body: String,
+    @SerialName("created_at_millis") val createdAtMillis: Long,
+)
+
+@Serializable
+data class ApiV3GameChatPage(
+    val messages: List<ApiV3GameChatMessage>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class ApiV3PostGameChatRequest(
+    @SerialName("message_id") val messageId: String,
+    val body: String,
+)
+
+@Serializable
 data class ApiV3InvitePlayerRequest(
     @SerialName("invitation_id") val invitationId: String,
     val username: String,

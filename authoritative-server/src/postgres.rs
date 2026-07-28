@@ -120,6 +120,20 @@ pub struct SocialGraph {
     pub requests: Vec<FriendRequestSummary>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct GameChatMessage {
+    pub message_id: Uuid,
+    pub sender_username: String,
+    pub body: String,
+    pub created_at_millis: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct GameChatPage {
+    pub messages: Vec<GameChatMessage>,
+    pub next_cursor: Option<Uuid>,
+}
+
 #[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GameProjection {
     pub game_id: Uuid,
@@ -166,6 +180,7 @@ mod construction_queues;
 mod diplomacy;
 mod espionage;
 mod event_choices;
+mod game_chat;
 mod game_creation;
 mod games;
 mod great_people;

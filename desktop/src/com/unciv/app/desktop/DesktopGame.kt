@@ -68,15 +68,24 @@ class DesktopGame(config: Lwjgl3ApplicationConfiguration, override var customDat
     }
 
     override fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore? {
-        if (!System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) return null
+        val operatingSystem = System.getProperty("os.name").orEmpty()
+        val scope = apiV3CredentialScope(serverBaseUrl)
         val dataDirectory = customDataDirectory ?: "."
-        return WindowsApiV3SessionTokenStore(
-            Path.of(
-                dataDirectory,
-                ".unciv",
-                "credentials",
-                "api-v3-${apiV3CredentialScope(serverBaseUrl)}.dpapi",
-            ),
-        )
+        return when {
+            operatingSystem.startsWith("Windows", ignoreCase = true) ->
+                WindowsApiV3SessionTokenStore(
+                    Path.of(
+                        dataDirectory,
+                        ".unciv",
+                        "credentials",
+                        "api-v3-$scope.dpapi",
+                    ),
+                )
+            operatingSystem.startsWith("Mac", ignoreCase = true) ->
+                runCatching { MacOsApiV3SessionTokenStore(scope) }.getOrNull()
+            operatingSystem.startsWith("Linux", ignoreCase = true) ->
+                LinuxApiV3SessionTokenStore.create(scope)
+            else -> null
+        }
     }
 }

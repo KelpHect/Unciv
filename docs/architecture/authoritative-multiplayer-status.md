@@ -1,5 +1,64 @@
 # Authoritative multiplayer v3 status
 
+## Final end-to-end playability, mod, and authority audit
+
+Qualified on 2026-07-28:
+
+- The production projection client exposes all 80 typed gameplay/session
+  command methods. A source inventory fails if any gameplay `*IfOpen` method is
+  not reachable from production V3 UI, and a separate exact-set comparison
+  fails if the public OpenAPI gameplay routes and Kotlin client transport ever
+  differ.
+- The projection-only world has no `GameInfo`, `GameStarter`, local
+  `nextTurn`, legacy upload/download, or client autoplay path. Every accepted
+  action is reconstructed from the returned projection; stale, offline, or
+  ambiguous state disables new input until HTTP reconciliation or an exact
+  idempotent retry. Whole-save multiplayer elsewhere must explicitly opt into
+  the isolated `.legacy` façade.
+- Production new-game routing sends the selected base-ruleset name and exact
+  mod-name set to authenticated server manifest resolution, then opens only the
+  returned player projection. It cannot construct or upload a local online
+  game.
+- Two fresh packaged Kotlin worker processes loaded the `Authoritative V3
+  Parity` fixture and independently executed a stable scenario containing
+  mod-defined map generation, construction, purchase, and transformation
+  behavior. The worker validates the server-installed content-addressed
+  base-plus-mod manifest; client-local content is never accepted.
+- End turn loads the canonical snapshot in that same private worker and runs
+  all AI civilizations through the shared Kotlin engine before Rust may commit
+  the result. The public schema deliberately has no autoplay or AI-outcome
+  command, and the client never advances an AI player.
+- The final threat-model review covers the client, public API, worker, mods,
+  PostgreSQL, projections, legacy boundary, recovery, operations, and release
+  supply chain. No untracked V3 gameplay mutation family and no public/client
+  canonical-state replacement path remain.
+
+Verification on 2026-07-28:
+
+- `AuthoritativeProductionRoutingTests` executes and passes after adding exact
+  base/mod routing guards. It also enforces all 80 production command
+  references, exact OpenAPI/client route parity, projection-only UI isolation,
+  server-only AI, explicit legacy access, and typed account/administration
+  routing.
+- `PackagedWorkerParityModTests` executes and passes with both fresh worker
+  processes loading the test mod and producing the same stable state.
+- The complete `:android:assembleDebug :android:lint :tests:test :server:test
+  :desktop:dist --no-parallel` regression passes in 3m34s. This includes the
+  supported Android/desktop clients, single-player/hotseat/save and legacy
+  regressions, authoritative client suite, server worker suite, every
+  generated-game setup parity scenario, mod parity, and server-AI turn cases.
+- Rust formatting and warnings-as-errors Clippy pass. All 189 active library
+  tests, 29 API/OpenAPI/AsyncAPI tests, both load/benchmark unit pairs, and all
+  active packaging, security, observability, and operator policy/runtime tests
+  pass. Environment-gated destructive cases remain covered by their dedicated
+  qualification lanes.
+- On a fresh disposable exact-digest PostgreSQL 19 Beta 2 instance, migrations
+  1-27, the schema/timeout test, and all 39 ordinary serialized persistence,
+  authorization, concurrency, recovery, reconciliation, notification, and
+  malicious-client tests pass. The instance was removed afterward. The final
+  rerun used a clean database; earlier fixture attempts that mixed production
+  roles or reused test state were rejected as evidence.
+
 ## Attested Linux production-stack smoke
 
 Qualified on 2026-07-28:

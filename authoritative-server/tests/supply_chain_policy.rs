@@ -117,6 +117,7 @@ fn tagged_bundle_runs_the_real_stack_inside_one_cpu_and_one_gibibyte() {
         "--memory-swap 512m",
         "--memory-swap 192m",
         "\"$bundle_root/bin/unciv-v3-rulesets\" acquire",
+        "wait_for_api \"http://127.0.0.1:${api_port}\"",
         "UNCIV_V3_LOAD_SCENARIOS",
         "UNCIV_V3_LOAD_CONTENTION",
         "UNCIV_V3_METRICS_BIND=127.0.0.1:9090",

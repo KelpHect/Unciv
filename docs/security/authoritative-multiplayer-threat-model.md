@@ -270,4 +270,5 @@ Severity combines exploitability with confidentiality, integrity, availability, 
 - Local-only manipulation requiring control of the player's own device, with no privilege gain, hidden-state exposure, or authoritative multiplayer impact.
 
 Repository: https://github.com/KelpHect/Unciv
-Version: d748065cf9cde8a771541c9be30b248bfecb7656
+Reviewed runtime version: authoritative-v3-0.1.0-beta.2.7
+(`df2c6a72bdd8e82775a89e27b9b024f214ecd885`)

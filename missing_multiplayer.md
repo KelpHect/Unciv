@@ -782,7 +782,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: production deployment and PostgreSQL 19 Beta 2 operations
 
-- [ ] Turn the current development compose setup into production packaging with
+- [x] Turn the current development compose setup into production packaging with
   separate Rust, private Kotlin worker, and exact digest-pinned PostgreSQL 19
   Beta 2 services, health/readiness gates, resource limits, and upgrade checks.
   The private worker now has a hardened least-privilege systemd unit, immutable
@@ -805,9 +805,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `authoritative-v3-0.1.0-beta.2.4` tag additionally passes the full production
   bundle on Linux with the five least-privilege database roles, migrations,
   Rust API, private Kotlin worker, registration, worker-loss fail-closed
-  readiness, and worker recovery. Only prerelease upgrade/rollback
-  qualification remains to complete this item; no PostgreSQL 19 release newer
-  than Beta 2 exists yet.
+  readiness, and worker recovery. Production packaging is complete. The
+  later-prerelease upgrade/rollback rehearsal is the separate unchecked item
+  below; no PostgreSQL 19 release newer than Beta 2 exists yet.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
   2.11.4 is exact digest-qualified for automatic HTTPS, HTTP redirects,
   one-year HSTS, header hardening, and `/readyz` admission. Rust accepts exactly
@@ -837,7 +837,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and reconciled one game/two revisions/two snapshots with zero findings.
 - [ ] Document and test PostgreSQL 19 prerelease upgrades/rollback. Production use
   of Beta 2 is an accepted product decision, but it still requires a rehearsed
-  migration and restore gate for each later beta/RC/final image.
+  migration and restore gate for each later beta/RC/final image. Externally
+  blocked: PostgreSQL 19 Beta 2 is still the newest published PostgreSQL 19
+  image, so no successor image exists to rehearse. This is not a current
+  Beta-2 deployment or playability gap; execute it before adopting the first
+  later beta, RC, or final release.
 - [x] Add schema forward/rollback policy, startup migration compatibility checks,
   database statement/lock timeouts, pool sizing, capacity alerts, and disk-full
   behavior. The API now refuses missing, extra, failed, or checksum-mismatched
@@ -990,9 +994,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   readiness. Supported desktop/Android builds and authoritative offline-cache,
   retry, reconnect, and compatibility tests pass; broad JVM regressions retain
   the legacy and non-network game modes.
-- [ ] Run a final repository-wide mutation/authority audit and threat-model review.
+- [x] Run a final repository-wide mutation/authority audit and threat-model review.
   The release gate is zero v3 client path capable of replacing/patching canonical
-  state and zero known untracked gameplay mutation family.
+  state and zero known untracked gameplay mutation family. The final source and
+  executable audit inventories all 80 production session command methods,
+  requires exact OpenAPI/Kotlin-client gameplay route parity, and fails if any
+  typed gameplay method lacks a projection-only production UI path. It also
+  proves V3 UI has no `GameInfo`, `GameStarter`, legacy whole-save, local
+  `nextTurn`, or client-autoplay route; whole-save access must opt into
+  `.legacy`. Fresh packaged-worker mod parity executes mod-defined generation
+  and stateful actions twice, and broad server tests execute server-owned AI
+  turns. The current closure assessment is recorded in
+  `docs/security/authoritative-multiplayer-threat-model.md`.
 
 ## Current verification health
 

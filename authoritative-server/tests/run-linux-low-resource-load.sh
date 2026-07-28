@@ -75,6 +75,25 @@ wait_for_container_log() {
   exit 1
 }
 
+wait_for_api() {
+  local url="$1"
+  for _ in $(seq 1 240); do
+    if [[ "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+      "$url/readyz" || true)" == 200 ]]; then
+      return
+    fi
+    if [[ "$(docker inspect --format '{{.State.Running}}' "$api" 2>/dev/null)" != true ]]; then
+      docker logs "$api" >&2
+      echo "$api exited before readiness" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+  docker logs "$api" >&2
+  echo "$api readiness deadline expired" >&2
+  exit 1
+}
+
 "$bundle_root/bin/unciv-v3-bundle" verify "$bundle_root" >/dev/null
 test -x "$load_binary"
 bundle_id="$(jq -er '.bundle_id' "$bundle_root/bundle-manifest.json")"
@@ -147,10 +166,10 @@ docker run --detach --name "$api" --network "container:${worker}" \
   --env UNCIV_V3_METRICS_BIND=127.0.0.1:9090 \
   --env UNCIV_V3_TRUSTED_PROXY=disabled \
   "$java_image" /bundle/bin/unciv-authoritative-server >/dev/null
-wait_for_container_log "$api" 'authoritative API listening'
 api_port="$(
   docker port "$worker" 8080/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1
 )"
+wait_for_api "http://127.0.0.1:${api_port}"
 
 (
   while true; do

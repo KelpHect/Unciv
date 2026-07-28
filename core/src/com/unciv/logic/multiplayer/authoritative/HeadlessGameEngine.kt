@@ -1615,17 +1615,17 @@ class HeadlessGameEngine(
         when (assignment) {
             CityTileAssignment.Unworked -> {
                 require(city.isWorked(tile)) { "Tile is not worked by this city" }
-                city.population.stopWorkingTile(tile.position)
+                city.stopWorkingTile(tile)
             }
             CityTileAssignment.Worked, CityTileAssignment.Locked -> {
                 if (!city.isWorked(tile)) {
                     require(city.population.getFreePopulation() > 0) {
                         "City has no free population"
                     }
-                    city.workedTiles.add(tile.position)
+                    city.workTile(tile)
                 }
-                if (assignment == CityTileAssignment.Locked) city.lockedTiles.add(tile.position)
-                else city.lockedTiles.remove(tile.position)
+                if (assignment == CityTileAssignment.Locked) city.lockTile(tile)
+                else city.unlockTile(tile)
             }
         }
         city.cityStats.update()

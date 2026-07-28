@@ -148,5 +148,9 @@ internal class AuthoritativeCityEconomyPanel(
         ConstructionQueueAction.AddToAllCities -> "Add to all cities"
         ConstructionQueueAction.AddOrMoveToTopAllCities -> "Top in all cities"
         ConstructionQueueAction.RemoveFromAllCities -> "Remove from all cities"
+        ConstructionQueueAction.DisableInCity -> "Disable in this city"
+        ConstructionQueueAction.DisableInAllCities -> "Disable in all cities"
+        ConstructionQueueAction.EnableInCity -> "Enable in this city"
+        ConstructionQueueAction.EnableInAllCities -> "Enable in all cities"
     }
 }

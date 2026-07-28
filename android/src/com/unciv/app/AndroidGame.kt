@@ -98,6 +98,12 @@ class AndroidGame(private val activity: Activity) : UncivGame() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) super.getDefaultLocale()
         else activity.resources.configuration.locales.get(0)
 
-    override fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore =
-        AndroidApiV3SessionTokenStore(activity, serverBaseUrl)
+    override fun createApiV3SessionTokenStore(serverBaseUrl: String): ApiV3SessionTokenStore {
+        MultiplayerTurnCheckWorker.startAuthoritativeTurnChecker(
+            activity,
+            serverBaseUrl,
+            settings.multiplayer,
+        )
+        return AndroidApiV3SessionTokenStore(activity, serverBaseUrl)
+    }
 }

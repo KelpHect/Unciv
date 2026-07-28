@@ -3,11 +3,15 @@ package com.unciv.app
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.work.WorkManager
+import com.unciv.models.metadata.GameSettings.GameSettingsMultiplayer
 import java.security.KeyStore
+import java.time.Duration
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -32,5 +36,21 @@ class AndroidApiV3SessionTokenStoreTests {
 
         store.clear()
         assertNull(AndroidApiV3SessionTokenStore(context, server).load())
+    }
+
+    @Test
+    fun repeatedV3RestorationKeepsOneDurableBackgroundPoller() {
+        val settings = GameSettingsMultiplayer().apply {
+            turnCheckerEnabled = true
+            turnCheckerDelay = Duration.ofMinutes(5)
+        }
+        MultiplayerTurnCheckWorker.startAuthoritativeTurnChecker(context, server, settings)
+        MultiplayerTurnCheckWorker.startAuthoritativeTurnChecker(context, server, settings)
+
+        val manager = WorkManager.getInstance(context)
+        val work = manager.getWorkInfosForUniqueWork("UNCIV_API_V3_TURN_CHECKER").get()
+        assertEquals(1, work.size)
+        assertTrue(!work.single().state.isFinished)
+        manager.cancelUniqueWork("UNCIV_API_V3_TURN_CHECKER").result.get()
     }
 }

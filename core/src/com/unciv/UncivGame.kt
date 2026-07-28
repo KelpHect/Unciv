@@ -117,7 +117,7 @@ open class UncivGame(val isConsoleMode: Boolean = false) : Game(), PlatformSpeci
         musicController = MusicController()  // early, but at this point does only copy volume from settings
         installAudioHooks()
 
-        onlineMultiplayer = Multiplayer()
+        onlineMultiplayer = Multiplayer(::notifyTurnStarted)
 
         Concurrency.run {
             val status = onlineMultiplayer.restoreConfiguredAuthoritativeSession(

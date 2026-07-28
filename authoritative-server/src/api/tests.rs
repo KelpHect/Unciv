@@ -358,7 +358,11 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
             "add_to_top",
             "add_to_all_cities",
             "add_or_move_to_top_all_cities",
-            "remove_from_all_cities"
+            "remove_from_all_cities",
+            "disable_in_city",
+            "disable_in_all_cities",
+            "enable_in_city",
+            "enable_in_all_cities"
         ]),
         "ConstructionQueueAction must remain a closed enum"
     );

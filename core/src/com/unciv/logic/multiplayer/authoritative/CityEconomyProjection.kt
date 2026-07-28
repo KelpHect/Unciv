@@ -17,6 +17,10 @@ enum class ConstructionQueueAction {
     @SerialName("add_to_all_cities") AddToAllCities,
     @SerialName("add_or_move_to_top_all_cities") AddOrMoveToTopAllCities,
     @SerialName("remove_from_all_cities") RemoveFromAllCities,
+    @SerialName("disable_in_city") DisableInCity,
+    @SerialName("disable_in_all_cities") DisableInAllCities,
+    @SerialName("enable_in_city") EnableInCity,
+    @SerialName("enable_in_all_cities") EnableInAllCities,
 }
 
 @Serializable
@@ -279,6 +283,7 @@ internal object CityEconomyProjection {
                 add(ConstructionQueueAction.AddOrMoveToTopAllCities)
             if (allCitiesActionAvailable(city, construction, remove = true))
                 add(ConstructionQueueAction.RemoveFromAllCities)
+            addAutomationActions(city, construction, this)
         }.sortedBy { it.ordinal }
     }
 
@@ -297,7 +302,22 @@ internal object CityEconomyProjection {
             if (construction !is PerpetualConstruction && !createsImprovement &&
                 allCitiesTopActionAvailable(city, construction))
                 add(ConstructionQueueAction.AddOrMoveToTopAllCities)
+            addAutomationActions(city, construction, this)
         }.sortedBy { it.ordinal }
+    }
+
+    private fun addAutomationActions(
+        city: City,
+        construction: IConstruction,
+        actions: MutableList<ConstructionQueueAction>,
+    ) {
+        if (construction == PerpetualConstruction.Idle) return
+        if (construction.name in city.disabledConstructions)
+            actions.add(ConstructionQueueAction.EnableInCity)
+        else actions.add(ConstructionQueueAction.DisableInCity)
+        if (construction.name in city.civ.disabledCityConstructions)
+            actions.add(ConstructionQueueAction.EnableInAllCities)
+        else actions.add(ConstructionQueueAction.DisableInAllCities)
     }
 
     private fun mayChangeProduction(city: City) =

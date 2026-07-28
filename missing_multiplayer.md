@@ -131,19 +131,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: required before v3 can replace legacy online play
 
-- [ ] Add V3-aware background turn notifications on Android. The existing
-  `MultiplayerTurnCheckWorker` still enumerates local legacy saves and downloads
-  API-v1/v2 whole-save previews; it does not authenticate an API-v3 account,
-  list server memberships, or derive "your turn" from a player projection.
-  Keep WebSocket revision hints for foreground reconciliation, but use a
-  durable background-safe account/projection check so an offline or suspended
-  Android client receives the existing native "Your turn" notification without
-  learning hidden state.
-- [ ] Add desktop V3 turn notification behavior, or explicitly document and
-  test an in-app-only product decision on every supported desktop OS. No
-  Windows/macOS/Linux native notification or tray integration currently
-  consumes API-v3 turn state; the V3 WebSocket only refreshes an active
-  in-process session.
+- [x] Add V3-aware background turn notifications on Android. A unique,
+  self-chaining WorkManager job now restores only the Android-Keystore-protected
+  V3 token, pages authenticated memberships, fetches player projections, and
+  derives `isCurrentTurn` without local saves or hidden canonical state.
+  Notifications are deduplicated by committed revision. API 23 instrumentation
+  proves encrypted-token persistence and one durable poller after repeated
+  restoration; focused JVM tests prove player-only projection polling.
+- [x] Add desktop V3 turn notification behavior, or explicitly document and
+  test an in-app-only product decision on every supported desktop OS. The
+  supported product behavior is in-app OS attention: a false-to-true V3 turn
+  transition after authenticated HTTP reconciliation invokes the existing
+  cross-platform GLFW attention request (with the Windows JNA fallback).
+  A closed desktop client does not install a tray daemon. Focused session tests
+  prove exactly one attention request and no duplicate for repeated hints.
 - [ ] Qualify account handoff and complete-match playability end to end. Run two
   independently authenticated human clients, including an Android-to-desktop
   handoff for the same account, against the packaged Rust/PostgreSQL/Kotlin

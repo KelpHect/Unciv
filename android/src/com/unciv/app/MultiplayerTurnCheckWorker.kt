@@ -21,6 +21,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -32,6 +33,8 @@ import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.DefaultAndroidFiles
 import com.unciv.logic.GameInfo
 import com.unciv.logic.files.UncivFiles
+import com.unciv.logic.multiplayer.authoritative.ApiV3Client
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeTurnNotificationPoller
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerServer
 import com.unciv.models.metadata.GameSettings.GameSettingsMultiplayer
@@ -64,13 +67,14 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
         private const val NOTIFICATION_CHANNEL_ID_SERVICE = "UNCIV_NOTIFICATION_CHANNEL_SERVICE_02"
 
         @SuppressLint("MissingPermission")
-        private fun postNotification(context: Context, notification: android.app.Notification) {
+        private fun postNotification(context: Context, notification: android.app.Notification): Boolean {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED
-            ) return
+            ) return false
 
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_INFO, notification)
+            return true
         }
 
         private const val FAIL_COUNT = "FAIL_COUNT"
@@ -81,6 +85,9 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
         private const val PERSISTENT_NOTIFICATION_ENABLED = "PERSISTENT_NOTIFICATION_ENABLED"
         private const val FILE_STORAGE = "FILE_STORAGE"
         private const val AUTH_HEADER = "AUTH_HEADER"
+        private const val API_V3_SERVER = "API_V3_SERVER"
+        private const val API_V3_NOTIFIED_REVISIONS = "api-v3-turn-notified-revisions"
+        private const val API_V3_UNIQUE_WORK = "UNCIV_API_V3_TURN_CHECKER"
 
         private val constraints = Constraints.Builder()
             // If no internet is available, worker waits before becoming active.
@@ -96,6 +103,46 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
                     .build()
 
             WorkManager.getInstance(appContext).enqueue(checkTurnWork)
+        }
+
+        fun startAuthoritativeTurnChecker(
+            applicationContext: Context,
+            serverBaseUrl: String,
+            settings: GameSettingsMultiplayer,
+        ) {
+            if (!settings.turnCheckerEnabled) return
+            val input = workDataOf(
+                FAIL_COUNT to 0,
+                API_V3_SERVER to serverBaseUrl,
+                CONFIGURED_DELAY to settings.turnCheckerDelay.seconds,
+                PERSISTENT_NOTIFICATION_ENABLED to
+                    settings.turnCheckerPersistentNotificationEnabled,
+            )
+            enqueueAuthoritative(
+                applicationContext,
+                Duration.ofMinutes(1),
+                input,
+                ExistingWorkPolicy.REPLACE,
+            )
+        }
+
+        private fun enqueueAuthoritative(
+            appContext: Context,
+            delay: Duration,
+            inputData: Data,
+            policy: ExistingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+        ) {
+            val work = OneTimeWorkRequestBuilder<MultiplayerTurnCheckWorker>()
+                .setConstraints(constraints)
+                .setInitialDelay(delay.seconds, TimeUnit.SECONDS)
+                .addTag(WORK_TAG)
+                .setInputData(inputData)
+                .build()
+            WorkManager.getInstance(appContext).enqueueUniqueWork(
+                API_V3_UNIQUE_WORK,
+                policy,
+                work,
+            )
         }
 
         /**
@@ -170,7 +217,7 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
             postNotification(appContext, notification.build())
         }
 
-        fun notifyUserAboutTurn(applicationContext: Context, game: Pair<String, String>) {
+        fun notifyUserAboutTurn(applicationContext: Context, game: Pair<String, String>): Boolean {
             Log.i(LOG_TAG, "notifyUserAboutTurn ${game.first}")
             val intent = Intent(applicationContext, AndroidLauncher::class.java).apply {
                 action = Intent.ACTION_VIEW
@@ -194,7 +241,7 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
                     .setCategory(NotificationCompat.CATEGORY_SOCIAL)
                     .setOngoing(false)
 
-            postNotification(applicationContext, notification.build())
+            return postNotification(applicationContext, notification.build())
         }
 
         fun startTurnChecker(applicationContext: Context, files: UncivFiles, currentGameInfo: GameInfo, settings: GameSettingsMultiplayer) {
@@ -294,6 +341,9 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
 
     override fun doWork(): Result = runBlocking {
         Log.i(LOG_TAG, "doWork")
+        inputData.getString(API_V3_SERVER)?.let {
+            return@runBlocking doAuthoritativeWork(it)
+        }
         val showPersistNotific = inputData.getBoolean(PERSISTENT_NOTIFICATION_ENABLED, true)
         val configuredDelay = getConfiguredDelay(inputData)
         val fileStorage = inputData.getString(FILE_STORAGE)
@@ -387,6 +437,50 @@ class MultiplayerTurnCheckWorker(appContext: Context, workerParams: WorkerParame
             return@runBlocking Result.failure()
         }
         return@runBlocking Result.success()
+    }
+
+    private suspend fun doAuthoritativeWork(serverBaseUrl: String): Result {
+        val configuredDelay = getConfiguredDelay(inputData)
+        val client = ApiV3Client(
+            serverBaseUrl,
+            AndroidApiV3SessionTokenStore(applicationContext, serverBaseUrl),
+        )
+        return try {
+            if (client.restoreSession()) {
+                val preferences = applicationContext.getSharedPreferences(
+                    API_V3_NOTIFIED_REVISIONS,
+                    Context.MODE_PRIVATE,
+                )
+                val turns = AuthoritativeTurnNotificationPoller(client).poll()
+                val fresh = turns.firstOrNull {
+                    preferences.getLong(it.gameId, -1L) < it.committedRevision
+                }
+                if (fresh != null) {
+                    val posted = notifyUserAboutTurn(
+                        applicationContext,
+                        fresh.gameId to fresh.gameId,
+                    )
+                    if (posted) {
+                        preferences.edit()
+                            .putLong(fresh.gameId, fresh.committedRevision)
+                            .apply()
+                        NotificationManagerCompat.from(applicationContext)
+                            .cancel(NOTIFICATION_ID_SERVICE)
+                    }
+                } else {
+                    if (inputData.getBoolean(PERSISTENT_NOTIFICATION_ENABLED, true)) {
+                        updatePersistentNotification(inputData)
+                    }
+                }
+            }
+            Result.success()
+        } catch (exception: Exception) {
+            Log.e(LOG_TAG, "API-v3 background turn check failed", exception)
+            Result.success()
+        } finally {
+            client.close()
+            enqueueAuthoritative(applicationContext, configuredDelay, inputData)
+        }
     }
 
     private fun getStackTraceString(ex: Exception): String {

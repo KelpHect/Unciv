@@ -79,6 +79,27 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun v3TurnTransitionRequestsPlatformAttentionExactlyOnce() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = projection(7, "hash-7", isCurrentTurn = false)
+        }
+        var turnNotifications = 0
+        val session = session(transport) { turnNotifications++ }
+        assertTrue(session.restore())
+        session.openGame(GAME_ID)
+        eventually { transport.notifications.subscriptionCount.value == 1 }
+
+        transport.current = projection(8, "hash-8", isCurrentTurn = true)
+        transport.notifications.emit(notification(8, "hash-8"))
+        eventually { turnNotifications == 1 }
+        transport.notifications.emit(notification(8, "hash-8"))
+        delay(50)
+        assertEquals(1, turnNotifications)
+        session.close()
+    }
+
+    @Test
     fun logoutDropsOpenedGamesAndStopsAuthenticatedUse() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -1388,9 +1409,13 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
-    private fun session(transport: FakeTransport) = AuthoritativeMultiplayerSession.create(
+    private fun session(
+        transport: FakeTransport,
+        onTurnStarted: () -> Unit = {},
+    ) = AuthoritativeMultiplayerSession.create(
         transport,
         CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        onTurnStarted = onTurnStarted,
     )
 
     private suspend fun eventually(predicate: () -> Boolean) = withTimeout(2_000) {
@@ -1416,7 +1441,11 @@ class AuthoritativeMultiplayerSessionTests {
         canonicalStateHash = hash,
     )
 
-    private fun projection(revision: Long, hash: String) = ApiV3GameProjection(
+    private fun projection(
+        revision: Long,
+        hash: String,
+        isCurrentTurn: Boolean = true,
+    ) = ApiV3GameProjection(
         gameId = GAME_ID,
         projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
         committedRevision = revision,
@@ -1426,7 +1455,7 @@ class AuthoritativeMultiplayerSessionTests {
             civilizationId = "Rome",
             turn = revision.toInt(),
             currentPlayerCivilizationId = "Rome",
-            isCurrentTurn = true,
+            isCurrentTurn = isCurrentTurn,
             pendingTurnActions = emptyList(),
             research = ProjectedResearch(
                 currentTechnology = null,

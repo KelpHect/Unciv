@@ -19,6 +19,7 @@ enum class AuthoritativeSessionStatus {
  * unknown or failed server to fall through to whole-save multiplayer.
  */
 class AuthoritativeSessionLifecycle(
+    private val onTurnStarted: () -> Unit = {},
     private val detectServer: suspend (String) -> ApiVersion? = {
         ApiVersion.detect(it, suppress = false)
     },
@@ -27,6 +28,7 @@ class AuthoritativeSessionLifecycle(
             AuthoritativeMultiplayerSession.create(
                 ApiV3Client(baseUrl, tokenStore),
                 closeTransport = true,
+                onTurnStarted = onTurnStarted,
             )
         },
 ) : AutoCloseable {

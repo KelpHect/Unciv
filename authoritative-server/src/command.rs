@@ -41,6 +41,10 @@ pub enum ConstructionQueueAction {
     AddToAllCities,
     AddOrMoveToTopAllCities,
     RemoveFromAllCities,
+    DisableInCity,
+    DisableInAllCities,
+    EnableInCity,
+    EnableInAllCities,
 }
 
 #[derive(

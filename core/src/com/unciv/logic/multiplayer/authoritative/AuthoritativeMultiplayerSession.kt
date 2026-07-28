@@ -21,6 +21,7 @@ class AuthoritativeMultiplayerSession(
     private val transport: ApiV3Transport,
     parentScope: CoroutineScope,
     private val closeTransport: Boolean = false,
+    private val onTurnStarted: () -> Unit = {},
 ) : AutoCloseable {
     private val sessionJob = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + sessionJob)
@@ -1801,9 +1802,15 @@ class AuthoritativeMultiplayerSession(
                     else listOfNotNull(notification.gameId?.let(games::get))
                 }
                 targets.forEach { bus ->
+                    val wasCurrentTurn =
+                        (bus.state as? AuthoritativeSyncState.Synchronized)
+                            ?.current?.projection?.isCurrentTurn == true
                     // A failed HTTP refresh must not permanently stop later
                     // notification hints. The bus retains its retry state.
-                    runCatching { bus.reconcile(notification) }
+                    val refreshed = runCatching { bus.reconcile(notification) }.getOrNull()
+                    if (!wasCurrentTurn && refreshed?.projection?.isCurrentTurn == true) {
+                        onTurnStarted()
+                    }
                 }
             }
         }
@@ -1820,6 +1827,12 @@ class AuthoritativeMultiplayerSession(
             transport: ApiV3Transport,
             scope: CoroutineScope = CoroutineScope(SupervisorJob()),
             closeTransport: Boolean = false,
-        ) = AuthoritativeMultiplayerSession(transport, scope, closeTransport)
+            onTurnStarted: () -> Unit = {},
+        ) = AuthoritativeMultiplayerSession(
+            transport,
+            scope,
+            closeTransport,
+            onTurnStarted,
+        )
     }
 }

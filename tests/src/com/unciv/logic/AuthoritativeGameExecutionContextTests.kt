@@ -1736,6 +1736,63 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertTrue(committed.getCivilization(civilization.civName).cities.all {
             second !in it.cityConstructions.constructionQueue
         })
+
+        val disableProjection = engine.playerProjection(committed, civilization.civName)
+            .ownCities.single { it.id == committedFirstCity.id }
+            .constructionQueueEntries.single { it.name == first }
+        Assert.assertTrue(
+            ConstructionQueueAction.DisableInCity in disableProjection.availableActions
+        )
+        Assert.assertTrue(
+            ConstructionQueueAction.DisableInAllCities in disableProjection.availableActions
+        )
+        val disableSnapshot = engine.serializeSnapshot(committed)
+        val disabledOnce = engine.manageConstructionQueues(
+            engine.loadSnapshot(disableSnapshot),
+            civilization.civName,
+            committedFirstCity.id,
+            first,
+            0,
+            ConstructionQueueAction.DisableInAllCities,
+        )
+        val disabledTwice = engine.manageConstructionQueues(
+            engine.loadSnapshot(disableSnapshot),
+            civilization.civName,
+            committedFirstCity.id,
+            first,
+            0,
+            ConstructionQueueAction.DisableInAllCities,
+        )
+        Assert.assertEquals(disabledOnce.canonicalStateHash, disabledTwice.canonicalStateHash)
+        val disabledCivilization = disabledOnce.game.getCivilization(civilization.civName)
+        Assert.assertTrue(first in disabledCivilization.disabledCityConstructions)
+        Assert.assertTrue(disabledCivilization.cities.all {
+            first in it.disabledConstructions
+        })
+        val enableProjection = engine.playerProjection(
+            disabledOnce.game,
+            disabledCivilization.civName,
+        ).ownCities.single { it.id == committedFirstCity.id }
+            .constructionQueueEntries.single { it.name == first }
+        Assert.assertTrue(
+            ConstructionQueueAction.EnableInCity in enableProjection.availableActions
+        )
+        Assert.assertTrue(
+            ConstructionQueueAction.EnableInAllCities in enableProjection.availableActions
+        )
+        engine.manageConstructionQueues(
+            disabledOnce.game,
+            disabledCivilization.civName,
+            committedFirstCity.id,
+            first,
+            0,
+            ConstructionQueueAction.EnableInAllCities,
+        )
+        Assert.assertTrue(first !in disabledCivilization.disabledCityConstructions)
+        Assert.assertTrue(disabledCivilization.cities.all {
+            first !in it.disabledConstructions
+        })
+
         Assert.assertThrows(IllegalArgumentException::class.java) {
             engine.manageConstructionQueues(
                 committed, civilization.civName, secondCity.id, second, null,

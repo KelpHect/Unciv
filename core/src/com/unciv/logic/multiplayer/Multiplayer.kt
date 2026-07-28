@@ -11,9 +11,13 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
  * API-v3 callers use [authoritativeSession]. Existing API-v1/v2 callers must
  * opt into [legacy], making whole-save access visible at every call site.
  */
-class Multiplayer {
+class Multiplayer(
+    onAuthoritativeTurnStarted: () -> Unit = {},
+) {
     val legacy = LegacyMultiplayer()
-    private val authoritative = AuthoritativeSessionLifecycle()
+    private val authoritative = AuthoritativeSessionLifecycle(
+        onTurnStarted = onAuthoritativeTurnStarted,
+    )
 
     val authoritativeSession get() = authoritative.session
     val authoritativeStatus get() = authoritative.status

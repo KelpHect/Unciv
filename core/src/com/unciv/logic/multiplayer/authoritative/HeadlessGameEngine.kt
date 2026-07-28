@@ -1128,7 +1128,21 @@ class HeadlessGameEngine(
         val candidateCities = civilization.cities.filterNot {
             it.isPuppet || it.isInResistance() || it.isBeingRazed
         }
-        val before = civilization.cities.associate { it.id to it.cityConstructions.constructionQueue.toList() }
+        val queuesBefore = civilization.cities.associate {
+            it.id to it.cityConstructions.constructionQueue.toList()
+        }
+        val disabledBefore = civilization.cities.associate {
+            it.id to it.disabledConstructions.toSet()
+        }
+        val disabledForNewCitiesBefore = civilization.disabledCityConstructions.toSet()
+        fun requireMatchingQueueContext() {
+            if (queueIndex != null) {
+                require(city.cityConstructions.constructionQueue.getOrNull(queueIndex) ==
+                    constructionName) {
+                    "Construction queue entry no longer matches the client projection"
+                }
+            }
+        }
 
         when (action) {
             ConstructionQueueAction.MoveToTop,
@@ -1197,14 +1211,54 @@ class HeadlessGameEngine(
                             constructions.removeAllByName(constructionName)
                         ConstructionQueueAction.MoveToTop,
                         ConstructionQueueAction.MoveToEnd,
-                        ConstructionQueueAction.AddToTop -> error("Unreachable construction queue action")
+                        ConstructionQueueAction.AddToTop,
+                        ConstructionQueueAction.DisableInCity,
+                        ConstructionQueueAction.DisableInAllCities,
+                        ConstructionQueueAction.EnableInCity,
+                        ConstructionQueueAction.EnableInAllCities ->
+                            error("Unreachable construction queue action")
                     }
                 }
             }
+            ConstructionQueueAction.DisableInCity -> {
+                requireMatchingQueueContext()
+                require(construction != PerpetualConstruction.Idle) {
+                    "Construction cannot be disabled in this city"
+                }
+                require(city.disabledConstructions.add(constructionName)) {
+                    "Construction is already disabled in this city"
+                }
+            }
+            ConstructionQueueAction.DisableInAllCities -> {
+                requireMatchingQueueContext()
+                require(construction != PerpetualConstruction.Idle) {
+                    "Construction cannot be disabled in all cities"
+                }
+                require(civilization.disabledCityConstructions.add(constructionName)) {
+                    "Construction is already disabled in all cities"
+                }
+                civilization.cities.forEach { it.disabledConstructions.add(constructionName) }
+            }
+            ConstructionQueueAction.EnableInCity -> {
+                requireMatchingQueueContext()
+                require(city.disabledConstructions.remove(constructionName)) {
+                    "Construction is not disabled in this city"
+                }
+            }
+            ConstructionQueueAction.EnableInAllCities -> {
+                requireMatchingQueueContext()
+                require(civilization.disabledCityConstructions.remove(constructionName)) {
+                    "Construction is not disabled in all cities"
+                }
+                civilization.cities.forEach { it.disabledConstructions.remove(constructionName) }
+            }
         }
         require(civilization.cities.any {
-            before[it.id] != it.cityConstructions.constructionQueue
-        }) { "Construction queue operation made no canonical change" }
+            queuesBefore[it.id] != it.cityConstructions.constructionQueue ||
+                disabledBefore[it.id] != it.disabledConstructions
+        } || disabledForNewCitiesBefore != civilization.disabledCityConstructions) {
+            "Construction queue operation made no canonical change"
+        }
         return result(game)
     }
 

@@ -71,6 +71,15 @@ inventories above.
 8. **Application to Android/desktop operating system.** Session tokens, saves, logs, clipboard or deep-link inputs, proxy settings, certificate validation, and local file permissions rely partly on platform controls.
 9. **Source and dependency ecosystem to release artifacts.** GitHub workflows, Gradle and Cargo resolution, wrappers, signing, container builds, and package publication cross from third-party or contributor-controlled inputs into trusted binaries.
 
+Android background turn checks reuse only the server-scoped encrypted V3 token
+store. The bounded worker reads account membership metadata and player
+projections, never canonical saves, and persists only the last notified
+revision per game. Notification text contains the game identifier but no
+hidden projection fields. Unique WorkManager chaining prevents repeated session
+restoration from multiplying authenticated pollers. Desktop attention is
+process-local and receives only a false-to-true turn transition after the same
+authenticated HTTP reconciliation used by the active session.
+
 ### Assumptions
 
 - Clients and client-side caches are fully attacker-controlled. A client-reported state hash is diagnostic input, never authority.

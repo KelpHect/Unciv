@@ -15,10 +15,7 @@ impl PostgresGameRepository {
             } => (*unit_id, *target_x, *target_y),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -65,10 +62,7 @@ impl PostgresGameRepository {
             } => (*unit_id, *target_x, *target_y),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -117,10 +111,7 @@ impl PostgresGameRepository {
             } => (city_id.as_str(), *target_x, *target_y),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -169,10 +160,7 @@ impl PostgresGameRepository {
             } => (*unit_id, *target_x, *target_y),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -221,10 +209,7 @@ impl PostgresGameRepository {
             } => (*unit_id, *destination_x, *destination_y),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -269,10 +254,7 @@ impl PostgresGameRepository {
             crate::GameCommand::FoundCity { unit_id } => *unit_id,
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -313,10 +295,7 @@ impl PostgresGameRepository {
             crate::GameCommand::PillageTile { unit_id } => *unit_id,
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -359,10 +338,7 @@ impl PostgresGameRepository {
             crate::GameCommand::DisbandUnit { unit_id } => *unit_id,
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -408,10 +384,7 @@ impl PostgresGameRepository {
             } => (unit_ids.clone(), target_unit_name.clone()),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -459,10 +432,7 @@ impl PostgresGameRepository {
             } => (*unit_id, promotion_names.clone(), *save_as_city_default),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -511,10 +481,7 @@ impl PostgresGameRepository {
             } => (city_id.clone(), base_unit_name.clone(), *enabled),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -560,10 +527,7 @@ impl PostgresGameRepository {
             } => (*unit_id, instance_name.clone()),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -615,10 +579,7 @@ impl PostgresGameRepository {
             ),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;
@@ -668,10 +629,7 @@ impl PostgresGameRepository {
         if destination_x.is_some() != destination_y.is_some() {
             return Err(CommitError::InvalidCommand);
         }
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;

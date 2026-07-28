@@ -1,5 +1,68 @@
 # Authoritative multiplayer v3 status
 
+## Malicious-client request identity and cross-scope isolation
+
+Implemented on 2026-07-28:
+
+- Durable idempotency now binds a command ID to its complete authoritative
+  request identity: protocol, game, command ID, expected revision, and closed
+  typed command. The client-observed hash remains diagnostic and may change on
+  an otherwise exact retry. Both the pre-worker fast path and the locked commit
+  transaction deserialize and compare the original journal envelope.
+- Reusing a committed ID with changed meaning now fails before worker execution
+  with stable `409 idempotency_conflict`; it can no longer masquerade as a
+  successful exact retry. A different authenticated account still receives the
+  non-enumerating authorization failure first.
+- The in-memory reference repository implements the same rule, and its
+  deterministic property model now distinguishes exact retries from
+  changed-identity reuse over generated revision sequences.
+- A dedicated PostgreSQL 19 Beta 2 malicious-client test commits one command,
+  then attacks it with changed command meaning, another game's owner, another
+  game ID, and a reordered stale command. The accepted game remains at revision
+  one with one journal command and one outbox row; the unrelated game remains
+  at revision zero.
+- Explicit protocol coverage rejects client-supplied
+  `actor_civilization_id`. Existing bounded JSON/body, authenticated worker
+  frame, WebSocket admission/idle/slow-writer, worker queue/deadline, and
+  ruleset acquisition/archive tests cover malformed, oversized, exhaustion,
+  and expensive-input boundaries without trusting client state.
+
+Verification on 2026-07-28:
+
+- `cargo test --manifest-path authoritative-server/Cargo.toml --lib --quiet`
+  passes 179 active tests with 37 environment-dependent tests intentionally
+  ignored.
+- `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets
+  --quiet` passes those 179 active library tests, all 29 API/OpenAPI tests, and
+  every active integration and packaging test.
+- `cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets
+  --all-features -- -D warnings`, `cargo fmt --check`, `git diff --check`,
+  source-size enforcement, and disposable-container cleanup all pass.
+- The exact PostgreSQL 19 Beta 2 live test
+  `cross_scope_stale_and_changed_id_attacks_preserve_both_canonical_heads`
+  passes against the pinned digest and its disposable container is removed.
+- The existing live
+  `postgres_commit_is_atomic_idempotent_and_stale_safe` test also passes with
+  changed-identity rejection added.
+- The complete ordinary serialized PostgreSQL lane passes all 31 account,
+  command, administration, migration, projection, recovery, replica-race,
+  outbox, retention, notification, and worker-fault tests against the exact
+  Beta 2 digest. The separately orchestrated destructive backup/PITR and
+  disk-full cases were excluded from this ordinary lane and retain their
+  previously recorded live qualifications.
+- The first library run exposed the old property model's assumption that every
+  reused UUID was an exact retry. The model was corrected to retain original
+  request identity and the complete deterministic suite passed. The first live
+  filter used Cargo `--exact` without the module-qualified test name and ran
+  zero tests; the corrected filter ran and passed the intended live case.
+- The final size gate found the newly added tests had pushed `lib_tests.rs` and
+  `postgres/integration_tests.rs` past 800 lines. Malicious-client tests were
+  split into focused in-memory and PostgreSQL modules and duplicate coverage
+  removed. The first split compile correctly rejected sibling access to private
+  test helpers; the focused module now owns its helpers. The rerun passes and
+  every Rust source is at or below 800 lines. No product or verification error
+  remains deferred.
+
 ## Operator incident response and break-glass boundary
 
 Implemented on 2026-07-28:

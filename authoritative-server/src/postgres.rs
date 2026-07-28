@@ -388,7 +388,7 @@ impl PostgresGameRepository {
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
 
         let duplicate = sqlx::query(
-            "SELECT c.revision, c.account_id, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
+            "SELECT c.revision, c.account_id, c.payload, r.canonical_state_hash FROM game_commands c JOIN game_revisions r ON r.game_id = c.game_id AND r.revision = c.revision WHERE c.game_id = $1 AND c.command_id = $2",
         )
         .bind(envelope.game_id)
         .bind(envelope.command_id)
@@ -398,6 +398,11 @@ impl PostgresGameRepository {
         if let Some(row) = duplicate {
             if row.get::<Uuid, _>("account_id") != actor_account_id {
                 return Err(CommitError::Unauthorized);
+            }
+            let original = serde_json::from_value::<CommandEnvelope>(row.get("payload"))
+                .map_err(|_| CommitError::IdempotencyConflict)?;
+            if !crate::repository::same_idempotency_identity(&original, &envelope) {
+                return Err(CommitError::IdempotencyConflict);
             }
             let committed_revision: i64 = row.get("revision");
             let canonical_state_hash: String = row.get("canonical_state_hash");

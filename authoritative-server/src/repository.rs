@@ -14,7 +14,13 @@ struct GameHead {
     revision: u64,
     snapshot: Vec<u8>,
     canonical_state_hash: String,
-    committed_commands: HashMap<Uuid, CommandAccepted>,
+    committed_commands: HashMap<Uuid, CommittedCommand>,
+}
+
+#[derive(Clone, Debug)]
+struct CommittedCommand {
+    envelope: CommandEnvelope,
+    accepted: CommandAccepted,
 }
 
 #[derive(Clone, Default)]
@@ -52,6 +58,8 @@ pub enum CommitError {
     RecoveryDiverged,
     #[error("authenticated account is not allowed to mutate this game")]
     Unauthorized,
+    #[error("command ID was already committed with different request identity")]
+    IdempotencyConflict,
     #[error("command is not valid for the canonical game state")]
     InvalidCommand,
     #[error("database storage failure")]
@@ -112,7 +120,10 @@ impl InMemoryGameRepository {
             .get_mut(&envelope.game_id)
             .ok_or(CommitError::NotFound)?;
         if let Some(previous) = head.committed_commands.get(&envelope.command_id) {
-            return Ok(previous.clone());
+            if !same_idempotency_identity(&previous.envelope, &envelope) {
+                return Err(CommitError::IdempotencyConflict);
+            }
+            return Ok(previous.accepted.clone());
         }
         if envelope.expected_revision != head.revision {
             return Err(CommitError::Stale {
@@ -134,8 +145,24 @@ impl InMemoryGameRepository {
         head.revision = accepted.committed_revision;
         head.snapshot = proposal.snapshot;
         head.canonical_state_hash = proposal.canonical_state_hash;
-        head.committed_commands
-            .insert(envelope.command_id, accepted.clone());
+        head.committed_commands.insert(
+            envelope.command_id,
+            CommittedCommand {
+                envelope,
+                accepted: accepted.clone(),
+            },
+        );
         Ok(accepted)
     }
+}
+
+pub(crate) fn same_idempotency_identity(
+    original: &CommandEnvelope,
+    retry: &CommandEnvelope,
+) -> bool {
+    original.protocol_version == retry.protocol_version
+        && original.game_id == retry.game_id
+        && original.command_id == retry.command_id
+        && original.expected_revision == retry.expected_revision
+        && original.command == retry.command
 }

@@ -11,10 +11,7 @@ impl PostgresGameRepository {
             crate::GameCommand::SetCityGovernance { city_id, action } => (city_id.clone(), *action),
             _ => return Err(CommitError::InvalidCommand),
         };
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor_account_id)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
         let worker_state = self.worker_command_state(envelope.game_id).await?;

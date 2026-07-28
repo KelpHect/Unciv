@@ -7,10 +7,7 @@ impl PostgresGameRepository {
         actor: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor).await? {
             return Ok(accepted);
         }
         let unit_id = match &envelope.command {

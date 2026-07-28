@@ -146,7 +146,7 @@ proptest! {
                 .map(|index| Uuid::from_u128(index + 10))
                 .collect::<Vec<_>>();
             let mut model_revision = 0_u64;
-            let mut committed: HashMap<Uuid, CommandAccepted> = HashMap::new();
+            let mut committed: HashMap<Uuid, (u64, CommandAccepted)> = HashMap::new();
 
             for (step, (slot, use_current_revision)) in operations.iter().enumerate() {
                 let command_id = command_ids[*slot as usize];
@@ -176,14 +176,18 @@ proptest! {
                     )
                     .await;
 
-                if let Some(original) = committed.get(&command_id) {
-                    prop_assert_eq!(result.unwrap(), original.clone());
+                if let Some((original_expected_revision, original)) = committed.get(&command_id) {
+                    if expected_revision == *original_expected_revision {
+                        prop_assert_eq!(result.unwrap(), original.clone());
+                    } else {
+                        prop_assert_eq!(result, Err(CommitError::IdempotencyConflict));
+                    }
                 } else if *use_current_revision {
                     let accepted = result.unwrap();
                     prop_assert_eq!(accepted.previous_revision, model_revision);
                     prop_assert_eq!(accepted.committed_revision, model_revision + 1);
                     model_revision += 1;
-                    committed.insert(command_id, accepted);
+                    committed.insert(command_id, (expected_revision, accepted));
                 } else {
                     prop_assert_eq!(
                         result,

@@ -56,6 +56,8 @@ pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 #[cfg(test)]
 mod disclosure_boundary_tests;
 #[cfg(test)]
+mod malicious_client_tests;
+#[cfg(test)]
 mod protocol_property_tests;
 #[cfg(test)]
 #[path = "lib_tests.rs"]

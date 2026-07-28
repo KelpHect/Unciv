@@ -827,9 +827,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   response. Existing stable API errors remain detail-redacted. TLS/HSTS
   termination tests now pass; scanning, SBOM, and provenance/signing work keep
   this broader item open.
-- [ ] Add malicious-client integration suites for cross-game/account/civilization
+- [x] Add malicious-client integration suites for cross-game/account/civilization
   IDs, stale/reordered commands, changed-payload idempotency reuse, oversized and
-  malformed frames, WebSocket exhaustion, and expensive rulesets/commands.
+  malformed frames, WebSocket exhaustion, and expensive rulesets/commands. A
+  pinned PostgreSQL 19 Beta 2 attack matrix proves cross-game/cross-account,
+  reordered stale, and changed-meaning command-ID reuse cannot move either
+  canonical head or add journal/outbox rows. Command envelopes reject injected
+  actor civilizations, and request identity is compared before the worker and
+  again inside the locked transaction. Deterministic body/JSON and authenticated
+  worker-frame limits, WebSocket admission/idle/slow-writer tests, bounded
+  worker queue/deadline tests, and closed ruleset download/archive limits cover
+  the remaining exhaustion and expensive-input boundaries.
 - [ ] Re-check AGPL/MPL boundaries and preserve notices; do not copy code from
   `runciv` or another reference without an explicit compatible licensing record.
 

@@ -80,7 +80,15 @@ Required hardening includes production TLS/HSTS policy, an explicit trusted-prox
 
 Current v3 controls bind sessions to memberships, expose typed join, move-unit, and end-turn commands, use expected revisions and transactional compare-and-swap commits, persist command IDs for idempotency, enforce turn ownership, assign civilizations server-side, and execute movement and turn rules in the worker. PostgreSQL is the durable authority.
 
-Required hardening is to extend the same envelope and invariants to every gameplay action; define the command-ID uniqueness scope in schema and protocol; persist a canonical hash of the entire request identity; bound IDs and payloads; normalize authorization failures to avoid membership enumeration; test concurrent multi-replica commits; and prove failed worker executions cannot partially mutate membership, head, snapshot, or outbox state.
+The closed envelope and invariants now cover every tracked gameplay action.
+Command IDs are unique per game, and durable retries compare protocol, game,
+command ID, expected revision, and typed command against the original journal
+payload before worker execution and again inside the locked commit transaction.
+Changed-meaning reuse receives a stable conflict while an exact retry may vary
+only its explicitly diagnostic observed-state hash. Bounded IDs/payloads,
+normalized authorization failures, controlled multi-replica races, and worker
+fault tests prove rejected or failed executions cannot partially mutate
+membership, head, snapshot, journal, or outbox state.
 
 ### Projection confidentiality
 

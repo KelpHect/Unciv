@@ -380,6 +380,14 @@ fn stale_errors_expose_the_canonical_revision() {
     assert_eq!(error.current_revision, Some(5));
 }
 
+#[test]
+fn changed_idempotency_identity_has_a_stable_conflict_response() {
+    let error = game_error(CommitError::IdempotencyConflict);
+    assert_eq!(error.status, StatusCode::CONFLICT);
+    assert_eq!(error.code, "idempotency_conflict");
+    assert_eq!(error.current_revision, None);
+}
+
 #[tokio::test]
 async fn capabilities_forbid_whole_state_uploads() {
     let response = capabilities().await;

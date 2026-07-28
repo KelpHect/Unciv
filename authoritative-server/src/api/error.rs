@@ -138,6 +138,7 @@ pub(super) fn game_error(error: CommitError) -> ApiError {
             current_revision: Some(actual),
             retry_after_seconds: None,
         },
+        CommitError::IdempotencyConflict => ApiError::conflict("idempotency_conflict"),
         CommitError::InvalidCommand => ApiError {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             code: "invalid_command",

@@ -10,10 +10,7 @@ impl PostgresGameRepository {
         if !matches!(envelope.command, crate::GameCommand::Resign {}) {
             return Err(CommitError::InvalidCommand);
         }
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor).await? {
             return Ok(accepted);
         }
         let state = self.worker_command_state(envelope.game_id).await?;
@@ -48,10 +45,7 @@ impl PostgresGameRepository {
         if !matches!(envelope.command, crate::GameCommand::ForceResign {}) {
             return Err(CommitError::InvalidCommand);
         }
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor).await? {
             return Ok(accepted);
         }
         let actor_civilization: Option<String> = sqlx::query_scalar(
@@ -99,10 +93,7 @@ impl PostgresGameRepository {
         if !matches!(envelope.command, crate::GameCommand::KickMember {}) {
             return Err(CommitError::InvalidCommand);
         }
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor).await? {
             return Ok(accepted);
         }
         let username = normalize_username(username).map_err(|_| CommitError::InvalidCommand)?;

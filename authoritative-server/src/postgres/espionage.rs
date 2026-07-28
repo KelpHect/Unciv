@@ -13,10 +13,7 @@ impl PostgresGameRepository {
         F: FnOnce(WorkerCommandState, String) -> Fut,
         Fut: std::future::Future<Output = Result<CommitProposal, crate::worker::WorkerClientError>>,
     {
-        if let Some(accepted) = self
-            .committed_command(envelope.game_id, envelope.command_id, actor)
-            .await?
-        {
+        if let Some(accepted) = self.committed_command(&envelope, actor).await? {
             return Ok(accepted);
         }
         let state = self.worker_command_state(envelope.game_id).await?;

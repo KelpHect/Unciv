@@ -93,6 +93,7 @@ fn tagged_bundle_runs_a_bounded_linux_production_smoke() {
         "wait_for_worker",
         "wait_for_ready ready 200",
         "wait_for_ready unready 503",
+        "worker_restart_ms",
         "registration: \"created\"",
     ] {
         assert!(
@@ -121,6 +122,8 @@ fn tagged_bundle_runs_the_real_stack_inside_one_cpu_and_one_gibibyte() {
         "expected_stale_conflicts",
         "websocket_notifications",
         "database_growth_bytes",
+        "peak_container_resources",
+        "container_resource_samples",
         "cpu_cores: 1.0",
         "memory_mib: 992",
     ] {

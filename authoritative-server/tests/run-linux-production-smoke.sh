@@ -185,13 +185,16 @@ jq -e '
   .engine_worker == "unready"
 ' "$work_root/ready.json" >/dev/null
 
+worker_restart_started="$(date +%s%N)"
 start_worker
 wait_for_worker
 wait_for_ready ready 200
+worker_restart_ms="$(( ($(date +%s%N) - worker_restart_started) / 1000000 ))"
 
 jq -n \
   --arg bundle_id "$bundle_id" \
   --arg postgres_image "$postgres_image" \
+  --argjson worker_restart_ms "$worker_restart_ms" \
   '{
     qualified: true,
     release_bundle_id: $bundle_id,
@@ -200,5 +203,6 @@ jq -n \
     initial_readiness: "ready",
     worker_failure_readiness: "unready",
     worker_restart_readiness: "ready",
+    worker_restart_ms: $worker_restart_ms,
     registration: "created"
   }'

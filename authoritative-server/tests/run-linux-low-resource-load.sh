@@ -17,8 +17,13 @@ postgres="${prefix}-postgres"
 worker="${prefix}-worker"
 api="${prefix}-api"
 work_root="$(mktemp -d)"
+stats_sampler_pid=""
 
 cleanup() {
+  if [[ -n "$stats_sampler_pid" ]]; then
+    kill "$stats_sampler_pid" >/dev/null 2>&1 || true
+    wait "$stats_sampler_pid" >/dev/null 2>&1 || true
+  fi
   for container in "$api" "$worker" "$postgres"; do
     if [[ "$container" == unciv-v3-load-* ]]; then
       docker rm --force "$container" >/dev/null 2>&1 || true
@@ -76,7 +81,7 @@ bundle_id="$(jq -er '.bundle_id' "$bundle_root/bundle-manifest.json")"
 worker_secret="$(openssl rand -hex 32)"
 
 docker network create --subnet 172.29.77.0/24 "$network" >/dev/null
-docker run --detach --rm --name "$postgres" --network "$network" \
+docker run --detach --name "$postgres" --network "$network" \
   --cpus 0.25 --memory 288m --memory-swap 288m --pids-limit 128 \
   --publish 127.0.0.1::5432 \
   --mount "type=bind,source=${repository_root}/authoritative-server/postgresql,target=/qualification,readonly" \
@@ -114,7 +119,7 @@ UNCIV_V3_DATABASE_URL="$migration_url" \
   "$bundle_root/worker/UncivAuthoritativeWorker.jar" \
   "$work_root/rulesets" --activate >/dev/null
 
-docker run --detach --rm --name "$worker" --network "$network" \
+docker run --detach --name "$worker" --network "$network" \
   --cpus 0.65 --memory 512m --memory-swap 512m --pids-limit 64 \
   --publish 127.0.0.1::8080 \
   --workdir /rulesets/active \
@@ -129,7 +134,7 @@ docker run --detach --rm --name "$worker" --network "$network" \
   -jar /bundle/worker/UncivAuthoritativeWorker.jar >/dev/null
 wait_for_container_log "$worker" 'Loaded 2 rulesets'
 
-docker run --detach --rm --name "$api" --network "container:${worker}" \
+docker run --detach --name "$api" --network "container:${worker}" \
   --cpus 0.10 --memory 192m --memory-swap 192m --pids-limit 64 \
   --mount "type=bind,source=${bundle_root},target=/bundle,readonly" \
   --env UNCIV_V3_RELEASE_BUNDLE_ROOT=/bundle \
@@ -147,6 +152,16 @@ api_port="$(
   docker port "$worker" 8080/tcp | sed -E 's/.*:([0-9]+)$/\1/' | head -n 1
 )"
 
+(
+  while true; do
+    sampled_at="$(date --iso-8601=ns)"
+    docker stats --no-stream --format '{{json .}}' "$postgres" "$worker" "$api" |
+      jq -c --arg sampled_at "$sampled_at" '. + {sampled_at: $sampled_at}'
+    sleep 1
+  done
+) >"$work_root/docker-stats.ndjson" &
+stats_sampler_pid="$!"
+
 database_bytes_before="$(
   docker exec --user postgres "$postgres" psql -At \
     -d unciv_authoritative -c "SELECT pg_database_size(current_database())"
@@ -157,28 +172,53 @@ UNCIV_V3_LOAD_SCENARIOS="${UNCIV_V3_LOAD_SCENARIOS:-60}" \
 UNCIV_V3_LOAD_CONTENTION="${UNCIV_V3_LOAD_CONTENTION:-8}" \
   timeout 900 "$load_binary" >"$work_root/load-report.json"
 elapsed_seconds="$(( $(date +%s) - started ))"
+kill "$stats_sampler_pid" >/dev/null 2>&1 || true
+wait "$stats_sampler_pid" >/dev/null 2>&1 || true
+stats_sampler_pid=""
 database_bytes_after="$(
   docker exec --user postgres "$postgres" psql -At \
     -d unciv_authoritative -c "SELECT pg_database_size(current_database())"
 )"
 
-docker stats --no-stream --format json "$postgres" "$worker" "$api" \
-  >"$work_root/docker-stats.ndjson"
 jq -e '
   .scenarios >= 1 and
   .committed_commands == .scenarios and
   .expected_stale_conflicts == (.scenarios * (.contention_per_game - 1)) and
   .websocket_notifications >= .committed_commands
 ' "$work_root/load-report.json" >/dev/null
+jq -s -e '
+  length >= 3 and
+  all(.[]; (.CPUPerc | endswith("%")) and (.MemUsage | contains("/")))
+' "$work_root/docker-stats.ndjson" >/dev/null
 jq -n \
   --slurpfile load "$work_root/load-report.json" \
-  --rawfile stats "$work_root/docker-stats.ndjson" \
+  --slurpfile stats "$work_root/docker-stats.ndjson" \
   --arg postgres_image "$postgres_image" \
   --arg java_image "$java_image" \
   --argjson elapsed_seconds "$elapsed_seconds" \
   --argjson database_bytes_before "$database_bytes_before" \
   --argjson database_bytes_after "$database_bytes_after" \
-  '{
+  'def bytes:
+     capture("^(?<value>[0-9.]+)(?<unit>[A-Za-z]+)$") |
+     (.value | tonumber) *
+       (if .unit == "GiB" then 1073741824
+        elif .unit == "MiB" then 1048576
+        elif .unit == "KiB" then 1024
+        elif .unit == "GB" then 1000000000
+        elif .unit == "MB" then 1000000
+        elif .unit == "kB" then 1000
+        elif .unit == "B" then 1
+        else error("unsupported docker memory unit: \(.unit)")
+        end);
+   def cpu: rtrimstr("%") | tonumber;
+   def memory_used: split("/")[0] | gsub(" "; "") | bytes;
+   ($stats | group_by(.Name) | map({
+      container: .[0].Name,
+      samples: length,
+      peak_cpu_percent: (map(.CPUPerc | cpu) | max),
+      peak_memory_bytes: (map(.MemUsage | memory_used) | max)
+    })) as $peaks |
+   {
     qualified: true,
     resource_budget: {
       cpu_cores: 1.0,
@@ -192,5 +232,6 @@ jq -n \
     database_bytes_after: $database_bytes_after,
     database_growth_bytes: ($database_bytes_after - $database_bytes_before),
     load: $load[0],
-    final_container_stats_ndjson: $stats
+    peak_container_resources: $peaks,
+    container_resource_samples: $stats
   }'

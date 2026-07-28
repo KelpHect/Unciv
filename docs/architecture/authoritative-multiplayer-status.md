@@ -46,6 +46,11 @@ Verification on 2026-07-28:
   `sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80`
   reports `SUCCESS: 13 rules found`. Actionlint `v1.7.12` accepts the hosted
   workflow.
+- GitHub Actions run `30373117779` passed the complete new observability job in
+  3m56s: pinned Rust installation, formatting, warnings-as-errors Clippy, every
+  Rust test, and the digest-pinned Prometheus parser. The same pushed commit
+  passed the main build/test run `30373117469`, supply-chain run `30373117412`,
+  and conflict-marking run `30373117349`.
 - `cargo test --all-targets --all-features` passes 228 library tests, 29 API
   tests, and every active integration/packaging/policy test; only explicitly
   environment-gated destructive/packaged-worker tests remain ignored.

@@ -77,3 +77,30 @@ This decision does not qualify final capacity. Still required: representative
 large saves, end-turn/AI percentiles, Linux cgroup memory and CPU, recycle cost
 under systemd, concurrent-game/API/PostgreSQL/WebSocket load, storage growth,
 and the complete 1-vCPU/1-GB sustained run.
+
+## Representative Large-map creation, projection, and server AI
+
+Measured on 2026-07-28 on the same Windows/JDK host with the release-mode
+schema-v2 benchmark and freshly packaged worker. The scenario uses a Large
+two-continent map, eight major civilizations, twelve city-states, barbarians,
+ruins, natural wonders, espionage, and all four victory types. Rust creates the
+game through the typed worker setup, requests the owner's bounded projection,
+selects an advertised technology through an authoritative command, and ends the
+human turn. The Kotlin worker then executes all AI civilizations before
+returning the next canonical snapshot.
+
+Raw machine-readable evidence is retained in
+`docs/benchmarks/results/windows-large-ai-2026-07-28.json`.
+
+| Operation | Samples | mean | p50 | p95 | p99 | min | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Fresh authenticated handshake | 50 | 0.45 ms | 0.44 ms | 0.57 ms | 0.64 ms | 0.34 ms | 0.64 ms |
+| Large-game creation | 3 | 217.50 ms | 233.99 ms | 234.77 ms | 234.77 ms | 183.75 ms | 234.77 ms |
+| Initial player projection | 3 | 103.43 ms | 105.32 ms | 187.81 ms | 187.81 ms | 17.15 ms | 187.81 ms |
+| First end turn plus seven server AI players | 3 | 289.13 ms | 319.13 ms | 428.88 ms | 428.88 ms | 119.38 ms | 428.88 ms |
+
+Initial canonical snapshots were 229,159-234,548 bytes (mean 231,048);
+post-AI snapshots were 270,098-277,162 bytes (mean 273,077). This proves the
+representative command and AI path and supplies a dataset for the constrained
+Linux lane. It does not replace Linux cgroup, sustained-load, recycle, or
+multi-turn late-game evidence, so final capacity remains unqualified.

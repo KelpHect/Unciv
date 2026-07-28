@@ -170,6 +170,7 @@ fn validate_manifest(manifest: &ReleaseBundleManifest) -> Result<(), ReleaseBund
     }
     let required = [
         "bin/unciv-authoritative-server",
+        "bin/unciv-v3-export-security-audit",
         "bin/unciv-v3-migrate",
         "client/unciv-client",
         "contracts/api-v3.json",

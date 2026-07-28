@@ -44,6 +44,19 @@ class SerializationTests {
     }
 
     @Test
+    fun `LastSeenImprovement serialization is independent of insertion order`() {
+        val coordinates = listOf(HexCoord(-2, 0), HexCoord(-1, 1), HexCoord(3, -4))
+        val forward = LastSeenImprovement()
+        val reverse = LastSeenImprovement()
+        coordinates.forEach { forward[it] = "Improvement ${it.toPrettyString()}" }
+        coordinates.asReversed().forEach {
+            reverse[it] = "Improvement ${it.toPrettyString()}"
+        }
+
+        Assert.assertEquals(json.toJson(forward), json.toJson(reverse))
+    }
+
+    @Test
     fun `test KeyboardBindings serialization roundtrip`() {
         val data = KeyboardBindings()
         data[KeyboardBinding.DeveloperConsole] = KeyCharAndCode.TAB

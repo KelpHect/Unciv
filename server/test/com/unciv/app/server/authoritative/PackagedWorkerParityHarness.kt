@@ -9,6 +9,10 @@ import com.unciv.UncivGame
 import com.unciv.logic.files.UncivFiles
 import com.unciv.models.metadata.GameSettings
 import com.unciv.models.ruleset.RulesetCache
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import java.io.DataInputStream
@@ -66,19 +70,61 @@ internal object PackagedWorkerParityHarness {
         first.zip(second).forEachIndexed { index, (firstResponse, secondResponse) ->
             assertNull("First worker response $index failed", firstResponse.error)
             assertNull("Second worker response $index failed", secondResponse.error)
+            val firstJson = EngineWorkerProtocol.json.encodeToJsonElement(
+                WorkerResponse.serializer(),
+                firstResponse,
+            )
+            val secondJson = EngineWorkerProtocol.json.encodeToJsonElement(
+                WorkerResponse.serializer(),
+                secondResponse,
+            )
             assertEquals(
-                "Fresh worker response $index differs",
-                EngineWorkerProtocol.json.encodeToString(
-                    WorkerResponse.serializer(),
-                    firstResponse,
-                ),
-                EngineWorkerProtocol.json.encodeToString(
-                    WorkerResponse.serializer(),
-                    secondResponse,
-                ),
+                "Fresh worker response $index differs at ${
+                    firstDifference(firstJson, secondJson)
+                }",
+                firstJson,
+                secondJson,
             )
         }
         return first
+    }
+
+    private fun firstDifference(
+        first: JsonElement,
+        second: JsonElement,
+        path: String = "$",
+    ): String {
+        if (first == second) return "$path (equal)"
+        if (first is JsonObject && second is JsonObject) {
+            val keys = (first.keys + second.keys).sortedWith(
+                compareBy<String> { it != "snapshot" }.thenBy { it },
+            )
+            for (key in keys) {
+                val left = first[key] ?: return "$path.$key (missing from first)"
+                val right = second[key] ?: return "$path.$key (missing from second)"
+                if (left != right) return firstDifference(left, right, "$path.$key")
+            }
+        }
+        if (first is JsonArray && second is JsonArray) {
+            val sharedSize = minOf(first.size, second.size)
+            for (index in 0 until sharedSize) {
+                if (first[index] != second[index]) {
+                    return firstDifference(first[index], second[index], "$path[$index]")
+                }
+            }
+            return "$path.length (${first.size} != ${second.size})"
+        }
+        if (path.endsWith(".snapshot") &&
+            first is JsonPrimitive && first.isString &&
+            second is JsonPrimitive && second.isString
+        ) {
+            return firstDifference(
+                EngineWorkerProtocol.json.parseToJsonElement(first.content),
+                EngineWorkerProtocol.json.parseToJsonElement(second.content),
+                path,
+            )
+        }
+        return "$path (${first.toString().take(160)} != ${second.toString().take(160)})"
     }
 
     fun execute(request: WorkerRequest): WorkerResponse = withWorker { send -> send(request) }

@@ -121,27 +121,39 @@ class CivInfoTransientCache(val civInfo: Civilization) {
         }
 
 
-        val viewedCivs = HashMap<Civilization, Tile>()
+        val viewedCivs = sortedMapOf<String, Pair<Civilization, Tile>>()
+        fun rememberViewedCivilization(civilization: Civilization, tile: Tile) {
+            val previousTile = viewedCivs[civilization.civID]?.second
+            if (previousTile == null ||
+                compareValuesBy(
+                    tile.position,
+                    previousTile.position,
+                    { it.x },
+                    { it.y },
+                ) < 0
+            ) {
+                viewedCivs[civilization.civID] = civilization to tile
+            }
+        }
         for (tile in civInfo.viewableTiles) {
             val tileOwner = tile.getOwner()
-            if (tileOwner != null) viewedCivs[tileOwner] = tile
+            if (tileOwner != null) rememberViewedCivilization(tileOwner, tile)
             val unitOwner = tile.getFirstUnit()?.civ
-            if (unitOwner != null) viewedCivs[unitOwner] = tile
+            if (unitOwner != null) rememberViewedCivilization(unitOwner, tile)
         }
 
         if (!civInfo.isBarbarian) {
-            for (entry in viewedCivs) {
-                val metCiv = entry.key
+            for ((metCiv, encounterTile) in viewedCivs.values) {
                 if (metCiv == civInfo || metCiv.isBarbarian || civInfo.diplomacy.containsKey(metCiv.civID)) continue
                 civInfo.diplomacyFunctions.makeCivilizationsMeet(metCiv)
                 if(!civInfo.isSpectator())
                     civInfo.addNotification("We have encountered [${metCiv.civName}]!",
-                        entry.value.position,
+                        encounterTile.position,
                         NotificationCategory.Diplomacy, metCiv.civName,
                         NotificationIcon.Diplomacy
                     )
                 metCiv.addNotification("We have encountered [${civInfo.civName}]!",
-                    entry.value.position,
+                    encounterTile.position,
                     NotificationCategory.Diplomacy, civInfo.civName,
                     NotificationIcon.Diplomacy
                 )

@@ -335,7 +335,8 @@ object NextTurnAutomation {
                 civInfo.policies.branchCompletionMap.filterKeys { key -> key in candidates }
 
             // Choose the branch with the LEAST REMAINING policies, not the MOST ADOPTED ones
-            val targetBranch = candidateCompletionMap.asIterable()
+            val targetBranch = candidateCompletionMap.entries
+                .sortedBy { it.key.name }
                 .groupBy { it.key.policies.size - it.value }
                 .minByOrNull { it.key }!!.value.random(rng).key
 

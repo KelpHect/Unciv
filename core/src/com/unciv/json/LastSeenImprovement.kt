@@ -19,7 +19,10 @@ class LastSeenImprovement(
     private val map: HashMap<HexCoord, String> = hashMapOf()
 ) : MutableMap<HexCoord, String> by map, IsPartOfGameInfoSerialization, Json.Serializable {
     override fun write(json: Json) {
-        for ((key, value) in entries) {
+        for ((key, value) in entries.sortedWith(
+            compareBy<Map.Entry<HexCoord, String>> { it.key.x }
+                .thenBy { it.key.y },
+        )) {
             val name = key.toPrettyString()
             json.writeValue(name, value, String::class.java)
         }

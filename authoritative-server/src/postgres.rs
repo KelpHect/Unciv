@@ -154,6 +154,7 @@ mod games;
 mod great_people;
 mod instant_improvements;
 mod invitations;
+mod legacy_import;
 mod lifecycle;
 mod major_diplomacy;
 mod manifests;
@@ -176,6 +177,11 @@ mod unit_orders;
 mod unit_transforms;
 mod unit_triggers;
 
+pub use legacy_import::{
+    LegacyImportApplication, LegacyImportCandidateEvidence, LegacyImportConflictReport,
+    LegacyImportOutcome, LegacyImportProjectionEvidence, LegacyImportProjectionReport,
+    LegacyImportRole, legacy_import_game_id,
+};
 pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
 pub use outbox::{
     OutboxCompactionReport, OutboxHealthReport, OutboxRequeueReport, OutboxRetryDisposition,

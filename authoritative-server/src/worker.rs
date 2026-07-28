@@ -77,7 +77,7 @@ pub use intents::{
     SetUnitAutomationIntent, SetUnitExplorationIntent, SetUnitPostureIntent, SwapUnitsIntent,
     TransformUnitIntent, TriggerUnitUniqueIntent, UpgradeUnitsIntent, UseGreatPersonUnitIntent,
 };
-pub use legacy_import::LegacyPlayerMapping;
+pub use legacy_import::{LegacyImportMetadata, LegacyImportedMember, LegacyPlayerMapping};
 pub use major_diplomacy::{
     CityStateProtectionPromptIntent, DiplomacyPartnerIntent, DiplomaticDemandIntent,
     DiplomaticPromptIntent,

@@ -755,6 +755,7 @@ pub(super) struct WorkerResponse {
     pub(super) snapshot: Option<String>,
     pub(super) canonical_state_hash: Option<String>,
     pub(super) actor_civilization_id: Option<String>,
+    pub(super) legacy_import: Option<super::LegacyImportMetadata>,
     pub(super) player_projection: Option<serde_json::Value>,
     pub(super) spectator_projection: Option<serde_json::Value>,
     pub(super) error: Option<WorkerError>,
@@ -766,10 +767,12 @@ pub struct CreatedGame {
     pub proposal: CommitProposal,
     pub owner_civilization_id: String,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NormalizedLegacyGame {
     pub snapshot: String,
     pub canonical_state_hash: String,
     pub owner_civilization_id: String,
+    pub metadata: super::LegacyImportMetadata,
 }
 pub struct AssignedPlayer {
     pub proposal: CommitProposal,

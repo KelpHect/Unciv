@@ -8619,11 +8619,11 @@
 <ul>
 <li><code>:server:authoritativeWorkerDist</code>, <code>:android:assembleRelease</code>,
   <code>:android:bundleRelease</code>, and <code>:desktop:dist</code> passed together.
-  <code>:desktop:packrWindows64</code> then produced the self-contained portable archive.
-  Its first invocation failed because the ignored Packr/JDK inputs were absent
-  from the repository root; the already cached, reviewed packaging inputs were
-  copied into their documented locations, the exact task passed, and the
-  temporary root copies were removed.</li>
+  The final self-contained portable archive was produced with the installed
+  Temurin 21 <code>jpackage --type app-image</code>, as recommended by Packr's current
+  documentation. This removes Packr 4.0.0's unsupported-reflection diagnostic
+  from the accepted artifact path while preserving the same qualified desktop
+  JAR and a private Java 21 runtime.</li>
 <li>The non-debuggable release APK was aligned and signed with the repository's
   testing certificate. Signature schemes v1, v2, and v3 verify. It installed on
   the connected emulator, and the manifest-resolved
@@ -8632,16 +8632,24 @@
 <li>The portable archive contains <code>Unciv.exe</code> and a private runtime. It was
   extracted into a clean directory and remained alive through a 12-second
   smoke launch.</li>
-<li>Candidate artifacts are in <code>deploy/Unciv-V3-live-lobby-20260729</code>.
+<li>Candidate artifacts are in
+  <code>deploy/Unciv-V3-live-lobby-final-20260729</code>.
   SHA-256 values:
-  <code>779315048828B134FE07D9032847E66ECEE502A8551EEA3AEBF36D4342E7DAFF</code>
+  <code>713B9723898D0BED3EE1E33754C25A376E6DDE9982957B3B246C484F4DF092F7</code>
   (direct-install APK),
-  <code>FB4F069C4A38B188A3B3301980F81BF1E3ABF5CFDC960366064053F6F0995A3F</code>
+  <code>5520D8DC401AE042A8E6B998C39F89689F895CDDF1DA91161EC8AFE1B9F31B18</code>
   (portable Windows ZIP),
-  <code>44F28CDECB27072172466C392637A630DC79EA6CCF96F09FF1995923D34FF040</code>
+  <code>33A1B6BED31F123275D7CBA9155D6ED3CFBB3AC16EC7402D36064AE65D921149</code>
   (desktop JAR), and
-  <code>2C8412357D00029988C27E1C9B20F024A3F51149C4D7E6FCF7C0DC81A50C3EC8</code>
+  <code>A13528F7AB7AA271D011671A791F8B91DD26E3B49E2E061F04C5C39F874D31C0</code>
   (Android App Bundle).</li>
+<li>The target Linux build exposed one pre-existing deprecated
+  <code>getTilesInDistance</code> call in <code>WorldScreen</code>. Its bounded owner now uses
+  <code>forEachTileInDistance</code>; <code>:core:compileKotlin</code>, the complete game/core tests,
+  complete server tests, and both client builds passed without that warning.
+  The first remote Rust build also found that root's secure-path environment
+  omits Cargo; deployment uses the root-owned Cargo binary by absolute path
+  rather than weakening sudo policy.</li>
 </ul>
 <h2 id="direct-install-android-and-portable-windows-match-clients">Direct-install Android and portable Windows match clients</h2>
 <p>Qualified on 2026-07-29:</p>

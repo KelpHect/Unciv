@@ -195,3 +195,6 @@ detekt/reports.html
 /.claude/
 /.codex/
 authoritative-server/target/
+
+# Local Oracle Cloud SSH credentials and host metadata
+/oracle_arm/

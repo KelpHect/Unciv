@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#whole-game-start-of-turn-consensual-rewind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Whole-game start-of-turn consensual rewind
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#human-match-client-candidate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5348,6 +5359,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/authoritative-vps-compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 single-VPS Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/authoritative-websocket-runtime/" class="md-nav__link">
         
   
@@ -5651,6 +5690,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#whole-game-start-of-turn-consensual-rewind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Whole-game start-of-turn consensual rewind
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#human-match-client-candidate" class="md-nav__link">
@@ -8368,6 +8418,46 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="whole-game-start-of-turn-consensual-rewind">Whole-game start-of-turn consensual rewind</h2>
+<p>Implemented on 2026-07-29:</p>
+<ul>
+<li>Active owners and players can list retained server-projected checkpoints,
+  propose one exact target against the current head, and approve or reject it
+  from the desktop/Android shared production UI. Checkpoints are genesis or
+  accepted <code>EndTurn</code> results only. Because <code>EndTurn</code> includes server-owned AI
+  execution and human rotation, each target is the complete start of the next
+  human turn rather than the end of the previous player's action sequence.</li>
+<li>The proposal freezes every then-active human account. The proposer
+  auto-approves; all frozen accounts must approve; a refusal closes the
+  request; changed votes conflict; and head or electorate drift expires it.
+  Pending changes publish compact outbox resynchronization hints.</li>
+<li>Unanimous finalization integrity-checks the retained blob and asks the
+  private Kotlin worker to load and project it with the pinned manifest. One
+  transaction copies the exact whole-game bytes into a new immutable snapshot,
+  appends a <code>rewind</code> revision, advances the CAS head, marks the request
+  applied, and emits <code>game.revision.rewound</code>. Later history remains intact.</li>
+<li>Migrations <code>0028</code> and <code>0029</code> add database-enforced parent, command-journal,
+  and outbox canonical-lineage foreign keys plus frozen request/electorate/vote
+  records. PostgreSQL 19 Beta 2 focused tests reject all three orphan shapes
+  and prove rejection, changed retry, worker-failure retry, exact snapshot
+  copying, immutable lineage, and one committed rewind outbox event.</li>
+<li>A digest-pinned single-VPS Compose topology mounts the attested release
+  bundle read-only, isolates PostgreSQL, and shares only loopback between the
+  Rust API and Kotlin worker. Clients accept a literal plaintext IP for an
+  explicitly insecure pilot; production hostnames remain HTTPS-only.</li>
+<li>Final implementation qualification used
+  <code>postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5</code>.
+  Both deterministic rewind database cases passed serially, all three
+  canonical-lineage orphan inserts were rejected by PostgreSQL, the complete
+  Rust all-target/all-feature suite passed (190 library tests plus API and
+  integration targets), and warnings-as-errors Clippy and formatting passed.
+  The focused production-routing/session/release-contract Kotlin tests passed,
+  followed by <code>:tests:test</code>, <code>:server:authoritativeWorkerDist</code>,
+  <code>:desktop:dist</code>, <code>:android:assembleDebug</code>, and
+  <code>:android:assembleRelease</code> in one successful 103-task Gradle invocation.
+  <code>docker compose ... config --quiet</code> also accepted the VPS topology with
+  operator-placeholder secrets and an absolute release-bundle path.</li>
+</ul>
 <h2 id="human-match-client-candidate">Human-match client candidate</h2>
 <p>Built and qualified from clean commit <code>a42aa6263</code> on 2026-07-29:</p>
 <ul>

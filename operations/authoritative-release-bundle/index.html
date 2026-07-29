@@ -2697,6 +2697,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../authoritative-vps-compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 single-VPS Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../authoritative-websocket-runtime/" class="md-nav__link">
         
   
@@ -3102,7 +3130,7 @@ authoritative-server/target/release/unciv-v3-bundle verify-sbom \
 </code></pre></div>
 <p>Creation is same-filesystem and fail-closed: it writes a private staging
 directory, copies only bounded regular files, requires exactly migrations
-<code>0001</code> through <code>0027</code>, validates the closed ruleset manifest, copies the
+<code>0001</code> through <code>0029</code>, validates the closed ruleset manifest, copies the
 repository MPL-2.0 license to <code>legal/LICENSE</code>, hashes every
 artifact, requires a bounded SPDX 2.3 SBOM named for this release and with
 at least one inventoried package, rejects duplicate package IDs and any
@@ -3122,7 +3150,7 @@ version set or any migration checksum differs from the bundle.</p>
 <li>public protocol 3;</li>
 <li>player projection 59 and spectator projection 1;</li>
 <li>private worker protocol 2;</li>
-<li>migration head 27;</li>
+<li>migration head 29;</li>
 <li>the sole PostgreSQL 19 Beta 2 image and digest.</li>
 </ul>
 <p>Rust unit tests and Kotlin server tests independently compare their compiled

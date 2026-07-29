@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#human-match-client-candidate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-match client candidate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ktor-and-transitive-dependency-security-refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5642,6 +5653,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#human-match-client-candidate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Human-match client candidate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ktor-and-transitive-dependency-security-refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8346,6 +8368,37 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="human-match-client-candidate">Human-match client candidate</h2>
+<p>Built and qualified from clean commit <code>a42aa6263</code> on 2026-07-29:</p>
+<ul>
+<li><code>:server:authoritativeWorkerDist</code>, <code>:desktop:dist</code>,
+  <code>:android:assembleDebug</code>, and <code>:android:assembleRelease</code> passed together.
+  Release lint-vital passed. The installable testing APK is the repository
+  debug-signed build; no production Android signing credential is present.</li>
+<li>The packaged <code>account_handoff</code> PostgreSQL 19 Beta 2 preflight passed again
+  with an Android-labelled owner session, a fresh desktop session for that
+  account, a separate friend account, three major civilizations, and the
+  intervening faction controlled by the packaged server worker.</li>
+<li>The complete focused <code>com.unciv.logic.multiplayer.authoritative.*</code> client
+  suite passed, including exact production route coverage, projection-only
+  controls, account/session lifecycle, invitation/join flows, reconciliation,
+  turn notifications, and terminal-state behavior.</li>
+<li>The signed APK installed and launched on a connected Android emulator; its
+  <code>AndroidLauncher</code> remained the resumed activity with a live
+  <code>com.unciv.app</code> process. The self-contained Windows desktop image and the
+  standalone desktop JAR each remained alive through a 12-second smoke launch.</li>
+<li>Candidate SHA-256 values are
+  <code>4719041DBF2E1619061E8562350CA6CBD8511BD8ACF1D6D0ECCC221C133AA310</code>
+  for the APK,
+  <code>B20F0A92E15A1C1F82B28E08337E49E79902FF382FC9B39662A86E453104F906</code>
+  for the portable Windows ZIP, and
+  <code>A9F29A9658830B415D580FC5D08F5EF50B1D882D74C36AFFC9972CBD8E86BBCA</code>
+  for the desktop JAR.</li>
+<li>These results prove the candidate clients and automated human-plus-AI
+  protocol preflight, not the still-required real two-person Domination match.
+  Preserve that match's evidence and mark the P0 checklist only after both
+  people complete the qualification procedure.</li>
+</ul>
 <h2 id="ktor-and-transitive-dependency-security-refresh">Ktor and transitive dependency security refresh</h2>
 <p>Implemented and qualified on 2026-07-29:</p>
 <ul>

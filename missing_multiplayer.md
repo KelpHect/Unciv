@@ -1060,7 +1060,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   Gradle build tooling resolves the reviewed security floors Bouncy Castle
   1.84, Commons Compress 1.26.0, Commons Lang 3.18.0, JDOM 2.0.6.1,
   jose4j 0.9.6, Netty 4.1.136.Final, and Protobuf Java/Kotlin 3.25.5 instead
-  of the vulnerable transitive versions reported for the repository.
+  of the vulnerable transitive versions reported for the repository. The
+  floors cover AGP-created detached test-tool configurations as well as the
+  main buildscript classpath without downgrading Netty 4.2 or future versions.
 - The current focused milestone passes `:tests:test` and all 60 `:server:test`
   cases serially (with only documented intentional skips), plus
   `:android:compileDebugKotlin`. Earlier full Android assemble/lint and desktop

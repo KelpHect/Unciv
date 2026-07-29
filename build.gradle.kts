@@ -65,9 +65,41 @@ plugins {
 // Kludge to get the correct string notation for a gdx native (':' _after_ version seems beyond toml)
 fun gdxNatives(platform: String) = "${libs.gdx.platform.get()}:natives-$platform"
 
+private fun String.isBelowVersion(floor: String): Boolean {
+    val currentParts = Regex("""\d+""").findAll(this).map { it.value.toInt() }.toList()
+    val floorParts = Regex("""\d+""").findAll(floor).map { it.value.toInt() }.toList()
+    val width = maxOf(currentParts.size, floorParts.size)
+    return (0 until width)
+        .map { (currentParts.getOrElse(it) { 0 }).compareTo(floorParts.getOrElse(it) { 0 }) }
+        .firstOrNull { it != 0 } == -1
+}
+
 // from here on you can't simply use `libs` anymore, see https://github.com/gradle/gradle/issues/18237#issuecomment-928079890
 
 allprojects {
+    val netty4SecurityFloor = rootProject.libs.versions.netty4.get()
+    val protobufSecurityFloor = rootProject.libs.versions.protobuf.get()
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            val version = requested.version ?: return@eachDependency
+            if (
+                requested.group == "io.netty" &&
+                version.startsWith("4.1.") &&
+                version.isBelowVersion(netty4SecurityFloor)
+            ) {
+                useVersion(netty4SecurityFloor)
+                because("Keep Android/Gradle tooling above reviewed Netty advisories")
+            }
+            if (
+                requested.group == "com.google.protobuf" &&
+                requested.name in setOf("protobuf-java", "protobuf-java-util", "protobuf-kotlin") &&
+                version.isBelowVersion(protobufSecurityFloor)
+            ) {
+                useVersion(protobufSecurityFloor)
+                because("Keep Android/Gradle tooling above reviewed Protobuf advisories")
+            }
+        }
+    }
 //    repositories { // for local purity
 //        mavenLocal()
 //    }

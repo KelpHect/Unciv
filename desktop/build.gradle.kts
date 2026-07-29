@@ -97,15 +97,12 @@ class PackrConfig(
 
 for (platform in Platform.values()) {
     val platformName = platform.toString()
+    val jarFile = "$rootDir/desktop/build/libs/${BuildConfig.appName}.jar"
+    val outputDir = file("packr")
 
-    tasks.create("packr${platformName}") {
+    val packrTask = tasks.register("packr${platformName}") {
         // This task assumes that 'dist' has already been called - does not 'gradle depend' on it
         // so we can run 'dist' from one job and then run the packr builds from a different job
-
-        // Needs to be here and not in doLast because the zip task depends on the outDir
-        val jarFile = "$rootDir/desktop/build/libs/${BuildConfig.appName}.jar"
-        val outputDir = file("packr")
-        
 
         doLast {
             //  https://gist.github.com/seanf/58b76e278f4b7ec0a2920d8e5870eed6
@@ -152,15 +149,15 @@ for (platform in Platform.values()) {
             command.runCommand(rootDir)
             Files.copy(File("$rootDir/extraImages/Icons/Unciv.ico"), File(outputDir, "Unciv.ico"))
         }
-
-        tasks.register<Zip>("zip${platformName}") {
-            archiveFileName.set("${BuildConfig.appName}-${platformName}.zip")
-            from(outputDir)
-            destinationDirectory.set(deployFolder)
-        }
-
-        finalizedBy("zip${platformName}")
     }
+
+    val zipTask = tasks.register<Zip>("zip${platformName}") {
+        archiveFileName.set("${BuildConfig.appName}-${platformName}.zip")
+        from(outputDir)
+        destinationDirectory.set(deployFolder)
+    }
+
+    packrTask.configure { finalizedBy(zipTask) }
 }
 
 tasks.register<Zip>("zipLinuxFilesForJar") {

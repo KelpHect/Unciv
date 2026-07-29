@@ -142,25 +142,22 @@ class PackrConfig(
 
 for (platform in Platform.values()) {
     val platformName = platform.toString()
+    val jarFile = "$rootDir/server/build/libs/UncivServer.jar"
+    val config = PackrConfig()
+    config.platform = platform
 
-    tasks.create("packr${platformName}") {
+    config.apply {
+        executable = "UncivServer"
+        classpath = listOf(jarFile)
+        removePlatformLibs = config.classpath
+        mainClass = mainClassName
+        vmArgs = listOf("Xmx1G")
+        minimizeJre = "server/packrConfig.json"
+        outDir = file("packr")
+    }
+
+    val packrTask = tasks.register("packr${platformName}") {
         dependsOn(tasks.getByName("dist"))
-
-        // Needs to be here and not in doLast because the zip task depends on the outDir
-        val jarFile = "$rootDir/server/build/libs/UncivServer.jar"
-        val config = PackrConfig()
-        config.platform = platform
-
-        config.apply {
-            executable = "UncivServer"
-            classpath = listOf(jarFile)
-            removePlatformLibs = config.classpath
-            mainClass = mainClassName
-            vmArgs = listOf("Xmx1G")
-            minimizeJre = "server/packrConfig.json"
-            outDir = file("packr")
-        }
-
 
         doLast {
             //  https://gist.github.com/seanf/58b76e278f4b7ec0a2920d8e5870eed6
@@ -212,15 +209,15 @@ for (platform in Platform.values()) {
             command.runCommand(rootDir)
 
         }
-
-        tasks.register<Zip>("zip${platformName}") {
-            archiveFileName.set("UncivServer-${platformName}.zip")
-            from(config.outDir)
-            destinationDirectory.set(deployFolder)
-        }
-
-        finalizedBy("zip${platformName}")
     }
+
+    val zipTask = tasks.register<Zip>("zip${platformName}") {
+        archiveFileName.set("UncivServer-${platformName}.zip")
+        from(config.outDir)
+        destinationDirectory.set(deployFolder)
+    }
+
+    packrTask.configure { finalizedBy(zipTask) }
 }
 
 tasks.register<Zip>("zipLinuxFilesForJar") {

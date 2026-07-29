@@ -3874,6 +3874,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#protocol-4-client-detection-and-scaled-desktop-text-2026-07-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol-4 client detection and scaled desktop text (2026-07-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#oracle-arm64-pilot-deployment-2026-07-29" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7742,6 +7753,17 @@
     <span class="md-ellipsis">
       
         Typed server-seeded revision-zero creation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#protocol-4-client-detection-and-scaled-desktop-text-2026-07-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol-4 client detection and scaled desktop text (2026-07-29)
       
     </span>
   </a>
@@ -15787,6 +15809,47 @@ and uploading a local save.</p>
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.</li>
 </ul>
+<h2 id="protocol-4-client-detection-and-scaled-desktop-text-2026-07-29">Protocol-4 client detection and scaled desktop text (2026-07-29)</h2>
+<ul>
+<li>The production server correctly advertised public protocol 4, but
+  <code>ApiVersion.detect()</code> still compared capabilities to the obsolete literal 3.
+  Desktop therefore classified the healthy HTTPS service as unknown and showed
+  only <code>Status: Failed</code>. Detection now delegates to the typed capability
+  predicate backed by <code>CommandEnvelope.CURRENT_PROTOCOL_VERSION</code>; a regression
+  test proves the current protocol is accepted and both an older protocol and
+  whole-state upload are rejected.</li>
+<li>Session restoration now retains a bounded failure explanation for the
+  multiplayer screen. Failed detection no longer leaves a permanent
+  <code>Working...</code> label, so network, protocol, and restoration failures are
+  actionable without exposing tokens.</li>
+<li>Desktop Java2D glyph generation previously enabled generic shape
+  antialiasing, which does not select text antialiasing. It now explicitly uses
+  grayscale text antialiasing, fractional metrics, quality rendering, and
+  quality alpha interpolation before libGDX packs glyphs into its existing
+  linearly filtered texture. A focused desktop test proves rendered glyphs
+  contain both opaque interiors and partially transparent antialiased edges.</li>
+<li>Focused API detection, session lifecycle, and desktop glyph tests pass. The
+  complete <code>:tests:test :server:test --no-parallel</code> run then passed in 3m53s,
+  and <code>:desktop:dist :android:assembleDebug</code> passed in 2m20s. The independent
+  release APK gate, including release-vital lint, passed in 1m50s. Rust's
+  four-test VPS Compose contract, formatting, and warnings-as-errors Clippy all
+  pass; <code>docker compose --env-file .env.vps.example -f compose.vps.yaml config
+  --quiet</code> accepts the final topology.</li>
+<li>The project Packr task could not run because its ignored
+  <code>packr-all-4.0.0.jar</code> and <code>jdk-windows-64.zip</code> inputs are absent. This was
+  isolated from compilation and repaired at the artifact owner by using the
+  installed Java 21 <code>jpackage</code> app-image producer against the same qualified
+  <code>Unciv.jar</code>. The resulting self-contained executable remained alive through
+  a 12-second clean smoke launch.</li>
+<li>Direct-install artifacts are in
+  <code>deploy/Unciv-V3-connect-font-20260729</code>: the debug-signed APK is
+  <code>9363498C94B5327728920F313691FABEA29D379A0C279B80FB5247543C128F9C</code>
+  (SHA-256), and the portable Windows ZIP is
+  <code>FE9141E5BDAB2801D838A004695F33AFBCA689F297F05A53F6479C314E71B0E5</code>.
+  Android's v1 and v2 signature verification passes. The release build itself
+  also passes, but remains unsigned because no production signing identity is
+  stored in the repository.</li>
+</ul>
 <h2 id="oracle-arm64-pilot-deployment-2026-07-29">Oracle ARM64 pilot deployment (2026-07-29)</h2>
 <ul>
 <li>The attested bundle inputs were rebuilt from commit
@@ -15820,13 +15883,15 @@ and uploading a local save.</p>
   removed before any account or game existed.</li>
 <li>The public endpoint is now <code>https://unciv.rusticstack.com</code>; the temporary
   plaintext API route is closed. The certificate covers only that hostname and
-  was issued on 2026-07-29 with automatic renewal managed by Caddy. The Compose
-  API still deliberately ignores forwarded client-address headers because its
-  fail-closed proxy policy accepts only a loopback peer, while the container
-  bridge makes Caddy non-loopback from the API's perspective. Moving the API
-  listener to a host loopback service or introducing an equivalently isolated
-  proxy transport remains an operations-hardening item if per-origin client-IP
-  rate limiting is required; it does not expose tokens or canonical authority.</li>
+  was issued on 2026-07-29 with automatic renewal managed by Caddy. The worker
+  and API now use Linux host networking while binding only <code>127.0.0.1:43170</code>
+  and <code>127.0.0.1:3100</code>; PostgreSQL publishes only <code>127.0.0.1:54320</code>. Caddy is
+  consequently a real loopback peer and Rust's closed <code>loopback</code> policy accepts
+  its single sanitized <code>X-Forwarded-For</code> address. A live probe sent two requests
+  from one origin, including a forged forwarding header, plus one request from
+  a second origin: the durable limiter created four buckets (the expected
+  global/source and account/source pair per origin) and recorded six
+  consumptions, proving spoof normalization and distinct-client attribution.</li>
 </ul>
 <h2 id="v3-only-production-lobby-and-unlimited-turn-milestone">V3-only production lobby and unlimited-turn milestone</h2>
 <p>Implemented on 2026-07-29:</p>

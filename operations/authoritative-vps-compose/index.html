@@ -2963,10 +2963,15 @@
 <h1 id="authoritative-v3-single-vps-compose">Authoritative v3 single-VPS Compose</h1>
 <p><code>authoritative-server/compose.vps.yaml</code> runs the digest-pinned PostgreSQL 19
 Beta 2 target, one migration job, the Kotlin rules worker, and the Rust API.
-The API and worker share one container network namespace, so the authenticated
-worker protocol remains reachable only on loopback. PostgreSQL has no published
-port. The Compose services mount one attested Linux release bundle read-only;
-build and verify it using <code>authoritative-release-bundle.md</code> first.</p>
+PostgreSQL publishes only an explicitly configured host loopback port. The
+authenticated worker and API use the Linux host network and each bind only
+their fixed or configured loopback port. The API connects to those two private
+loopback listeners and enables
+the closed <code>loopback</code> trusted-proxy policy. Caddy is therefore the only process
+that can supply one canonical <code>X-Forwarded-For</code> address; remote callers cannot
+reach the API listener or spoof the address used by per-client rate limits.
+The Compose services mount one attested Linux release bundle read-only; build
+and verify it using <code>authoritative-release-bundle.md</code> first.</p>
 <p>The one-shot ruleset service acquires and atomically activates the reviewed
 ruleset policy before the worker starts. Set <code>UNCIV_V3_SOURCE_ASSETS</code> to the
 reviewed vanilla asset tree, <code>UNCIV_V3_RULESET_POLICY</code> to the closed acquisition
@@ -2979,14 +2984,11 @@ docker<span class="w"> </span>compose<span class="w"> </span>--env-file<span cla
 docker<span class="w"> </span>compose<span class="w"> </span>--env-file<span class="w"> </span>.env.vps<span class="w"> </span>-f<span class="w"> </span>compose.vps.yaml<span class="w"> </span>ps
 curl<span class="w"> </span>--fail<span class="w"> </span>http://127.0.0.1:3000/readyz
 </code></pre></div>
-<p>For a raw-IP pilot, set <code>UNCIV_V3_PUBLIC_BIND=0.0.0.0</code>, open only the chosen
-API port in the VPS firewall, and enter <code>http://IP:PORT</code> in Unciv's multiplayer
-server setting. This mode exposes account tokens and traffic to the network and
-is strictly for short-lived testing.</p>
-<p>For a real match, leave the API bound to <code>127.0.0.1</code>, put the existing hardened
-reverse-proxy/TLS service in front, and enter <code>https://unciv.example.com</code>.
-Cloudflare DNS can point that subdomain at the VPS; TLS still terminates at the
-VPS reverse proxy. Never expose port 43170 or PostgreSQL.</p>
+<p>Put the hardened reverse-proxy/TLS service in front and enter
+<code>https://unciv.example.com</code> in the client. Cloudflare DNS can point that
+subdomain at the VPS; TLS still terminates at the VPS reverse proxy. Never
+expose the API, worker, or PostgreSQL loopback ports. Raw-IP plaintext mode is
+not part of this production topology.</p>
 <p>After saving the server address, use the production multiplayer screen to
 register or sign in. It lists only authoritative V3 lobbies and account games:
 there are no legacy IDs or file-server credentials. Creating a match opens the

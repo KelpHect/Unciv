@@ -27,12 +27,31 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .execute(&repository.pool)
         .await
         .unwrap();
-    sqlx::query("UPDATE game_revisions SET parent_revision=99, command_id=$2 WHERE game_id=$1 AND revision=1")
-        .bind(game)
-        .bind(Uuid::new_v4())
-        .execute(&repository.pool)
-        .await
-        .unwrap();
+    let invalid_parent =
+        sqlx::query("UPDATE game_revisions SET parent_revision=99 WHERE game_id=$1 AND revision=1")
+            .bind(game)
+            .execute(&repository.pool)
+            .await
+            .unwrap_err();
+    assert_eq!(
+        invalid_parent
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_revisions_parent_fk")
+    );
+    let invalid_command =
+        sqlx::query("UPDATE game_revisions SET command_id=$2 WHERE game_id=$1 AND revision=1")
+            .bind(game)
+            .bind(Uuid::new_v4())
+            .execute(&repository.pool)
+            .await
+            .unwrap_err();
+    assert_eq!(
+        invalid_command
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_revisions_command_fk")
+    );
     sqlx::query("UPDATE game_members SET role='player' WHERE game_id=$1 AND account_id=$2")
         .bind(game)
         .bind(owner)
@@ -101,11 +120,17 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .execute(&repository.pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO game_outbox (game_id, revision, topic, payload) VALUES ($1, 77, 'game.revision.committed', '{}'::jsonb)")
+    let orphan_outbox = sqlx::query("INSERT INTO game_outbox (game_id, revision, topic, payload) VALUES ($1, 77, 'game.revision.committed', '{}'::jsonb)")
         .bind(game)
         .execute(&repository.pool)
         .await
-        .unwrap();
+        .unwrap_err();
+    assert_eq!(
+        orphan_outbox
+            .as_database_error()
+            .and_then(|error| error.constraint()),
+        Some("game_outbox_revision_fk")
+    );
     let omitted_creation_context = sqlx::query(
         "INSERT INTO game_creation_operations (operation_id, actor_account_id, request, game_id) VALUES ($1, $2, '{}'::jsonb, $3)",
     )
@@ -175,15 +200,12 @@ async fn reconciliation_detects_damage_without_mutating_canonical_state() {
         .map(|finding| finding.kind.clone())
         .collect::<HashSet<_>>();
     for expected in [
-        ReconciliationKind::BrokenRevisionChain,
-        ReconciliationKind::MissingRevisionCommand,
         ReconciliationKind::MissingCommandActor,
         ReconciliationKind::MissingCommandTime,
         ReconciliationKind::MissingCommandReplayOperation,
         ReconciliationKind::MissingCreationReplayContext,
         ReconciliationKind::OrphanCommand,
         ReconciliationKind::MissingCommitOutbox,
-        ReconciliationKind::OrphanCommitOutbox,
         ReconciliationKind::OrphanSnapshot,
         ReconciliationKind::InvalidOwnerCount,
         ReconciliationKind::QuarantinedGame,

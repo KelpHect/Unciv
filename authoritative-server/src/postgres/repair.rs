@@ -61,7 +61,8 @@ impl PostgresGameRepository {
              SELECT r.game_id, r.revision,
                     CASE r.revision_kind
                       WHEN 'command' THEN 'game.revision.committed'
-                      ELSE 'game.revision.recovered'
+                      WHEN 'recovery' THEN 'game.revision.recovered'
+                      ELSE 'game.revision.rewound'
                     END,
                     jsonb_build_object(
                       'game_id', r.game_id,
@@ -75,7 +76,8 @@ impl PostgresGameRepository {
                  WHERE o.game_id=r.game_id AND o.revision=r.revision
                    AND o.topic=CASE r.revision_kind
                      WHEN 'command' THEN 'game.revision.committed'
-                     ELSE 'game.revision.recovered'
+                     WHEN 'recovery' THEN 'game.revision.recovered'
+                     ELSE 'game.revision.rewound'
                    END
                )
                AND NOT EXISTS (
@@ -83,7 +85,8 @@ impl PostgresGameRepository {
                  WHERE receipt.game_id=r.game_id AND receipt.revision=r.revision
                    AND receipt.topic=CASE r.revision_kind
                      WHEN 'command' THEN 'game.revision.committed'
-                     ELSE 'game.revision.recovered'
+                     WHEN 'recovery' THEN 'game.revision.recovered'
+                     ELSE 'game.revision.rewound'
                    END
                )
              ON CONFLICT DO NOTHING

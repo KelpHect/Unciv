@@ -225,6 +225,45 @@ class AuthoritativeMultiplayerSession(
         return transport.spectatorProjection(gameId)
     }
 
+    suspend fun rewindCheckpoints(gameId: String): List<ApiV3RewindCheckpoint> {
+        requireAuthenticated()
+        return transport.rewindCheckpoints(gameId)
+    }
+
+    suspend fun currentRewind(gameId: String): ApiV3RewindStatus? {
+        requireAuthenticated()
+        return try {
+            transport.currentRewind(gameId)
+        } catch (ex: ApiV3Exception) {
+            if (ex.httpStatus == 404) null else throw ex
+        }
+    }
+
+    suspend fun proposeRewind(
+        gameId: String,
+        expectedHeadRevision: Long,
+        targetRevision: Long,
+    ): ApiV3RewindStatus {
+        requireAuthenticated()
+        return transport.proposeRewind(
+            gameId,
+            ApiV3ProposeRewindRequest(
+                UUID.randomUUID().toString(),
+                expectedHeadRevision,
+                targetRevision,
+            ),
+        )
+    }
+
+    suspend fun voteRewind(
+        gameId: String,
+        requestId: String,
+        approved: Boolean,
+    ): ApiV3RewindStatus {
+        requireAuthenticated()
+        return transport.voteRewind(gameId, requestId, ApiV3VoteRewindRequest(approved))
+    }
+
     suspend fun leaveSpectator(gameId: String) {
         requireAuthenticated()
         transport.leaveSpectator(gameId)

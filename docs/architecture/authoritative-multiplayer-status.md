@@ -1,5 +1,46 @@
 # Authoritative multiplayer v3 status
 
+## Whole-game start-of-turn consensual rewind
+
+Implemented on 2026-07-29:
+
+- Active owners and players can list retained server-projected checkpoints,
+  propose one exact target against the current head, and approve or reject it
+  from the desktop/Android shared production UI. Checkpoints are genesis or
+  accepted `EndTurn` results only. Because `EndTurn` includes server-owned AI
+  execution and human rotation, each target is the complete start of the next
+  human turn rather than the end of the previous player's action sequence.
+- The proposal freezes every then-active human account. The proposer
+  auto-approves; all frozen accounts must approve; a refusal closes the
+  request; changed votes conflict; and head or electorate drift expires it.
+  Pending changes publish compact outbox resynchronization hints.
+- Unanimous finalization integrity-checks the retained blob and asks the
+  private Kotlin worker to load and project it with the pinned manifest. One
+  transaction copies the exact whole-game bytes into a new immutable snapshot,
+  appends a `rewind` revision, advances the CAS head, marks the request
+  applied, and emits `game.revision.rewound`. Later history remains intact.
+- Migrations `0028` and `0029` add database-enforced parent, command-journal,
+  and outbox canonical-lineage foreign keys plus frozen request/electorate/vote
+  records. PostgreSQL 19 Beta 2 focused tests reject all three orphan shapes
+  and prove rejection, changed retry, worker-failure retry, exact snapshot
+  copying, immutable lineage, and one committed rewind outbox event.
+- A digest-pinned single-VPS Compose topology mounts the attested release
+  bundle read-only, isolates PostgreSQL, and shares only loopback between the
+  Rust API and Kotlin worker. Clients accept a literal plaintext IP for an
+  explicitly insecure pilot; production hostnames remain HTTPS-only.
+- Final implementation qualification used
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  Both deterministic rewind database cases passed serially, all three
+  canonical-lineage orphan inserts were rejected by PostgreSQL, the complete
+  Rust all-target/all-feature suite passed (190 library tests plus API and
+  integration targets), and warnings-as-errors Clippy and formatting passed.
+  The focused production-routing/session/release-contract Kotlin tests passed,
+  followed by `:tests:test`, `:server:authoritativeWorkerDist`,
+  `:desktop:dist`, `:android:assembleDebug`, and
+  `:android:assembleRelease` in one successful 103-task Gradle invocation.
+  `docker compose ... config --quiet` also accepted the VPS topology with
+  operator-placeholder secrets and an absolute release-bundle path.
+
 ## Human-match client candidate
 
 Built and qualified from clean commit `a42aa6263` on 2026-07-29:

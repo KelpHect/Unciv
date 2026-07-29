@@ -74,6 +74,7 @@ class MultiplayerScreen : PickerScreen() {
     private val renameButton = createRenameButton()
     private val invitePlayerButton = createInvitePlayerButton()
     private val administrationButton = createAdministrationButton()
+    private val rewindButton = createRewindButton()
     private val chatButton = createChatButton()
 
     private val gameSpecificButtons =
@@ -85,6 +86,7 @@ class MultiplayerScreen : PickerScreen() {
             renameButton,
             invitePlayerButton,
             administrationButton,
+            rewindButton,
             chatButton,
         )
 
@@ -168,6 +170,7 @@ class MultiplayerScreen : PickerScreen() {
         gameSpecificActions.add(copyGameIdButton).row()
         gameSpecificActions.add(invitePlayerButton).row()
         gameSpecificActions.add(administrationButton).row()
+        gameSpecificActions.add(rewindButton).row()
         gameSpecificActions.add(chatButton).row()
         gameSpecificActions.add(renameButton).row()
         gameSpecificActions.add(skipTurnButton).row()
@@ -273,6 +276,16 @@ class MultiplayerScreen : PickerScreen() {
                 coordinator,
                 ::refreshGameLists,
             ).open()
+        }
+        return button
+    }
+
+    private fun createRewindButton(): TextButton {
+        val button = "Rewind whole turn".toTextButton().apply { disable() }
+        button.onClick {
+            val selected = selectedAuthoritativeGame ?: return@onClick
+            val session = game.onlineMultiplayer.authoritativeSession ?: return@onClick
+            AuthoritativeRewindPopup(this, selected, session, ::refreshGameLists).open()
         }
         return button
     }
@@ -731,6 +744,7 @@ class MultiplayerScreen : PickerScreen() {
         for (button in gameSpecificButtons) button.enable()
         invitePlayerButton.disable()
         administrationButton.disable()
+        rewindButton.disable()
         authoritativeResignButton.disable()
         chatButton.disable()
 
@@ -781,7 +795,10 @@ class MultiplayerScreen : PickerScreen() {
             summary.role in setOf("owner", "player") &&
             summary.lifecycleStatus == "active" &&
             summary.available
-        ) authoritativeResignButton.enable()
+        ) {
+            authoritativeResignButton.enable()
+            rewindButton.enable()
+        }
         skipTurnButton.isVisible = false
         forceResignButton.isVisible = false
         rightSideButton.setText("Open server projection".tr())

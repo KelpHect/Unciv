@@ -540,6 +540,28 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun wholeTurnRewindIsProjectionOnlyAndReachableByEveryHumanPlayer() {
+        val popup = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeRewindPopup.kt",
+        ).readText()
+        val screen = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val client = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/ApiV3Client.kt",
+        ).readText()
+
+        assertTrue(popup.contains("session.rewindCheckpoints(game.gameId)"))
+        assertTrue(popup.contains("session.proposeRewind("))
+        assertTrue(popup.contains("session.voteRewind("))
+        assertFalse(popup.contains("GameInfo"))
+        assertFalse(popup.contains("GameStarter"))
+        assertTrue(screen.contains("summary.role in setOf(\"owner\", \"player\")"))
+        assertTrue(client.contains("rewind-checkpoints"))
+        assertTrue(client.contains("rewinds/\$requestId/vote"))
+    }
+
+    @Test
     fun productionAccountUiUsesOnlyTypedAccountTransport() {
         val login = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeAccountPopup.kt",

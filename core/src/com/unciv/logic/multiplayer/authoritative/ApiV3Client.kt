@@ -272,6 +272,63 @@ class ApiV3Client(
     override suspend fun projection(gameId: String): ApiV3GameProjection =
         decode(client.get("api/v3/games/$gameId/projection") { authenticate() })
 
+    override suspend fun rewindCheckpoints(
+        gameId: String,
+        limit: Int,
+    ): List<ApiV3RewindCheckpoint> {
+        requireUuid(gameId, "Game ID")
+        require(limit in 1..50) { "Rewind checkpoint limit must be between 1 and 50" }
+        return decode(client.get("api/v3/games/$gameId/rewind-checkpoints") {
+            authenticate()
+            parameter("limit", limit)
+        })
+    }
+
+    override suspend fun proposeRewind(
+        gameId: String,
+        request: ApiV3ProposeRewindRequest,
+    ): ApiV3RewindStatus {
+        requireUuid(gameId, "Game ID")
+        requireUuid(request.requestId, "Rewind request ID")
+        return decode(client.post("api/v3/games/$gameId/rewinds") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        })
+    }
+
+    override suspend fun rewindStatus(
+        gameId: String,
+        requestId: String,
+    ): ApiV3RewindStatus {
+        requireUuid(gameId, "Game ID")
+        requireUuid(requestId, "Rewind request ID")
+        return decode(client.get("api/v3/games/$gameId/rewinds/$requestId") {
+            authenticate()
+        })
+    }
+
+    override suspend fun currentRewind(gameId: String): ApiV3RewindStatus {
+        requireUuid(gameId, "Game ID")
+        return decode(client.get("api/v3/games/$gameId/rewinds/current") {
+            authenticate()
+        })
+    }
+
+    override suspend fun voteRewind(
+        gameId: String,
+        requestId: String,
+        request: ApiV3VoteRewindRequest,
+    ): ApiV3RewindStatus {
+        requireUuid(gameId, "Game ID")
+        requireUuid(requestId, "Rewind request ID")
+        return decode(client.put("api/v3/games/$gameId/rewinds/$requestId/vote") {
+            authenticate()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        })
+    }
+
     override suspend fun projectionDelta(
         gameId: String,
         baseRevision: Long,

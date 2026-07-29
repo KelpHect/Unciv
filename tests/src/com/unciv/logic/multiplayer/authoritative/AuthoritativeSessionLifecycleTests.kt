@@ -125,6 +125,7 @@ class AuthoritativeSessionLifecycleTests {
         assertEquals("https://example.com/", normalizeApiV3BaseUrl("HTTPS://Example.COM"))
         assertEquals("http://127.0.0.1:8080/", normalizeApiV3BaseUrl("http://127.0.0.1:8080"))
         assertEquals("http://[::1]:8080/", normalizeApiV3BaseUrl("http://[::1]:8080"))
+        assertEquals("http://203.0.113.7:3000/", normalizeApiV3BaseUrl("http://203.0.113.7:3000"))
         assertThrows(IllegalArgumentException::class.java) {
             normalizeApiV3BaseUrl("http://example.com")
         }

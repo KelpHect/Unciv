@@ -33,6 +33,8 @@ mod repair;
 mod replica_faults;
 #[path = "retention_integration_tests.rs"]
 mod retention;
+#[path = "rewind_integration_tests.rs"]
+mod rewinds;
 #[path = "snapshot_integration_tests.rs"]
 mod snapshots;
 #[path = "social_graph_integration_tests.rs"]

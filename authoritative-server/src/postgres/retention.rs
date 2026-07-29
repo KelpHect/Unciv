@@ -143,7 +143,7 @@ fn should_retain(
     revision == 0
         || revision == head_revision
         || revision >= recent_start
-        || revision_kind == "recovery"
+        || matches!(revision_kind, "recovery" | "rewind")
         || command_type == Some("end_turn")
         || revision.is_multiple_of(policy.long_term_interval)
 }

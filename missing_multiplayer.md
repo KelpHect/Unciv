@@ -604,7 +604,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P1: worker isolation and deterministic execution
 
-- [ ] Add a player-consensus rewind to a completed-turn checkpoint. This is a
+- [x] Add a player-consensus rewind to a completed-turn checkpoint. This is a
   product feature, not operator recovery: an active human player must propose
   one retained completed-turn snapshot, every then-active human player must
   approve that exact target against the same head revision, and the server must
@@ -616,7 +616,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   retry, refusal/expiry, cross-device, hidden-projection, and crash/retry tests
   must ship together. Until then, players cannot rewind a live V3 game; use the
   existing automatically persisted canonical history only for operator
-  recovery, not informal match undo.
+  recovery, not informal match undo. Implemented as a whole-game
+  **start-of-turn** restore: genesis and accepted `EndTurn` results are the only
+  selectable checkpoints, so the copied snapshot includes every human, AI,
+  map, turn, and RNG outcome at the start of that turn. Migration `0029`
+  freezes the active human electorate and immutable votes; unanimous approval
+  validates the retained snapshot through the private Kotlin worker and
+  publishes a new append-only `rewind` revision. Rejection, changed vote retry,
+  stale head/membership, worker failure/retry, cross-account current status,
+  outbox resynchronization, projection-only production UI, retention, and exact
+  copied-snapshot/head lineage are covered by deterministic Rust/Kotlin gates.
 
 - [x] Measure and bound the private-worker process model. The initial low-memory
   deployment retains one persistent sequential JVM and one authenticated

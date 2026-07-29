@@ -52,6 +52,21 @@ interface ApiV3Transport {
     ): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted
     suspend fun projection(gameId: String): ApiV3GameProjection
+    suspend fun rewindCheckpoints(gameId: String, limit: Int = 20): List<ApiV3RewindCheckpoint> =
+        error("Whole-turn rewind is unsupported by this transport")
+    suspend fun proposeRewind(
+        gameId: String,
+        request: ApiV3ProposeRewindRequest,
+    ): ApiV3RewindStatus = error("Whole-turn rewind is unsupported by this transport")
+    suspend fun rewindStatus(gameId: String, requestId: String): ApiV3RewindStatus =
+        error("Whole-turn rewind is unsupported by this transport")
+    suspend fun currentRewind(gameId: String): ApiV3RewindStatus =
+        error("Whole-turn rewind is unsupported by this transport")
+    suspend fun voteRewind(
+        gameId: String,
+        requestId: String,
+        request: ApiV3VoteRewindRequest,
+    ): ApiV3RewindStatus = error("Whole-turn rewind is unsupported by this transport")
     suspend fun projectionDelta(
         gameId: String,
         baseRevision: Long,

@@ -347,6 +347,8 @@ mod tests {
             "game.membership.changed",
             "game.lifecycle.changed",
             "game.revision.recovered",
+            "game.revision.rewound",
+            "game.rewind.changed",
         ] {
             assert_eq!(notification_type(topic), "resync_required");
         }

@@ -1,0 +1,116 @@
+name: unciv-authoritative-v3-vps
+
+# This topology consumes one already verified Linux release bundle. API and
+# worker share a network namespace so the private worker remains loopback-only.
+services:
+  postgres:
+    image: postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unciv_authoritative
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${UNCIV_V3_POSTGRES_PASSWORD:?required}
+      UNCIV_V3_RUNTIME_DB_PASSWORD: ${UNCIV_V3_RUNTIME_DB_PASSWORD:?required}
+      UNCIV_V3_MIGRATION_DB_PASSWORD: ${UNCIV_V3_MIGRATION_DB_PASSWORD:?required}
+      UNCIV_V3_BACKUP_DB_PASSWORD: ${UNCIV_V3_BACKUP_DB_PASSWORD:?required}
+      UNCIV_V3_RESTORE_DB_PASSWORD: ${UNCIV_V3_RESTORE_DB_PASSWORD:?required}
+      UNCIV_V3_AUDIT_DB_PASSWORD: ${UNCIV_V3_AUDIT_DB_PASSWORD:?required}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - io_method=worker
+      - -c
+      - io_min_workers=1
+      - -c
+      - io_max_workers=2
+      - -c
+      - io_max_concurrency=16
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgresql/bootstrap-roles.sql:/docker-entrypoint-initdb.d/bootstrap-roles.sql:ro
+      - ./docker/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unciv_authoritative"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    networks: [private]
+    mem_limit: 384m
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+
+  migrate:
+    image: eclipse-temurin:25-jre@sha256:681c543d6f36c50f45e9b5226930a46203dcfa351d3670e9d0bdf0dabae53539
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      UNCIV_V3_DATABASE_URL: postgresql://unciv_migrate:${UNCIV_V3_MIGRATION_DB_PASSWORD}@postgres:5432/unciv_authoritative
+    command: ["/bundle/bin/unciv-v3-migrate"]
+    volumes:
+      - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  worker:
+    image: eclipse-temurin:25-jre@sha256:681c543d6f36c50f45e9b5226930a46203dcfa351d3670e9d0bdf0dabae53539
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      UNCIV_ENGINE_WORKER_PORT: "43170"
+      UNCIV_ENGINE_WORKER_SECRET: ${UNCIV_ENGINE_WORKER_SECRET:?required}
+      UNCIV_V3_RELEASE_BUNDLE_ID: ${UNCIV_V3_RELEASE_BUNDLE_ID:?required}
+      UNCIV_ENGINE_WORKER_JAR: /bundle/worker/UncivAuthoritativeWorker.jar
+    command: ["java", "-jar", "/bundle/worker/UncivAuthoritativeWorker.jar"]
+    volumes:
+      - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+    ports:
+      - "${UNCIV_V3_PUBLIC_BIND:-127.0.0.1}:${UNCIV_V3_PUBLIC_PORT:-3000}:3000"
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "java -version >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  api:
+    image: eclipse-temurin:25-jre@sha256:681c543d6f36c50f45e9b5226930a46203dcfa351d3670e9d0bdf0dabae53539
+    restart: unless-stopped
+    network_mode: service:worker
+    depends_on:
+      worker:
+        condition: service_healthy
+    environment:
+      UNCIV_V3_BIND: 0.0.0.0:3000
+      UNCIV_V3_DATABASE_URL: postgresql://unciv_runtime:${UNCIV_V3_RUNTIME_DB_PASSWORD}@postgres:5432/unciv_authoritative
+      UNCIV_ENGINE_WORKER_ADDR: 127.0.0.1:43170
+      UNCIV_ENGINE_WORKER_SECRET: ${UNCIV_ENGINE_WORKER_SECRET:?required}
+      UNCIV_V3_RELEASE_BUNDLE_ID: ${UNCIV_V3_RELEASE_BUNDLE_ID:?required}
+      UNCIV_V3_TRUSTED_PROXY_MODE: ${UNCIV_V3_TRUSTED_PROXY_MODE:-direct}
+    command: ["/bundle/bin/unciv-authoritative-server"]
+    volumes:
+      - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+    mem_limit: 192m
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+networks:
+  private:
+    internal: false
+
+volumes:
+  postgres-data:

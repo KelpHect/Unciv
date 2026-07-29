@@ -918,6 +918,32 @@ data class ApiV3KickMemberRequest(
 )
 
 @Serializable
+data class ApiV3RewindCheckpoint(
+    val revision: Long,
+    val turn: Int,
+)
+
+data class ApiV3ProposeRewindRequest(
+    val requestId: String,
+    val expectedHeadRevision: Long,
+    val targetRevision: Long,
+)
+
+data class ApiV3VoteRewindRequest(
+    val approved: Boolean,
+)
+
+data class ApiV3RewindStatus(
+    val requestId: String,
+    val expectedHeadRevision: Long,
+    val targetRevision: Long,
+    val status: String,
+    val approvals: Int,
+    val requiredApprovals: Int,
+    val actorApproved: Boolean?,
+    val appliedRevision: Long?,
+)
+
 data class ApiV3ErrorResponse(
     val code: String,
     @SerialName("current_revision") val currentRevision: Long? = null,

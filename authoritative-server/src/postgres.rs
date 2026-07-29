@@ -197,6 +197,7 @@ mod religion;
 mod repair;
 mod research;
 mod retention;
+mod rewinds;
 mod security;
 mod security_audit_export;
 mod snapshot_codec;
@@ -227,6 +228,7 @@ pub use outbox::{
 };
 pub use reconciliation::{ReconciliationFinding, ReconciliationKind, ReconciliationReport};
 pub use recovery::RecoveredHead;
+pub use rewinds::{RewindCheckpoint, RewindRequest, RewindStatus};
 pub use security::{SecurityAuditEvent, SecurityAuditOutcome};
 pub use security_audit_export::{SECURITY_AUDIT_EXPORT_PAGE_SIZE, SecurityAuditExportEvent};
 pub use websocket_leases::{WebSocketConnectionLease, WebSocketLeaseError};

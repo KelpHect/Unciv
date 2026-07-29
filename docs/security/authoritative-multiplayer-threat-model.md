@@ -255,6 +255,22 @@ restricted browser-feature policies. TLS/HSTS and trusted-proxy qualification
 remain separate required controls; see
 `docs/operations/authoritative-http-security.md`.
 
+Player-requested rewind is not a privileged rollback path. Only active human
+members enter the frozen electorate; every member must approve the exact
+start-of-turn revision against one unchanged canonical head. Votes are
+immutable, a refusal closes the request, membership/head drift expires it, and
+worker validation precedes the append-only commit. The server copies the
+complete retained canonical snapshot into a new revision and emits only a
+resynchronization hint; it never returns the snapshot, deletes later history,
+or accepts client state. PostgreSQL also directly constrains revision parents,
+revision-to-command identity, and outbox-to-revision identity.
+
+Literal `http://IP:port` client configuration exists solely for a short-lived
+self-hosted pilot and visibly remains an insecure transport choice: bearer
+tokens and gameplay metadata can be intercepted. Production hostnames remain
+HTTPS-only, and the VPS Compose guidance binds the API to loopback behind TLS
+by default while keeping PostgreSQL and the Kotlin worker unexposed.
+
 ### Security validation priorities
 
 The highest-value adversarial tests are: cross-account/cross-civilization command attempts; idempotency-key reuse with changed content; multi-replica revision races; sentinel hidden-state projection tests; worker frame, timeout, crash and resource-exhaustion tests; archive traversal and decompression bombs; legacy/v3 namespace isolation; token/audit/log leakage searches; backup restore and rollback drills; and sustained HTTP/WebSocket/load tests against bounded resources.

@@ -236,6 +236,12 @@ live in `docs/architecture/authoritative-multiplayer-status.md` and
   worker-owned canonical result, project only the public winner/type/turn,
   disable every terminal client control, reject post-victory mutations, and
   rerun both the packaged handoff preflight and the two-person full-match gate.
+- If a change affects turns, snapshots, retention, AI rotation, membership, or
+  revision lineage, preserve consensual whole-game rewind. Select only genesis
+  or accepted `EndTurn` start-of-turn checkpoints; freeze all active humans;
+  require unanimous immutable votes against one unchanged head; validate the
+  complete snapshot in the private worker; and append a new `rewind` revision
+  without deleting or rewriting history.
 - Run the smallest focused V3 tests first, then all affected Rust, server,
   desktop, Android, PostgreSQL 19 Beta 2, packaging, mod-parity, and legacy
   regression gates. Do not dismiss a discovered failure as unrelated.

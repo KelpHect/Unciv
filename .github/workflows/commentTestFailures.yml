@@ -1,0 +1,82 @@
+# Posts the test failures found by "Build and test" back onto the pull request.
+#
+# This is split out of buildAndTest.yml on purpose. Commenting on a fork PR
+# needs a base-repo token, but the build itself compiles and runs the PR's own
+# code. Running both in one job would hand that token to untrusted code, so the
+# build stays on `pull_request` (no secrets) and only this workflow - which
+# never checks out the pull request - holds the token.
+name: Comment test failures
+
+on:
+  workflow_run:
+    workflows: ["Build and test"]
+    types: [completed]
+
+permissions:
+  # Only to read the failure artifact from the triggering run.
+  actions: read
+
+jobs:
+  comment:
+    name: Comment test failures on PR
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure'
+    steps:
+      # No checkout - nothing from the pull request is executed here.
+      - name: Download test failures
+        id: download
+        continue-on-error: true  # The run may have failed before producing any
+        uses: actions/download-artifact@v4
+        with:
+          name: test-failures
+          path: test-failures
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment test failures on PR
+        if: steps.download.outcome == 'success'
+        uses: actions/github-script@v8
+        env:
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        with:
+          github-token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // The artifact was written by a job running the PR's own code, so
+            // treat it as untrusted: the PR number is only accepted if it
+            // really is the PR that triggered that run.
+            const prNumber = Number(fs.readFileSync('test-failures/pr_number.txt', 'utf8').trim());
+            if (!Number.isInteger(prNumber) || prNumber <= 0)
+              throw new Error(`Refusing to comment: bad PR number ${JSON.stringify(prNumber)}`);
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            if (pr.head.ref !== process.env.HEAD_BRANCH || pr.head.repo?.full_name !== process.env.HEAD_REPO)
+              throw new Error(`Refusing to comment: PR #${prNumber} is not ${process.env.HEAD_REPO}:${process.env.HEAD_BRANCH}`);
+
+            // Comments are capped at 65536 characters.
+            const failures = fs.readFileSync('test-failures/test_failures.txt', 'utf8').slice(0, 60000);
+
+            const body = `## ❌ Test Failures Detected
+
+            The following tests failed in this PR:
+
+            \`\`\`
+            ${failures}
+            \`\`\`
+
+            [View full test output](${process.env.RUN_URL})
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });

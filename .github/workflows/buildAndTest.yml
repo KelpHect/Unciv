@@ -4,7 +4,17 @@ name: Build and test
 on:
   # Triggers the workflow on any push or pull request
   push:
-  pull_request_target:
+  # `pull_request`, NOT `pull_request_target`: this job builds and runs the PR's
+  # own code (`./gradlew` executes the PR's build scripts), so it must run
+  # against the merge result and must never be handed repository secrets.
+  # Commenting failures back on the PR does need a base-repo token, so that step
+  # lives in commentTestFailures.yml, which runs on `workflow_run` and never
+  # checks out fork code.
+  pull_request:
+
+# No job here may write to the repository or reach the base repo's secrets.
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -18,6 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # On `pull_request` this is the PR's merge commit, on `push` the
+          # pushed commit - never the bare base branch head.
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-java@v5
         with:
@@ -48,41 +62,21 @@ jobs:
           # Extract relevant failure information from check output
           FAILURE_CONTENT=$(awk '/FAILED|STANDARD_OUT/{p=1} p{print} /^[[:space:]]*$/ && p{p=0}' check_output.log | head -100)
 
-          # Save to file and create GitHub output
+          # Save to file, for the "Comment test failures" workflow to pick up
           echo "$FAILURE_CONTENT" > test_failures.txt
+          echo "${{ github.event.pull_request.number }}" > pr_number.txt
 
-          # Create multiline output for GitHub
-          echo "failures<<EOF" >> $GITHUB_OUTPUT
-          echo "$FAILURE_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Comment test failures on PR
+      # `workflow_run` is not told which PR a fork run belongs to, so we hand
+      # over both the failure text and the PR number as an artifact.
+      - name: Upload test failures
         if: steps.run_checks.outputs.check_exit_code != '0' && github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const failures = fs.readFileSync('test_failures.txt', 'utf8');
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            const body = `## ❌ Test Failures Detected
-
-            The following tests failed in this PR:
-
-            \`\`\`
-            ${failures}
-            \`\`\`
-
-            [View full test output](${runUrl})
-            `;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
+          name: test-failures
+          path: |
+            test_failures.txt
+            pr_number.txt
+          retention-days: 1
 
       - name: Fail workflow if checks failed
         if: steps.run_checks.outputs.check_exit_code != '0'

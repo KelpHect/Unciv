@@ -119,6 +119,13 @@ projections remain readable for result presentation and reconciliation.
 
 Current v3 controls include password hashing, opaque session issuance, digest-only server storage, expiry, rotation and revocation, durable fixed-window login and registration limits, stable `429` responses, prefix-reduced network audit data, and one-way identity hashes. Handlers derive the actor from the bearer session.
 
+Account disable and deletion also close every active game owned by that account
+in the same PostgreSQL transaction before credentials and sessions are revoked.
+Immutable game membership and history remain attributable to the pseudonymized
+account, while fleet-wide notification hints force surviving clients to
+reconcile the closed lifecycle through authenticated HTTP. This prevents an
+active lobby from becoming permanently ownerless.
+
 Required hardening includes production TLS/HSTS policy, an explicit trusted-proxy configuration, secure Android and desktop token storage, bounded session counts, credential-stuffing monitoring, audit retention and access policy, account recovery policy, database credential rotation, and tests proving credentials never enter errors, traces, projections, or worker frames. Rate limiting must remain effective across replicas and must avoid becoming an account-lockout oracle.
 
 ### Typed commands, authorization, concurrency, and replay

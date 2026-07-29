@@ -8013,6 +8013,17 @@ Focused verification on 2026-07-29:
   The lobby tests now assert friendly manifest names as well as password,
   capacity, unique-faction, stale revision, readiness, and owner-start
   behavior.
+- The broad JVM gate passes 1,138 core/client tests with 16 intentional
+  skips and 59 server tests with one intentional skip. The complete Rust
+  all-target/all-feature suite passes 190 active library tests, all 29
+  HTTP/OpenAPI tests, and every ordinary binary/policy test; formatting and
+  warnings-as-errors Clippy pass. Android debug/release APK and release bundle
+  assembly pass against the dedicated AGP-8.13-compatible SDK, and
+  `:desktop:dist` plus `:desktop:packrWindows64` produce a portable archive
+  whose packaged JAR contains `AuthoritativeLobbyScreen`. The portable
+  executable remains alive through a 12-second smoke, and the aligned,
+  testing-certificate-signed release APK verifies v1/v2/v3 signatures,
+  installs, and resumes `AndroidLauncher` on the connected emulator.
 
 Failure repair:
 
@@ -8030,6 +8041,17 @@ Failure repair:
 4. The first HTTP gate detected expected checked-in OpenAPI drift after the
    schema expansion. The project generator updated the contract and the exact
    29-test API gate passed.
+5. The first complete Clippy run rejected a manually implemented
+   `MirroringType` default. The enum now derives `Default` with an explicit
+   default variant; the same complete formatting/test/Clippy command passes.
+6. The first public post-deployment creation smoke proved manifest selection
+   and revision-zero creation, then exposed that deleting the owner account
+   left its lobby active and permanently ownerless. Account disable/delete now
+   closes every active owned game in the same database transaction before
+   credentials and sessions are revoked, retains the immutable membership
+   history, and emits a resynchronization hint. The focused PostgreSQL 19 Beta
+   2 lifecycle test covers both disable and delete; the disposable smoke lobby
+   was explicitly closed.
 
 ## Protocol-4 client detection and scaled desktop text (2026-07-29)
 

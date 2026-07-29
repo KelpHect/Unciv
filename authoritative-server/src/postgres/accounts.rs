@@ -300,6 +300,21 @@ impl PostgresGameRepository {
         {
             return Err(AuthError::InvalidCredentials);
         }
+        sqlx::query(
+            "UPDATE games
+             SET lifecycle_status='closed', lifecycle_status_changed_at=now()
+             WHERE lifecycle_status='active'
+               AND EXISTS (
+                   SELECT 1 FROM game_members
+                   WHERE game_members.game_id=games.id
+                     AND game_members.account_id=$1
+                     AND game_members.role='owner'
+               )",
+        )
+        .bind(account_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
         if delete {
             sqlx::query(
                 "UPDATE accounts SET username_normalized=$2, password_hash='!deleted!', disabled_at=now(), disabled_reason='self_deleted', deleted_at=now() WHERE id=$1",

@@ -549,6 +549,7 @@ pub(super) async fn disable_account(
         source,
     )
     .await;
+    state.notifications.require_resync_for_all();
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -596,6 +597,7 @@ pub(super) async fn delete_account(
         source,
     )
     .await;
+    state.notifications.require_resync_for_all();
     Ok(StatusCode::NO_CONTENT)
 }
 

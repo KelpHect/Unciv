@@ -746,6 +746,17 @@ async fn account_lifecycle_revokes_sessions_and_preserves_history_references() {
         .register_account("disable-me", "disable-password")
         .await
         .unwrap();
+    let disabled_game = Uuid::new_v4();
+    repository
+        .create_game(NewGame {
+            game_id: disabled_game,
+            owner_account_id: disabled.id,
+            ruleset_manifest_hash: "a".repeat(64),
+            snapshot: b"disabled-history".to_vec(),
+            owner_civilization_id: "disabled-civilization".to_owned(),
+        })
+        .await
+        .unwrap();
     let disabled_session = repository.issue_session(disabled.id).await.unwrap();
     assert!(matches!(
         repository
@@ -761,6 +772,13 @@ async fn account_lifecycle_revokes_sessions_and_preserves_history_references() {
         .disable_account(disabled.id, "disable-password")
         .await
         .unwrap();
+    let disabled_game_status: String =
+        sqlx::query_scalar("SELECT lifecycle_status FROM games WHERE id=$1")
+            .bind(disabled_game)
+            .fetch_one(&repository.pool)
+            .await
+            .unwrap();
+    assert_eq!(disabled_game_status, "closed");
     assert!(matches!(
         repository
             .authenticate_session(&disabled_session.token)
@@ -793,6 +811,13 @@ async fn account_lifecycle_revokes_sessions_and_preserves_history_references() {
         .delete_account(deleted.id, "delete-password")
         .await
         .unwrap();
+    let deleted_game_status: String =
+        sqlx::query_scalar("SELECT lifecycle_status FROM games WHERE id=$1")
+            .bind(deleted_game)
+            .fetch_one(&repository.pool)
+            .await
+            .unwrap();
+    assert_eq!(deleted_game_status, "closed");
     let deleted_row = sqlx::query(
         "SELECT username_normalized, disabled_at IS NOT NULL AS disabled, deleted_at IS NOT NULL AS deleted FROM accounts WHERE id=$1",
     )

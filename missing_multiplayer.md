@@ -236,6 +236,16 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authenticated HTTP truth and a bounded polling fallback. The lobby displays
   the server manifest's friendly base/mod names instead of exposing only a
   content hash.
+- [ ] Make the revision-zero staging room itself server-editable before start.
+  The current two-stage flow creates the canonical setup before entering the
+  room, so the owner can review but cannot revise map/game/victory/advanced
+  settings after another player joins, and the owner cannot reselect their
+  faction there. Complete this through one revisioned, owner-authorized
+  pregame reconfiguration contract that rebuilds canonical revision zero in
+  the private worker, preserves each account's independently selected
+  civilization when still valid, clears readiness on meaningful changes, and
+  publishes only resynchronization hints. Do not patch lobby JSON independently
+  of the canonical worker state.
 - [x] Add the projection-only world foundation. Projection v54 carries bounded
   explored terrain, terrain features, natural wonders, and only resources the
   actor can reveal. Opening an available player membership now constructs a
@@ -1114,8 +1124,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## Current verification health
 
-- No known compile, test, formatting, clippy, or database integration error is
-  being deferred from the current milestone.
+- [ ] Eliminate the clean-build Kotlin warning backlog and add a warning-free
+  compiler gate. A clean Linux worker/desktop build currently succeeds but
+  reports existing deprecated engine iteration APIs, unnecessary null
+  assertions/safe calls, and always-true conditions across shared gameplay and
+  UI sources. Incremental Windows builds can hide this backlog; do not describe
+  the repository as warning-clean until a clean cross-platform compile emits
+  none. The Packr 4.0.0 packaging JVM also emits its upstream
+  `Reflection.getCallerClass` performance diagnostic; replace or patch that
+  build-only tool before claiming a completely diagnostic-free release lane.
 - Clean commit `a42aa6263` produced the installable debug-signed Android APK,
   standalone desktop JAR, and self-contained Windows desktop image. Android
   emulator installation/launch, both desktop smoke launches, the focused

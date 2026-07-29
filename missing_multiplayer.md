@@ -879,7 +879,11 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   fixed three Compose-only defects: duplicate unparameterized role SQL
   execution, the migrator environment-variable name, and the missing activated
   ruleset mount/working directory. A focused contract test now prevents those
-  boundaries from drifting.
+  boundaries from drifting. `unciv.rusticstack.com` now terminates an
+  automatically renewed Let's Encrypt certificate in Caddy, applies HSTS and
+  the hardened proxy headers, actively probes API readiness, redirects the
+  former raw-IP HTTP endpoint to HTTPS, and passes the complete external
+  disposable-account smoke through TLS without disrupting the existing site.
   later-prerelease upgrade/rollback rehearsal is the separate unchecked item
   below; no PostgreSQL 19 release newer than Beta 2 exists yet.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy
@@ -888,6 +892,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   one client address only from an explicitly configured loopback proxy,
   requires a loopback listener in that mode, rejects ambiguous proxy input, and
   ignores forwarding claims from every untrusted peer.
+- [ ] Preserve per-origin client addresses in the single-VPS Docker topology
+  without weakening the fail-closed trusted-proxy boundary. TLS and canonical
+  authority are complete, but the host Caddy connection reaches the
+  containerized API through Docker's bridge rather than as a loopback peer, so
+  the deployed API intentionally uses `UNCIV_V3_TRUSTED_PROXY=disabled` and
+  treats public clients as one proxy source for IP-based rate limits. Move the
+  API to the hardened host-loopback systemd topology or add an equivalently
+  isolated authenticated proxy transport, then prove spoof rejection and
+  distinct-client rate-limit attribution before checking this item.
 - [x] Create separate least-privilege PostgreSQL roles for runtime, migrations,
   backups, restores, and audit access; require encrypted database transport and
   credential rotation. Runtime and migration now have separate executables,

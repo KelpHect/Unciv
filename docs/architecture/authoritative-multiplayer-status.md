@@ -7985,11 +7985,14 @@ Verification on 2026-07-26:
   The migration job exited zero at exact migration head 30, the ruleset
   acquisition job atomically activated the vanilla manifest, and the packaged
   worker and Rust API reported ready.
-- External `GET http://51.170.50.210/readyz` returned HTTP 200 with PostgreSQL
-  and worker ready. An external disposable-account smoke registered, logged in,
-  listed the V3 lobby page, and deleted the account successfully. The existing
-  `https://ci.rusticstack.com` endpoint still returned HTTP 200 after Caddy
-  validation and reload.
+- External `GET https://unciv.rusticstack.com/readyz` returns HTTP 200 with
+  PostgreSQL and worker ready. Caddy obtained and manages a Let's Encrypt
+  certificate for that exact host, adds HSTS and the hardened response headers,
+  actively probes `/readyz`, and redirects both domain HTTP and the former raw
+  IP endpoint to HTTPS. An external disposable-account smoke registered,
+  logged in, listed the V3 lobby page, and deleted the account successfully
+  through TLS. The existing `https://ci.rusticstack.com` endpoint still returns
+  HTTP 200 after each validated Caddy reload.
 - First deployment attempts exposed three bounded Compose defects rather than
   gameplay defects: PostgreSQL automatically executed a mounted role SQL file
   a second time without psql variables; the migrator was given
@@ -7999,11 +8002,15 @@ Verification on 2026-07-26:
   script, environment example, runbook, and focused regression test now encode
   the corrected boundaries. The initial empty failed database volume was
   removed before any account or game existed.
-- The pilot endpoint is intentionally plain HTTP on a raw IP for the requested
-  friend test. It is not a TLS production endpoint and must not be used for
-  valuable passwords or long-lived tokens. Moving to a DNS name with HTTPS and
-  the loopback trusted-proxy boundary remains the operator acceptance step
-  before treating this endpoint as durable public production.
+- The public endpoint is now `https://unciv.rusticstack.com`; the temporary
+  plaintext API route is closed. The certificate covers only that hostname and
+  was issued on 2026-07-29 with automatic renewal managed by Caddy. The Compose
+  API still deliberately ignores forwarded client-address headers because its
+  fail-closed proxy policy accepts only a loopback peer, while the container
+  bridge makes Caddy non-loopback from the API's perspective. Moving the API
+  listener to a host loopback service or introducing an equivalently isolated
+  proxy transport remains an operations-hardening item if per-origin client-IP
+  rate limiting is required; it does not expose tokens or canonical authority.
 
 ## V3-only production lobby and unlimited-turn milestone
 

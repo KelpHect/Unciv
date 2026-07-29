@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-28 on `master`. Completed foundations and
+2026-07-29 on `master`. Completed foundations and
 command families are retained below with checked marks; the detailed evidence
 and historical milestones remain in `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -23,8 +23,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [x] Implement authenticated account/session lifecycle, durable throttling,
   security auditing, authenticated game discovery, player-scoped projection
   reads, and revision-aware command submission.
-- [x] Implement server-created revision-zero games, owner membership, invited
-  joins with server-owned civilization assignment, and retry-safe backend
+- [x] Implement server-created revision-zero lobbies, owner membership,
+  password/slot/readiness/start authority, player-chosen unclaimed factions
+  from the worker-validated canonical pool, and retry-safe backend
   administration for kick, server-derived force-resignation, ownership
   transfer, close, and archive, with production lifecycle controls.
 - [x] Implement player-scoped full-projection reconciliation plus durable
@@ -103,18 +104,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   city-states, replayable player assignment, typed research selection, and a
   complete human-to-two-AI-to-human turn from that snapshot. Forged actor
   identity is rejected and changed server time produces a distinct result.
-- [x] Add an explicit production new-game creation boundary. With an installed
-  authenticated API-v3 session, `NewGameScreen` now submits bounded setup
+- [x] Add an explicit production new-game creation boundary. From the V3-only
+  multiplayer screen, `NewGameScreen` now submits bounded setup
   directly to server creation before any local `GameStarter` call, retains one
   meaning-bound operation ID across exact retries and screen recreation, and
-  never uploads or autosaves a client-created canonical game. Offline and
-  explicit legacy API-v2 creation routes remain separate and tested.
-- [x] Add account-backed API-v3 game discovery and projection reopening to the
-  production multiplayer screen. The bounded directory pages server membership
-  metadata without consulting local saves, rejects duplicate games or repeated
-  cursors, routes players through the authenticated command-bus projection and
-  spectators through the public-only projection endpoint, and keeps the
-  legacy file-backed list visually and logically separate.
+  never uploads or autosaves a client-created canonical game. Offline
+  single-player and compatibility-only legacy API-v2 code remain isolated and
+  tested, but legacy multiplayer is absent from production multiplayer UI.
+- [x] Add account-backed API-v3 lobby browsing, game discovery, and projection
+  reopening to the production multiplayer screen. The bounded directories page
+  server lobby/membership metadata without consulting local saves, reject
+  duplicate games or repeated cursors, and route started players through the
+  authenticated command-bus projection and spectators through the public-only
+  projection endpoint.
 - [x] Keep Rust `main.rs` and `lib.rs` as thin façades and keep substantive Rust
   modules below the 800-line guardrail, with formatting and warnings-as-errors
   Clippy gates.
@@ -156,9 +158,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   actual Domination terminal state. Existing command inventory, projection,
   AI, mod-parity, and load tests are necessary but do not by themselves prove a
   full human match or the cross-device production UI flow. The packaged-stack
-  `account_handoff` preflight now proves separate-account join, identical
-  Android-to-desktop projection restoration for one account, and server-AI
-  advancement on the exact PostgreSQL 19 Beta 2 target. Projection v60 also
+  `account_handoff` preflight now proves lobby creation, independent faction
+  choice, both-human readiness, owner start, identical Android-to-desktop
+  projection restoration for one account, and server-AI advancement on the
+  exact PostgreSQL 19 Beta 2 target. Projection v60 also
   publishes the canonical winner/type/turn, disables terminal controls, and
   rejects post-victory worker mutations. The remaining unchecked evidence is
   the two-person Android/desktop release run through an actual Domination
@@ -182,12 +185,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   API, Rust-to-worker wire, Kotlin client/session, and private worker. It covers
   ruleset-derived difficulty/speed/era/victories; fixed major/city-state counts;
   predefined map generation, size, shape and resources; distinct bounded
-  victory identities; gameplay toggles; and
-  multiplayer timers. Rust bounds the request, Kotlin independently validates
+  victory identities; and gameplay toggles. V3 online matches are intentionally
+  unlimited: neither the public setup nor production UI accepts skip-turn,
+  total-time, or recovered-time limits, and the worker rejects timed force
+  resignation. Rust bounds the request, Kotlin independently validates
   every named choice against the pinned ruleset, and only the control plane
   supplies the secret map seed. The authenticated session resolves the exact
-  manifest, creates revision zero, fetches its projection, and opens the
-  command bus.
+  manifest and creates revision zero as a pregame lobby; projections and the
+  command bus remain unavailable until the complete ready lobby is started.
 - [x] Make game creation retry-safe with a caller-stable creation operation ID
   bound durably to the authenticated account and exact manifest/setup meaning.
   PostgreSQL serializes duplicate attempts with a transaction-scoped advisory
@@ -197,29 +202,30 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   rolls back completely so the same operation can be retried.
 - [x] Make v3 the only production path for creating new online games. Production
   detects/restores the configured v3 server and OS-protected session by default;
-  authenticated creation returns before local `GameStarter`, and failed or
-  unavailable v3 setup fails closed. Explicit API-v1/v2 servers can still
-  discover and open existing legacy games, but the new-game screen no longer
-  accepts legacy player IDs, probes the file server, shows legacy creation
-  controls, constructs a local online `GameInfo`, or uploads a new whole save.
+  authenticated creation returns to the authoritative lobby browser before
+  local `GameStarter`, and failed or unavailable v3 setup fails closed. The
+  production multiplayer screen no longer exposes API-v1/v2 discovery,
+  credentials, player IDs, file-server probes, legacy creation controls, local
+  online `GameInfo` construction, or whole-save upload.
 - [x] Migrate the new-game UI to bounded server setup choices, server-owned
   seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
-  progress/error handling, and the returned revision-zero projection. The
-  production screen uses that lifecycle whenever a v3 session is installed,
-  strips legacy player IDs and explicit civilization/public-spectator choices,
+  progress/error handling, and the returned revision-zero lobby. The production
+  multiplayer create action reuses the complete single-player setup screen,
+  adds a match name, human-slot count and optional password, strips legacy
+  player IDs and public-spectator setup choices,
   rejects unsupported client nation pools, god mode, and advanced map values,
   and retains an operation ID only while setup meaning is unchanged. The
-  returned owner membership, server-assigned civilization, revision-zero
-  metadata, and synchronized projection are cross-validated before the screen
-  transitions directly into the projection-only world.
+  owner chooses their faction during setup; the private worker cross-validates
+  the resulting canonical faction pool before the screen returns to the lobby.
 - [x] Migrate game discovery, join, civilization assignment, and open-game UI
-  to account membership and server projections. A fresh device must reconstruct
-  every v3 game without a local save. Membership discovery and projection
-  reopening work without local saves. The invitation inbox now accepts the
-  revision-bound command, rediscovers the atomically committed account
-  membership and worker-assigned civilization, validates its revision/hash,
-  and opens the player-scoped projection directly. The client never chooses or
-  uploads a civilization assignment.
+  to the server-owned lobby directory, account membership, and server
+  projections. Open lobbies list their name, password requirement, and occupied
+  human slots. Each joining account supplies the optional password and chooses
+  one unclaimed faction from the worker-validated canonical pool; PostgreSQL
+  atomically enforces password, capacity, unique faction, stale revision, and
+  idempotency rules. Each human controls only their readiness, only the owner
+  can start, and exact capacity plus unanimous readiness is required. A fresh
+  device reconstructs every lobby and active game without a local save.
 - [x] Add the projection-only world foundation. Projection v54 carries bounded
   explored terrain, terrain features, natural wonders, and only resources the
   actor can reveal. Opening an available player membership now constructs a
@@ -777,11 +783,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authenticated bounded API-v3 routes. Chat is capped by UTF-8 bytes, page
   size, per-game retention, and durable sender/game rate limits. Desktop and
   Android share the same friends, invitation, and chat clients/popups. The v3
-  lobby policy is the server-created revision-zero membership/directory plus
-  invitation inbox: the owner can enter immediately, invitees receive a
-  server-assigned civilization and projection on acceptance, and late joins
-  extend the current revision rather than requiring unsafe client-held setup
-  state or a separate readiness authority.
+  lobby is now a first-class non-canonical PostgreSQL service: browser-visible
+  match name, optional Argon2 password verifier, human capacity, worker-verified
+  faction pool, per-account chosen faction, readiness revision, and owner start
+  gate. Gameplay projections remain closed before start. Lobby metadata never
+  enters `GameInfo`; the canonical join assignment is still a typed,
+  revision-bound private-worker mutation.
 - [x] Finish reconnect, offline/stale presentation, retry UX, projection upgrade,
   cache replacement, and explicit legacy/v3 game labeling on supported clients.
   Desktop and Android share one projection-only client state machine. Failed

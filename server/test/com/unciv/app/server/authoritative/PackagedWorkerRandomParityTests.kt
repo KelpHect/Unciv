@@ -218,9 +218,7 @@ class PackagedWorkerRandomParityTests {
                                 legendaryStart = case.enabled,
                                 noRuins = case.enabled,
                                 noNaturalWonders = case.enabled,
-                                minutesUntilSkipTurn = if (case.enabled) 10_080 else 5,
-                                minutesUntilForceResign = if (case.enabled) 43_200 else 60,
-                                minutesRecoveredPerTurn = if (case.enabled) 10_080 else 0,
+                                ownerCivilizationId = "Rome",
                             ),
                         ),
                     ),
@@ -253,15 +251,9 @@ class PackagedWorkerRandomParityTests {
             assertEquals(case.enabled, game.tileMap.mapParameters.legendaryStart)
             assertEquals(case.enabled, game.tileMap.mapParameters.noRuins)
             assertEquals(case.enabled, game.tileMap.mapParameters.noNaturalWonders)
-            assertEquals(if (case.enabled) 10_080 else 5, game.gameParameters.minutesUntilSkipTurn)
-            assertEquals(
-                if (case.enabled) 43_200 else 60,
-                game.gameParameters.minutesUntilForceResign,
-            )
-            assertEquals(
-                if (case.enabled) 10_080 else 0,
-                game.gameParameters.minutesRecoveredPerTurn,
-            )
+            assertEquals(Int.MAX_VALUE, game.gameParameters.minutesUntilSkipTurn)
+            assertEquals(Int.MAX_VALUE, game.gameParameters.minutesUntilForceResign)
+            assertEquals(0, game.gameParameters.minutesRecoveredPerTurn)
         }
     }
 
@@ -418,9 +410,7 @@ class PackagedWorkerRandomParityTests {
             legendaryStart = false,
             noRuins = true,
             noNaturalWonders = true,
-            minutesUntilSkipTurn = 1_440,
-            minutesUntilForceResign = 4_320,
-            minutesRecoveredPerTurn = 1_440,
+            ownerCivilizationId = "Rome",
         )
     }
 

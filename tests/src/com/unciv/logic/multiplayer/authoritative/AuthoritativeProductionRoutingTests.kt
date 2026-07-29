@@ -61,7 +61,7 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
-    fun serverCreatedGameTransitionsDirectlyIntoProjectionOnlyWorld() {
+    fun serverCreatedGameTransitionsIntoPregameLobbyBeforeProjectionOnlyWorld() {
         val newGame = sourceFile(
             "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
         ).readText()
@@ -70,9 +70,10 @@ class AuthoritativeProductionRoutingTests {
             newGame.indexOf("/** Updates our local"),
         )
 
-        assertTrue(creation.contains("creation.openPlayerGame()"))
-        assertTrue(creation.contains("AuthoritativeWorldScreen("))
-        assertTrue(creation.contains("AuthoritativeGameDirectory(session)"))
+        assertTrue(creation.contains("requireNotNull(lobbyConfiguration)"))
+        assertTrue(creation.contains("game.replaceCurrentScreen(MultiplayerScreen())"))
+        assertFalse(creation.contains("openGame("))
+        assertFalse(creation.contains("AuthoritativeWorldScreen("))
         assertTrue(creation.contains("gameSetupInfo.gameParameters.baseRuleset"))
         assertTrue(creation.contains("gameSetupInfo.gameParameters.mods"))
         assertTrue(creation.contains("meaning.baseRulesetName"))
@@ -122,20 +123,17 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
-    fun serverSelectionRoutesBeforeLegacyPreviewLoading() {
+    fun productionMultiplayerRoutesOnlyThroughTheConfiguredAuthoritativeServer() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
         ).readText()
-        val routing = source.substring(
-            source.indexOf("private fun setupRightSideButton()"),
-            source.indexOf("private fun getGeneralActionsTable()"),
-        )
 
-        assertTrue(
-            routing.indexOf("selectedAuthoritativeGame?.let") <
-                routing.indexOf("selectedGame!!"),
-        )
-        assertTrue(routing.contains("return@onClick"))
+        assertTrue(source.contains("Server URL or IP"))
+        assertTrue(source.contains("restoreConfiguredAuthoritativeSession"))
+        assertTrue(source.contains("AuthoritativeGameDirectory(activeSession).open(summary)"))
+        assertFalse(source.contains("selectedGame"))
+        assertFalse(source.contains("downloadGame"))
+        assertFalse(source.contains("multiplayerFiles"))
     }
 
     @Test
@@ -148,8 +146,10 @@ class AuthoritativeProductionRoutingTests {
                 "AuthoritativeWorldScreen.kt",
         ).readText()
 
-        assertTrue(multiplayer.contains("API v3 server game"))
-        assertTrue(multiplayer.contains("Add legacy saved game"))
+        assertTrue(multiplayer.contains("Authoritative multiplayer"))
+        assertTrue(multiplayer.contains("Open matches"))
+        assertTrue(multiplayer.contains("Your games"))
+        assertFalse(multiplayer.contains("legacy saved game", ignoreCase = true))
         assertTrue(world.contains("Retry uncertain action"))
         assertTrue(world.contains("retryPendingIfOpen"))
         assertTrue(world.contains("Reconnect and replace cached projection"))
@@ -158,39 +158,34 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
-    fun acceptedInvitationTransitionsDirectlyIntoProjectionOnlyWorld() {
-        val inbox = sourceFile(
-            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
-                "AuthoritativeInvitationPopups.kt",
-        ).readText()
+    fun lobbyJoinTransitionsThroughServerMembershipIntoProjectionOnlyWorld() {
         val multiplayer = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
         ).readText()
 
-        assertTrue(inbox.contains("flow.acceptAndOpen(invitation)"))
-        assertTrue(inbox.contains("onAccepted(accepted)"))
-        assertTrue(multiplayer.contains("private fun openAcceptedInvitation("))
+        assertTrue(multiplayer.contains("session!!.joinLobby("))
+        assertTrue(multiplayer.contains("Join selected faction"))
+        assertTrue(multiplayer.contains("AuthoritativeGameDirectory(activeSession).open(summary)"))
         assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
-        assertFalse(inbox.contains("GameInfo"))
-        assertFalse(inbox.contains("GameStarter"))
-        assertFalse(inbox.contains("playerId"))
-        assertFalse(inbox.contains("chosenCiv"))
+        assertFalse(multiplayer.contains("GameInfo"))
+        assertFalse(multiplayer.contains("GameStarter"))
+        assertFalse(multiplayer.contains("playerId"))
     }
 
     @Test
-    fun legacyResignationHasNoConditionalAuthoritativeFallback() {
+    fun productionMultiplayerHasNoLegacyOrTimedTurnControls() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
         ).readText()
-        val legacyResignation = source.substring(
-            source.indexOf("private fun resignPlayer("),
-            source.indexOf("private fun skipCurrentPlayerTurn("),
-        )
 
-        assertTrue(legacyResignation.contains("onlineMultiplayer.legacy.resignPlayer"))
-        assertFalse(legacyResignation.contains("authoritativeSession"))
-        assertFalse(legacyResignation.contains("resignIfOpen"))
-        assertFalse(legacyResignation.contains("forceResignIfOpen"))
+        for (removed in listOf(
+            "Time until skip turn",
+            "Total time to play",
+            "Time recovered per turn",
+            "skipCurrentPlayerTurn",
+            "forceResignIfOpen",
+            "onlineMultiplayer.legacy",
+        )) assertFalse(source.contains(removed))
     }
 
     @Test
@@ -533,10 +528,10 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         assertTrue(source.contains("lifecycleStatus in setOf(\"active\", \"closed\")"))
-        assertTrue(source.contains("forceResignButton.isVisible = active"))
         assertTrue(source.contains("closeGameButton.isVisible = active"))
         assertTrue(source.contains("archiveGameButton.isVisible = !active"))
-        assertTrue(source.contains("coordinator.forceResign(gameSummary.gameId)"))
+        assertFalse(source.contains("forceResignButton"))
+        assertFalse(source.contains("timeout"))
     }
 
     @Test
@@ -557,6 +552,7 @@ class AuthoritativeProductionRoutingTests {
         assertFalse(popup.contains("GameInfo"))
         assertFalse(popup.contains("GameStarter"))
         assertTrue(screen.contains("summary.role in setOf(\"owner\", \"player\")"))
+        assertTrue(screen.contains("AuthoritativeRewindPopup("))
         assertTrue(client.contains("rewind-checkpoints"))
         assertTrue(client.contains("rewinds/\$requestId/vote"))
     }

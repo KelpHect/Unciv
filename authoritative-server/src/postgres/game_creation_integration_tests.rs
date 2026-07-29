@@ -21,6 +21,7 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
             operation_id,
             manifest_hash.clone(),
             setup.clone(),
+            lobby(),
         ),
         repository.create_authoritative_game(
             &worker,
@@ -28,6 +29,7 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
             operation_id,
             manifest_hash.clone(),
             setup.clone(),
+            lobby(),
         ),
     );
     let first = first.unwrap();
@@ -45,13 +47,14 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
                 operation_id,
                 manifest_hash.clone(),
                 changed,
+                lobby(),
             )
             .await,
         Err(CommitError::InvalidCommand),
     );
     assert_eq!(
         repository
-            .create_authoritative_game(&worker, other, operation_id, manifest_hash, setup)
+            .create_authoritative_game(&worker, other, operation_id, manifest_hash, setup, lobby())
             .await,
         Err(CommitError::InvalidCommand),
     );
@@ -77,6 +80,17 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
     .await
     .unwrap();
     assert_eq!(replay_context, (true, true, true));
+    assert_eq!(
+        sqlx::query_scalar::<_, Vec<String>>(
+            "SELECT available_civilizations FROM game_lobbies WHERE game_id=$1",
+        )
+        .bind(first)
+        .fetch_one(&repository.pool)
+        .await
+        .unwrap(),
+        vec!["Rome".to_owned(), "Japan".to_owned()],
+        "the private worker's canonical factions replace the untrusted client hint",
+    );
 }
 
 #[tokio::test]
@@ -94,6 +108,7 @@ async fn failed_creation_leaves_no_record_and_the_same_id_can_retry() {
                 operation_id,
                 manifest_hash.clone(),
                 setup(),
+                lobby(),
             )
             .await,
         Err(CommitError::InvalidSnapshotHash),
@@ -116,7 +131,14 @@ async fn failed_creation_leaves_no_record_and_the_same_id_can_retry() {
 
     let (valid_worker, valid_task) = one_shot_creation_worker(true).await;
     repository
-        .create_authoritative_game(&valid_worker, owner, operation_id, manifest_hash, setup())
+        .create_authoritative_game(
+            &valid_worker,
+            owner,
+            operation_id,
+            manifest_hash,
+            setup(),
+            lobby(),
+        )
         .await
         .unwrap();
     valid_task.await.unwrap();
@@ -145,7 +167,14 @@ async fn game_creation_requires_a_registered_asset_version_before_worker_contact
     );
     assert_eq!(
         repository
-            .create_authoritative_game(&worker, owner, Uuid::new_v4(), manifest_hash, setup(),)
+            .create_authoritative_game(
+                &worker,
+                owner,
+                Uuid::new_v4(),
+                manifest_hash,
+                setup(),
+                lobby(),
+            )
             .await,
         Err(CommitError::NotFound),
     );
@@ -223,7 +252,8 @@ async fn one_shot_creation_worker(
                 "serverTimeMillis": server_time_millis,
                 "snapshot": snapshot,
                 "canonicalStateHash": canonical_hash,
-                "actorCivilizationId": "Owner civilization",
+                "actorCivilizationId": "Rome",
+                "availableCivilizationIds": ["Rome", "Japan"],
             }),
         )
         .await;
@@ -263,8 +293,16 @@ fn setup() -> WorkerGameSetup {
         legendary_start: false,
         no_ruins: false,
         no_natural_wonders: false,
-        minutes_until_skip_turn: 1_440,
-        minutes_until_force_resign: 4_320,
-        minutes_recovered_per_turn: 1_440,
+        owner_civilization_id: "Rome".to_owned(),
+    }
+}
+
+fn lobby() -> LobbyCreateConfiguration {
+    LobbyCreateConfiguration {
+        display_name: "Test lobby".to_owned(),
+        human_slots: 2,
+        password_hash: None,
+        password_identity: None,
+        available_civilizations: vec!["Rome".to_owned(), "Greece".to_owned()],
     }
 }

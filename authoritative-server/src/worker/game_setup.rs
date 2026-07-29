@@ -55,6 +55,7 @@ pub enum BarbarianMode {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkerGameSetup {
+    pub owner_civilization_id: String,
     pub difficulty: String,
     pub speed: String,
     pub starting_era: String,
@@ -78,9 +79,6 @@ pub struct WorkerGameSetup {
     pub legendary_start: bool,
     pub no_ruins: bool,
     pub no_natural_wonders: bool,
-    pub minutes_until_skip_turn: u32,
-    pub minutes_until_force_resign: u32,
-    pub minutes_recovered_per_turn: u32,
 }
 
 #[cfg(test)]
@@ -91,6 +89,7 @@ mod tests {
     #[test]
     fn create_game_operation_contains_only_typed_setup_and_server_seed() {
         let setup = WorkerGameSetup {
+            owner_civilization_id: "Rome".to_owned(),
             difficulty: "Prince".to_owned(),
             speed: "Standard".to_owned(),
             starting_era: "Ancient era".to_owned(),
@@ -114,9 +113,6 @@ mod tests {
             legendary_start: false,
             no_ruins: false,
             no_natural_wonders: false,
-            minutes_until_skip_turn: 1_440,
-            minutes_until_force_resign: 4_320,
-            minutes_recovered_per_turn: 1_440,
         };
         let value = serde_json::to_value(WorkerOperation::CreateGame {
             game_id: "00000000-0000-4000-8000-000000000001",
@@ -129,6 +125,7 @@ mod tests {
         assert_eq!(value["gameId"], "00000000-0000-4000-8000-000000000001");
         assert_eq!(value["serverSeed"], 42);
         assert_eq!(value["setup"]["majorCivilizations"], 4);
+        assert_eq!(value["setup"]["ownerCivilizationId"], "Rome");
         assert_eq!(value["setup"]["mapType"], "pangaea");
         assert!(value["setup"].get("rulesetManifestHash").is_none());
         assert!(value.get("snapshot").is_none());

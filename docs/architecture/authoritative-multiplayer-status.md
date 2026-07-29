@@ -1,5 +1,32 @@
 # Authoritative multiplayer v3 status
 
+## V3 lobby client candidate
+
+Built and qualified on 2026-07-29:
+
+- `:server:authoritativeWorkerDist`, `:android:assembleRelease`,
+  `:android:bundleRelease`, and `:desktop:dist` passed together.
+  `:desktop:packrWindows64` then produced the self-contained portable archive.
+  Its first invocation failed because the ignored Packr/JDK inputs were absent
+  from the repository root; the already cached, reviewed packaging inputs were
+  copied into their documented locations, the exact task passed, and the
+  temporary root copies were removed.
+- The non-debuggable release APK was aligned and signed with the repository's
+  testing certificate. Signature schemes v1, v2, and v3 verify. It installed on
+  the connected emulator, and the manifest-resolved
+  `com.unciv.app/.AndroidLauncher` became the resumed activity with a live app
+  process. This testing certificate remains unsuitable for Google Play.
+- The portable archive contains `Unciv.exe` and a private runtime. It was
+  extracted into a clean directory and remained alive through a 12-second
+  smoke launch.
+- Candidate artifacts are in `deploy/Unciv-V3-lobby-20260729`. SHA-256 values:
+  `3486AD67D1F87737262F50771B657727E4B7F497BAAC1B4418A97F5FF0DC6CC2`
+  (APK),
+  `821535CCA7DFB3043E0D0A12C188CC3F02EB60782915219FD081376D96BC7C6D`
+  (portable Windows ZIP), and
+  `E1B14AAF1BD94D857915D6C233F14F9D51811C5D9E262FBCBE363711FBD6A45B`
+  (desktop JAR).
+
 ## Direct-install Android and portable Windows match clients
 
 Qualified on 2026-07-29:
@@ -7943,6 +7970,66 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
+
+## V3-only production lobby and unlimited-turn milestone
+
+Implemented on 2026-07-29:
+
+- Production multiplayer now exposes only API V3 server/account state, an open
+  lobby browser, authoritative active/closed games, friends, chat, rewind, and
+  owner administration. Legacy file-server credentials, UUID entry, skip-turn
+  clocks, total-time clocks, recovered-time controls, and timed
+  force-resignation are absent from this UI.
+- Match creation reuses the bounded normal setup screen and adds a name, human
+  slots, and optional password. Revision zero remains private pregame state:
+  projections and ordinary gameplay commands are rejected until the owner
+  starts an exactly full, unanimously ready lobby.
+- PostgreSQL migration 30 adds server-owned lobby metadata/readiness and game
+  display names. Passwords are Argon2 verifiers. Join, readiness, and start are
+  authorization-, capacity-, unique-faction-, idempotency-, and
+  compare-and-swap-bound. The private Kotlin worker returns the actual
+  canonical major-faction pool; each joining account chooses one available
+  faction from that pool.
+- Public protocol version 4 carries the new lobby/setup contract while the
+  private worker protocol remains version 3. Existing verified snapshot bytes
+  are unchanged and migration 30 relabels their protocol metadata from 3 to 4.
+- V3 human turns are unlimited. Canonical compatibility timer fields use
+  unbounded values internally, but public setup and production UI do not expose
+  timers, and the worker rejects timed force resignation.
+- Android-to-desktop account handoff qualification now creates and starts a
+  real two-human lobby, restores the same owner account on desktop without a
+  save, commits a resignation, runs the intervening AI in the packaged server
+  worker, and hands the turn to the second human.
+
+Failure repair:
+
+1. The first broad Kotlin run exposed stale setup fixtures that still expected
+   random owner assignment and timers. Focused reproduction localized the
+   mismatch to setup tests and worker parity fixtures; they were updated to the
+   closed chosen-owner/unlimited contract, after which focused and complete
+   server/core suites passed.
+2. The first account-handoff run returned `503 game_unavailable`: revision-zero
+   snapshots were still labelled public protocol 3. Migration 30 now performs
+   the representation-preserving metadata transition and the next run reached
+   lobby join.
+3. That run rejected a client-hinted faction which was not present in the
+   generated canonical match. The bounded owner was the worker create response:
+   it now returns the actual ordered major-faction pool, Rust cross-validates
+   the requested owner and capacity, and PostgreSQL stores only that pool.
+4. The next exact run reached started play but resignation returned HTTP 500.
+   PostgreSQL showed the head remained at revision 1; the
+   `game_lobby_readiness` foreign key still referenced the resigning
+   `game_members` row. The canonical commit now removes only the obsolete
+   started-lobby readiness dependency inside the same transaction before
+   membership deletion. Rerunning the same packaged
+   `account_handoff` test passed.
+5. Warnings-as-errors Clippy then identified a `filter(...).next_back()` in the
+   qualification test. It was replaced with the equivalent `rfind`; the exact
+   handoff and final Clippy gates were rerun after that last source edit.
+
+The required two-person release match through an actual Domination result is
+still open in `missing_multiplayer.md`; this automated preflight is strong
+cross-device/server-AI evidence but is not substituted for that human gate.
 
 ## Membership-scoped game chat and completed social/lobby policy
 

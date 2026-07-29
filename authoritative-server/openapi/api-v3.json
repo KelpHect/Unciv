@@ -10692,6 +10692,211 @@
         ]
       }
     },
+    "/api/v3/lobbies": {
+      "get": {
+        "tags": [],
+        "operationId": "list_lobbies",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/lobbies/{game_id}": {
+      "get": {
+        "tags": [],
+        "operationId": "lobby",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbySummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/lobbies/{game_id}/ready": {
+      "put": {
+        "tags": [],
+        "operationId": "set_lobby_ready",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetLobbyReadyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbySummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/lobbies/{game_id}/start": {
+      "post": {
+        "tags": [],
+        "operationId": "start_lobby",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartLobbyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbySummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/notifications": {
       "get": {
         "tags": [],
@@ -11826,12 +12031,35 @@
         "required": [
           "operation_id",
           "ruleset_manifest_hash",
+          "display_name",
+          "human_slots",
+          "available_civilizations",
           "setup"
         ],
         "properties": {
+          "available_civilizations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "human_slots": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
           "operation_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ruleset_manifest_hash": {
             "type": "string"
@@ -11845,6 +12073,7 @@
       "CreateGameSetupRequest": {
         "type": "object",
         "required": [
+          "owner_civilization_id",
           "difficulty",
           "speed",
           "starting_era",
@@ -11867,10 +12096,7 @@
           "strategic_balance",
           "legendary_start",
           "no_ruins",
-          "no_natural_wonders",
-          "minutes_until_skip_turn",
-          "minutes_until_force_resign",
-          "minutes_recovered_per_turn"
+          "no_natural_wonders"
         ],
         "properties": {
           "barbarians": {
@@ -11912,21 +12138,6 @@
             "format": "int32",
             "minimum": 0
           },
-          "minutes_recovered_per_turn": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "minutes_until_force_resign": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "minutes_until_skip_turn": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
           "no_city_razing": {
             "type": "boolean"
           },
@@ -11944,6 +12155,9 @@
           },
           "one_city_challenge": {
             "type": "boolean"
+          },
+          "owner_civilization_id": {
+            "type": "string"
           },
           "shuffle_player_order": {
             "type": "boolean"
@@ -12519,6 +12733,7 @@
         "type": "object",
         "required": [
           "game_id",
+          "display_name",
           "committed_revision",
           "canonical_state_hash",
           "role",
@@ -12542,6 +12757,9 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "display_name": {
+            "type": "string"
           },
           "game_id": {
             "type": "string",
@@ -12669,9 +12887,13 @@
         "type": "object",
         "required": [
           "command_id",
-          "expected_revision"
+          "expected_revision",
+          "civilization_id"
         ],
         "properties": {
+          "civilization_id": {
+            "type": "string"
+          },
           "client_observed_state_hash": {
             "type": [
               "string",
@@ -12686,6 +12908,12 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
@@ -12758,6 +12986,138 @@
           }
         },
         "additionalProperties": false
+      },
+      "LobbyMemberSummary": {
+        "type": "object",
+        "required": [
+          "username",
+          "role",
+          "civilization_id",
+          "ready"
+        ],
+        "properties": {
+          "civilization_id": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "LobbyPage": {
+        "type": "object",
+        "required": [
+          "lobbies"
+        ],
+        "properties": {
+          "lobbies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LobbySummary"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "LobbySummary": {
+        "type": "object",
+        "required": [
+          "game_id",
+          "committed_revision",
+          "canonical_state_hash",
+          "display_name",
+          "owner_username",
+          "ruleset_manifest_hash",
+          "human_slots",
+          "occupied_slots",
+          "password_required",
+          "lobby_revision",
+          "started",
+          "setup",
+          "available_civilizations",
+          "members"
+        ],
+        "properties": {
+          "actor_ready": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "actor_role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "available_civilizations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canonical_state_hash": {
+            "type": "string"
+          },
+          "committed_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "human_slots": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LobbyMemberSummary"
+            }
+          },
+          "occupied_slots": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "owner_username": {
+            "type": "string"
+          },
+          "password_required": {
+            "type": "boolean"
+          },
+          "ruleset_manifest_hash": {
+            "type": "string"
+          },
+          "setup": {},
+          "started": {
+            "type": "boolean"
+          }
+        }
       },
       "LoginResponse": {
         "type": "object",
@@ -16311,6 +16671,24 @@
         },
         "additionalProperties": false
       },
+      "SetLobbyReadyRequest": {
+        "type": "object",
+        "required": [
+          "expected_lobby_revision",
+          "ready"
+        ],
+        "properties": {
+          "expected_lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ready": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "SetManualSpecialistsRequest": {
         "type": "object",
         "required": [
@@ -16787,6 +17165,20 @@
                 "$ref": "#/components/schemas/ProjectedVictory"
               }
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "StartLobbyRequest": {
+        "type": "object",
+        "required": [
+          "expected_lobby_revision"
+        ],
+        "properties": {
+          "expected_lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         },
         "additionalProperties": false

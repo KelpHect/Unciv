@@ -168,6 +168,10 @@ class AuthoritativeMultiplayerSession(
         modNames: Set<String>,
         setup: ApiV3GameSetup,
         operationId: String,
+        displayName: String = "Multiplayer match",
+        humanSlots: Int = 2,
+        password: String? = null,
+        availableCivilizations: List<String> = emptyList(),
     ): AuthoritativeGameCreation {
         requireAuthenticated()
         val parsedOperationId = runCatching { UUID.fromString(operationId) }.getOrNull()
@@ -175,14 +179,67 @@ class AuthoritativeMultiplayerSession(
             "Creation operation ID must be a non-zero UUID"
         }
         val manifest = RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
-        val metadata = transport.createGame(operationId, manifest.manifestHash, setup)
+        val metadata = transport.createGame(
+            operationId,
+            manifest.manifestHash,
+            displayName,
+            humanSlots,
+            password,
+            availableCivilizations,
+            setup,
+        )
         check(metadata.committedRevision == 0L) {
             "A newly created API v3 game did not return revision zero"
         }
-        val openedBus = mutex.withLock {
-            if (metadata.gameId in openedGameIds) games[metadata.gameId] else null
-        }
-        return AuthoritativeGameCreation(metadata, openedBus ?: openGame(metadata.gameId))
+        // Pregame canonical state is intentionally not projectable. The owner
+        // reaches it through the lobby until every human slot is ready.
+        return AuthoritativeGameCreation(metadata)
+    }
+
+    suspend fun listOpenLobbies(): ApiV3LobbyPage {
+        requireAuthenticated()
+        return transport.listLobbies()
+    }
+
+    suspend fun lobby(gameId: String): ApiV3Lobby {
+        requireAuthenticated()
+        return transport.lobby(gameId)
+    }
+
+    suspend fun joinLobby(
+        lobby: ApiV3Lobby,
+        civilizationId: String,
+        password: String? = null,
+        commandId: String = UUID.randomUUID().toString(),
+    ): ApiV3CommandAccepted {
+        requireAuthenticated()
+        require(civilizationId.isNotBlank()) { "A civilization must be selected" }
+        return transport.joinGame(
+            lobby.gameId,
+            ApiV3JoinGameRequest(
+                commandId = commandId,
+                expectedRevision = lobby.committedRevision,
+                clientObservedStateHash = lobby.canonicalStateHash,
+                civilizationId = civilizationId,
+                password = password,
+            ),
+        )
+    }
+
+    suspend fun setLobbyReady(lobby: ApiV3Lobby, ready: Boolean): ApiV3Lobby {
+        requireAuthenticated()
+        return transport.setLobbyReady(
+            lobby.gameId,
+            ApiV3SetLobbyReadyRequest(lobby.lobbyRevision, ready),
+        )
+    }
+
+    suspend fun startLobby(lobby: ApiV3Lobby): ApiV3Lobby {
+        requireAuthenticated()
+        return transport.startLobby(
+            lobby.gameId,
+            ApiV3StartLobbyRequest(lobby.lobbyRevision),
+        )
     }
 
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {

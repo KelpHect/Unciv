@@ -270,9 +270,7 @@ fn tiny_setup() -> WorkerGameSetup {
         legendary_start: false,
         no_ruins: true,
         no_natural_wonders: true,
-        minutes_until_skip_turn: 1_440,
-        minutes_until_force_resign: 4_320,
-        minutes_recovered_per_turn: 1_440,
+        owner_civilization_id: "Rome".to_owned(),
     }
 }
 
@@ -306,9 +304,7 @@ fn representative_setup() -> WorkerGameSetup {
         legendary_start: false,
         no_ruins: false,
         no_natural_wonders: false,
-        minutes_until_skip_turn: 1_440,
-        minutes_until_force_resign: 4_320,
-        minutes_recovered_per_turn: 1_440,
+        owner_civilization_id: "Rome".to_owned(),
     }
 }
 

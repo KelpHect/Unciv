@@ -403,13 +403,21 @@ class EngineWorkerProtocolTests {
             2,
             game.civilizations.count { ruleset.nations[it.civName]?.isCityState == true },
         )
+        val joinCivilization = game.civilizations.first {
+            ruleset.nations[it.civName]?.isMajorCiv == true &&
+                it.playerType == com.unciv.logic.civilization.PlayerType.AI &&
+                it.playerId.isEmpty()
+        }.civID
 
         val replayRequest = WorkerRequest(
             protocolVersion = EngineWorkerProtocol.VERSION,
             serverTimeMillis = 1_700_000_060_000L,
             actorId = "account-2",
             rulesetManifest = request.rulesetManifest,
-            operation = WorkerOperation.AssignPlayer(requireNotNull(first.snapshot)),
+            operation = WorkerOperation.AssignPlayer(
+                requireNotNull(first.snapshot),
+                joinCivilization,
+            ),
         )
         val firstReplay = executeInFreshWorker(replayRequest)
         val secondReplay = executeInFreshWorker(replayRequest)
@@ -609,9 +617,7 @@ class EngineWorkerProtocolTests {
                 legendaryStart = false,
                 noRuins = false,
                 noNaturalWonders = false,
-                minutesUntilSkipTurn = 1_440,
-                minutesUntilForceResign = 4_320,
-                minutesRecoveredPerTurn = 1_440,
+                ownerCivilizationId = "Rome",
             )
         }
 

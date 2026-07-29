@@ -26,6 +26,16 @@ interface ApiV3Transport {
         limit: Int = 50,
     ): ApiV3RulesetManifestPage = error("Ruleset manifest discovery is unsupported by this transport")
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
+    suspend fun listLobbies(after: String? = null, limit: Int = 50): ApiV3LobbyPage =
+        error("Lobby discovery is unsupported by this transport")
+    suspend fun lobby(gameId: String): ApiV3Lobby =
+        error("Lobby details are unsupported by this transport")
+    suspend fun setLobbyReady(
+        gameId: String,
+        request: ApiV3SetLobbyReadyRequest,
+    ): ApiV3Lobby = error("Lobby readiness is unsupported by this transport")
+    suspend fun startLobby(gameId: String, request: ApiV3StartLobbyRequest): ApiV3Lobby =
+        error("Lobby start is unsupported by this transport")
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation>
     suspend fun socialGraph(): ApiV3SocialGraph =
         error("The social graph is unsupported by this transport")
@@ -48,6 +58,10 @@ interface ApiV3Transport {
     suspend fun createGame(
         operationId: String,
         rulesetManifestHash: String,
+        displayName: String,
+        humanSlots: Int,
+        password: String?,
+        availableCivilizations: List<String>,
         setup: ApiV3GameSetup,
     ): ApiV3GameMetadata
     suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted

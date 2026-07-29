@@ -7,6 +7,7 @@ use unciv_authoritative_server::worker::{
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CreateGameSetupRequest {
+    owner_civilization_id: String,
     difficulty: String,
     speed: String,
     starting_era: String,
@@ -30,16 +31,18 @@ pub(super) struct CreateGameSetupRequest {
     legendary_start: bool,
     no_ruins: bool,
     no_natural_wonders: bool,
-    minutes_until_skip_turn: u32,
-    minutes_until_force_resign: u32,
-    minutes_recovered_per_turn: u32,
 }
 
 impl CreateGameSetupRequest {
     pub(super) fn validate(mut self) -> Result<WorkerGameSetup, ApiError> {
-        let names_are_bounded = [&self.difficulty, &self.speed, &self.starting_era]
-            .into_iter()
-            .all(|name| bounded_name(name));
+        let names_are_bounded = [
+            &self.owner_civilization_id,
+            &self.difficulty,
+            &self.speed,
+            &self.starting_era,
+        ]
+        .into_iter()
+        .all(|name| bounded_name(name));
         let victories_are_bounded = !self.victory_types.is_empty()
             && self.victory_types.len() <= 16
             && self.victory_types.iter().all(|name| bounded_name(name))
@@ -54,14 +57,12 @@ impl CreateGameSetupRequest {
             || !(2..=16).contains(&self.major_civilizations)
             || self.city_states > 64
             || !(100..=1500).contains(&self.max_turns)
-            || !(5..=10_080).contains(&self.minutes_until_skip_turn)
-            || !(60..=43_200).contains(&self.minutes_until_force_resign)
-            || self.minutes_recovered_per_turn > 10_080
         {
             return Err(ApiError::bad_request("invalid_game_setup"));
         }
         self.victory_types.sort();
         Ok(WorkerGameSetup {
+            owner_civilization_id: self.owner_civilization_id,
             difficulty: self.difficulty,
             speed: self.speed,
             starting_era: self.starting_era,
@@ -85,9 +86,6 @@ impl CreateGameSetupRequest {
             legendary_start: self.legendary_start,
             no_ruins: self.no_ruins,
             no_natural_wonders: self.no_natural_wonders,
-            minutes_until_skip_turn: self.minutes_until_skip_turn,
-            minutes_until_force_resign: self.minutes_until_force_resign,
-            minutes_recovered_per_turn: self.minutes_recovered_per_turn,
         })
     }
 }
@@ -131,6 +129,7 @@ mod tests {
 
     fn valid_setup() -> Value {
         json!({
+            "owner_civilization_id": "Rome",
             "difficulty": "Prince",
             "speed": "Standard",
             "starting_era": "Ancient era",
@@ -153,10 +152,7 @@ mod tests {
             "strategic_balance": false,
             "legendary_start": false,
             "no_ruins": false,
-            "no_natural_wonders": false,
-            "minutes_until_skip_turn": 1440,
-            "minutes_until_force_resign": 4320,
-            "minutes_recovered_per_turn": 1440
+            "no_natural_wonders": false
         })
     }
 }

@@ -75,7 +75,7 @@ data class CommandEnvelope(
     }
 
     companion object {
-        const val CURRENT_PROTOCOL_VERSION = 3
+        const val CURRENT_PROTOCOL_VERSION = 4
     }
 }
 

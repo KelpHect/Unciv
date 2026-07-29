@@ -31,7 +31,59 @@ pub(super) async fn create_game(
     if request.operation_id.is_nil() {
         return Err(ApiError::bad_request("invalid_creation_operation_id"));
     }
+    if request.display_name.trim().is_empty()
+        || request.display_name.len() > 80
+        || request.display_name.chars().any(char::is_control)
+        || !(1..=16).contains(&request.human_slots)
+        || request.available_civilizations.is_empty()
+        || request.available_civilizations.len() > 64
+        || request
+            .available_civilizations
+            .iter()
+            .any(|name| name.is_empty() || name.len() > 128 || name.chars().any(char::is_control))
+    {
+        return Err(ApiError::bad_request("invalid_lobby_configuration"));
+    }
+    if request
+        .password
+        .as_ref()
+        .is_some_and(|password| password.len() < 12 || password.len() > 256)
+    {
+        return Err(ApiError::bad_request("invalid_lobby_password"));
+    }
     let setup = request.setup.validate()?;
+    if request.human_slots > setup.major_civilizations {
+        return Err(ApiError::bad_request(
+            "human_slots_exceed_major_civilizations",
+        ));
+    }
+    let unique_civilizations = request
+        .available_civilizations
+        .iter()
+        .collect::<std::collections::HashSet<_>>();
+    if unique_civilizations.len() != request.available_civilizations.len()
+        || request.available_civilizations.len() < usize::from(request.human_slots)
+        || !unique_civilizations.contains(&setup.owner_civilization_id)
+    {
+        return Err(ApiError::bad_request("invalid_available_civilizations"));
+    }
+    let password_identity = request
+        .password
+        .as_ref()
+        .map(|password| unciv_authoritative_server::state_hash(password.as_bytes()));
+    let password_hash = request
+        .password
+        .as_deref()
+        .map(|password| PasswordService.hash(password))
+        .transpose()
+        .map_err(|_| ApiError::bad_request("invalid_lobby_password"))?;
+    let lobby = unciv_authoritative_server::postgres::LobbyCreateConfiguration {
+        display_name: request.display_name,
+        human_slots: request.human_slots,
+        password_hash,
+        password_identity,
+        available_civilizations: request.available_civilizations,
+    };
     let game_id = state
         .repository
         .create_authoritative_game(
@@ -40,6 +92,7 @@ pub(super) async fn create_game(
             request.operation_id,
             request.ruleset_manifest_hash,
             setup,
+            lobby,
         )
         .await
         .map_err(game_error)?;

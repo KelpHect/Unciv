@@ -80,6 +80,10 @@ pub(super) struct ConfirmPasswordRequest {
 pub(super) struct CreateGameRequest {
     pub(super) operation_id: uuid::Uuid,
     pub(super) ruleset_manifest_hash: String,
+    pub(super) display_name: String,
+    pub(super) human_slots: u8,
+    pub(super) password: Option<String>,
+    pub(super) available_civilizations: Vec<String>,
     pub(super) setup: CreateGameSetupRequest,
 }
 
@@ -129,6 +133,29 @@ pub(super) struct JoinGameRequest {
     pub(super) command_id: uuid::Uuid,
     pub(super) expected_revision: u64,
     pub(super) client_observed_state_hash: Option<String>,
+    pub(super) civilization_id: String,
+    pub(super) password: Option<String>,
+}
+
+#[derive(Deserialize, utoipa::IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub(super) struct ListLobbiesQuery {
+    pub(super) after: Option<String>,
+    pub(super) limit: Option<u32>,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SetLobbyReadyRequest {
+    pub(super) expected_lobby_revision: u64,
+    pub(super) ready: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct StartLobbyRequest {
+    pub(super) expected_lobby_revision: u64,
 }
 
 #[derive(Deserialize, ToSchema)]

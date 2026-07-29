@@ -51,6 +51,33 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun lobbyCommandsPreserveServerRevisionsFactionChoiceAndPassword() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        assertTrue(session.restore())
+
+        val listed = session.listOpenLobbies().lobbies.single()
+        assertEquals("owner", listed.actorRole)
+        session.joinLobby(
+            listed.copy(actorRole = null),
+            "Greece",
+            "correct horse battery staple",
+            "00000000-0000-4000-8000-000000000099",
+        )
+        assertEquals("Greece", transport.lastJoinRequest?.civilizationId)
+        assertEquals("correct horse battery staple", transport.lastJoinRequest?.password)
+        assertEquals(listed.committedRevision, transport.lastJoinRequest?.expectedRevision)
+        assertEquals(listed.canonicalStateHash, transport.lastJoinRequest?.clientObservedStateHash)
+
+        session.setLobbyReady(listed, true)
+        assertEquals(listed.lobbyRevision, transport.lastReadyRequest?.expectedLobbyRevision)
+        assertTrue(transport.lastReadyRequest?.ready == true)
+        session.startLobby(listed)
+        assertEquals(listed.lobbyRevision, transport.lastStartRequest?.expectedLobbyRevision)
+        session.close()
+    }
+
+    @Test
     fun notificationsAreHintsAndReconcileThroughHttpDespiteDuplicatesAndReordering() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -168,7 +195,7 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
-    fun authoritativeCreationResolvesContentSubmitsBoundedSetupAndOpensRevisionZero() = runBlocking {
+    fun authoritativeCreationResolvesContentAndLeavesPregameStateInTheLobby() = runBlocking {
         val transport = FakeTransport().apply {
             restored = true
             current = projection(0, "hash-0")
@@ -217,17 +244,9 @@ class AuthoritativeMultiplayerSessionTests {
             transport.createdGames,
         )
         assertEquals(created.metadata, retried.metadata)
-        assertEquals(created.commandBus, retried.commandBus)
         assertEquals(0, created.metadata.committedRevision)
-        assertTrue(session.isGameOpen(created.metadata.gameId))
-        assertEquals(
-            0,
-            (created.commandBus.state as AuthoritativeSyncState.Synchronized)
-                .current.committedRevision,
-        )
-        assertEquals(1, transport.projectionCalls)
-        session.openGame(created.metadata.gameId)
-        assertEquals(2, transport.projectionCalls)
+        assertFalse(session.isGameOpen(created.metadata.gameId))
+        assertEquals(0, transport.projectionCalls)
         session.close()
     }
 
@@ -1435,7 +1454,7 @@ class AuthoritativeMultiplayerSessionTests {
 
     private fun notification(revision: Long, hash: String) = ApiV3RevisionNotification(
         type = "revision_committed",
-        protocolVersion = 3,
+        protocolVersion = CommandEnvelope.CURRENT_PROTOCOL_VERSION,
         gameId = GAME_ID,
         committedRevision = revision,
         canonicalStateHash = hash,
@@ -1502,7 +1521,7 @@ class AuthoritativeMultiplayerSessionTests {
 
     private inner class FakeTransport : ApiV3Transport {
         var capabilities = ApiV3Capabilities(
-            3,
+            CommandEnvelope.CURRENT_PROTOCOL_VERSION,
             PlayerProjection.CURRENT_PROJECTION_VERSION,
             listOf("end_turn"),
             false,
@@ -1584,6 +1603,9 @@ class AuthoritativeMultiplayerSessionTests {
         val playerInvitationRequests = mutableListOf<Triple<String, String, String>>()
         val joinRequests = mutableListOf<Triple<String, String, Long>>()
         val joinObservedHashes = mutableListOf<String>()
+        var lastJoinRequest: ApiV3JoinGameRequest? = null
+        var lastReadyRequest: ApiV3SetLobbyReadyRequest? = null
+        var lastStartRequest: ApiV3StartLobbyRequest? = null
         val closedGames = mutableListOf<Pair<String, String>>()
         val archivedGames = mutableListOf<Pair<String, String>>()
         var disableFailure: Throwable? = null
@@ -1622,6 +1644,29 @@ class AuthoritativeMultiplayerSessionTests {
                 NEXT_GAME_ID,
             )
         }
+        override suspend fun listLobbies(after: String?, limit: Int) =
+            ApiV3LobbyPage(listOf(lobbyFixture()))
+        override suspend fun lobby(gameId: String) = lobbyFixture()
+        override suspend fun setLobbyReady(
+            gameId: String,
+            request: ApiV3SetLobbyReadyRequest,
+        ): ApiV3Lobby {
+            lastReadyRequest = request
+            return lobbyFixture().copy(
+                lobbyRevision = request.expectedLobbyRevision + 1,
+                actorReady = request.ready,
+            )
+        }
+        override suspend fun startLobby(
+            gameId: String,
+            request: ApiV3StartLobbyRequest,
+        ): ApiV3Lobby {
+            lastStartRequest = request
+            return lobbyFixture().copy(
+                lobbyRevision = request.expectedLobbyRevision + 1,
+                started = true,
+            )
+        }
         override suspend fun listRulesetManifests(
             after: String?,
             limit: Int,
@@ -1636,12 +1681,17 @@ class AuthoritativeMultiplayerSessionTests {
         override suspend fun createGame(
             operationId: String,
             rulesetManifestHash: String,
+            displayName: String,
+            humanSlots: Int,
+            password: String?,
+            availableCivilizations: List<String>,
             setup: ApiV3GameSetup,
         ): ApiV3GameMetadata {
             createdGames += Triple(operationId, rulesetManifestHash, setup)
             return ApiV3GameMetadata(GAME_ID, 0, "hash-0", "owner", "Rome")
         }
         override suspend fun joinGame(gameId: String, request: ApiV3JoinGameRequest): ApiV3CommandAccepted {
+            lastJoinRequest = request
             joinRequests += Triple(gameId, request.commandId, request.expectedRevision)
             joinObservedHashes += request.clientObservedStateHash
             return ApiV3CommandAccepted(
@@ -2540,9 +2590,26 @@ class AuthoritativeMultiplayerSessionTests {
             legendaryStart = false,
             noRuins = false,
             noNaturalWonders = false,
-            minutesUntilSkipTurn = 1_440,
-            minutesUntilForceResign = 4_320,
-            minutesRecoveredPerTurn = 1_440,
+            ownerCivilizationId = "Rome",
+        )
+
+        private fun lobbyFixture() = ApiV3Lobby(
+            gameId = GAME_ID,
+            committedRevision = 7,
+            canonicalStateHash = "hash-7",
+            displayName = "Test lobby",
+            ownerUsername = "owner",
+            rulesetManifestHash = "a".repeat(64),
+            humanSlots = 2,
+            occupiedSlots = 1,
+            passwordRequired = true,
+            lobbyRevision = 3,
+            started = false,
+            actorRole = "owner",
+            actorReady = false,
+            setup = gameSetup(),
+            members = listOf(ApiV3LobbyMember("owner", "owner", "Rome", false)),
+            availableCivilizations = listOf("Rome", "Greece"),
         )
     }
 }

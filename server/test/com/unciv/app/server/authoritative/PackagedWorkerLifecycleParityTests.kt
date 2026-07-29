@@ -72,59 +72,23 @@ class PackagedWorkerLifecycleParityTests {
         assertEquals(3, responses.size)
     }
 
-    @Test(timeout = 300_000)
-    fun timerQualifiedForceResignationIsStableAcrossFreshWorkers() {
-        val turnStart = 1_700_700_200_000L
-        val fixture = fixture("00000000-0000-4000-8000-000000000703", turnStart)
-        val responses = PackagedWorkerParityHarness.assertStableScenario { send ->
-            val results = mutableListOf<WorkerResponse>()
-            val created = send(fixture.createGameRequest(turnStart))
-            results += created
-            val assigned = assignSecondPlayer(send, fixture, created, turnStart + 10_000L)
-            results += assigned
-
-            val ownerCivilizationId = requireNotNull(created.actorCivilizationId)
-            val targetCivilizationId = requireNotNull(assigned.actorCivilizationId)
-            val preparedGame = fixture.decode(assigned.snapshot)
-            val target = preparedGame.getCivilization(targetCivilizationId)
-            preparedGame.currentPlayer = targetCivilizationId
-            preparedGame.currentTurnStartTime = turnStart
-            target.playerMinutesBeforeForceResign = 1
-            val forced = send(
-                fixture.request(
-                    WorkerOperation.ForceResign(
-                        snapshot = fixture.encode(preparedGame),
-                        actorCivilizationId = ownerCivilizationId,
-                    ),
-                    turnStart + 60_000L,
-                ),
-            )
-            results += forced
-
-            assertEquals(targetCivilizationId, forced.actorCivilizationId)
-            val finalGame = fixture.decode(forced.snapshot)
-            val finalTarget = finalGame.getCivilization(targetCivilizationId)
-            assertEquals(PlayerType.AI, finalTarget.playerType)
-            assertEquals("", finalTarget.playerId)
-            assertEquals(ownerCivilizationId, finalGame.currentPlayer)
-            results
-        }
-
-        assertEquals(3, responses.size)
-    }
-
     private fun assignSecondPlayer(
         send: (WorkerRequest) -> WorkerResponse,
         fixture: PackagedWorkerScenarioFixture,
         created: WorkerResponse,
         serverTime: Long,
-    ) = send(
-        fixture.request(
-            WorkerOperation.AssignPlayer(requireNotNull(created.snapshot)),
-            serverTime,
-            secondActorId,
-        ),
-    )
+    ): WorkerResponse {
+        val available = fixture.decode(created.snapshot).civilizations.first {
+            it.isMajorCiv() && it.isAI() && it.playerId.isEmpty()
+        }.civID
+        return send(
+            fixture.request(
+                WorkerOperation.AssignPlayer(requireNotNull(created.snapshot), available),
+                serverTime,
+                secondActorId,
+            ),
+        )
+    }
 
     private fun fixture(gameId: String, seed: Long) = PackagedWorkerScenarioFixture(
         actorId = ownerActorId,

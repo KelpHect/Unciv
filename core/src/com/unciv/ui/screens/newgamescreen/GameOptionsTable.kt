@@ -115,9 +115,8 @@ class GameOptionsTable(
         val checkboxTable = Table().apply { defaults().left().pad(2.5f) }
         val selectBoxTable = Table()
         checkboxTable.addIsOnlineMultiplayerCheckbox()
-        if (gameParameters.isOnlineMultiplayer){
-            if (!usesAuthoritativeCreation())
-                checkboxTable.addAnyoneCanSpectateCheckbox()
+        if (gameParameters.isOnlineMultiplayer && !usesAuthoritativeCreation()) {
+            checkboxTable.addAnyoneCanSpectateCheckbox()
             selectBoxTable.addDurationSelectBox("Time until skip turn:", GameParameters::minutesUntilSkipTurn, 1, 0, 0)
             selectBoxTable.addDurationSelectBox("Total time to play:", GameParameters::minutesUntilForceResign, 3, 0, 0)
             selectBoxTable.addDurationSelectBox("Time recovered per turn:", GameParameters::minutesRecoveredPerTurn, 3, 0, 0)

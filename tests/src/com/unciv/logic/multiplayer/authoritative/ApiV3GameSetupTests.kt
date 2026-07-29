@@ -56,11 +56,12 @@ class ApiV3GameSetupTests {
 
         assertEquals(setup.gameParameters.players.size, mapped.majorCivilizations)
         assertEquals(setup.gameParameters.numberOfCityStates, mapped.cityStates)
+        assertEquals("Rome", mapped.ownerCivilizationId)
     }
 
     @Test
     fun productionMapperRejectsClientOwnedIdentityAndGenerationInputs() {
-        assertRejected { it.gameParameters.players[0].chosenCiv = "Rome" }
+        assertRejected { it.gameParameters.players[0].chosenCiv = Constants.random }
         assertRejected {
             it.gameParameters.players += Player(Constants.random, PlayerType.Human)
         }
@@ -88,5 +89,6 @@ class ApiV3GameSetupTests {
             it.playerType = PlayerType.AI
         }
         gameParameters.players.first().playerType = PlayerType.Human
+        gameParameters.players.first().chosenCiv = "Rome"
     }
 }

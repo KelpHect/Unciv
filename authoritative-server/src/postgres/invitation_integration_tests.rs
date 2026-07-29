@@ -20,7 +20,9 @@ fn join_envelope(game_id: Uuid, command_id: Uuid, revision: u64) -> CommandEnvel
         command_id,
         expected_revision: revision,
         client_observed_state_hash: None,
-        command: GameCommand::JoinGame {},
+        command: GameCommand::JoinGame {
+            civilization_id: "test-civilization".to_owned(),
+        },
     }
 }
 
@@ -85,6 +87,7 @@ async fn owner_invitations_are_retry_safe_discoverable_and_atomically_consumed()
                 proposal(0, b"unauthorized"),
                 Some(NewMemberAssignment {
                     civilization_id: "outsider-civilization".to_owned(),
+                    lobby_join: false,
                 }),
                 None,
             )
@@ -101,6 +104,7 @@ async fn owner_invitations_are_retry_safe_discoverable_and_atomically_consumed()
             proposal(0, b"revision-1"),
             Some(NewMemberAssignment {
                 civilization_id: "first-civilization".to_owned(),
+                lobby_join: false,
             }),
             None,
         )
@@ -165,6 +169,7 @@ async fn owner_invitations_are_retry_safe_discoverable_and_atomically_consumed()
             proposal(1, b"revision-2"),
             Some(NewMemberAssignment {
                 civilization_id: "second-civilization".to_owned(),
+                lobby_join: false,
             }),
             None,
         )

@@ -27,6 +27,14 @@ reverse-proxy/TLS service in front, and enter `https://unciv.example.com`.
 Cloudflare DNS can point that subdomain at the VPS; TLS still terminates at the
 VPS reverse proxy. Never expose port 43170 or PostgreSQL.
 
+After saving the server address, use the production multiplayer screen to
+register or sign in. It lists only authoritative V3 lobbies and account games:
+there are no legacy IDs or file-server credentials. Creating a match opens the
+normal bounded game-setup screen plus match name, human slots, and optional
+password. Every joining human chooses an available faction and marks only
+themselves ready; the owner starts at exact capacity after everyone is ready.
+Human turn time is unlimited.
+
 Back up the named PostgreSQL volume using the documented logical plus WAL/PITR
 procedure. An image update is not accepted until the migration job succeeds,
 `/readyz` is healthy, and the packaged full-match preflight passes against the

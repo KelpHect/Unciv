@@ -18,6 +18,7 @@ class PackagedWorkerCityStateMarriageParityTests {
             serverSeed = 941_278_360L,
             baseName = "Civ V - Gods & Kings",
             cityStates = 1,
+            ownerCivilizationId = "Austria",
         )
         val responses = PackagedWorkerParityHarness.assertStableScenario { send ->
             val results = mutableListOf<WorkerResponse>()

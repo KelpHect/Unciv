@@ -6,16 +6,6 @@ data class OpenedAuthoritativePlayerGame(
     val projection: ApiV3GameProjection,
 )
 
-/**
- * Converts server-created owner metadata and its already-open command bus into
- * the same projection-only opening used by invited players.
- */
-fun AuthoritativeGameCreation.openPlayerGame(): OpenedAuthoritativePlayerGame {
-    val projection = (commandBus.state as? AuthoritativeSyncState.Synchronized)?.current
-        ?: error("New authoritative game did not return a synchronized projection")
-    return openAuthoritativePlayerGame(metadata, projection)
-}
-
 fun openAuthoritativePlayerGame(
     metadata: ApiV3GameMetadata,
     projection: ApiV3GameProjection,

@@ -319,6 +319,7 @@ fn websocket_url(base_url: &str) -> Result<String, String> {
 
 fn load_setup() -> Value {
     json!({
+        "owner_civilization_id": "Rome",
         "difficulty": "Prince",
         "speed": "Standard",
         "starting_era": "Ancient era",
@@ -341,10 +342,7 @@ fn load_setup() -> Value {
         "strategic_balance": false,
         "legendary_start": false,
         "no_ruins": false,
-        "no_natural_wonders": false,
-        "minutes_until_skip_turn": 1440,
-        "minutes_until_force_resign": 4320,
-        "minutes_recovered_per_turn": 1440
+        "no_natural_wonders": false
     })
 }
 

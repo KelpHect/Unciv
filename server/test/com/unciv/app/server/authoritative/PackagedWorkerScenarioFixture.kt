@@ -15,6 +15,7 @@ internal class PackagedWorkerScenarioFixture(
     private val cityStates: Int = 0,
     private val barbarians: BarbarianMode = BarbarianMode.Disabled,
     private val modNames: List<String> = emptyList(),
+    private val ownerCivilizationId: String = "Rome",
 ) {
     val manifest by lazy {
         WorkerRulesetManifest(
@@ -57,9 +58,7 @@ internal class PackagedWorkerScenarioFixture(
                     legendaryStart = false,
                     noRuins = true,
                     noNaturalWonders = true,
-                    minutesUntilSkipTurn = 1_440,
-                    minutesUntilForceResign = 4_320,
-                    minutesRecoveredPerTurn = 1_440,
+                    ownerCivilizationId = ownerCivilizationId,
                 ),
             ),
             serverTime,

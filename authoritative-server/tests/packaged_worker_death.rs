@@ -531,7 +531,12 @@ fn creation_request(operation_id: Uuid, manifest_hash: &str) -> String {
     json!({
         "operation_id": operation_id,
         "ruleset_manifest_hash": manifest_hash,
+        "display_name": "Worker recovery",
+        "human_slots": 2,
+        "password": null,
+        "available_civilizations": ["Rome", "Greece"],
         "setup": {
+            "owner_civilization_id": "Rome",
             "difficulty": "Prince",
             "speed": "Standard",
             "starting_era": "Ancient era",
@@ -554,10 +559,7 @@ fn creation_request(operation_id: Uuid, manifest_hash: &str) -> String {
             "strategic_balance": false,
             "legendary_start": false,
             "no_ruins": false,
-            "no_natural_wonders": false,
-            "minutes_until_skip_turn": 1440,
-            "minutes_until_force_resign": 4320,
-            "minutes_recovered_per_turn": 1440
+            "no_natural_wonders": false
         }
     })
     .to_string()

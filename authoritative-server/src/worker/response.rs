@@ -18,6 +18,7 @@ pub(super) struct WorkerResponse {
     pub(super) snapshot: Option<String>,
     pub(super) canonical_state_hash: Option<String>,
     pub(super) actor_civilization_id: Option<String>,
+    pub(super) available_civilization_ids: Option<Vec<String>>,
     pub(super) legacy_import: Option<super::LegacyImportMetadata>,
     pub(super) player_projection: Option<serde_json::Value>,
     pub(super) spectator_projection: Option<serde_json::Value>,
@@ -29,6 +30,7 @@ pub(super) struct WorkerResponse {
 pub struct CreatedGame {
     pub proposal: CommitProposal,
     pub owner_civilization_id: String,
+    pub available_civilization_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

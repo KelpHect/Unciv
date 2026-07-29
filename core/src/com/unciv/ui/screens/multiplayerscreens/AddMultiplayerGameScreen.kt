@@ -63,7 +63,6 @@ class AddMultiplayerGameScreen(multiplayerScreen: MultiplayerScreen) : PickerScr
                     launchOnGLThread {
                         popup.close()
                         game.popScreen()
-                        multiplayerScreen.gameList.update()
                     }
                 } catch (ex: Exception) {
                     val (message) = LoadGameScreen.getLoadExceptionMessage(ex)

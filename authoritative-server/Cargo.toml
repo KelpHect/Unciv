@@ -5,6 +5,11 @@ edition = "2024"
 license = "MPL-2.0"
 publish = false
 
+[lints.rust]
+# MSVC reports the import-library creation status on stdout. Rust 1.97
+# classifies that localized, successful linker status as a warning.
+linker_messages = "allow"
+
 [dependencies]
 argon2 = "0.5.3"
 axum = { version = "0.8.9", features = ["ws"] }

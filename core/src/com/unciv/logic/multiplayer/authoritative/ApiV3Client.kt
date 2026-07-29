@@ -252,13 +252,55 @@ class ApiV3Client(
     override suspend fun createGame(
         operationId: String,
         rulesetManifestHash: String,
+        displayName: String,
+        humanSlots: Int,
+        password: String?,
+        availableCivilizations: List<String>,
         setup: ApiV3GameSetup,
     ): ApiV3GameMetadata =
         decode(client.post("api/v3/games") {
             authenticate()
             contentType(ContentType.Application.Json)
-            setBody(ApiV3CreateGameRequest(operationId, rulesetManifestHash, setup))
+            setBody(
+                ApiV3CreateGameRequest(
+                    operationId = operationId,
+                    rulesetManifestHash = rulesetManifestHash,
+                    setup = setup,
+                    displayName = displayName,
+                    humanSlots = humanSlots,
+                    password = password,
+                    availableCivilizations = availableCivilizations,
+                ),
+            )
         })
+
+    override suspend fun listLobbies(after: String?, limit: Int): ApiV3LobbyPage =
+        decode(client.get("api/v3/lobbies") {
+            authenticate()
+            parameter("limit", limit)
+            after?.let { parameter("after", it) }
+        })
+
+    override suspend fun lobby(gameId: String): ApiV3Lobby =
+        decode(client.get("api/v3/lobbies/$gameId") { authenticate() })
+
+    override suspend fun setLobbyReady(
+        gameId: String,
+        request: ApiV3SetLobbyReadyRequest,
+    ): ApiV3Lobby = decode(client.put("api/v3/lobbies/$gameId/ready") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun startLobby(
+        gameId: String,
+        request: ApiV3StartLobbyRequest,
+    ): ApiV3Lobby = decode(client.post("api/v3/lobbies/$gameId/start") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
 
     override suspend fun joinGame(
         gameId: String,

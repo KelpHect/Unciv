@@ -17,10 +17,11 @@ const WORKER_SECRET_HEX: &str = "11111111111111111111111111111111111111111111111
 ///
 /// The test deliberately uses three independent bearer sessions: an Android-labelled
 /// owner session, a freshly restored desktop session for that same account, and a
-/// second human account. The owner creates a three-major game, the friend joins,
-/// the desktop session reopens the exact player projection without local state, and
-/// then resigns the current civilization. The packaged Kotlin worker must run the
-/// remaining server AI turn and hand control to the second human.
+/// second human account. The owner creates a three-major lobby, the friend chooses
+/// a faction, both become ready, and the owner starts it. The desktop session then
+/// reopens the exact player projection without local state and resigns the current
+/// civilization. The packaged Kotlin worker must run the intervening server AI turn
+/// and hand control to the second human.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires UNCIV_V3_DATABASE_URL and the packaged Kotlin worker jar"]
 async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advances() {
@@ -74,21 +75,21 @@ async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advan
     .await;
     let game_id = created["game_id"].as_str().unwrap();
     assert_eq!(created["committed_revision"], 0);
-
-    let invitation_id = Uuid::new_v4();
-    expect_status(
+    let lobby = send_json(
         client
-            .put(format!(
-                "{base_url}/api/v3/games/{game_id}/player-invitations"
-            ))
-            .bearer_auth(&android_session.token)
-            .json(&json!({
-                "invitation_id": invitation_id,
-                "username": "handoff-friend",
-            })),
-        StatusCode::NO_CONTENT,
+            .get(format!("{base_url}/api/v3/lobbies/{game_id}"))
+            .bearer_auth(&friend_session.token),
+        StatusCode::OK,
     )
     .await;
+    let friend_civilization = lobby["available_civilizations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_str)
+        .rfind(|civilization| *civilization != "Rome")
+        .expect("the server-created game must expose a non-owner faction");
+
     let joined = send_json(
         client
             .post(format!("{base_url}/api/v3/games/{game_id}/join"))
@@ -97,11 +98,40 @@ async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advan
                 "command_id": Uuid::new_v4(),
                 "expected_revision": 0,
                 "client_observed_state_hash": created["canonical_state_hash"],
+                "civilization_id": friend_civilization,
+                "password": null,
             })),
         StatusCode::OK,
     )
     .await;
     assert_eq!(joined["committed_revision"], 1);
+    let owner_ready = send_json(
+        client
+            .put(format!("{base_url}/api/v3/lobbies/{game_id}/ready"))
+            .bearer_auth(&android_session.token)
+            .json(&json!({"expected_lobby_revision": 1, "ready": true})),
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(owner_ready["lobby_revision"], 2);
+    let friend_ready = send_json(
+        client
+            .put(format!("{base_url}/api/v3/lobbies/{game_id}/ready"))
+            .bearer_auth(&friend_session.token)
+            .json(&json!({"expected_lobby_revision": 2, "ready": true})),
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(friend_ready["lobby_revision"], 3);
+    let started = send_json(
+        client
+            .post(format!("{base_url}/api/v3/lobbies/{game_id}/start"))
+            .bearer_auth(&android_session.token)
+            .json(&json!({"expected_lobby_revision": 3})),
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(started["started"], true);
 
     let android_projection = projection(&client, &base_url, game_id, &android_session.token).await;
     let desktop_projection = projection(&client, &base_url, game_id, &desktop_session.token).await;
@@ -170,18 +200,16 @@ async fn send_json(request: reqwest::RequestBuilder, expected: StatusCode) -> Va
     serde_json::from_str(&body).unwrap()
 }
 
-async fn expect_status(request: reqwest::RequestBuilder, expected: StatusCode) {
-    let response = request.send().await.unwrap();
-    let status = response.status();
-    let body = response.text().await.unwrap();
-    assert_eq!(status, expected, "unexpected response {status}: {body}");
-}
-
 fn creation_request(manifest_hash: &str) -> Value {
     json!({
         "operation_id": Uuid::new_v4(),
         "ruleset_manifest_hash": manifest_hash,
+        "display_name": "Account handoff",
+        "human_slots": 2,
+        "password": null,
+        "available_civilizations": ["Rome", "Greece", "Egypt"],
         "setup": {
+            "owner_civilization_id": "Rome",
             "difficulty": "Prince",
             "speed": "Quick",
             "starting_era": "Ancient era",
@@ -204,10 +232,7 @@ fn creation_request(manifest_hash: &str) -> Value {
             "strategic_balance": false,
             "legendary_start": false,
             "no_ruins": true,
-            "no_natural_wonders": true,
-            "minutes_until_skip_turn": 1440,
-            "minutes_until_force_resign": 4320,
-            "minutes_recovered_per_turn": 1440
+            "no_natural_wonders": true
         }
     })
 }
@@ -306,7 +331,7 @@ fn spawn_api(
             .env("UNCIV_V3_UNPACKAGED_DEV", "1")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::inherit())
             .spawn()
             .unwrap(),
     )

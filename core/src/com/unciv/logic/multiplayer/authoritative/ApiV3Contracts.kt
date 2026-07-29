@@ -59,6 +59,10 @@ data class ApiV3CreateGameRequest(
     @SerialName("operation_id") val operationId: String,
     @SerialName("ruleset_manifest_hash") val rulesetManifestHash: String,
     val setup: ApiV3GameSetup,
+    @SerialName("display_name") val displayName: String = "Multiplayer match",
+    @SerialName("human_slots") val humanSlots: Int = 2,
+    val password: String? = null,
+    @SerialName("available_civilizations") val availableCivilizations: List<String> = emptyList(),
 )
 
 @Serializable
@@ -80,12 +84,58 @@ data class ApiV3GameSummary(
     @SerialName("civilization_id") val civilizationId: String? = null,
     val available: Boolean,
     @SerialName("lifecycle_status") val lifecycleStatus: String = "active",
+    @SerialName("display_name") val displayName: String = "Multiplayer match",
 )
 
 @Serializable
 data class ApiV3GamePage(
     val games: List<ApiV3GameSummary>,
     @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class ApiV3LobbyMember(
+    val username: String,
+    val role: String,
+    @SerialName("civilization_id") val civilizationId: String = "",
+    val ready: Boolean,
+)
+
+@Serializable
+data class ApiV3Lobby(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("owner_username") val ownerUsername: String,
+    @SerialName("ruleset_manifest_hash") val rulesetManifestHash: String,
+    @SerialName("human_slots") val humanSlots: Int,
+    @SerialName("occupied_slots") val occupiedSlots: Int,
+    @SerialName("password_required") val passwordRequired: Boolean,
+    @SerialName("lobby_revision") val lobbyRevision: Long,
+    val started: Boolean,
+    @SerialName("actor_role") val actorRole: String? = null,
+    @SerialName("actor_ready") val actorReady: Boolean? = null,
+    val setup: ApiV3GameSetup,
+    val members: List<ApiV3LobbyMember>,
+    @SerialName("available_civilizations") val availableCivilizations: List<String>,
+)
+
+@Serializable
+data class ApiV3LobbyPage(
+    val lobbies: List<ApiV3Lobby>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class ApiV3SetLobbyReadyRequest(
+    @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,
+    val ready: Boolean,
+)
+
+@Serializable
+data class ApiV3StartLobbyRequest(
+    @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,
 )
 
 @Serializable
@@ -152,6 +202,8 @@ data class ApiV3JoinGameRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,
     @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+    @SerialName("civilization_id") val civilizationId: String = "",
+    val password: String? = null,
 )
 
 @Serializable

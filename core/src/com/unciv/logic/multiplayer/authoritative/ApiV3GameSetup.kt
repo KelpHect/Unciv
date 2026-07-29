@@ -61,6 +61,7 @@ enum class ApiV3BarbarianMode {
 
 @Serializable
 data class ApiV3GameSetup(
+    @SerialName("owner_civilization_id") val ownerCivilizationId: String,
     val difficulty: String,
     val speed: String,
     @SerialName("starting_era") val startingEra: String,
@@ -84,9 +85,6 @@ data class ApiV3GameSetup(
     @SerialName("legendary_start") val legendaryStart: Boolean,
     @SerialName("no_ruins") val noRuins: Boolean,
     @SerialName("no_natural_wonders") val noNaturalWonders: Boolean,
-    @SerialName("minutes_until_skip_turn") val minutesUntilSkipTurn: Int,
-    @SerialName("minutes_until_force_resign") val minutesUntilForceResign: Int,
-    @SerialName("minutes_recovered_per_turn") val minutesRecoveredPerTurn: Int,
 ) {
     companion object {
         fun from(setup: GameSetupInfo): ApiV3GameSetup {
@@ -99,13 +97,14 @@ data class ApiV3GameSetup(
                 "API v3 setup currently supports generated maps only"
             }
             require(game.players.count { it.playerType == PlayerType.Human } == 1) {
-                "API v3 creates one authenticated owner; invite other players after creation"
+                "API v3 creates one authenticated owner; other players join the server lobby"
             }
             require(game.players.none { it.chosenCiv == Constants.spectator }) {
                 "API v3 spectators are invited after game creation"
             }
-            require(game.players.all { it.chosenCiv == Constants.random }) {
-                "API v3 assigns civilizations on the server"
+            val owner = game.players.single { it.playerType == PlayerType.Human }
+            require(owner.chosenCiv != Constants.random && owner.chosenCiv != Constants.spectator) {
+                "Choose your civilization before creating the V3 lobby"
             }
             require(!game.enableRandomNationsPool && game.randomNationsPool.isEmpty()) {
                 "API v3 does not accept a client-selected nation pool"
@@ -132,6 +131,7 @@ data class ApiV3GameSetup(
                 "API v3 does not accept client-authored advanced map generation values"
             }
             return ApiV3GameSetup(
+                ownerCivilizationId = owner.chosenCiv,
                 difficulty = game.difficulty,
                 speed = game.speed,
                 startingEra = game.startingEra,
@@ -159,9 +159,6 @@ data class ApiV3GameSetup(
                 legendaryStart = map.legendaryStart,
                 noRuins = map.noRuins,
                 noNaturalWonders = map.noNaturalWonders,
-                minutesUntilSkipTurn = game.minutesUntilSkipTurn,
-                minutesUntilForceResign = game.minutesUntilForceResign,
-                minutesRecoveredPerTurn = game.minutesRecoveredPerTurn,
             )
         }
     }

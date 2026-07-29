@@ -271,6 +271,17 @@ tokens and gameplay metadata can be intercepted. Production hostnames remain
 HTTPS-only, and the VPS Compose guidance binds the API to loopback behind TLS
 by default while keeping PostgreSQL and the Kotlin worker unexposed.
 
+Pregame lobbies are non-canonical but remain authorization-sensitive. The
+server stores only an Argon2 password verifier, never returns it, and
+transactionally enforces capacity, one faction per human, per-account
+readiness, stale lobby revisions, and owner-only start. The faction list comes
+from the private worker's created canonical game rather than trusting the
+client's ruleset inventory. Gameplay projections and ordinary commands are
+closed until exact human capacity and unanimous readiness have been satisfied.
+Lobby join is still a typed canonical worker operation, so accepting a lobby
+entry cannot patch or replace a save. Timed resignation is disabled; a client
+cannot manufacture a timeout to remove another human.
+
 ### Security validation priorities
 
 The highest-value adversarial tests are: cross-account/cross-civilization command attempts; idempotency-key reuse with changed content; multi-replica revision races; sentinel hidden-state projection tests; worker frame, timeout, crash and resource-exhaustion tests; archive traversal and decompression bombs; legacy/v3 namespace isolation; token/audit/log leakage searches; backup restore and rollback drills; and sustained HTTP/WebSocket/load tests against bounded resources.

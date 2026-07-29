@@ -59,6 +59,7 @@ pub struct NewGame {
 
 struct NewMemberAssignment {
     civilization_id: String,
+    lobby_join: bool,
 }
 
 enum MembershipRemoval {
@@ -79,6 +80,7 @@ pub struct GameMetadata {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GameSummary {
     pub game_id: Uuid,
+    pub display_name: String,
     pub committed_revision: u64,
     pub canonical_state_hash: String,
     pub role: String,
@@ -90,6 +92,40 @@ pub struct GameSummary {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct GamePage {
     pub games: Vec<GameSummary>,
+    pub next_cursor: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct LobbyMemberSummary {
+    pub username: String,
+    pub role: String,
+    pub civilization_id: String,
+    pub ready: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct LobbySummary {
+    pub game_id: Uuid,
+    pub committed_revision: u64,
+    pub canonical_state_hash: String,
+    pub display_name: String,
+    pub owner_username: String,
+    pub ruleset_manifest_hash: String,
+    pub human_slots: u8,
+    pub occupied_slots: u8,
+    pub password_required: bool,
+    pub lobby_revision: u64,
+    pub started: bool,
+    pub actor_role: Option<String>,
+    pub actor_ready: Option<bool>,
+    pub setup: serde_json::Value,
+    pub available_civilizations: Vec<String>,
+    pub members: Vec<LobbyMemberSummary>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct LobbyPage {
+    pub lobbies: Vec<LobbySummary>,
     pub next_cursor: Option<Uuid>,
 }
 
@@ -188,6 +224,7 @@ mod instant_improvements;
 mod invitations;
 mod legacy_import;
 mod lifecycle;
+mod lobbies;
 mod major_diplomacy;
 mod manifests;
 mod outbox;
@@ -221,6 +258,7 @@ pub use legacy_import::{
     LegacyImportOutcome, LegacyImportProjectionEvidence, LegacyImportProjectionReport,
     LegacyImportRole, legacy_import_game_id,
 };
+pub use lobbies::LobbyCreateConfiguration;
 pub use manifests::{PublicRulesetIdentity, RulesetManifestPage, RulesetManifestSummary};
 pub use outbox::{
     OutboxCompactionReport, OutboxHealthReport, OutboxRequeueReport, OutboxRetryDisposition,
@@ -486,10 +524,46 @@ impl PostgresGameRepository {
 
         let mut consumed_invitation_id: Option<Uuid> = None;
         if let Some(assignment) = new_member {
-            if !matches!(&envelope.command, crate::GameCommand::JoinGame {}) {
+            if !matches!(&envelope.command, crate::GameCommand::JoinGame { .. }) {
                 return Err(CommitError::InvalidCommand);
             }
-            consumed_invitation_id = sqlx::query_scalar(
+            if assignment.lobby_join {
+                let lobby = sqlx::query(
+                    "SELECT human_slots FROM game_lobbies
+                     WHERE game_id=$1 AND started_at IS NULL AND closed_at IS NULL
+                     FOR UPDATE",
+                )
+                .bind(envelope.game_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?
+                .ok_or(CommitError::InvalidCommand)?;
+                let occupied: i64 = sqlx::query_scalar(
+                    "SELECT count(*) FROM game_members
+                     WHERE game_id=$1 AND role IN ('owner', 'player')",
+                )
+                .bind(envelope.game_id)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?;
+                if occupied >= i64::from(lobby.get::<i16, _>("human_slots")) {
+                    return Err(CommitError::InvalidCommand);
+                }
+                let civilization_taken: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM game_members
+                     WHERE game_id=$1 AND civilization_id=$2
+                       AND role IN ('owner', 'player'))",
+                )
+                .bind(envelope.game_id)
+                .bind(&assignment.civilization_id)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?;
+                if civilization_taken {
+                    return Err(CommitError::InvalidCommand);
+                }
+            } else {
+                consumed_invitation_id = sqlx::query_scalar(
                 "SELECT invitation_id FROM game_player_invitations WHERE game_id=$1 AND invited_account_id=$2 AND consumed_at IS NULL FOR UPDATE",
             )
             .bind(envelope.game_id)
@@ -497,8 +571,9 @@ impl PostgresGameRepository {
             .fetch_optional(&mut *tx)
             .await
             .map_err(CommitError::storage)?;
-            if consumed_invitation_id.is_none() {
-                return Err(CommitError::Unauthorized);
+                if consumed_invitation_id.is_none() {
+                    return Err(CommitError::Unauthorized);
+                }
             }
             let membership_exists: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM game_members WHERE game_id = $1 AND account_id = $2)",
@@ -516,10 +591,29 @@ impl PostgresGameRepository {
             )
             .bind(envelope.game_id)
             .bind(actor_account_id)
-            .bind(assignment.civilization_id)
+            .bind(&assignment.civilization_id)
             .execute(&mut *tx)
             .await
             .map_err(CommitError::storage)?;
+            if assignment.lobby_join {
+                sqlx::query(
+                    "INSERT INTO game_lobby_readiness (game_id, account_id, ready)
+                     VALUES ($1, $2, FALSE)",
+                )
+                .bind(envelope.game_id)
+                .bind(actor_account_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?;
+                sqlx::query(
+                    "UPDATE game_lobbies
+                     SET lobby_revision=lobby_revision+1 WHERE game_id=$1",
+                )
+                .bind(envelope.game_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(CommitError::storage)?;
+            }
         } else {
             let role: Option<String> = sqlx::query_scalar(
                 "SELECT role FROM game_members WHERE game_id = $1 AND account_id = $2",
@@ -616,6 +710,38 @@ impl PostgresGameRepository {
             .await
             .map_err(CommitError::storage)?;
         if let Some(removal) = membership_removal {
+            // Readiness is only meaningful before play. Once a lobby has
+            // started, remove its dependent row before removing the durable
+            // game membership so the lobby FK cannot turn a valid resignation
+            // or owner kick into a storage failure.
+            sqlx::query(
+                "DELETE FROM game_lobby_readiness
+                 WHERE game_id=$1
+                   AND account_id IN (
+                       SELECT account_id FROM game_members
+                       WHERE game_id=$1
+                         AND (
+                             ($2::uuid IS NOT NULL AND account_id=$2)
+                             OR ($3::text IS NOT NULL AND civilization_id=$3)
+                         )
+                   )
+                   AND EXISTS (
+                       SELECT 1 FROM game_lobbies
+                       WHERE game_id=$1 AND started_at IS NOT NULL
+                   )",
+            )
+            .bind(envelope.game_id)
+            .bind(match &removal {
+                MembershipRemoval::Actor => Some(actor_account_id),
+                MembershipRemoval::Civilization(_) => None,
+            })
+            .bind(match &removal {
+                MembershipRemoval::Actor => None,
+                MembershipRemoval::Civilization(civilization_id) => Some(civilization_id.as_str()),
+            })
+            .execute(&mut *tx)
+            .await
+            .map_err(CommitError::storage)?;
             let result = match removal {
                 MembershipRemoval::Actor
                     if matches!(&envelope.command, crate::GameCommand::Resign {}) =>

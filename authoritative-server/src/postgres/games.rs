@@ -73,7 +73,20 @@ impl PostgresGameRepository {
         }
         let fetch_limit = i64::from(limit) + 1;
         let rows = sqlx::query(
-            "SELECT g.id AS game_id, g.head_revision, r.canonical_state_hash, gm.role, gm.civilization_id, g.lifecycle_status, (g.unavailable_at IS NULL AND g.lifecycle_status <> 'archived') AS available FROM game_members gm JOIN games g ON g.id=gm.game_id JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision WHERE gm.account_id=$1 AND ($2::uuid IS NULL OR g.id>$2) ORDER BY g.id LIMIT $3",
+            "SELECT g.id AS game_id, g.display_name, g.head_revision, r.canonical_state_hash,
+                    gm.role, gm.civilization_id, g.lifecycle_status,
+                    (
+                        g.unavailable_at IS NULL
+                        AND g.lifecycle_status <> 'archived'
+                        AND (l.game_id IS NULL OR l.started_at IS NOT NULL)
+                    ) AS available
+             FROM game_members gm
+             JOIN games g ON g.id=gm.game_id
+             JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
+             LEFT JOIN game_lobbies l ON l.game_id=g.id
+             WHERE gm.account_id=$1 AND ($2::uuid IS NULL OR g.id>$2)
+             ORDER BY g.id
+             LIMIT $3",
         )
         .bind(actor_account_id)
         .bind(after)
@@ -87,6 +100,7 @@ impl PostgresGameRepository {
             .take(limit as usize)
             .map(|row| GameSummary {
                 game_id: row.get("game_id"),
+                display_name: row.get("display_name"),
                 committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
                     .expect("revision is non-negative"),
                 canonical_state_hash: row.get("canonical_state_hash"),
@@ -212,6 +226,9 @@ impl PostgresGameRepository {
         game_id: Uuid,
         row: PgRow,
     ) -> Result<GameProjection, CommitError> {
+        if !self.lobby_started(game_id).await? {
+            return Err(CommitError::InvalidCommand);
+        }
         if row.get::<String, _>("lifecycle_status") == "archived" {
             return Err(CommitError::InvalidCommand);
         }

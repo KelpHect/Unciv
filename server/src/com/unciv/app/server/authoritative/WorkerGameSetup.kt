@@ -62,6 +62,7 @@ enum class BarbarianMode {
 
 @Serializable
 data class WorkerGameSetup(
+    val ownerCivilizationId: String,
     val difficulty: String,
     val speed: String,
     val startingEra: String,
@@ -85,9 +86,6 @@ data class WorkerGameSetup(
     val legendaryStart: Boolean,
     val noRuins: Boolean,
     val noNaturalWonders: Boolean,
-    val minutesUntilSkipTurn: Int,
-    val minutesUntilForceResign: Int,
-    val minutesRecoveredPerTurn: Int,
 ) {
     fun materialize(
         manifest: WorkerRulesetManifest,
@@ -98,9 +96,6 @@ data class WorkerGameSetup(
         require(majorCivilizations in 2..16) { "Major civilization count is outside server bounds" }
         require(cityStates in 0..64) { "City-state count is outside server bounds" }
         require(maxTurns in 100..1500) { "Maximum turns is outside server bounds" }
-        require(minutesUntilSkipTurn in 5..10_080) { "Skip-turn timer is outside server bounds" }
-        require(minutesUntilForceResign in 60..43_200) { "Force-resign timer is outside server bounds" }
-        require(minutesRecoveredPerTurn in 0..10_080) { "Recovered-turn timer is outside server bounds" }
         require(victoryTypes.isNotEmpty() && victoryTypes.size <= 16) {
             "Victory selection is outside server bounds"
         }
@@ -122,6 +117,10 @@ data class WorkerGameSetup(
         require(cityStates <= ruleset.nations.values.count { it.isCityState }) {
             "The pinned ruleset has too few city-states"
         }
+        val ownerNation = ruleset.nations[ownerCivilizationId]
+        require(ownerNation?.isMajorCiv == true && ownerCivilizationId != Constants.spectator) {
+            "The selected owner civilization is unavailable in the pinned ruleset"
+        }
 
         return GameSetupInfo().apply {
             gameParameters.difficulty = difficulty
@@ -129,7 +128,7 @@ data class WorkerGameSetup(
             gameParameters.startingEra = startingEra
             gameParameters.victoryTypes = ArrayList(victoryTypes)
             gameParameters.players = ArrayList<Player>(majorCivilizations).apply {
-                add(Player(Constants.random, PlayerType.Human, actorId))
+                add(Player(ownerCivilizationId, PlayerType.Human, actorId))
                 repeat(majorCivilizations - 1) { add(Player()) }
             }
             gameParameters.numberOfCityStates = cityStates
@@ -142,9 +141,10 @@ data class WorkerGameSetup(
             gameParameters.noStartBias = noStartBias
             gameParameters.shufflePlayerOrder = shufflePlayerOrder
             gameParameters.noCityRazing = noCityRazing
-            gameParameters.minutesUntilSkipTurn = minutesUntilSkipTurn
-            gameParameters.minutesUntilForceResign = minutesUntilForceResign
-            gameParameters.minutesRecoveredPerTurn = minutesRecoveredPerTurn
+            // V3 matches have no skip, force-resign, or total-play clock.
+            gameParameters.minutesUntilSkipTurn = Int.MAX_VALUE
+            gameParameters.minutesUntilForceResign = Int.MAX_VALUE
+            gameParameters.minutesRecoveredPerTurn = 0
             gameParameters.isOnlineMultiplayer = true
             gameParameters.multiplayerServerUrl = null
             gameParameters.anyoneCanSpectate = false

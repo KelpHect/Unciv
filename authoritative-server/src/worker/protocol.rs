@@ -39,6 +39,8 @@ pub(super) enum WorkerOperation<'a> {
     },
     AssignPlayer {
         snapshot: &'a str,
+        #[serde(rename = "civilizationId")]
+        civilization_id: &'a str,
     },
     EndTurn {
         snapshot: &'a str,

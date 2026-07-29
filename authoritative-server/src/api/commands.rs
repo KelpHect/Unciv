@@ -25,7 +25,7 @@ pub(super) async fn join_game(
     let actor = authenticated_account(&state, &headers).await?;
     let accepted = state
         .repository
-        .execute_join(
+        .execute_password_lobby_join(
             &state.worker,
             actor.id,
             CommandEnvelope {
@@ -34,8 +34,11 @@ pub(super) async fn join_game(
                 command_id: request.command_id,
                 expected_revision: request.expected_revision,
                 client_observed_state_hash: request.client_observed_state_hash,
-                command: GameCommand::JoinGame {},
+                command: GameCommand::JoinGame {
+                    civilization_id: request.civilization_id,
+                },
             },
+            request.password.as_deref(),
         )
         .await
         .map_err(game_error)?;

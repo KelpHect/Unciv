@@ -110,6 +110,7 @@ impl PostgresGameRepository {
             .collect())
     }
 
+    #[cfg(test)]
     pub(super) async fn require_pending_player_invitation(
         &self,
         game_id: Uuid,

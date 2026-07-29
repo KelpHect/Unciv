@@ -10,6 +10,20 @@ impl PostgresGameRepository {
         &self,
         game_id: Uuid,
     ) -> Result<WorkerCommandState, CommitError> {
+        if !self.lobby_started(game_id).await? {
+            return Err(CommitError::InvalidCommand);
+        }
+        self.worker_state(game_id).await
+    }
+
+    async fn worker_lobby_join_state(
+        &self,
+        game_id: Uuid,
+    ) -> Result<WorkerCommandState, CommitError> {
+        self.worker_state(game_id).await
+    }
+
+    async fn worker_state(&self, game_id: Uuid) -> Result<WorkerCommandState, CommitError> {
         let row = sqlx::query(
             "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
@@ -614,30 +628,70 @@ impl PostgresGameRepository {
         self.commit(actor_account_id, envelope, proposal).await
     }
 
-    /// Joins an authenticated account without accepting a civilization choice.
-    /// The worker deterministically assigns an unclaimed canonical civilization;
-    /// the snapshot revision and membership are committed atomically.
+    /// Joins an authenticated account to a pre-start lobby using the
+    /// civilization selected by that account.
     pub async fn execute_join(
         &self,
         worker: &EngineWorkerClient,
         actor_account_id: Uuid,
         envelope: CommandEnvelope,
     ) -> Result<CommandAccepted, CommitError> {
-        if !matches!(&envelope.command, crate::GameCommand::JoinGame {}) {
-            return Err(CommitError::InvalidCommand);
-        }
+        let civilization_id = match &envelope.command {
+            crate::GameCommand::JoinGame { civilization_id } => civilization_id.clone(),
+            _ => return Err(CommitError::InvalidCommand),
+        };
         if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
             return Ok(accepted);
         }
-        self.require_pending_player_invitation(envelope.game_id, actor_account_id)
+        self.authorize_lobby_join(actor_account_id, envelope.game_id, &civilization_id, None)
             .await?;
-        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        self.execute_lobby_join(worker, actor_account_id, envelope, civilization_id)
+            .await
+    }
+
+    pub async fn execute_password_lobby_join(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+        password: Option<&str>,
+    ) -> Result<CommandAccepted, CommitError> {
+        let civilization_id = match &envelope.command {
+            crate::GameCommand::JoinGame { civilization_id } => civilization_id.clone(),
+            _ => return Err(CommitError::InvalidCommand),
+        };
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
+            return Ok(accepted);
+        }
+        self.authorize_lobby_join(
+            actor_account_id,
+            envelope.game_id,
+            &civilization_id,
+            password,
+        )
+        .await?;
+        self.execute_lobby_join(worker, actor_account_id, envelope, civilization_id)
+            .await
+    }
+
+    async fn execute_lobby_join(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+        civilization_id: String,
+    ) -> Result<CommandAccepted, CommitError> {
+        if !matches!(&envelope.command, crate::GameCommand::JoinGame { .. }) {
+            return Err(CommitError::InvalidCommand);
+        }
+        let worker_state = self.worker_lobby_join_state(envelope.game_id).await?;
         let assigned = worker
             .assign_player(
                 &actor_account_id.to_string(),
                 &worker_state.manifest,
                 envelope.expected_revision,
                 &worker_state.snapshot,
+                &civilization_id,
             )
             .await
             .map_err(|error| match error {
@@ -652,6 +706,7 @@ impl PostgresGameRepository {
             assigned.proposal,
             Some(NewMemberAssignment {
                 civilization_id: assigned.civilization_id,
+                lobby_join: true,
             }),
             None,
         )

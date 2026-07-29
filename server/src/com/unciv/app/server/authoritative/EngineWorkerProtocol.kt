@@ -28,7 +28,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 2
+    const val VERSION = 3
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -142,7 +142,10 @@ sealed interface WorkerOperation {
     ) : WorkerOperation
 
     @Serializable @SerialName("assign_player")
-    data class AssignPlayer(val snapshot: String) : WorkerOperation
+    data class AssignPlayer(
+        val snapshot: String,
+        val civilizationId: String,
+    ) : WorkerOperation
 
     @Serializable @SerialName("end_turn")
     data class EndTurn(
@@ -675,6 +678,7 @@ data class WorkerResponse(
     val snapshot: String? = null,
     val canonicalStateHash: String? = null,
     val actorCivilizationId: String? = null,
+    val availableCivilizationIds: List<String>? = null,
     val legacyImport: LegacyImportMetadata? = null,
     val playerProjection: PlayerProjection? = null,
     val spectatorProjection: SpectatorProjection? = null,
@@ -732,7 +736,11 @@ class AuthoritativeEngineWorker(
                 val ownerCivilization = result.game.civilizations.singleOrNull {
                     it.playerId == actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
-                responseForGame(engine, result.game, ownerCivilization.civID)
+                responseForGame(engine, result.game, ownerCivilization.civID).copy(
+                    availableCivilizationIds = result.game.civilizations
+                        .filter { it.isMajorCiv() }
+                        .map { it.civID },
+                )
             }
             is WorkerOperation.NormalizeLegacyGame -> {
                 val normalized = LegacyGameImporter.normalize(engine, manifest, actorId, operation)
@@ -741,7 +749,7 @@ class AuthoritativeEngineWorker(
             }
             is WorkerOperation.AssignPlayer -> {
                 val game = engine.loadSnapshot(operation.snapshot)
-                val assignment = engine.assignPlayer(game)
+                val assignment = engine.assignPlayer(game, operation.civilizationId)
                 responseForGame(engine, assignment.result.game, assignment.civilizationId)
             }
             is WorkerOperation.EndTurn -> {

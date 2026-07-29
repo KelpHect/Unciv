@@ -15,11 +15,10 @@ import com.unciv.logic.files.MapSaver
 import com.unciv.logic.map.MapGeneratedMainType
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeLobbyConfiguration
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
 import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
 import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
-import com.unciv.logic.multiplayer.authoritative.openPlayerGame
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.models.metadata.BaseRuleset
 import com.unciv.models.metadata.GameSetupInfo
@@ -45,7 +44,7 @@ import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
-import com.unciv.ui.screens.multiplayerscreens.AuthoritativeWorldScreen
+import com.unciv.ui.screens.multiplayerscreens.MultiplayerScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
@@ -58,6 +57,7 @@ class NewGameScreen(
     defaultGameSetupInfo: GameSetupInfo? = null,
     private val authoritativeCreationRetryState: AuthoritativeCreationRetryState =
         AuthoritativeCreationRetryState(),
+    private val lobbyConfiguration: AuthoritativeLobbyConfiguration? = null,
 ): IPreviousScreen, PickerScreen(), RecreateOnResize {
 
     override val gameSetupInfo = defaultGameSetupInfo ?: GameSetupInfo.fromSettings()
@@ -68,6 +68,8 @@ class NewGameScreen(
     private var mapOptionsTableInitialized = false
 
     init {
+        if (lobbyConfiguration != null)
+            gameSetupInfo.gameParameters.isOnlineMultiplayer = true
         val isPortrait = isNarrowerThan4to3()
 
         tryUpdateRuleset(updateUI = false)  // must come before playerPickerTable so mod nations from fromSettings
@@ -177,7 +179,7 @@ class NewGameScreen(
                     it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
                 }
                 if (humanPlayers != 1) {
-                    return "API v3 creates the authenticated owner first; invite other players after creation."
+                    return "API v3 creates the authenticated owner first; other players join the lobby."
                 }
                 runCatching { ApiV3GameSetup.from(gameSetupInfo) }
                     .exceptionOrNull()
@@ -444,6 +446,9 @@ class NewGameScreen(
 
     private suspend fun startAuthoritativeGame(popup: Popup) {
         try {
+            val lobby = requireNotNull(lobbyConfiguration) {
+                "Create authoritative multiplayer matches from the multiplayer lobby browser."
+            }
             val session = requireNotNull(game.onlineMultiplayer.authoritativeSession) {
                 "API v3 session is not installed"
             }
@@ -453,24 +458,19 @@ class NewGameScreen(
                 gameSetupInfo.gameParameters.mods,
                 setup,
             )
-            val creation = session.createAuthoritativeGame(
+            session.createAuthoritativeGame(
                 meaning.baseRulesetName,
                 meaning.modNames,
                 meaning.setup,
                 authoritativeCreationRetryState.operationIdFor(meaning),
+                lobby.displayName,
+                lobby.humanSlots,
+                lobby.password,
+                ruleset.nations.values.filter { it.isMajorCiv }.map { it.name }.sorted(),
             )
-            val opened = creation.openPlayerGame()
             Concurrency.runOnGLThread {
-                Gdx.app.clipboard.contents = creation.metadata.gameId
                 popup.close()
-                game.pushScreen(
-                    AuthoritativeWorldScreen(
-                        opened.summary,
-                        AuthoritativeGameDirectory(session),
-                        opened.projection,
-                        session,
-                    ),
-                )
+                game.replaceCurrentScreen(MultiplayerScreen())
             }
         } catch (exception: Exception) {
             Log.error("Error while creating authoritative game", exception)
@@ -540,5 +540,5 @@ class NewGameScreen(
     }
 
     override fun recreate(): BaseScreen =
-        NewGameScreen(gameSetupInfo, authoritativeCreationRetryState)
+        NewGameScreen(gameSetupInfo, authoritativeCreationRetryState, lobbyConfiguration)
 }

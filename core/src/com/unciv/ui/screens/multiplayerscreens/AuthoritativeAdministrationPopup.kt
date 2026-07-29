@@ -28,7 +28,6 @@ class AuthoritativeAdministrationPopup(
     private val kickButton = "Kick player".toTextButton()
     private val inviteSpectatorButton = "Invite spectator".toTextButton()
     private val revokeSpectatorButton = "Revoke spectator".toTextButton()
-    private val forceResignButton = "Force current player to resign".toTextButton()
     private val transferButton = "Transfer ownership".toTextButton()
     private val closeGameButton = "Close game".toTextButton()
     private val archiveGameButton = "Archive game".toTextButton()
@@ -37,7 +36,6 @@ class AuthoritativeAdministrationPopup(
             kickButton,
             inviteSpectatorButton,
             revokeSpectatorButton,
-            forceResignButton,
             transferButton,
             closeGameButton,
             archiveGameButton,
@@ -74,13 +72,6 @@ class AuthoritativeAdministrationPopup(
                 "Revoke spectator",
             ) { revokeSpectator() }
         }
-        forceResignButton.onClick {
-            confirm(
-                "Force the canonical current player to resign? " +
-                    "The server will reject this until its timeout has elapsed.",
-                "Force resign",
-            ) { forceResign() }
-        }
         transferButton.onClick {
             confirm(
                 "Transfer ownership to [${memberUsername.text.trim()}]?",
@@ -104,7 +95,6 @@ class AuthoritativeAdministrationPopup(
         kickButton.isVisible = active
         inviteSpectatorButton.isVisible = active
         revokeSpectatorButton.isVisible = true
-        forceResignButton.isVisible = active
         transferButton.isVisible = active
         closeGameButton.isVisible = active
         archiveGameButton.isVisible = !active
@@ -145,21 +135,6 @@ class AuthoritativeAdministrationPopup(
     private fun revokeSpectator() = runAction("Revoke authoritative spectator") {
         coordinator.revokeSpectator(gameSummary.gameId, memberUsername.text)
         ActionResult()
-    }
-
-    private fun forceResign() = runAction("Force authoritative resignation") {
-        when (val outcome = coordinator.forceResign(gameSummary.gameId)) {
-            is AuthoritativeCommandOutcome.Accepted -> ActionResult()
-            AuthoritativeCommandOutcome.RetryRequired ->
-                ActionResult(
-                    "Force-resignation status is uncertain - retry to confirm",
-                    closePopup = false,
-                )
-            is AuthoritativeCommandOutcome.StaleRefreshed ->
-                ActionResult("Game changed on the server - refreshed", closePopup = false)
-            is AuthoritativeCommandOutcome.Rejected ->
-                ActionResult(outcome.code, closePopup = false)
-        }
     }
 
     private fun closeGame() = runAction("Close authoritative game") {

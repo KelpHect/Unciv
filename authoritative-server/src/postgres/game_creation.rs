@@ -12,10 +12,15 @@ impl PostgresGameRepository {
         operation_id: Uuid,
         ruleset_manifest_hash: String,
         setup: crate::worker::WorkerGameSetup,
+        lobby: LobbyCreateConfiguration,
     ) -> Result<Uuid, CommitError> {
         let request = json!({
             "ruleset_manifest_hash": ruleset_manifest_hash,
             "setup": &setup,
+            "display_name": &lobby.display_name,
+            "human_slots": lobby.human_slots,
+            "password_identity": &lobby.password_identity,
+            "available_civilizations": &lobby.available_civilizations,
         });
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
         sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
@@ -89,6 +94,16 @@ impl PostgresGameRepository {
             return Err(CommitError::InvalidSnapshotHash);
         }
 
+        if created.available_civilization_ids.len() < usize::from(lobby.human_slots)
+            || created.owner_civilization_id != setup.owner_civilization_id
+            || !created
+                .available_civilization_ids
+                .contains(&created.owner_civilization_id)
+        {
+            return Err(CommitError::WorkerRevisionMismatch);
+        }
+        let mut authoritative_lobby = lobby;
+        authoritative_lobby.available_civilizations = created.available_civilization_ids;
         self.create_game_in_transaction(
             &mut tx,
             NewGame {
@@ -98,6 +113,14 @@ impl PostgresGameRepository {
                 snapshot: proposal.snapshot,
                 owner_civilization_id: created.owner_civilization_id,
             },
+        )
+        .await?;
+        self.insert_lobby(
+            &mut tx,
+            game_id,
+            owner_account_id,
+            &setup,
+            &authoritative_lobby,
         )
         .await?;
         sqlx::query(

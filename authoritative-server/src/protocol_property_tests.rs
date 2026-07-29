@@ -13,7 +13,9 @@ use crate::{
 fn command_strategy() -> impl Strategy<Value = GameCommand> {
     let name = "[A-Za-z0-9 _-]{0,32}";
     prop_oneof![
-        Just(GameCommand::JoinGame {}),
+        Just(GameCommand::JoinGame {
+            civilization_id: "Rome".to_owned(),
+        }),
         Just(GameCommand::EndTurn {}),
         Just(GameCommand::Resign {}),
         (any::<i32>(), any::<i32>(), any::<i32>()).prop_map(

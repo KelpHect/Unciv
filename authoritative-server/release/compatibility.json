@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "public_protocol_version": 3,
+  "public_protocol_version": 4,
   "player_projection_version": 60,
   "spectator_projection_version": 2,
-  "worker_protocol_version": 2,
-  "latest_migration_version": 29,
+  "worker_protocol_version": 3,
+  "latest_migration_version": 30,
   "postgres_image": "postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5"
 }

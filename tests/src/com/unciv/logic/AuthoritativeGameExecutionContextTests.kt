@@ -191,7 +191,7 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
-    fun forceResignationUsesOnlyCanonicalTurnTimeAndAllowance() {
+    fun timedForceResignationIsDisabledWithoutMutation() {
         val now = serverTime + 60_000L
         val engine = HeadlessGameEngine(serverContext { now })
         val game = engine.createGame(testSetup()).game
@@ -199,28 +199,12 @@ class AuthoritativeGameExecutionContextTests {
         game.currentPlayer = greece.civID
         game.currentTurnStartTime = serverTime
         greece.playerMinutesBeforeForceResign = 1
-
-        val forced = engine.forceResign(game, "Rome")
-
-        Assert.assertEquals("Greece", forced.civilizationId)
-        Assert.assertEquals(PlayerType.AI, greece.playerType)
-        Assert.assertEquals("", greece.playerId)
-        Assert.assertEquals("Rome", game.currentPlayer)
-    }
-
-    @Test
-    fun forceResignationRejectsBeforeCanonicalAllowanceWithoutMutation() {
-        val engine = HeadlessGameEngine(serverContext { serverTime + 59_999L })
-        val game = engine.createGame(testSetup()).game
-        val greece = game.getCivilization("Greece")
-        game.currentPlayer = greece.civID
-        game.currentTurnStartTime = serverTime
-        greece.playerMinutesBeforeForceResign = 1
         val hashBefore = engine.stateHash(game)
 
-        Assert.assertThrows(IllegalArgumentException::class.java) {
+        val error = Assert.assertThrows(IllegalStateException::class.java) {
             engine.forceResign(game, "Rome")
         }
+        Assert.assertTrue(error.message?.contains("disabled") == true)
         Assert.assertEquals(hashBefore, engine.stateHash(game))
         Assert.assertEquals(PlayerType.Human, greece.playerType)
         Assert.assertEquals("account-2", greece.playerId)
@@ -476,7 +460,7 @@ class AuthoritativeGameExecutionContextTests {
         val game = creator.createGame(joinableSetup()).game
         val joiningEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
 
-        val assignment = joiningEngine.assignPlayer(game)
+        val assignment = joiningEngine.assignPlayer(game, "Greece")
         val civilization = game.civilizations.single { it.civID == assignment.civilizationId }
 
         Assert.assertEquals("Greece", assignment.civilizationId)
@@ -490,8 +474,8 @@ class AuthoritativeGameExecutionContextTests {
         val game = creator.createGame(joinableSetup()).game
         val joiningEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
 
-        joiningEngine.assignPlayer(game)
-        joiningEngine.assignPlayer(game)
+        joiningEngine.assignPlayer(game, "Greece")
+        joiningEngine.assignPlayer(game, "Greece")
     }
 
     @Test

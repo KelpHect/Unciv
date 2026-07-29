@@ -250,3 +250,18 @@ live in `docs/architecture/authoritative-multiplayer-status.md` and
   `docs/security/authoritative-multiplayer-threat-model.md` when a boundary
   changes, and affected protocol/operations/benchmark docs with exact evidence.
   A checklist mark is not a substitute for a current test.
+
+## V3 lobby and timing invariant
+
+Production multiplayer UI is API-v3-only. Match creation produces a
+server-owned pregame lobby; the owner configures the normal bounded game setup,
+match name, human slots, optional password, and their own faction. Every other
+human chooses one currently unclaimed faction from the private worker's
+canonical pool and controls only their own readiness. Only the owner may start,
+and only at exact capacity with every human ready. Pregame clients receive no
+gameplay projection.
+
+V3 matches have unlimited human turn time. Do not reintroduce skip-turn,
+total-play-time, recovered-time, or timed force-resignation controls into public
+setup, production UI, or worker behavior. Compatibility-only legacy multiplayer
+code must remain unreachable from the production multiplayer screen.

@@ -30,6 +30,7 @@ mod http_security;
 mod instant_improvements;
 mod lifecycle;
 mod lifecycle_contracts;
+mod lobbies;
 mod major_diplomacy;
 mod manifests;
 mod notifications;
@@ -80,6 +81,7 @@ use http_security::*;
 use instant_improvements::*;
 use lifecycle::*;
 use lifecycle_contracts::*;
+use lobbies::*;
 use major_diplomacy::*;
 use manifests::*;
 pub(super) use notifications::*;
@@ -114,7 +116,7 @@ pub(super) use serde::{Deserialize, Serialize};
 pub(super) use unciv_authoritative_server::{
     CityDispositionAction, CityGovernanceAction, CityTileAssignment, CommandEnvelope, CommitError,
     GameCommand, PROJECTION_VERSION, PROTOCOL_VERSION, ResearchQueueAction,
-    auth::{Account, AuthError, SessionPolicy},
+    auth::{Account, AuthError, PasswordService, SessionPolicy},
     notifications::{NotificationHub, start_notification_runtime},
     postgres::{GameMetadata, PostgresGameRepository, SecurityAuditEvent, SecurityAuditOutcome},
     worker::EngineWorkerClient,

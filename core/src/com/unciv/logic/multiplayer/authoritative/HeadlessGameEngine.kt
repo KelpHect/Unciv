@@ -671,16 +671,15 @@ class HeadlessGameEngine(
         return result(game)
     }
 
-    /** Assigns the authenticated actor to the first canonical unclaimed major
-     * civilization. Selection is server deterministic and accepts no client
-     * civilization input. The control plane restricts joining to revision 0. */
-    fun assignPlayer(game: GameInfo): PlayerAssignmentResult {
+    /** Assigns the authenticated actor to their selected, canonical unclaimed
+     * major civilization. The server validates the choice against the snapshot. */
+    fun assignPlayer(game: GameInfo, civilizationId: String): PlayerAssignmentResult {
         require(game.civilizations.none { it.playerId == executionContext.actorId }) {
             "Authenticated actor is already assigned to this game"
         }
         val civilization = game.civilizations.firstOrNull {
-            it.isMajorCiv() && it.isAI() && it.playerId.isEmpty()
-        } ?: error("No unassigned civilization is available")
+            it.civID == civilizationId && it.isMajorCiv() && it.isAI() && it.playerId.isEmpty()
+        } ?: error("Selected civilization is not available")
         civilization.playerType = PlayerType.Human
         civilization.playerId = executionContext.actorId!!
         return PlayerAssignmentResult(result(game), civilization.civID)
@@ -714,17 +713,7 @@ class HeadlessGameEngine(
     /** Force-resigns only the canonical current player after the server-owned
      * turn clock reaches that civilization's canonical allowance. */
     fun forceResign(game: GameInfo, actorCivilizationId: String): ForcedResignationResult {
-        val actor = authenticatedCivilization(game, actorCivilizationId)
-        val target = game.getCivilization(game.currentPlayer)
-        require(target.civID != actor.civID) { "Use self-resignation for the current player" }
-        require(target.playerType == PlayerType.Human && target.playerId.isNotEmpty()) {
-            "The current civilization is not controlled by a player"
-        }
-        val elapsedMillis = (executionContext.clockMillis() - game.currentTurnStartTime).coerceAtLeast(0L)
-        val allowedMillis = target.playerMinutesBeforeForceResign.toLong() * 60_000L
-        require(elapsedMillis >= allowedMillis) { "The current player is not yet eligible for force resignation" }
-        transferPlayerToAi(game, target, actor.civName)
-        return ForcedResignationResult(result(game), target.civID)
+        error("Timed force resignation is disabled for unlimited V3 matches")
     }
 
     /** Removes an owner-selected player from canonical online play. Both

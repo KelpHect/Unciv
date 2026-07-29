@@ -1475,7 +1475,7 @@ class AuthoritativeGameCommandBusTests {
     @Test
     fun diplomaticVoteIsBoundToTheProjectedCandidate() = runBlocking {
         val initial = projection(
-            3,
+            3L,
             "hash-3",
             pendingTurnActions = listOf(PendingEndTurnAction.CastDiplomaticVote),
             diplomaticVoteCandidates = listOf("Greece"),
@@ -2017,7 +2017,7 @@ class AuthoritativeGameCommandBusTests {
 
         val reconciled = bus.reconcile(ApiV3RevisionNotification(
             type = "resync_required",
-            protocolVersion = 3,
+            protocolVersion = CommandEnvelope.CURRENT_PROTOCOL_VERSION,
         ))
 
         assertEquals(refreshed, reconciled)
@@ -2152,7 +2152,7 @@ class AuthoritativeGameCommandBusTests {
 
     private fun notification(revision: Long, hash: String) = ApiV3RevisionNotification(
         type = "revision_committed",
-        protocolVersion = 3,
+        protocolVersion = CommandEnvelope.CURRENT_PROTOCOL_VERSION,
         gameId = gameId,
         committedRevision = revision,
         canonicalStateHash = hash,
@@ -2404,6 +2404,10 @@ class AuthoritativeGameCommandBusTests {
         override suspend fun createGame(
             operationId: String,
             rulesetManifestHash: String,
+            displayName: String,
+            humanSlots: Int,
+            password: String?,
+            availableCivilizations: List<String>,
             setup: ApiV3GameSetup,
         ) =
             ApiV3GameMetadata(gameId, 0, "hash-0", "owner", "Rome")

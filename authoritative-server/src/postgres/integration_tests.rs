@@ -17,6 +17,8 @@ mod game_creation;
 mod invitations;
 #[path = "legacy_import_integration_tests.rs"]
 mod legacy_import;
+#[path = "lobby_integration_tests.rs"]
+mod lobbies;
 #[path = "malicious_client_integration_tests.rs"]
 mod malicious_clients;
 #[path = "manifest_integration_tests.rs"]

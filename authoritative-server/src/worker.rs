@@ -96,7 +96,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 2;
+pub const WORKER_PROTOCOL_VERSION: u16 = 3;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]
@@ -522,12 +522,16 @@ impl EngineWorkerClient {
         manifest: &WorkerManifest,
         previous_revision: u64,
         snapshot: &str,
+        civilization_id: &str,
     ) -> Result<AssignedPlayer, WorkerClientError> {
         let response = self
             .execute(
                 actor_id,
                 manifest,
-                WorkerOperation::AssignPlayer { snapshot },
+                WorkerOperation::AssignPlayer {
+                    snapshot,
+                    civilization_id,
+                },
             )
             .await?;
         let civilization_id = response
@@ -587,9 +591,14 @@ impl EngineWorkerClient {
             .actor_civilization_id
             .clone()
             .ok_or(WorkerClientError::Incomplete)?;
+        let available_civilization_ids = response
+            .available_civilization_ids
+            .clone()
+            .ok_or(WorkerClientError::Incomplete)?;
         Ok(CreatedGame {
             proposal: commit_proposal(0, response)?,
             owner_civilization_id,
+            available_civilization_ids,
         })
     }
 }

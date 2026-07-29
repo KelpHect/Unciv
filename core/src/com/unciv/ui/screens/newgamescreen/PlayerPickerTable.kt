@@ -206,7 +206,7 @@ class PlayerPickerTable(
         updatePlayerTypeButtonEnabled()
 
         nationTable.onClick {
-            if (locked || usesAuthoritativeCreation()) return@onClick
+            if (locked || usesAuthoritativeCreation() && player.playerType != Human) return@onClick
             val noRandom = noRandom ||
                     gameParameters.randomNumberOfPlayers && player.playerType == PlayerType.AI
             popupNationPicker(player, noRandom)
@@ -217,7 +217,7 @@ class PlayerPickerTable(
             update()
         }
 
-        if (!locked) {
+        if (!locked && !(usesAuthoritativeCreation() && player.playerType == Human)) {
             playerTable.add("-".toLabel(ImageGetter.CHARCOAL, 30, Align.center)
                 .surroundWithCircle(40f)
                 .onClick {
@@ -249,9 +249,13 @@ class PlayerPickerTable(
         val owner = gameParameters.players.firstOrNull { it.playerType == PlayerType.Human }
             ?: gameParameters.players.first()
         for (player in gameParameters.players) {
-            player.chosenCiv = Constants.random
             player.playerId = ""
-            player.playerType = if (player === owner) PlayerType.Human else PlayerType.AI
+            if (player === owner) {
+                player.playerType = PlayerType.Human
+            } else {
+                player.playerType = PlayerType.AI
+                player.chosenCiv = Constants.random
+            }
         }
     }
 

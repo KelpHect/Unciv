@@ -15872,6 +15872,17 @@ and uploading a local save.</p>
   The lobby tests now assert friendly manifest names as well as password,
   capacity, unique-faction, stale revision, readiness, and owner-start
   behavior.</li>
+<li>The broad JVM gate passes 1,138 core/client tests with 16 intentional
+  skips and 59 server tests with one intentional skip. The complete Rust
+  all-target/all-feature suite passes 190 active library tests, all 29
+  HTTP/OpenAPI tests, and every ordinary binary/policy test; formatting and
+  warnings-as-errors Clippy pass. Android debug/release APK and release bundle
+  assembly pass against the dedicated AGP-8.13-compatible SDK, and
+  <code>:desktop:dist</code> plus <code>:desktop:packrWindows64</code> produce a portable archive
+  whose packaged JAR contains <code>AuthoritativeLobbyScreen</code>. The portable
+  executable remains alive through a 12-second smoke, and the aligned,
+  testing-certificate-signed release APK verifies v1/v2/v3 signatures,
+  installs, and resumes <code>AndroidLauncher</code> on the connected emulator.</li>
 </ul>
 <p>Failure repair:</p>
 <ol>
@@ -15889,6 +15900,17 @@ and uploading a local save.</p>
 <li>The first HTTP gate detected expected checked-in OpenAPI drift after the
    schema expansion. The project generator updated the contract and the exact
    29-test API gate passed.</li>
+<li>The first complete Clippy run rejected a manually implemented
+   <code>MirroringType</code> default. The enum now derives <code>Default</code> with an explicit
+   default variant; the same complete formatting/test/Clippy command passes.</li>
+<li>The first public post-deployment creation smoke proved manifest selection
+   and revision-zero creation, then exposed that deleting the owner account
+   left its lobby active and permanently ownerless. Account disable/delete now
+   closes every active owned game in the same database transaction before
+   credentials and sessions are revoked, retains the immutable membership
+   history, and emits a resynchronization hint. The focused PostgreSQL 19 Beta
+   2 lifecycle test covers both disable and delete; the disposable smoke lobby
+   was explicitly closed.</li>
 </ol>
 <h2 id="protocol-4-client-detection-and-scaled-desktop-text-2026-07-29">Protocol-4 client detection and scaled desktop text (2026-07-29)</h2>
 <ul>

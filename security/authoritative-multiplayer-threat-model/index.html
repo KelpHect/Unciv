@@ -3762,6 +3762,12 @@ projections remain readable for result presentation and reconciliation.</p>
 <h3 id="authentication-sessions-and-account-abuse">Authentication, sessions, and account abuse</h3>
 <p><strong>Attacker story:</strong> An attacker sprays passwords, registers accounts until storage or operator attention is exhausted, steals a bearer token from insecure local storage or logs, reuses a session after logout, or bypasses a source-address limit through proxy-header confusion.</p>
 <p>Current v3 controls include password hashing, opaque session issuance, digest-only server storage, expiry, rotation and revocation, durable fixed-window login and registration limits, stable <code>429</code> responses, prefix-reduced network audit data, and one-way identity hashes. Handlers derive the actor from the bearer session.</p>
+<p>Account disable and deletion also close every active game owned by that account
+in the same PostgreSQL transaction before credentials and sessions are revoked.
+Immutable game membership and history remain attributable to the pseudonymized
+account, while fleet-wide notification hints force surviving clients to
+reconcile the closed lifecycle through authenticated HTTP. This prevents an
+active lobby from becoming permanently ownerless.</p>
 <p>Required hardening includes production TLS/HSTS policy, an explicit trusted-proxy configuration, secure Android and desktop token storage, bounded session counts, credential-stuffing monitoring, audit retention and access policy, account recovery policy, database credential rotation, and tests proving credentials never enter errors, traces, projections, or worker frames. Rate limiting must remain effective across replicas and must avoid becoming an account-lockout oracle.</p>
 <h3 id="typed-commands-authorization-concurrency-and-replay">Typed commands, authorization, concurrency, and replay</h3>
 <p><strong>Attacker story:</strong> A player changes a game or unit ID to act across tenants, submits an action for another civilization, races two legal commands at one head revision, replays an accepted command with a changed payload, or uses a stale local view to overwrite newer play.</p>

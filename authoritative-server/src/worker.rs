@@ -58,7 +58,7 @@ pub use city_state::{
 pub use deadlines::{WorkerDeadlineConfigError, WorkerDeadlines};
 pub use game_setup::{
     BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
-    MirroringType, WorkerGameSetup,
+    MirroringType, WorkerGameSetup, WorkerLobbyParticipant, WorkerLobbyReconfiguration,
 };
 pub use intents::{
     AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,
@@ -96,7 +96,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 3;
+pub const WORKER_PROTOCOL_VERSION: u16 = 4;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]
@@ -601,6 +601,43 @@ impl EngineWorkerClient {
             available_civilization_ids,
         })
     }
+
+    /// Rebuilds canonical pregame state from typed settings and the exact
+    /// server-owned human membership assignment. No client snapshot crosses
+    /// this boundary; PostgreSQL appends the resulting state.
+    pub async fn reconfigure_lobby(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        reconfiguration: WorkerLobbyReconfiguration<'_>,
+    ) -> Result<CreatedGame, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::ReconfigureLobby {
+                    game_id: reconfiguration.game_id,
+                    server_seed: reconfiguration.server_seed,
+                    setup: reconfiguration.setup,
+                    participants: reconfiguration.participants,
+                },
+            )
+            .await?;
+        let owner_civilization_id = response
+            .actor_civilization_id
+            .clone()
+            .ok_or(WorkerClientError::Incomplete)?;
+        let available_civilization_ids = response
+            .available_civilization_ids
+            .clone()
+            .ok_or(WorkerClientError::Incomplete)?;
+        Ok(CreatedGame {
+            proposal: commit_proposal(previous_revision, response)?,
+            owner_civilization_id,
+            available_civilization_ids,
+        })
+    }
 }
 
 fn valid_release_bundle_id(value: &str) -> bool {
@@ -746,5 +783,34 @@ mod tests {
         assert_eq!(value["type"], "force_resign");
         assert_eq!(value["actorCivilizationId"], "Rome");
         assert!(value.get("actor_civilization_id").is_none());
+    }
+
+    #[test]
+    fn lobby_reconfiguration_worker_operation_is_typed_and_snapshot_free() {
+        let setup = WorkerGameSetup {
+            owner_civilization_id: "Rome".to_owned(),
+            ..WorkerGameSetup::default()
+        };
+        let participants = [WorkerLobbyParticipant {
+            account_id: "00000000-0000-4000-8000-000000000001".to_owned(),
+            civilization_id: "Rome".to_owned(),
+        }];
+        let value = serde_json::to_value(WorkerOperation::ReconfigureLobby {
+            game_id: "00000000-0000-4000-8000-000000000010",
+            server_seed: 42,
+            setup: &setup,
+            participants: &participants,
+        })
+        .unwrap();
+
+        assert_eq!(value["type"], "reconfigure_lobby");
+        assert_eq!(value["gameId"], "00000000-0000-4000-8000-000000000010");
+        assert_eq!(value["serverSeed"], 42);
+        assert_eq!(value["setup"]["ownerCivilizationId"], "Rome");
+        assert_eq!(
+            value["participants"][0]["accountId"],
+            "00000000-0000-4000-8000-000000000001"
+        );
+        assert!(value.get("snapshot").is_none());
     }
 }

@@ -33,6 +33,7 @@ use crate::{
     MAX_SNAPSHOT_BYTES, PROJECTION_VERSION, PROTOCOL_VERSION, state_hash,
 };
 
+pub use lobby_reconfiguration::{LobbyConfigurationUpdate, LobbyPasswordUpdate};
 pub use repair::RepairReport;
 pub use retention::{SnapshotCompactionReport, SnapshotRetentionPolicy};
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
@@ -120,6 +121,7 @@ pub struct LobbySummary {
     pub started: bool,
     pub actor_role: Option<String>,
     pub actor_ready: Option<bool>,
+    pub actor_civilization_id: Option<String>,
     pub setup: serde_json::Value,
     pub available_civilizations: Vec<String>,
     pub members: Vec<LobbyMemberSummary>,
@@ -227,6 +229,7 @@ mod invitations;
 mod legacy_import;
 mod lifecycle;
 mod lobbies;
+mod lobby_reconfiguration;
 mod major_diplomacy;
 mod manifests;
 mod outbox;

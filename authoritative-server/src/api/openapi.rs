@@ -26,6 +26,8 @@ use super::*;
         list_games,
         list_lobbies,
         lobby,
+        reconfigure_lobby,
+        select_lobby_faction,
         set_lobby_ready,
         start_lobby,
         list_game_chat,

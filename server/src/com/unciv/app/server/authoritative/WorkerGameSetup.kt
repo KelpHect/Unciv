@@ -71,6 +71,12 @@ enum class BarbarianMode {
 }
 
 @Serializable
+data class WorkerLobbyParticipant(
+    val accountId: String,
+    val civilizationId: String,
+)
+
+@Serializable
 data class WorkerGameSetup(
     val ownerCivilizationId: String,
     val difficulty: String,
@@ -112,6 +118,7 @@ data class WorkerGameSetup(
         manifest: WorkerRulesetManifest,
         actorId: String,
         serverSeed: Long,
+        participants: List<WorkerLobbyParticipant>? = null,
     ): GameSetupInfo {
         require(actorId.isNotBlank()) { "Authenticated owner identity is blank" }
         require(majorCivilizations in 2..16) { "Major civilization count is outside server bounds" }
@@ -152,6 +159,24 @@ data class WorkerGameSetup(
         require(ownerNation?.isMajorCiv == true && ownerCivilizationId != Constants.spectator) {
             "The selected owner civilization is unavailable in the pinned ruleset"
         }
+        val humans = participants ?: listOf(WorkerLobbyParticipant(actorId, ownerCivilizationId))
+        require(humans.isNotEmpty() && humans.size <= majorCivilizations) {
+            "Human participant count is outside setup bounds"
+        }
+        require(humans.first() == WorkerLobbyParticipant(actorId, ownerCivilizationId)) {
+            "The authenticated owner must be the first exact participant"
+        }
+        require(humans.map { it.accountId }.distinct().size == humans.size) {
+            "Human account assignments must be unique"
+        }
+        require(humans.map { it.civilizationId }.distinct().size == humans.size) {
+            "Human civilization assignments must be unique"
+        }
+        require(humans.all { participant ->
+            participant.accountId.isNotBlank() &&
+                ruleset.nations[participant.civilizationId]?.isMajorCiv == true &&
+                participant.civilizationId != Constants.spectator
+        }) { "A human participant is unavailable in the pinned ruleset" }
 
         return GameSetupInfo().apply {
             gameParameters.difficulty = difficulty
@@ -159,8 +184,10 @@ data class WorkerGameSetup(
             gameParameters.startingEra = startingEra
             gameParameters.victoryTypes = ArrayList(victoryTypes)
             gameParameters.players = ArrayList<Player>(majorCivilizations).apply {
-                add(Player(ownerCivilizationId, PlayerType.Human, actorId))
-                repeat(majorCivilizations - 1) { add(Player()) }
+                humans.forEach { participant ->
+                    add(Player(participant.civilizationId, PlayerType.Human, participant.accountId))
+                }
+                repeat(majorCivilizations - humans.size) { add(Player()) }
             }
             gameParameters.numberOfCityStates = cityStates
             gameParameters.maxTurns = maxTurns

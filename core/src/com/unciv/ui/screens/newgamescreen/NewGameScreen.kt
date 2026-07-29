@@ -55,8 +55,10 @@ class NewGameScreen(
     private val authoritativeCreationRetryState: AuthoritativeCreationRetryState =
         AuthoritativeCreationRetryState(),
     private val lobbyConfiguration: AuthoritativeLobbyConfiguration? = null,
+    private val lobbyEditConfiguration: AuthoritativeLobbyEditConfiguration? = null,
 ): IPreviousScreen, PickerScreen(), RecreateOnResize {
-    internal val isAuthoritativeLobbySetup get() = lobbyConfiguration != null
+    internal val isAuthoritativeLobbySetup
+        get() = lobbyConfiguration != null || lobbyEditConfiguration != null
 
     override val gameSetupInfo = defaultGameSetupInfo ?: GameSetupInfo.fromSettings()
     override val ruleset = Ruleset()  // updateRuleset will clear and add
@@ -64,14 +66,20 @@ class NewGameScreen(
     internal val playerPickerTable: PlayerPickerTable
     private val mapOptionsTable: MapOptionsTable
     private var mapOptionsTableInitialized = false
+    private val startGameButton = authoritativeActionLabel()
+        .toTextButton()
+        .apply { color = Color.GREEN }
 
     init {
-        if (lobbyConfiguration != null)
+        val baseRulesetName = lobbyConfiguration?.rulesetManifest?.baseRuleset?.name
+            ?: lobbyEditConfiguration?.lobby?.baseRulesetName
+        val modNames = lobbyConfiguration?.rulesetManifest?.mods?.map { it.name }
+            ?: lobbyEditConfiguration?.lobby?.modNames
+        if (baseRulesetName != null && modNames != null)
             gameSetupInfo.gameParameters.apply {
                 isOnlineMultiplayer = true
-                baseRuleset = lobbyConfiguration.rulesetManifest.baseRuleset.name
-                mods = lobbyConfiguration.rulesetManifest.mods
-                    .mapTo(linkedSetOf()) { it.name }
+                baseRuleset = baseRulesetName
+                mods = modNames.toCollection(linkedSetOf())
             }
         else gameSetupInfo.gameParameters.isOnlineMultiplayer = false
         val isPortrait = isNarrowerThan4to3()
@@ -122,16 +130,17 @@ class NewGameScreen(
                         gameParameters.espionageEnabled = true
                     }
                     game.replaceCurrentScreen(
-                        NewGameScreen(gameSetupInfo, lobbyConfiguration = lobbyConfiguration),
+                        NewGameScreen(
+                            gameSetupInfo,
+                            lobbyConfiguration = lobbyConfiguration,
+                            lobbyEditConfiguration = lobbyEditConfiguration,
+                        ),
                     )
                 }.open(true)
             }
             horizontalGroup.addActor(resetToDefaultsButton)
         }
 
-        val startGameButton =
-            (if (isAuthoritativeLobbySetup) "Create lobby" else "Start game!")
-                .toTextButton().apply { color = Color.GREEN }
         startGameButton.onClick(this::startGameAvoidANRs)
         horizontalGroup.addActor(startGameButton)
         pickerPane.rightSideButton.remove()
@@ -179,7 +188,9 @@ class NewGameScreen(
         if (isAuthoritativeLobbySetup) {
             if (game.onlineMultiplayer.authoritativeSession == null)
                 return authoritativeUnavailableMessage()
-            if (lobbyConfiguration!!.humanSlots > gameSetupInfo.gameParameters.players.size)
+            val humanSlots = lobbyConfiguration?.humanSlots
+                ?: requireNotNull(lobbyEditConfiguration).lobby.humanSlots
+            if (humanSlots > gameSetupInfo.gameParameters.players.size)
                 return "Human slots cannot exceed the number of major civilizations."
             val humanPlayers = gameSetupInfo.gameParameters.players.count {
                 it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
@@ -229,8 +240,8 @@ class NewGameScreen(
     private fun startGame() {
 
         Concurrency.runOnGLThread {
-            rightSideButton.disable()
-            rightSideButton.setText(Constants.working.tr())
+            startGameButton.disable()
+            startGameButton.setText(Constants.working.tr())
             setSkin()
             
             // Creating a new game can take a while and we don't want ANRs
@@ -372,8 +383,8 @@ class NewGameScreen(
                     addCloseButton()
                 }
                 Gdx.input.inputProcessor = stage
-                rightSideButton.enable()
-                rightSideButton.setText("Start game!".tr())
+                startGameButton.enable()
+                startGameButton.setText(authoritativeActionLabel().tr())
             }
             return@coroutineScope
         }
@@ -397,13 +408,35 @@ class NewGameScreen(
 
     private suspend fun startAuthoritativeGame(popup: Popup) {
         try {
-            val lobby = requireNotNull(lobbyConfiguration) {
-                "Create authoritative multiplayer matches from the multiplayer lobby browser."
-            }
             val session = requireNotNull(game.onlineMultiplayer.authoritativeSession) {
                 "API v3 session is not installed"
             }
-            val setup = ApiV3GameSetup.from(gameSetupInfo)
+            var setup = ApiV3GameSetup.from(gameSetupInfo)
+            lobbyEditConfiguration?.let { edit ->
+                if (
+                    edit.lobby.setup.mapSeed == null &&
+                    gameSetupInfo.mapParameters.seed == edit.initialEditorMapSeed
+                ) {
+                    setup = setup.copy(mapSeed = null)
+                }
+                val updated = session.reconfigureLobby(
+                    edit.lobby,
+                    edit.lobby.displayName,
+                    edit.lobby.humanSlots,
+                    edit.passwordUpdate,
+                    setup,
+                    edit.operationId,
+                )
+                Concurrency.runOnGLThread {
+                    popup.close()
+                    edit.onSaved(updated)
+                    game.popScreen()
+                }
+                return
+            }
+            val lobby = requireNotNull(lobbyConfiguration) {
+                "Create authoritative multiplayer matches from the multiplayer lobby browser."
+            }
             val meaning = AuthoritativeCreationMeaning(
                 lobby.rulesetManifest.baseRuleset.name,
                 lobby.rulesetManifest.mods.mapTo(linkedSetOf()) { it.name },
@@ -431,11 +464,17 @@ class NewGameScreen(
                     exception.message ?: "Could not create game on the authoritative server.",
                     true,
                 )
-                rightSideButton.enable()
-                rightSideButton.setText("Start game!".tr())
+                startGameButton.enable()
+                startGameButton.setText(authoritativeActionLabel().tr())
                 Gdx.input.inputProcessor = stage
             }
         }
+    }
+
+    private fun authoritativeActionLabel() = when {
+        lobbyEditConfiguration != null -> "Save lobby settings"
+        isAuthoritativeLobbySetup -> "Create lobby"
+        else -> "Start game!"
     }
 
     /** Updates our local [ruleset] from [gameSetupInfo], guarding against exceptions.
@@ -492,5 +531,10 @@ class NewGameScreen(
     }
 
     override fun recreate(): BaseScreen =
-        NewGameScreen(gameSetupInfo, authoritativeCreationRetryState, lobbyConfiguration)
+        NewGameScreen(
+            gameSetupInfo,
+            authoritativeCreationRetryState,
+            lobbyConfiguration,
+            lobbyEditConfiguration,
+        )
 }

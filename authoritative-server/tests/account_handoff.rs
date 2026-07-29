@@ -105,29 +105,82 @@ async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advan
     )
     .await;
     assert_eq!(joined["committed_revision"], 1);
+    let alternative_civilization = lobby["available_civilizations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_str)
+        .find(|civilization| *civilization != "Rome" && *civilization != friend_civilization)
+        .expect("the canonical worker pool must contain another unclaimed faction");
+    let faction_changed = send_json(
+        client
+            .put(format!("{base_url}/api/v3/lobbies/{game_id}/faction"))
+            .bearer_auth(&friend_session.token)
+            .json(&json!({
+                "operation_id": Uuid::new_v4(),
+                "expected_lobby_revision": 1,
+                "civilization_id": alternative_civilization,
+            })),
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(faction_changed["committed_revision"], 2);
+    assert_eq!(faction_changed["lobby_revision"], 2);
+    assert_eq!(
+        faction_changed["actor_civilization_id"],
+        alternative_civilization,
+    );
+    let mut updated_setup = creation_request(&manifest_hash)["setup"].clone();
+    updated_setup["max_turns"] = json!(600);
+    updated_setup["map_seed"] = lobby["setup"]["mapSeed"].clone();
+    let reconfigured = send_json(
+        client
+            .put(format!("{base_url}/api/v3/lobbies/{game_id}/configuration"))
+            .bearer_auth(&android_session.token)
+            .json(&json!({
+                "operation_id": Uuid::new_v4(),
+                "expected_lobby_revision": 2,
+                "display_name": "Account handoff reconfigured",
+                "human_slots": 2,
+                "password": {"action": "keep"},
+                "setup": updated_setup,
+            })),
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(reconfigured["committed_revision"], 3);
+    assert_eq!(reconfigured["lobby_revision"], 3);
+    assert_eq!(reconfigured["display_name"], "Account handoff reconfigured");
+    assert!(
+        reconfigured["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|member| member["ready"] == false),
+    );
     let owner_ready = send_json(
         client
             .put(format!("{base_url}/api/v3/lobbies/{game_id}/ready"))
             .bearer_auth(&android_session.token)
-            .json(&json!({"expected_lobby_revision": 1, "ready": true})),
+            .json(&json!({"expected_lobby_revision": 3, "ready": true})),
         StatusCode::OK,
     )
     .await;
-    assert_eq!(owner_ready["lobby_revision"], 2);
+    assert_eq!(owner_ready["lobby_revision"], 4);
     let friend_ready = send_json(
         client
             .put(format!("{base_url}/api/v3/lobbies/{game_id}/ready"))
             .bearer_auth(&friend_session.token)
-            .json(&json!({"expected_lobby_revision": 2, "ready": true})),
+            .json(&json!({"expected_lobby_revision": 4, "ready": true})),
         StatusCode::OK,
     )
     .await;
-    assert_eq!(friend_ready["lobby_revision"], 3);
+    assert_eq!(friend_ready["lobby_revision"], 5);
     let started = send_json(
         client
             .post(format!("{base_url}/api/v3/lobbies/{game_id}/start"))
             .bearer_auth(&android_session.token)
-            .json(&json!({"expected_lobby_revision": 3})),
+            .json(&json!({"expected_lobby_revision": 5})),
         StatusCode::OK,
     )
     .await;
@@ -143,7 +196,7 @@ async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advan
         android_projection["projection_hash"],
         desktop_projection["projection_hash"]
     );
-    assert_eq!(desktop_projection["committed_revision"], 1);
+    assert_eq!(desktop_projection["committed_revision"], 3);
     assert_eq!(desktop_projection["projection"]["isCurrentTurn"], true);
 
     let resigned = send_json(
@@ -152,17 +205,17 @@ async fn android_to_desktop_handoff_reopens_exact_projection_and_server_ai_advan
             .bearer_auth(&desktop_session.token)
             .json(&json!({
                 "command_id": Uuid::new_v4(),
-                "expected_revision": 1,
+                "expected_revision": 3,
                 "client_observed_state_hash":
                     desktop_projection["canonical_state_hash"],
             })),
         StatusCode::OK,
     )
     .await;
-    assert_eq!(resigned["committed_revision"], 2);
+    assert_eq!(resigned["committed_revision"], 4);
 
     let friend_projection = projection(&client, &base_url, game_id, &friend_session.token).await;
-    assert_eq!(friend_projection["committed_revision"], 2);
+    assert_eq!(friend_projection["committed_revision"], 4);
     assert_eq!(friend_projection["projection"]["isCurrentTurn"], true);
     assert_ne!(
         friend_projection["canonical_state_hash"],

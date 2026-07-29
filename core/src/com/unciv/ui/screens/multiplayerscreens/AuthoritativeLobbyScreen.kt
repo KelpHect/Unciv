@@ -11,12 +11,16 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.disable
+import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
+import com.unciv.ui.components.input.onChange
 import com.unciv.ui.components.widgets.AutoScrollPane
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.newgamescreen.AuthoritativeLobbyEditConfiguration
+import com.unciv.ui.screens.newgamescreen.NewGameScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
@@ -189,6 +193,7 @@ class AuthoritativeLobbyScreen(
                 }).colspan(2).growX().row()
             }
         } else {
+            renderFactionSelection(target)
             val ready = lobby.actorReady == true
             target.add(
                 (if (ready) "Cancel ready" else "Ready up")
@@ -198,6 +203,36 @@ class AuthoritativeLobbyScreen(
             ).colspan(2).growX().row()
         }
         if (lobby.actorRole == "owner") {
+            target.add("Edit lobby access".toTextButton().onClick {
+                AuthoritativeLobbyAccessPopup(this, lobby) {
+                        displayName, humanSlots, password ->
+                    runAction {
+                        session.reconfigureLobby(
+                            lobby,
+                            displayName,
+                            humanSlots,
+                            password,
+                            lobby.setup,
+                        )
+                    }
+                }.open()
+            }).colspan(2).growX().row()
+            target.add("Edit map, rules & victory".toTextButton().onClick {
+                val editableSetup = lobby.setup.toGameSetupInfo()
+                val edit = AuthoritativeLobbyEditConfiguration(
+                    lobby,
+                    editableSetup.mapParameters.seed,
+                ) { updated ->
+                    lobby = updated
+                    render()
+                }
+                game.pushScreen(
+                    NewGameScreen(
+                        editableSetup,
+                        lobbyEditConfiguration = edit,
+                    ),
+                )
+            }).colspan(2).growX().row()
             val canStart =
                 lobby.occupiedSlots == lobby.humanSlots &&
                     lobby.members.all { it.ready && it.civilizationId.isNotBlank() }
@@ -214,6 +249,43 @@ class AuthoritativeLobbyScreen(
                 ).colspan(2).left().row()
         }
         target.add("Refresh now".toTextButton().onClick { refresh() }).colspan(2).growX().row()
+    }
+
+    private fun renderFactionSelection(target: Table) {
+        val current = lobby.actorCivilizationId.orEmpty()
+        val claimedByOthers = lobby.members
+            .asSequence()
+            .map { it.civilizationId }
+            .filter { it.isNotBlank() && it != current }
+            .toHashSet()
+        val choices = lobby.availableCivilizations
+            .filterNot(claimedByOthers::contains)
+            .toMutableList()
+            .apply {
+                if (current.isNotBlank() && current !in this) add(0, current)
+            }
+            .distinct()
+        if (choices.isEmpty()) {
+            target.add("No civilization is currently available.".toLabel(Color.RED))
+                .colspan(2).row()
+            return
+        }
+        val civilization = SelectBox<String>(skin).apply {
+            items = com.badlogic.gdx.utils.Array(choices.toTypedArray())
+            if (current in choices) selected = current
+        }
+        target.add("Your faction".toLabel()).left()
+        target.add(civilization).growX().row()
+        val save = "Select faction".toTextButton()
+        save.onClick {
+            runAction { session.selectLobbyFaction(lobby, civilization.selected) }
+        }
+        if (civilization.selected == current) save.disable()
+        civilization.onChange {
+            if (civilization.selected == current) save.disable()
+            else save.enable()
+        }
+        target.add(save).colspan(2).growX().row()
     }
 
     private fun setting(target: Table, label: String, value: String) {

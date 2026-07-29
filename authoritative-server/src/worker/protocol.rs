@@ -28,6 +28,14 @@ pub(super) enum WorkerOperation<'a> {
         server_seed: i64,
         setup: &'a super::WorkerGameSetup,
     },
+    ReconfigureLobby {
+        #[serde(rename = "gameId")]
+        game_id: &'a str,
+        #[serde(rename = "serverSeed")]
+        server_seed: i64,
+        setup: &'a super::WorkerGameSetup,
+        participants: &'a [super::WorkerLobbyParticipant],
+    },
     NormalizeLegacyGame {
         snapshot: &'a str,
         #[serde(rename = "expectedLegacyGameId")]

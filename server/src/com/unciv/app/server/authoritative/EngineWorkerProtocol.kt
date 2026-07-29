@@ -28,7 +28,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 3
+    const val VERSION = 4
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -128,6 +128,16 @@ sealed interface WorkerOperation {
         val gameId: String,
         val serverSeed: Long,
         val setup: WorkerGameSetup,
+    ) : WorkerOperation
+
+    /** Rebuilds a pregame lobby from typed setup and server-owned membership.
+     * No client snapshot is accepted. */
+    @Serializable @SerialName("reconfigure_lobby")
+    data class ReconfigureLobby(
+        val gameId: String,
+        val serverSeed: Long,
+        val setup: WorkerGameSetup,
+        val participants: List<WorkerLobbyParticipant>,
     ) : WorkerOperation
 
     /** Operator-only bridge for one-way migration from legacy multiplayer.
@@ -712,6 +722,7 @@ class AuthoritativeEngineWorker(
             rulesetManifest = manifest.toCore(),
             canonicalGameId = when (val operation = request.operation) {
                 is WorkerOperation.CreateGame -> operation.gameId
+                is WorkerOperation.ReconfigureLobby -> operation.gameId
                 is WorkerOperation.NormalizeLegacyGame -> operation.canonicalGameId
                 else -> null
             },
@@ -737,6 +748,28 @@ class AuthoritativeEngineWorker(
                     it.playerId == actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
                 responseForGame(engine, result.game, ownerCivilization.civID).copy(
+                    availableCivilizationIds = result.game.civilizations
+                        .filter { it.isMajorCiv() }
+                        .map { it.civID },
+                )
+            }
+            is WorkerOperation.ReconfigureLobby -> {
+                require(UUID.fromString(operation.gameId).toString() == operation.gameId.lowercase()) {
+                    "Canonical game ID must be a normalized UUID"
+                }
+                val setup = operation.setup.materialize(
+                    manifest,
+                    actorId,
+                    operation.serverSeed,
+                    operation.participants,
+                )
+                val result = engine.createGame(setup)
+                require(operation.participants.all { participant ->
+                    result.game.civilizations.singleOrNull {
+                        it.civID == participant.civilizationId && it.playerId == participant.accountId
+                    } != null
+                }) { "GameStarter did not preserve the exact human assignments" }
+                responseForGame(engine, result.game, operation.setup.ownerCivilizationId).copy(
                     availableCivilizationIds = result.game.civilizations
                         .filter { it.isMajorCiv() }
                         .map { it.civID },

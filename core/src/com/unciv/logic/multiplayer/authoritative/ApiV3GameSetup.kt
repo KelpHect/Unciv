@@ -8,6 +8,7 @@ import com.unciv.logic.map.MapType
 import com.unciv.logic.map.MirroringType
 import com.unciv.logic.map.mapgenerator.MapResourceSetting
 import com.unciv.models.metadata.GameSetupInfo
+import com.unciv.models.metadata.Player
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -139,6 +140,56 @@ data class ApiV3GameSetup(
     @JsonNames("waterThreshold")
     @SerialName("water_threshold") val waterThreshold: Float = 0f,
 ) {
+    fun toGameSetupInfo(): GameSetupInfo = GameSetupInfo().apply {
+        gameParameters.apply {
+            difficulty = this@ApiV3GameSetup.difficulty
+            speed = this@ApiV3GameSetup.speed
+            startingEra = this@ApiV3GameSetup.startingEra
+            victoryTypes = ArrayList(this@ApiV3GameSetup.victoryTypes)
+            players = ArrayList<Player>().apply {
+                add(Player(ownerCivilizationId, PlayerType.Human))
+                repeat((majorCivilizations - 1).coerceAtLeast(0)) { add(Player()) }
+            }
+            randomNumberOfPlayers = false
+            numberOfCityStates = cityStates
+            randomNumberOfCityStates = false
+            maxTurns = this@ApiV3GameSetup.maxTurns
+            noBarbarians = barbarians == ApiV3BarbarianMode.Disabled
+            ragingBarbarians = barbarians == ApiV3BarbarianMode.Raging
+            oneCityChallenge = this@ApiV3GameSetup.oneCityChallenge
+            nuclearWeaponsEnabled = this@ApiV3GameSetup.nuclearWeaponsEnabled
+            espionageEnabled = this@ApiV3GameSetup.espionageEnabled
+            noStartBias = this@ApiV3GameSetup.noStartBias
+            shufflePlayerOrder = this@ApiV3GameSetup.shufflePlayerOrder
+            noCityRazing = this@ApiV3GameSetup.noCityRazing
+            isOnlineMultiplayer = true
+            anyoneCanSpectate = false
+        }
+        mapParameters.apply {
+            name = ""
+            type = mapType.toMapType()
+            shape = mapShape.toMapShape()
+            mapSize = this@ApiV3GameSetup.mapSize.toMapSize()
+            mapResources = this@ApiV3GameSetup.mapResources.toMapResources()
+            mirroring = this@ApiV3GameSetup.mirroring.toMirroring()
+            noRuins = this@ApiV3GameSetup.noRuins
+            noNaturalWonders = this@ApiV3GameSetup.noNaturalWonders
+            worldWrap = this@ApiV3GameSetup.worldWrap
+            strategicBalance = this@ApiV3GameSetup.strategicBalance
+            legendaryStart = this@ApiV3GameSetup.legendaryStart
+            mapSeed?.let { seed = it }
+            tilesPerBiomeArea = this@ApiV3GameSetup.tilesPerBiomeArea
+            maxCoastExtension = this@ApiV3GameSetup.maxCoastExtension
+            elevationExponent = this@ApiV3GameSetup.elevationExponent
+            temperatureintensity = temperatureIntensity
+            temperatureShift = this@ApiV3GameSetup.temperatureShift
+            vegetationRichness = this@ApiV3GameSetup.vegetationRichness
+            rareFeaturesRichness = this@ApiV3GameSetup.rareFeaturesRichness
+            resourceRichness = this@ApiV3GameSetup.resourceRichness
+            waterThreshold = this@ApiV3GameSetup.waterThreshold
+        }
+    }
+
     companion object {
         fun from(setup: GameSetupInfo): ApiV3GameSetup {
             val game = setup.gameParameters
@@ -260,4 +311,48 @@ private fun String.toApiV3Resources() = when (this) {
     MapResourceSetting.default.label -> ApiV3MapResourceDensity.Default
     MapResourceSetting.abundant.label -> ApiV3MapResourceDensity.Abundant
     else -> error("Unsupported API v3 resource density: $this")
+}
+
+private fun ApiV3MirroringType.toMirroring() = when (this) {
+    ApiV3MirroringType.None -> MirroringType.none
+    ApiV3MirroringType.TopBottom -> MirroringType.topbottom
+    ApiV3MirroringType.LeftRight -> MirroringType.leftright
+    ApiV3MirroringType.AroundCenterTile -> MirroringType.aroundCenterTile
+    ApiV3MirroringType.FourWay -> MirroringType.fourway
+}
+
+private fun ApiV3GeneratedMapType.toMapType() = when (this) {
+    ApiV3GeneratedMapType.Pangaea -> MapType.pangaea
+    ApiV3GeneratedMapType.SmallContinents -> MapType.smallContinents
+    ApiV3GeneratedMapType.Perlin -> MapType.perlin
+    ApiV3GeneratedMapType.Fractal -> MapType.fractal
+    ApiV3GeneratedMapType.ContinentAndIslands -> MapType.continentAndIslands
+    ApiV3GeneratedMapType.Archipelago -> MapType.archipelago
+    ApiV3GeneratedMapType.TwoContinents -> MapType.twoContinents
+    ApiV3GeneratedMapType.ThreeContinents -> MapType.threeContinents
+    ApiV3GeneratedMapType.InnerSea -> MapType.innerSea
+    ApiV3GeneratedMapType.Lakes -> MapType.lakes
+    ApiV3GeneratedMapType.FourCorners -> MapType.fourCorners
+    ApiV3GeneratedMapType.Spiral -> MapType.spiral
+    ApiV3GeneratedMapType.Boreal -> MapType.boreal
+}
+
+private fun ApiV3GeneratedMapShape.toMapShape() = when (this) {
+    ApiV3GeneratedMapShape.Rectangular -> MapShape.rectangular
+    ApiV3GeneratedMapShape.Hexagonal -> MapShape.hexagonal
+    ApiV3GeneratedMapShape.FlatEarth -> MapShape.flatEarth
+}
+
+private fun ApiV3GeneratedMapSize.toMapSize() = when (this) {
+    ApiV3GeneratedMapSize.Tiny -> MapSize.Tiny
+    ApiV3GeneratedMapSize.Small -> MapSize.Small
+    ApiV3GeneratedMapSize.Medium -> MapSize.Medium
+    ApiV3GeneratedMapSize.Large -> MapSize.Large
+    ApiV3GeneratedMapSize.Huge -> MapSize.Huge
+}
+
+private fun ApiV3MapResourceDensity.toMapResources() = when (this) {
+    ApiV3MapResourceDensity.Sparse -> MapResourceSetting.sparse.label
+    ApiV3MapResourceDensity.Default -> MapResourceSetting.default.label
+    ApiV3MapResourceDensity.Abundant -> MapResourceSetting.abundant.label
 }

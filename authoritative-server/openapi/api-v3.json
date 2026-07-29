@@ -10809,6 +10809,154 @@
         ]
       }
     },
+    "/api/v3/lobbies/{game_id}/configuration": {
+      "put": {
+        "tags": [],
+        "operationId": "reconfigure_lobby",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconfigureLobbyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbySummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/lobbies/{game_id}/faction": {
+      "put": {
+        "tags": [],
+        "operationId": "select_lobby_faction",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectLobbyFactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbySummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/lobbies/{game_id}/ready": {
       "put": {
         "tags": [],
@@ -13079,6 +13227,56 @@
           }
         }
       },
+      "LobbyPasswordUpdateRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "keep"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "clear"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "password",
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "replace"
+                ]
+              },
+              "password": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
       "LobbySummary": {
         "type": "object",
         "required": [
@@ -13100,6 +13298,12 @@
           "members"
         ],
         "properties": {
+          "actor_civilization_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "actor_ready": {
             "type": [
               "boolean",
@@ -16057,6 +16261,43 @@
           }
         }
       },
+      "ReconfigureLobbyRequest": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "expected_lobby_revision",
+          "display_name",
+          "human_slots",
+          "password",
+          "setup"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string"
+          },
+          "expected_lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "human_slots": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "password": {
+            "$ref": "#/components/schemas/LobbyPasswordUpdateRequest"
+          },
+          "setup": {
+            "$ref": "#/components/schemas/CreateGameSetupRequest"
+          }
+        },
+        "additionalProperties": false
+      },
       "RecoverAccountRequest": {
         "type": "object",
         "required": [
@@ -16516,6 +16757,29 @@
             }
           }
         }
+      },
+      "SelectLobbyFactionRequest": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "expected_lobby_revision",
+          "civilization_id"
+        ],
+        "properties": {
+          "civilization_id": {
+            "type": "string"
+          },
+          "expected_lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
       },
       "SellBuildingRequest": {
         "type": "object",

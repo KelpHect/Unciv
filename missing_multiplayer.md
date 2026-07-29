@@ -169,13 +169,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `docs/operations/authoritative-full-match-qualification.md`; an attempted
   all-AI resignation shortcut was rejected because it exceeded the bounded
   synchronous worker model and is not equivalent to a human match.
-- [x] Remove the opaque revision-zero worker setup blob and client-selectable
-  seed path. The control plane now generates an independent OS-backed secret
-  map seed that is not derivable from the public game UUID; the private
-  protocol carries only that typed seed, and Kotlin constructs default
-  `GameSetupInfo` from the pinned manifest before assigning the authenticated
-  owner. Production UI routing remains part of the unchecked lifecycle items
-  below.
+  The same packaged preflight now also exercises member faction reselection and
+  owner map/rule reconfiguration through public HTTP, proves readiness reset,
+  then starts and resumes the revised canonical head.
+- [x] Remove the opaque revision-zero worker setup blob and distinguish the
+  owner-visible map-generation seed from private server execution randomness.
+  The bounded map seed is an intentional Civilization-style setup option; when
+  omitted, Rust resolves it from OS entropy and persists the resolved value in
+  the canonical lobby setup. Independent OS-backed worker execution seeds,
+  game UUIDs, server time, and later gameplay RNG remain server-owned and are
+  not accepted from clients. Kotlin constructs `GameSetupInfo` only from the
+  pinned manifest plus this closed typed setup.
 - [x] Add authenticated, bounded ruleset-manifest discovery and exact client
   resolution. The public API pages only content identities and hashes, validates
   persisted manifest integrity, and never exposes raw manifest JSON or ruleset
@@ -236,16 +240,18 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   authenticated HTTP truth and a bounded polling fallback. The lobby displays
   the server manifest's friendly base/mod names instead of exposing only a
   content hash.
-- [ ] Make the revision-zero staging room itself server-editable before start.
-  The current two-stage flow creates the canonical setup before entering the
-  room, so the owner can review but cannot revise map/game/victory/advanced
-  settings after another player joins, and the owner cannot reselect their
-  faction there. Complete this through one revisioned, owner-authorized
-  pregame reconfiguration contract that rebuilds canonical revision zero in
-  the private worker, preserves each account's independently selected
-  civilization when still valid, clears readiness on meaningful changes, and
-  publishes only resynchronization hints. Do not patch lobby JSON independently
-  of the canonical worker state.
+- [x] Make the pregame staging room server-editable before start. The owner can
+  revise labeled access/capacity fields and reopen the complete map, rules,
+  victory, seed, and advanced setup editor from the room; every member can
+  reselect only their own currently unclaimed faction. Each operation carries
+  one exact ID and expected lobby revision, resets all readiness, and invokes
+  worker protocol v4 with the server-owned account/faction assignment. Rust
+  atomically appends an immutable `lobby_reconfiguration` snapshot/revision,
+  advances both canonical and lobby heads, journals the operation, and emits
+  one resynchronization outbox event. Failed workers leave no phantom revision;
+  exact response-loss retries do not re-execute; stale, changed-meaning, and
+  unauthorized requests fail closed. The resolved server-generated map seed is
+  persisted so faction changes cannot silently regenerate a different map.
 - [x] Add the projection-only world foundation. Projection v54 carries bounded
   explored terrain, terrain features, natural wonders, and only resources the
   actor can reveal. Opening an available player membership now constructs a

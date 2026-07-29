@@ -1,8 +1,51 @@
 # Authoritative multiplayer v3 status
 
+## Revisioned live lobby configuration
+
+Implemented on 2026-07-29:
+
+- The API-v3 staging room is now mutable without becoming client-authoritative.
+  Owners can edit match name, human capacity, password policy, map generation,
+  game rules, victory conditions, seed, and advanced options; every joined
+  account can change only its own faction to an unclaimed worker-approved
+  civilization. All changes reset readiness and publish compact resync hints.
+- PostgreSQL migration `0031_revisioned_lobby_reconfiguration.sql` adds a
+  meaning-bound operation journal, password identity needed for safe retries,
+  and the append-only `lobby_reconfiguration` revision kind. The transaction
+  locks the lobby/head/members, invokes the private worker with exact human
+  assignments, stores a new immutable snapshot, advances canonical and lobby
+  revisions, updates membership factions, resets readiness, and inserts the
+  outbox event together.
+- Worker protocol v4 rebuilds pregame state from the pinned manifest, typed
+  setup, server seed, and exact server-owned participants. It rejects forged
+  owners, duplicate accounts, duplicate factions, spectators, unavailable
+  civilizations, and over-capacity assignments. No snapshot crosses the public
+  route or enters the operation request.
+- Server-generated map seeds are now written back into the canonical lobby
+  setup at creation. Reopening or changing a faction therefore preserves the
+  same generated map unless the owner intentionally changes its visible seed;
+  private runtime randomness remains server-owned.
+- The shared desktop/Android UI reuses the mature `NewGameScreen` controls as
+  an editor and returns the revisioned server response to the live lobby. A
+  dedicated labeled popup owns access/capacity/password policy, and faction
+  selection is actor-scoped. The editor retains one operation ID through
+  resize and ambiguous retry.
+- Focused evidence passed on
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`:
+  three creation/retry tests, two transactional reconfiguration tests, two
+  existing lobby tests, and the reconciliation, repair, and retention tests all
+  passed serially. Packaged-worker lifecycle/parity/protocol tests, Kotlin
+  setup/session/production-routing tests, the complete `:tests:test` and
+  `:server:test` suites, the complete Rust all-target/all-feature suite, strict
+  Rust Clippy, and the packaged Android-to-desktop handoff also passed. The
+  handoff now performs both public reconfiguration routes before
+  readiness/start, resumes the owner on desktop, and advances server AI. The
+  real two-person Domination terminal run remains the separate unchecked P0
+  release-acceptance item in `missing_multiplayer.md`.
+
 ## V3 lobby client candidate
 
-Built and qualified on 2026-07-29:
+Rebuilt from the final lobby implementation and qualified on 2026-07-29:
 
 - `:server:authoritativeWorkerDist`, `:android:assembleRelease`,
   `:android:bundleRelease`, and `:desktop:dist` passed together.
@@ -19,13 +62,16 @@ Built and qualified on 2026-07-29:
 - The portable archive contains `Unciv.exe` and a private runtime. It was
   extracted into a clean directory and remained alive through a 12-second
   smoke launch.
-- Candidate artifacts are in `deploy/Unciv-V3-lobby-20260729`. SHA-256 values:
-  `7C9AE9DB3BFFA7EE4349E757E8639E8E85DAD968DA4BD3219D14307E5E5B2EC2`
-  (APK),
-  `6002D5BC2EC941EF2E5DDEA4820253B94B57B1AC46CA9F1EAB887771F79CE80A`
-  (portable Windows ZIP), and
-  `A365775BFC5A3DA870065070A00FF9B290D662B9AD3B7E4F9E66CFE58B9ECFC8`
-  (desktop JAR).
+- Candidate artifacts are in `deploy/Unciv-V3-live-lobby-20260729`.
+  SHA-256 values:
+  `779315048828B134FE07D9032847E66ECEE502A8551EEA3AEBF36D4342E7DAFF`
+  (direct-install APK),
+  `FB4F069C4A38B188A3B3301980F81BF1E3ABF5CFDC960366064053F6F0995A3F`
+  (portable Windows ZIP),
+  `44F28CDECB27072172466C392637A630DC79EA6CCF96F09FF1995923D34FF040`
+  (desktop JAR), and
+  `2C8412357D00029988C27E1C9B20F024A3F51149C4D7E6FCF7C0DC81A50C3EC8`
+  (Android App Bundle).
 
 ## Direct-install Android and portable Windows match clients
 

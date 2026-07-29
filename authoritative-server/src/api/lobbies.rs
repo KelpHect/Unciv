@@ -56,6 +56,112 @@ pub(super) async fn lobby(
 
 #[utoipa::path(
     put,
+    path = "/api/v3/lobbies/{game_id}/configuration",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = ReconfigureLobbyRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::postgres::LobbySummary),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 409, body = ErrorResponse)
+    )
+)]
+pub(super) async fn reconfigure_lobby(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<ReconfigureLobbyRequest>,
+) -> Result<Json<unciv_authoritative_server::postgres::LobbySummary>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    if request.operation_id.is_nil()
+        || request.display_name.trim().is_empty()
+        || request.display_name.len() > 80
+        || request.display_name.chars().any(char::is_control)
+        || !(1..=16).contains(&request.human_slots)
+    {
+        return Err(ApiError::bad_request("invalid_lobby_configuration"));
+    }
+    let setup = request.setup.validate()?;
+    if request.human_slots > setup.major_civilizations {
+        return Err(ApiError::bad_request(
+            "human_slots_exceed_major_civilizations",
+        ));
+    }
+    let password = match request.password {
+        LobbyPasswordUpdateRequest::Keep => {
+            unciv_authoritative_server::postgres::LobbyPasswordUpdate::Keep
+        }
+        LobbyPasswordUpdateRequest::Clear => {
+            unciv_authoritative_server::postgres::LobbyPasswordUpdate::Clear
+        }
+        LobbyPasswordUpdateRequest::Replace { password } => {
+            let identity = unciv_authoritative_server::state_hash(password.as_bytes());
+            let hash = PasswordService
+                .hash(&password)
+                .map_err(|_| ApiError::bad_request("invalid_lobby_password"))?;
+            unciv_authoritative_server::postgres::LobbyPasswordUpdate::Replace { hash, identity }
+        }
+    };
+    let lobby = state
+        .repository
+        .reconfigure_lobby(
+            &state.worker,
+            actor.id,
+            game_id,
+            request.operation_id,
+            request.expected_lobby_revision,
+            unciv_authoritative_server::postgres::LobbyConfigurationUpdate {
+                display_name: request.display_name,
+                human_slots: request.human_slots,
+                password,
+                setup,
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    state.notifications.require_resync_for_all();
+    Ok(Json(lobby))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v3/lobbies/{game_id}/faction",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = SelectLobbyFactionRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::postgres::LobbySummary),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 409, body = ErrorResponse)
+    )
+)]
+pub(super) async fn select_lobby_faction(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<SelectLobbyFactionRequest>,
+) -> Result<Json<unciv_authoritative_server::postgres::LobbySummary>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let lobby = state
+        .repository
+        .reselect_lobby_faction(
+            &state.worker,
+            actor.id,
+            game_id,
+            request.operation_id,
+            request.expected_lobby_revision,
+            request.civilization_id,
+        )
+        .await
+        .map_err(game_error)?;
+    state.notifications.require_resync_for_all();
+    Ok(Json(lobby))
+}
+
+#[utoipa::path(
+    put,
     path = "/api/v3/lobbies/{game_id}/ready",
     params(("game_id" = uuid::Uuid, Path)),
     security(("bearer_auth" = [])),

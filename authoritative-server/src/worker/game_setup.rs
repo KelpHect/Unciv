@@ -91,7 +91,21 @@ pub enum BarbarianMode {
     Raging,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkerLobbyParticipant {
+    pub account_id: String,
+    pub civilization_id: String,
+}
+
+pub struct WorkerLobbyReconfiguration<'a> {
+    pub game_id: &'a str,
+    pub server_seed: i64,
+    pub setup: &'a WorkerGameSetup,
+    pub participants: &'a [WorkerLobbyParticipant],
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkerGameSetup {
     pub owner_civilization_id: String,

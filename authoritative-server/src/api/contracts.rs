@@ -159,6 +159,33 @@ pub(super) struct StartLobbyRequest {
 }
 
 #[derive(Deserialize, ToSchema)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub(super) enum LobbyPasswordUpdateRequest {
+    Keep,
+    Clear,
+    Replace { password: String },
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ReconfigureLobbyRequest {
+    pub(super) operation_id: uuid::Uuid,
+    pub(super) expected_lobby_revision: u64,
+    pub(super) display_name: String,
+    pub(super) human_slots: u8,
+    pub(super) password: LobbyPasswordUpdateRequest,
+    pub(super) setup: CreateGameSetupRequest,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SelectLobbyFactionRequest {
+    pub(super) operation_id: uuid::Uuid,
+    pub(super) expected_lobby_revision: u64,
+    pub(super) civilization_id: String,
+}
+
+#[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct MoveUnitRequest {
     pub(super) command_id: uuid::Uuid,

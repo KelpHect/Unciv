@@ -74,6 +74,25 @@ class AuthoritativeMultiplayerSessionTests {
         assertTrue(transport.lastReadyRequest?.ready == true)
         session.startLobby(listed)
         assertEquals(listed.lobbyRevision, transport.lastStartRequest?.expectedLobbyRevision)
+        session.selectLobbyFaction(
+            listed,
+            "Japan",
+            "00000000-0000-4000-8000-000000000100",
+        )
+        assertEquals(listed.lobbyRevision, transport.lastFactionRequest?.expectedLobbyRevision)
+        assertEquals("Japan", transport.lastFactionRequest?.civilizationId)
+        session.reconfigureLobby(
+            listed,
+            "Updated match",
+            2,
+            ApiV3LobbyPasswordUpdate.clear(),
+            listed.setup.copy(maxTurns = 600),
+            "00000000-0000-4000-8000-000000000101",
+        )
+        assertEquals(listed.lobbyRevision, transport.lastReconfigureRequest?.expectedLobbyRevision)
+        assertEquals("Updated match", transport.lastReconfigureRequest?.displayName)
+        assertEquals("clear", transport.lastReconfigureRequest?.password?.action)
+        assertEquals(600, transport.lastReconfigureRequest?.setup?.maxTurns)
         session.close()
     }
 
@@ -1650,6 +1669,8 @@ class AuthoritativeMultiplayerSessionTests {
         var lastJoinRequest: ApiV3JoinGameRequest? = null
         var lastReadyRequest: ApiV3SetLobbyReadyRequest? = null
         var lastStartRequest: ApiV3StartLobbyRequest? = null
+        var lastReconfigureRequest: ApiV3ReconfigureLobbyRequest? = null
+        var lastFactionRequest: ApiV3SelectLobbyFactionRequest? = null
         val closedGames = mutableListOf<Pair<String, String>>()
         val archivedGames = mutableListOf<Pair<String, String>>()
         var disableFailure: Throwable? = null
@@ -1699,6 +1720,28 @@ class AuthoritativeMultiplayerSessionTests {
             return lobbyFixture().copy(
                 lobbyRevision = request.expectedLobbyRevision + 1,
                 actorReady = request.ready,
+            )
+        }
+        override suspend fun reconfigureLobby(
+            gameId: String,
+            request: ApiV3ReconfigureLobbyRequest,
+        ): ApiV3Lobby {
+            lastReconfigureRequest = request
+            return lobbyFixture().copy(
+                displayName = request.displayName,
+                humanSlots = request.humanSlots,
+                lobbyRevision = request.expectedLobbyRevision + 1,
+                setup = request.setup,
+            )
+        }
+        override suspend fun selectLobbyFaction(
+            gameId: String,
+            request: ApiV3SelectLobbyFactionRequest,
+        ): ApiV3Lobby {
+            lastFactionRequest = request
+            return lobbyFixture().copy(
+                lobbyRevision = request.expectedLobbyRevision + 1,
+                actorCivilizationId = request.civilizationId,
             )
         }
         override suspend fun startLobby(
@@ -2651,6 +2694,7 @@ class AuthoritativeMultiplayerSessionTests {
             started = false,
             actorRole = "owner",
             actorReady = false,
+            actorCivilizationId = "Rome",
             setup = gameSetup(),
             members = listOf(ApiV3LobbyMember("owner", "owner", "Rome", false)),
             availableCivilizations = listOf("Rome", "Greece"),

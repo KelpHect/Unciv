@@ -28,6 +28,7 @@ class PackagedWorkerParityCoverageTests {
             setOf(
                 "handshake",
                 "create_game",
+                "reconfigure_lobby",
                 "normalize_legacy_game",
                 "assign_player",
                 "end_turn",
@@ -126,6 +127,7 @@ class PackagedWorkerParityCoverageTests {
         val coverage = setOf(
             "handshake",
             "create_game",
+            "reconfigure_lobby",
             "normalize_legacy_game",
             "assign_player",
             "end_turn",
@@ -212,6 +214,7 @@ class PackagedWorkerParityCoverageTests {
         ).associateWith { ParityEvidence.InProcessOnly } + mapOf(
             "handshake" to ParityEvidence.FreshProcessTransportParity,
             "create_game" to ParityEvidence.FreshProcessStateParity,
+            "reconfigure_lobby" to ParityEvidence.FreshProcessStateParity,
             "normalize_legacy_game" to ParityEvidence.FreshProcessStateParity,
             "assign_player" to ParityEvidence.FreshProcessStateParity,
             "end_turn" to ParityEvidence.FreshProcessStateParity,

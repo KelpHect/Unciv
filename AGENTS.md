@@ -265,3 +265,11 @@ V3 matches have unlimited human turn time. Do not reintroduce skip-turn,
 total-play-time, recovered-time, or timed force-resignation controls into public
 setup, production UI, or worker behavior. Compatibility-only legacy multiplayer
 code must remain unreachable from the production multiplayer screen.
+
+Pregame edits are canonical mutations, not independent lobby JSON patches.
+Owner settings and each member's own faction selection must carry an
+idempotency operation ID plus expected lobby revision, rebuild the complete
+pregame state in the private worker from exact server-owned memberships, append
+an immutable `lobby_reconfiguration` revision, reset every ready state, and
+emit only a resynchronization hint. Preserve the resolved map seed across
+unrelated edits so a faction change cannot silently generate a different map.

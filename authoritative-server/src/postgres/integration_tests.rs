@@ -19,6 +19,8 @@ mod invitations;
 mod legacy_import;
 #[path = "lobby_integration_tests.rs"]
 mod lobbies;
+#[path = "lobby_reconfiguration_integration_tests.rs"]
+mod lobby_reconfiguration;
 #[path = "malicious_client_integration_tests.rs"]
 mod malicious_clients;
 #[path = "manifest_integration_tests.rs"]

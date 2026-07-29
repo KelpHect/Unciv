@@ -550,6 +550,30 @@ class AuthoritativeProductionRoutingTests {
     }
 
     @Test
+    fun revisionedLobbySettingsAndFactionSelectionAreReachableFromProductionUi() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val editor = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        ).readText()
+        val access = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeLobbyAccessPopup.kt",
+        ).readText()
+
+        assertTrue(lobby.contains("session.selectLobbyFaction("))
+        assertTrue(lobby.contains("session.reconfigureLobby("))
+        assertTrue(lobby.contains("lobby.setup.toGameSetupInfo()"))
+        assertTrue(editor.contains("lobbyEditConfiguration"))
+        assertTrue(editor.contains("session.reconfigureLobby("))
+        assertTrue(access.contains("LOBBY ACCESS & CAPACITY"))
+        assertFalse(lobby.contains("GameInfo"))
+        assertFalse(lobby.contains("GameStarter"))
+    }
+
+    @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +

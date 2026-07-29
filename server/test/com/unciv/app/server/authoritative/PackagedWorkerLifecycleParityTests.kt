@@ -7,6 +7,40 @@ import org.junit.Test
 
 class PackagedWorkerLifecycleParityTests {
     @Test(timeout = 300_000)
+    fun lobbyReconfigurationPreservesExactHumansAcrossFreshWorkers() {
+        val fixture = fixture("00000000-0000-4000-8000-000000000700", 1_700_699_900_000L)
+        val responses = PackagedWorkerParityHarness.assertStableScenario { send ->
+            val createRequest = fixture.createGameRequest(1_700_699_900_000L)
+            val created = send(createRequest)
+            val secondCivilization = fixture.decode(created.snapshot).civilizations.first {
+                it.isMajorCiv() && it.isAI() && it.playerId.isEmpty()
+            }.civID
+            val originalSetup = (createRequest.operation as WorkerOperation.CreateGame).setup
+            val reconfigured = send(
+                fixture.request(
+                    WorkerOperation.ReconfigureLobby(
+                        gameId = "00000000-0000-4000-8000-000000000700",
+                        serverSeed = 7_007L,
+                        setup = originalSetup.copy(mapSeed = 7_007L),
+                        participants = listOf(
+                            WorkerLobbyParticipant(ownerActorId, originalSetup.ownerCivilizationId),
+                            WorkerLobbyParticipant(secondActorId, secondCivilization),
+                        ),
+                    ),
+                    1_700_699_910_000L,
+                ),
+            )
+
+            val game = fixture.decode(reconfigured.snapshot)
+            assertEquals(ownerActorId, game.getCivilization(originalSetup.ownerCivilizationId).playerId)
+            assertEquals(secondActorId, game.getCivilization(secondCivilization).playerId)
+            listOf(created, reconfigured)
+        }
+
+        assertEquals(2, responses.size)
+    }
+
+    @Test(timeout = 300_000)
     fun selfResignationIsStableAcrossFreshWorkers() {
         val fixture = fixture("00000000-0000-4000-8000-000000000701", 1_700_700_000_000L)
         val responses = PackagedWorkerParityHarness.assertStableScenario { send ->

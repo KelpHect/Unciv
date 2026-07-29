@@ -151,6 +151,14 @@ pub(crate) async fn run() {
         .route("/api/v3/games", get(list_games).post(create_game))
         .route("/api/v3/lobbies", get(list_lobbies))
         .route("/api/v3/lobbies/{game_id}", get(lobby))
+        .route(
+            "/api/v3/lobbies/{game_id}/configuration",
+            put(reconfigure_lobby),
+        )
+        .route(
+            "/api/v3/lobbies/{game_id}/faction",
+            put(select_lobby_faction),
+        )
         .route("/api/v3/lobbies/{game_id}/ready", put(set_lobby_ready))
         .route("/api/v3/lobbies/{game_id}/start", post(start_lobby))
         .route("/api/v3/games/{game_id}", get(game_metadata))

@@ -284,6 +284,24 @@ class ApiV3Client(
     override suspend fun lobby(gameId: String): ApiV3Lobby =
         decode(client.get("api/v3/lobbies/$gameId") { authenticate() })
 
+    override suspend fun reconfigureLobby(
+        gameId: String,
+        request: ApiV3ReconfigureLobbyRequest,
+    ): ApiV3Lobby = decode(client.put("api/v3/lobbies/$gameId/configuration") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
+    override suspend fun selectLobbyFaction(
+        gameId: String,
+        request: ApiV3SelectLobbyFactionRequest,
+    ): ApiV3Lobby = decode(client.put("api/v3/lobbies/$gameId/faction") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun setLobbyReady(
         gameId: String,
         request: ApiV3SetLobbyReadyRequest,

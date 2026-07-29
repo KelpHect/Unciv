@@ -119,6 +119,7 @@ data class ApiV3Lobby(
     val started: Boolean,
     @SerialName("actor_role") val actorRole: String? = null,
     @SerialName("actor_ready") val actorReady: Boolean? = null,
+    @SerialName("actor_civilization_id") val actorCivilizationId: String? = null,
     val setup: ApiV3GameSetup,
     val members: List<ApiV3LobbyMember>,
     @SerialName("available_civilizations") val availableCivilizations: List<String>,
@@ -141,6 +142,40 @@ data class ApiV3SetLobbyReadyRequest(
 @Serializable
 data class ApiV3StartLobbyRequest(
     @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,
+)
+
+@Serializable
+data class ApiV3LobbyPasswordUpdate(
+    val action: String,
+    val password: String? = null,
+) {
+    init {
+        require(action in setOf("keep", "clear", "replace"))
+        require((action == "replace") == (password != null))
+    }
+
+    companion object {
+        fun keep() = ApiV3LobbyPasswordUpdate("keep")
+        fun clear() = ApiV3LobbyPasswordUpdate("clear")
+        fun replace(password: String) = ApiV3LobbyPasswordUpdate("replace", password)
+    }
+}
+
+@Serializable
+data class ApiV3ReconfigureLobbyRequest(
+    @SerialName("operation_id") val operationId: String,
+    @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("human_slots") val humanSlots: Int,
+    val password: ApiV3LobbyPasswordUpdate,
+    val setup: ApiV3GameSetup,
+)
+
+@Serializable
+data class ApiV3SelectLobbyFactionRequest(
+    @SerialName("operation_id") val operationId: String,
+    @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,
+    @SerialName("civilization_id") val civilizationId: String,
 )
 
 @Serializable

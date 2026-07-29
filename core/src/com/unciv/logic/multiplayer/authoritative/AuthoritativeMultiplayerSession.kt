@@ -263,6 +263,45 @@ class AuthoritativeMultiplayerSession(
         )
     }
 
+    suspend fun reconfigureLobby(
+        lobby: ApiV3Lobby,
+        displayName: String,
+        humanSlots: Int,
+        password: ApiV3LobbyPasswordUpdate,
+        setup: ApiV3GameSetup,
+        operationId: String = UUID.randomUUID().toString(),
+    ): ApiV3Lobby {
+        requireAuthenticated()
+        return transport.reconfigureLobby(
+            lobby.gameId,
+            ApiV3ReconfigureLobbyRequest(
+                operationId,
+                lobby.lobbyRevision,
+                displayName,
+                humanSlots,
+                password,
+                setup,
+            ),
+        )
+    }
+
+    suspend fun selectLobbyFaction(
+        lobby: ApiV3Lobby,
+        civilizationId: String,
+        operationId: String = UUID.randomUUID().toString(),
+    ): ApiV3Lobby {
+        requireAuthenticated()
+        require(civilizationId.isNotBlank())
+        return transport.selectLobbyFaction(
+            lobby.gameId,
+            ApiV3SelectLobbyFactionRequest(
+                operationId,
+                lobby.lobbyRevision,
+                civilizationId,
+            ),
+        )
+    }
+
     suspend fun startLobby(lobby: ApiV3Lobby): ApiV3Lobby {
         requireAuthenticated()
         return transport.startLobby(

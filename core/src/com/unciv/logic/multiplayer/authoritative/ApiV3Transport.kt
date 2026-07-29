@@ -30,6 +30,14 @@ interface ApiV3Transport {
         error("Lobby discovery is unsupported by this transport")
     suspend fun lobby(gameId: String): ApiV3Lobby =
         error("Lobby details are unsupported by this transport")
+    suspend fun reconfigureLobby(
+        gameId: String,
+        request: ApiV3ReconfigureLobbyRequest,
+    ): ApiV3Lobby = error("Lobby reconfiguration is unsupported by this transport")
+    suspend fun selectLobbyFaction(
+        gameId: String,
+        request: ApiV3SelectLobbyFactionRequest,
+    ): ApiV3Lobby = error("Lobby faction selection is unsupported by this transport")
     suspend fun setLobbyReady(
         gameId: String,
         request: ApiV3SetLobbyReadyRequest,

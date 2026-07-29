@@ -27,14 +27,15 @@ impl PostgresGameRepository {
         sqlx::query(
             "INSERT INTO game_lobbies
                 (game_id, owner_account_id, human_slots, setup, password_hash,
-                 available_civilizations)
-             VALUES ($1, $2, $3, $4, $5, $6)",
+                 password_identity, available_civilizations)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)",
         )
         .bind(game_id)
         .bind(owner_account_id)
         .bind(i16::from(configuration.human_slots))
         .bind(serde_json::to_value(setup).map_err(|_| CommitError::Storage)?)
         .bind(&configuration.password_hash)
+        .bind(&configuration.password_identity)
         .bind(&configuration.available_civilizations)
         .execute(&mut **tx)
         .await
@@ -145,7 +146,7 @@ impl PostgresGameRepository {
             })
             .collect::<Vec<_>>();
         let actor = sqlx::query(
-            "SELECT gm.role, COALESCE(r.ready, FALSE) AS ready
+            "SELECT gm.role, gm.civilization_id, COALESCE(r.ready, FALSE) AS ready
              FROM game_members gm
              LEFT JOIN game_lobby_readiness r
                ON r.game_id=gm.game_id AND r.account_id=gm.account_id
@@ -196,6 +197,9 @@ impl PostgresGameRepository {
             started: row.get("started"),
             actor_role: actor.as_ref().map(|member| member.get("role")),
             actor_ready: actor.as_ref().map(|member| member.get("ready")),
+            actor_civilization_id: actor
+                .as_ref()
+                .and_then(|member| member.get("civilization_id")),
             setup: row.get("setup"),
             available_civilizations: row.get("available_civilizations"),
             members,

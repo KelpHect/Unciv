@@ -76,13 +76,17 @@ impl PostgresGameRepository {
             .map_err(|_| CommitError::Storage)?;
         let server_seed = i64::from_be_bytes(seed_bytes);
         let game_id = Uuid::new_v4();
+        let mut canonical_setup = setup.clone();
+        if canonical_setup.map_seed.is_none() {
+            canonical_setup.map_seed = Some(server_seed);
+        }
         let created = worker
             .create_game(
                 &owner_account_id.to_string(),
                 &manifest,
                 &game_id.to_string(),
                 server_seed,
-                &setup,
+                &canonical_setup,
             )
             .await
             .map_err(|_| CommitError::WorkerRevisionMismatch)?;
@@ -95,7 +99,7 @@ impl PostgresGameRepository {
         }
 
         if created.available_civilization_ids.len() < usize::from(lobby.human_slots)
-            || created.owner_civilization_id != setup.owner_civilization_id
+            || created.owner_civilization_id != canonical_setup.owner_civilization_id
             || !created
                 .available_civilization_ids
                 .contains(&created.owner_civilization_id)
@@ -119,7 +123,7 @@ impl PostgresGameRepository {
             &mut tx,
             game_id,
             owner_account_id,
-            &setup,
+            &canonical_setup,
             &authoritative_lobby,
         )
         .await?;

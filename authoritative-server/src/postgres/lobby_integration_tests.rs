@@ -16,13 +16,15 @@ async fn lobby_password_slots_civilizations_and_start_are_transactionally_enforc
 
     sqlx::query(
         "INSERT INTO game_lobbies
-            (game_id, owner_account_id, human_slots, setup, password_hash,
+            (game_id, owner_account_id, human_slots, setup, password_hash, password_identity,
              available_civilizations)
-         VALUES ($1, $2, 2, '{}'::jsonb, $3, ARRAY['test-civilization', 'Greece'])",
+         VALUES ($1, $2, 2, '{}'::jsonb, $3, $4,
+                 ARRAY['test-civilization', 'Greece'])",
     )
     .bind(game)
     .bind(owner)
     .bind(password_hash)
+    .bind(state_hash(b"correct horse battery staple"))
     .execute(&repository.pool)
     .await
     .unwrap();
@@ -125,14 +127,15 @@ async fn open_lobby_browser_excludes_started_games_and_hides_password_hashes() {
     let password_hash = PasswordService.hash("not returned to clients").unwrap();
     sqlx::query(
         "INSERT INTO game_lobbies
-            (game_id, owner_account_id, human_slots, setup, password_hash,
+            (game_id, owner_account_id, human_slots, setup, password_hash, password_identity,
              available_civilizations)
-         VALUES ($1, $2, 1, '{\"difficulty\":\"Prince\"}'::jsonb, $3,
+         VALUES ($1, $2, 1, '{\"difficulty\":\"Prince\"}'::jsonb, $3, $4,
                  ARRAY['test-civilization'])",
     )
     .bind(game)
     .bind(owner)
     .bind(password_hash)
+    .bind(state_hash(b"not returned to clients"))
     .execute(&repository.pool)
     .await
     .unwrap();

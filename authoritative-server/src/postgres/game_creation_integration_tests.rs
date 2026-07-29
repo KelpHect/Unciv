@@ -80,6 +80,20 @@ async fn game_creation_is_retry_safe_actor_bound_and_meaning_bound() {
     .await
     .unwrap();
     assert_eq!(replay_context, (true, true, true));
+    let persisted_seed: (i64, i64) = sqlx::query_as(
+        "SELECT operation.server_seed, (lobby.setup ->> 'mapSeed')::bigint
+         FROM game_creation_operations operation
+         JOIN game_lobbies lobby ON lobby.game_id=operation.game_id
+         WHERE operation.operation_id=$1",
+    )
+    .bind(operation_id)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        persisted_seed.0, persisted_seed.1,
+        "server-generated map seed must become canonical lobby setup",
+    );
     assert_eq!(
         sqlx::query_scalar::<_, Vec<String>>(
             "SELECT available_civilizations FROM game_lobbies WHERE game_id=$1",

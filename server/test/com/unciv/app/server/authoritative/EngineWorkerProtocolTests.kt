@@ -320,6 +320,56 @@ class EngineWorkerProtocolTests {
     }
 
     @Test
+    fun lobbyReconfigurationRejectsForgedDuplicateAndUnavailableHumanAssignments() {
+        val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
+        val manifest = WorkerRulesetManifest(
+            engineBuild = InstalledRulesetCatalog.engineBuild,
+            baseRuleset = baseRuleset,
+        )
+        val owner = "00000000-0000-4000-8000-000000000001"
+        val second = "00000000-0000-4000-8000-000000000002"
+        val setup = defaultSetup(baseRuleset.name).copy(
+            majorCivilizations = 2,
+            cityStates = 0,
+            mapSize = GeneratedMapSize.Tiny,
+        )
+        val invalidAssignments = listOf(
+            listOf(WorkerLobbyParticipant(owner, "Greece")),
+            listOf(
+                WorkerLobbyParticipant(owner, "Rome"),
+                WorkerLobbyParticipant(owner, "Greece"),
+            ),
+            listOf(
+                WorkerLobbyParticipant(owner, "Rome"),
+                WorkerLobbyParticipant(second, "Rome"),
+            ),
+            listOf(
+                WorkerLobbyParticipant(owner, "Rome"),
+                WorkerLobbyParticipant(second, "Spectator"),
+            ),
+        )
+
+        for (participants in invalidAssignments) {
+            val response = AuthoritativeEngineWorker().execute(
+                WorkerRequest(
+                    protocolVersion = EngineWorkerProtocol.VERSION,
+                    serverTimeMillis = 1_700_000_000_000L,
+                    actorId = owner,
+                    rulesetManifest = manifest,
+                    operation = WorkerOperation.ReconfigureLobby(
+                        "00000000-0000-4000-8000-000000000010",
+                        1234L,
+                        setup,
+                        participants,
+                    ),
+                ),
+            )
+            assertEquals("engine_rejected", response.error?.code)
+            assertNull(response.snapshot)
+        }
+    }
+
+    @Test
     fun legacyNormalizationRekeysGameAndExhaustivelyMapsHumanPlayers() {
         val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
         val manifest = WorkerRulesetManifest(

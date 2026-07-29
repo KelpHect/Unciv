@@ -34,6 +34,37 @@ class ApiV3GameSetupTests {
     }
 
     @Test
+    fun canonicalLobbySetupRoundTripsThroughTheProductionEditorModel() {
+        val canonical = ApiV3GameSetup.from(authoritativeSetup().apply {
+            gameParameters.apply {
+                difficulty = "King"
+                startingEra = "Classical era"
+                noCityRazing = true
+                shufflePlayerOrder = true
+                victoryTypes.addAll(listOf("Domination", "Scientific"))
+            }
+            mapParameters.apply {
+                type = "Archipelago"
+                shape = "Rectangular"
+                mapSize = com.unciv.logic.map.MapSize.Large
+                worldWrap = true
+                seed = 123456L
+                temperatureShift = -0.2f
+            }
+        })
+
+        val edited = ApiV3GameSetup.from(canonical.toGameSetupInfo())
+
+        assertEquals(canonical, edited)
+        assertEquals(
+            1,
+            canonical.toGameSetupInfo().gameParameters.players.count {
+                it.playerType == PlayerType.Human
+            },
+        )
+    }
+
+    @Test
     fun productionMapperRejectsClientOwnedIdentityAndGenerationInputs() {
         assertRejected { it.gameParameters.players[0].chosenCiv = Constants.random }
         assertRejected {

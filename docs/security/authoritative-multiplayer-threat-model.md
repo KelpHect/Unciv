@@ -144,6 +144,18 @@ normalized authorization failures, controlled multi-replica races, and worker
 fault tests prove rejected or failed executions cannot partially mutate
 membership, head, snapshot, journal, or outbox state.
 
+Pregame changes use the same authority model rather than an editable metadata
+shortcut. Owner settings and each member's own faction selection carry an
+operation ID and expected lobby revision; PostgreSQL locks the canonical head
+and exact memberships before the private worker rebuilds the whole pregame
+state. One transaction appends the immutable snapshot and
+`lobby_reconfiguration` revision, updates membership/setup/readiness, records
+the meaning-bound operation, and emits one outbox event. Password retries
+compare a one-way identity while retaining only Argon2 verifiers for
+authentication. Forged owners, other-member faction changes, duplicate
+accounts/factions, stale heads, changed-meaning retries, worker failure, and
+unavailable ruleset civilizations fail without advancing either head.
+
 ### Projection confidentiality
 
 **Attacker story:** A legitimate member requests another player's view, discovers hidden state in a nested or newly added field, correlates hashes or metadata to infer fog-of-war information, or obtains a full snapshot through diagnostics, errors, logs, or an administrative endpoint.

@@ -42,20 +42,32 @@ class AuthoritativeSessionLifecycle(
     var session: AuthoritativeMultiplayerSession? = null
         private set
 
+    @Volatile
+    var failureMessage: String? = null
+        private set
+
     suspend fun restoreConfiguredServer(
         baseUrl: String,
         tokenStore: (String) -> ApiV3SessionTokenStore?,
     ): AuthoritativeSessionStatus = mutex.withLock {
         status = AuthoritativeSessionStatus.Detecting
+        failureMessage = null
         val version = try {
             detectServer(baseUrl)
-        } catch (_: Exception) {
+        } catch (exception: Exception) {
             clearSession()
+            failureMessage = boundedFailure(
+                "Could not reach the configured server",
+                exception,
+            )
             status = AuthoritativeSessionStatus.Failed
             return@withLock status
         }
         if (version == null) {
             clearSession()
+            failureMessage =
+                "The server does not advertise authoritative protocol " +
+                    "${CommandEnvelope.CURRENT_PROTOCOL_VERSION}."
             status = AuthoritativeSessionStatus.Failed
             return@withLock status
         }
@@ -81,8 +93,12 @@ class AuthoritativeSessionLifecycle(
             clearSession()
             session = replacement
             replacement.restore()
-        } catch (_: Exception) {
+        } catch (exception: Exception) {
             clearSession()
+            failureMessage = boundedFailure(
+                "Could not restore the authoritative account session",
+                exception,
+            )
             status = AuthoritativeSessionStatus.Failed
             return@withLock status
         }
@@ -162,8 +178,17 @@ class AuthoritativeSessionLifecycle(
         session = null
     }
 
+    private fun boundedFailure(prefix: String, exception: Exception): String {
+        val detail = exception.message
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.take(160)
+        return if (detail.isNullOrEmpty()) "$prefix." else "$prefix: $detail"
+    }
+
     override fun close() {
         clearSession()
+        failureMessage = null
         status = AuthoritativeSessionStatus.NotStarted
     }
 }

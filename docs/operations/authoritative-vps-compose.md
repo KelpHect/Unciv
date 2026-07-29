@@ -2,10 +2,15 @@
 
 `authoritative-server/compose.vps.yaml` runs the digest-pinned PostgreSQL 19
 Beta 2 target, one migration job, the Kotlin rules worker, and the Rust API.
-The API and worker share one container network namespace, so the authenticated
-worker protocol remains reachable only on loopback. PostgreSQL has no published
-port. The Compose services mount one attested Linux release bundle read-only;
-build and verify it using `authoritative-release-bundle.md` first.
+PostgreSQL publishes only an explicitly configured host loopback port. The
+authenticated worker and API use the Linux host network and each bind only
+their fixed or configured loopback port. The API connects to those two private
+loopback listeners and enables
+the closed `loopback` trusted-proxy policy. Caddy is therefore the only process
+that can supply one canonical `X-Forwarded-For` address; remote callers cannot
+reach the API listener or spoof the address used by per-client rate limits.
+The Compose services mount one attested Linux release bundle read-only; build
+and verify it using `authoritative-release-bundle.md` first.
 
 The one-shot ruleset service acquires and atomically activates the reviewed
 ruleset policy before the worker starts. Set `UNCIV_V3_SOURCE_ASSETS` to the
@@ -23,15 +28,11 @@ docker compose --env-file .env.vps -f compose.vps.yaml ps
 curl --fail http://127.0.0.1:3000/readyz
 ```
 
-For a raw-IP pilot, set `UNCIV_V3_PUBLIC_BIND=0.0.0.0`, open only the chosen
-API port in the VPS firewall, and enter `http://IP:PORT` in Unciv's multiplayer
-server setting. This mode exposes account tokens and traffic to the network and
-is strictly for short-lived testing.
-
-For a real match, leave the API bound to `127.0.0.1`, put the existing hardened
-reverse-proxy/TLS service in front, and enter `https://unciv.example.com`.
-Cloudflare DNS can point that subdomain at the VPS; TLS still terminates at the
-VPS reverse proxy. Never expose port 43170 or PostgreSQL.
+Put the hardened reverse-proxy/TLS service in front and enter
+`https://unciv.example.com` in the client. Cloudflare DNS can point that
+subdomain at the VPS; TLS still terminates at the VPS reverse proxy. Never
+expose the API, worker, or PostgreSQL loopback ports. Raw-IP plaintext mode is
+not part of this production topology.
 
 After saving the server address, use the production multiplayer screen to
 register or sign in. It lists only authoritative V3 lobbies and account games:

@@ -268,8 +268,14 @@ revision-to-command identity, and outbox-to-revision identity.
 Literal `http://IP:port` client configuration exists solely for a short-lived
 self-hosted pilot and visibly remains an insecure transport choice: bearer
 tokens and gameplay metadata can be intercepted. Production hostnames remain
-HTTPS-only, and the VPS Compose guidance binds the API to loopback behind TLS
-by default while keeping PostgreSQL and the Kotlin worker unexposed.
+HTTPS-only. The VPS Compose topology places the worker and API in Linux host
+networking but binds both listeners exclusively to loopback; PostgreSQL
+publishes a separate loopback-only host port. Caddy is therefore the only peer
+accepted by Rust's closed `loopback` trusted-proxy policy. Caddy discards
+caller-supplied forwarding claims and emits one canonical client address, while
+Rust rejects missing, repeated, comma-separated, unspecified, or multicast
+addresses. PostgreSQL, the Kotlin worker, and the Rust API remain unreachable
+from remote interfaces.
 
 Pregame lobbies are non-canonical but remain authorization-sensitive. The
 server stores only an Argon2 password verifier, never returns it, and

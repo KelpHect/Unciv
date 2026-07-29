@@ -7971,6 +7971,47 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Protocol-4 client detection and scaled desktop text (2026-07-29)
+
+- The production server correctly advertised public protocol 4, but
+  `ApiVersion.detect()` still compared capabilities to the obsolete literal 3.
+  Desktop therefore classified the healthy HTTPS service as unknown and showed
+  only `Status: Failed`. Detection now delegates to the typed capability
+  predicate backed by `CommandEnvelope.CURRENT_PROTOCOL_VERSION`; a regression
+  test proves the current protocol is accepted and both an older protocol and
+  whole-state upload are rejected.
+- Session restoration now retains a bounded failure explanation for the
+  multiplayer screen. Failed detection no longer leaves a permanent
+  `Working...` label, so network, protocol, and restoration failures are
+  actionable without exposing tokens.
+- Desktop Java2D glyph generation previously enabled generic shape
+  antialiasing, which does not select text antialiasing. It now explicitly uses
+  grayscale text antialiasing, fractional metrics, quality rendering, and
+  quality alpha interpolation before libGDX packs glyphs into its existing
+  linearly filtered texture. A focused desktop test proves rendered glyphs
+  contain both opaque interiors and partially transparent antialiased edges.
+- Focused API detection, session lifecycle, and desktop glyph tests pass. The
+  complete `:tests:test :server:test --no-parallel` run then passed in 3m53s,
+  and `:desktop:dist :android:assembleDebug` passed in 2m20s. The independent
+  release APK gate, including release-vital lint, passed in 1m50s. Rust's
+  four-test VPS Compose contract, formatting, and warnings-as-errors Clippy all
+  pass; `docker compose --env-file .env.vps.example -f compose.vps.yaml config
+  --quiet` accepts the final topology.
+- The project Packr task could not run because its ignored
+  `packr-all-4.0.0.jar` and `jdk-windows-64.zip` inputs are absent. This was
+  isolated from compilation and repaired at the artifact owner by using the
+  installed Java 21 `jpackage` app-image producer against the same qualified
+  `Unciv.jar`. The resulting self-contained executable remained alive through
+  a 12-second clean smoke launch.
+- Direct-install artifacts are in
+  `deploy/Unciv-V3-connect-font-20260729`: the debug-signed APK is
+  `9363498C94B5327728920F313691FABEA29D379A0C279B80FB5247543C128F9C`
+  (SHA-256), and the portable Windows ZIP is
+  `FE9141E5BDAB2801D838A004695F33AFBCA689F297F05A53F6479C314E71B0E5`.
+  Android's v1 and v2 signature verification passes. The release build itself
+  also passes, but remains unsigned because no production signing identity is
+  stored in the repository.
+
 ## Oracle ARM64 pilot deployment (2026-07-29)
 
 - The attested bundle inputs were rebuilt from commit
@@ -8004,13 +8045,15 @@ Verification on 2026-07-26:
   removed before any account or game existed.
 - The public endpoint is now `https://unciv.rusticstack.com`; the temporary
   plaintext API route is closed. The certificate covers only that hostname and
-  was issued on 2026-07-29 with automatic renewal managed by Caddy. The Compose
-  API still deliberately ignores forwarded client-address headers because its
-  fail-closed proxy policy accepts only a loopback peer, while the container
-  bridge makes Caddy non-loopback from the API's perspective. Moving the API
-  listener to a host loopback service or introducing an equivalently isolated
-  proxy transport remains an operations-hardening item if per-origin client-IP
-  rate limiting is required; it does not expose tokens or canonical authority.
+  was issued on 2026-07-29 with automatic renewal managed by Caddy. The worker
+  and API now use Linux host networking while binding only `127.0.0.1:43170`
+  and `127.0.0.1:3100`; PostgreSQL publishes only `127.0.0.1:54320`. Caddy is
+  consequently a real loopback peer and Rust's closed `loopback` policy accepts
+  its single sanitized `X-Forwarded-For` address. A live probe sent two requests
+  from one origin, including a forged forwarding header, plus one request from
+  a second origin: the durable limiter created four buckets (the expected
+  global/source and account/source pair per origin) and recorded six
+  consumptions, proving spoof normalization and distinct-client attribution.
 
 ## V3-only production lobby and unlimited-turn milestone
 

@@ -892,15 +892,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   one client address only from an explicitly configured loopback proxy,
   requires a loopback listener in that mode, rejects ambiguous proxy input, and
   ignores forwarding claims from every untrusted peer.
-- [ ] Preserve per-origin client addresses in the single-VPS Docker topology
-  without weakening the fail-closed trusted-proxy boundary. TLS and canonical
-  authority are complete, but the host Caddy connection reaches the
-  containerized API through Docker's bridge rather than as a loopback peer, so
-  the deployed API intentionally uses `UNCIV_V3_TRUSTED_PROXY=disabled` and
-  treats public clients as one proxy source for IP-based rate limits. Move the
-  API to the hardened host-loopback systemd topology or add an equivalently
-  isolated authenticated proxy transport, then prove spoof rejection and
-  distinct-client rate-limit attribution before checking this item.
+- [x] Preserve per-origin client addresses in the single-VPS Docker topology
+  without weakening the fail-closed trusted-proxy boundary. The worker and API
+  now use Linux host networking with loopback-only listeners; PostgreSQL
+  publishes a separate loopback-only host port. Caddy is the API's only
+  loopback peer, sanitizes caller forwarding headers, and supplies one client
+  address to Rust's existing closed parser. A live two-origin rate-limit probe
+  proved a forged header remains in the first origin's buckets while the second
+  origin receives distinct buckets.
 - [x] Create separate least-privilege PostgreSQL roles for runtime, migrations,
   backups, restores, and audit access; require encrypted database transport and
   credential rotation. Runtime and migration now have separate executables,

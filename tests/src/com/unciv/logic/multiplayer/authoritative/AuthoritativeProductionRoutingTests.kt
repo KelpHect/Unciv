@@ -240,6 +240,7 @@ class AuthoritativeProductionRoutingTests {
         val allowedFacadeMembers = setOf(
             "authoritativeSession",
             "authoritativeStatus",
+            "authoritativeFailureMessage",
             "clearAuthoritativeSession",
             "changeAuthoritativePassword",
             "close",

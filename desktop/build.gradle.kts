@@ -11,6 +11,13 @@ sourceSets {
     main {
         java.srcDir("src/")
     }
+    test {
+        java.srcDir("test/")
+    }
+}
+
+dependencies {
+    testImplementation(libs.junit)
 }
 
 kotlin {

@@ -12,7 +12,10 @@ data class ApiV3Capabilities(
     @SerialName("whole_state_upload") val wholeStateUpload: Boolean,
     @SerialName("websocket_notifications") val websocketNotifications: Boolean,
     @SerialName("projection_deltas") val projectionDeltas: Boolean = false,
-)
+) {
+    fun supportsCurrentClient() =
+        protocolVersion == CommandEnvelope.CURRENT_PROTOCOL_VERSION && !wholeStateUpload
+}
 
 @Serializable
 data class ApiV3Credentials(val username: String, val password: String)

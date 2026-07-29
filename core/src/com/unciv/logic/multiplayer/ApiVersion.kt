@@ -108,7 +108,7 @@ enum class ApiVersion {
             if (response3?.status?.isSuccess() == true) {
                 try {
                     val capabilities: ApiV3Capabilities = response3.body()
-                    if (capabilities.protocolVersion == 3 && !capabilities.wholeStateUpload) {
+                    if (capabilities.supportsCurrentClient()) {
                         Log.debug("Detected authoritative APIv3 at %s", fixedBaseUrl)
                         client.close()
                         return APIv3

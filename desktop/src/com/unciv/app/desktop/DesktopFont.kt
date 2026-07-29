@@ -10,6 +10,7 @@ import java.awt.Color
 import java.awt.Font
 import java.awt.FontMetrics
 import java.awt.GraphicsEnvironment
+import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.util.Locale
@@ -35,6 +36,7 @@ class DesktopFont : FontImplementation {
 
         val bufferedImage = BufferedImage(1, 1, BufferedImage.TYPE_4BYTE_ABGR)
         val graphics = bufferedImage.createGraphics()
+        graphics.enableHighQualityTextRendering()
         this.metric = graphics.getFontMetrics(font)
         graphics.dispose()
     }
@@ -74,13 +76,7 @@ class DesktopFont : FontImplementation {
             width = height
         }
 
-        val bi = BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR)
-        val g = bi.createGraphics()
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g.font = font
-        g.color = Color.WHITE
-        g.drawString(symbolString, 0, metric.leading + metric.ascent)
-
+        val bi = renderGlyphImage(symbolString, width, height)
         val pixmap = Pixmap(bi.width, bi.height, Pixmap.Format.RGBA8888)
         val data = bi.getRGB(0, 0, bi.width, bi.height, null, 0, bi.width)
         for (i in 0 until bi.width) {
@@ -89,8 +85,41 @@ class DesktopFont : FontImplementation {
                 pixmap.drawPixel(i, j)
             }
         }
-        g.dispose()
         return pixmap
+    }
+
+    internal fun renderGlyphImageForTesting(symbolString: String): BufferedImage =
+        renderGlyphImage(symbolString, metric.stringWidth(symbolString), metric.height)
+
+    private fun renderGlyphImage(
+        symbolString: String,
+        width: Int,
+        height: Int,
+    ): BufferedImage {
+        val bi = BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR)
+        val g = bi.createGraphics()
+        g.enableHighQualityTextRendering()
+        g.font = font
+        g.color = Color.WHITE
+        g.drawString(symbolString, 0, metric.leading + metric.ascent)
+        g.dispose()
+        return bi
+    }
+
+    private fun Graphics2D.enableHighQualityTextRendering() {
+        setRenderingHint(
+            RenderingHints.KEY_TEXT_ANTIALIASING,
+            RenderingHints.VALUE_TEXT_ANTIALIAS_ON,
+        )
+        setRenderingHint(
+            RenderingHints.KEY_FRACTIONALMETRICS,
+            RenderingHints.VALUE_FRACTIONALMETRICS_ON,
+        )
+        setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+        setRenderingHint(
+            RenderingHints.KEY_ALPHA_INTERPOLATION,
+            RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY,
+        )
     }
 
     override fun getSystemFonts(): Sequence<FontFamilyData> {

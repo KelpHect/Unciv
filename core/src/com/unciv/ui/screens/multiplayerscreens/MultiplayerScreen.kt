@@ -69,8 +69,22 @@ class MultiplayerScreen : PickerScreen() {
             }
         })
         content.add("Refresh".toTextButton().onClick(::refresh)).row()
-        content.add(Constants.working.toLabel()).colspan(4).row()
-        if (status == AuthoritativeSessionStatus.Authenticated) loadDirectory()
+        when (status) {
+            AuthoritativeSessionStatus.Authenticated -> {
+                content.add(Constants.working.toLabel()).colspan(4).row()
+                loadDirectory()
+            }
+            AuthoritativeSessionStatus.Detecting ->
+                content.add(Constants.working.toLabel()).colspan(4).row()
+            AuthoritativeSessionStatus.Failed ->
+                content.add(
+                    (
+                        game.onlineMultiplayer.authoritativeFailureMessage
+                            ?: "Could not connect to the authoritative server."
+                    ).toLabel(Color.RED),
+                ).colspan(4).row()
+            else -> Unit
+        }
     }
 
     private fun refresh() {

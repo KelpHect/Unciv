@@ -21,6 +21,7 @@ class Multiplayer(
 
     val authoritativeSession get() = authoritative.session
     val authoritativeStatus get() = authoritative.status
+    val authoritativeFailureMessage get() = authoritative.failureMessage
 
     suspend fun restoreConfiguredAuthoritativeSession(
         baseUrl: String,

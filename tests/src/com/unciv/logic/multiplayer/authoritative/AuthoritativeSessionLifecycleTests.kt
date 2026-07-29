@@ -9,6 +9,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class AuthoritativeSessionLifecycleTests {
@@ -67,6 +69,7 @@ class AuthoritativeSessionLifecycleTests {
                 InMemoryApiV3SessionTokenStore()
             },
         )
+        assertTrue(unknown.failureMessage!!.contains("protocol"))
 
         val failed = AuthoritativeSessionLifecycle(
             detectServer = { error("offline") },
@@ -79,6 +82,26 @@ class AuthoritativeSessionLifecycleTests {
             },
         )
         assertNull(failed.session)
+        assertTrue(failed.failureMessage!!.contains("offline"))
+    }
+
+    @Test
+    fun capabilityDetectionTracksTheTypedCommandProtocol() {
+        val current = ApiV3Capabilities(
+            protocolVersion = CommandEnvelope.CURRENT_PROTOCOL_VERSION,
+            projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION,
+            commands = emptyList(),
+            wholeStateUpload = false,
+            websocketNotifications = true,
+        )
+
+        assertTrue(current.supportsCurrentClient())
+        assertFalse(
+            current.copy(
+                protocolVersion = CommandEnvelope.CURRENT_PROTOCOL_VERSION - 1,
+            ).supportsCurrentClient(),
+        )
+        assertFalse(current.copy(wholeStateUpload = true).supportsCurrentClient())
     }
 
     @Test

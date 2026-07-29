@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#v3-lobby-client-candidate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V3 lobby client candidate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-install-android-and-portable-windows-match-clients" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3856,6 +3867,17 @@
     <span class="md-ellipsis">
       
         Typed server-seeded revision-zero creation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v3-only-production-lobby-and-unlimited-turn-milestone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V3-only production lobby and unlimited-turn milestone
       
     </span>
   </a>
@@ -5703,6 +5725,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#v3-lobby-client-candidate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V3 lobby client candidate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-install-android-and-portable-windows-match-clients" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7705,6 +7738,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v3-only-production-lobby-and-unlimited-turn-milestone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V3-only production lobby and unlimited-turn milestone
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#membership-scoped-game-chat-and-completed-sociallobby-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8440,6 +8484,32 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="v3-lobby-client-candidate">V3 lobby client candidate</h2>
+<p>Built and qualified on 2026-07-29:</p>
+<ul>
+<li><code>:server:authoritativeWorkerDist</code>, <code>:android:assembleRelease</code>,
+  <code>:android:bundleRelease</code>, and <code>:desktop:dist</code> passed together.
+  <code>:desktop:packrWindows64</code> then produced the self-contained portable archive.
+  Its first invocation failed because the ignored Packr/JDK inputs were absent
+  from the repository root; the already cached, reviewed packaging inputs were
+  copied into their documented locations, the exact task passed, and the
+  temporary root copies were removed.</li>
+<li>The non-debuggable release APK was aligned and signed with the repository's
+  testing certificate. Signature schemes v1, v2, and v3 verify. It installed on
+  the connected emulator, and the manifest-resolved
+  <code>com.unciv.app/.AndroidLauncher</code> became the resumed activity with a live app
+  process. This testing certificate remains unsuitable for Google Play.</li>
+<li>The portable archive contains <code>Unciv.exe</code> and a private runtime. It was
+  extracted into a clean directory and remained alive through a 12-second
+  smoke launch.</li>
+<li>Candidate artifacts are in <code>deploy/Unciv-V3-lobby-20260729</code>. SHA-256 values:
+  <code>3486AD67D1F87737262F50771B657727E4B7F497BAAC1B4418A97F5FF0DC6CC2</code>
+  (APK),
+  <code>821535CCA7DFB3043E0D0A12C188CC3F02EB60782915219FD081376D96BC7C6D</code>
+  (portable Windows ZIP), and
+  <code>E1B14AAF1BD94D857915D6C233F14F9D51811C5D9E262FBCBE363711FBD6A45B</code>
+  (desktop JAR).</li>
+</ul>
 <h2 id="direct-install-android-and-portable-windows-match-clients">Direct-install Android and portable Windows match clients</h2>
 <p>Qualified on 2026-07-29:</p>
 <ul>
@@ -15695,6 +15765,64 @@ and uploading a local save.</p>
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.</li>
 </ul>
+<h2 id="v3-only-production-lobby-and-unlimited-turn-milestone">V3-only production lobby and unlimited-turn milestone</h2>
+<p>Implemented on 2026-07-29:</p>
+<ul>
+<li>Production multiplayer now exposes only API V3 server/account state, an open
+  lobby browser, authoritative active/closed games, friends, chat, rewind, and
+  owner administration. Legacy file-server credentials, UUID entry, skip-turn
+  clocks, total-time clocks, recovered-time controls, and timed
+  force-resignation are absent from this UI.</li>
+<li>Match creation reuses the bounded normal setup screen and adds a name, human
+  slots, and optional password. Revision zero remains private pregame state:
+  projections and ordinary gameplay commands are rejected until the owner
+  starts an exactly full, unanimously ready lobby.</li>
+<li>PostgreSQL migration 30 adds server-owned lobby metadata/readiness and game
+  display names. Passwords are Argon2 verifiers. Join, readiness, and start are
+  authorization-, capacity-, unique-faction-, idempotency-, and
+  compare-and-swap-bound. The private Kotlin worker returns the actual
+  canonical major-faction pool; each joining account chooses one available
+  faction from that pool.</li>
+<li>Public protocol version 4 carries the new lobby/setup contract while the
+  private worker protocol remains version 3. Existing verified snapshot bytes
+  are unchanged and migration 30 relabels their protocol metadata from 3 to 4.</li>
+<li>V3 human turns are unlimited. Canonical compatibility timer fields use
+  unbounded values internally, but public setup and production UI do not expose
+  timers, and the worker rejects timed force resignation.</li>
+<li>Android-to-desktop account handoff qualification now creates and starts a
+  real two-human lobby, restores the same owner account on desktop without a
+  save, commits a resignation, runs the intervening AI in the packaged server
+  worker, and hands the turn to the second human.</li>
+</ul>
+<p>Failure repair:</p>
+<ol>
+<li>The first broad Kotlin run exposed stale setup fixtures that still expected
+   random owner assignment and timers. Focused reproduction localized the
+   mismatch to setup tests and worker parity fixtures; they were updated to the
+   closed chosen-owner/unlimited contract, after which focused and complete
+   server/core suites passed.</li>
+<li>The first account-handoff run returned <code>503 game_unavailable</code>: revision-zero
+   snapshots were still labelled public protocol 3. Migration 30 now performs
+   the representation-preserving metadata transition and the next run reached
+   lobby join.</li>
+<li>That run rejected a client-hinted faction which was not present in the
+   generated canonical match. The bounded owner was the worker create response:
+   it now returns the actual ordered major-faction pool, Rust cross-validates
+   the requested owner and capacity, and PostgreSQL stores only that pool.</li>
+<li>The next exact run reached started play but resignation returned HTTP 500.
+   PostgreSQL showed the head remained at revision 1; the
+   <code>game_lobby_readiness</code> foreign key still referenced the resigning
+   <code>game_members</code> row. The canonical commit now removes only the obsolete
+   started-lobby readiness dependency inside the same transaction before
+   membership deletion. Rerunning the same packaged
+   <code>account_handoff</code> test passed.</li>
+<li>Warnings-as-errors Clippy then identified a <code>filter(...).next_back()</code> in the
+   qualification test. It was replaced with the equivalent <code>rfind</code>; the exact
+   handoff and final Clippy gates were rerun after that last source edit.</li>
+</ol>
+<p>The required two-person release match through an actual Domination result is
+still open in <code>missing_multiplayer.md</code>; this automated preflight is strong
+cross-device/server-AI evidence but is not substituted for that human gate.</p>
 <h2 id="membership-scoped-game-chat-and-completed-sociallobby-policy">Membership-scoped game chat and completed social/lobby policy</h2>
 <p>Implemented on 2026-07-28:</p>
 <ul>

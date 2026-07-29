@@ -120,19 +120,10 @@ open class UncivGame(val isConsoleMode: Boolean = false) : Game(), PlatformSpeci
         onlineMultiplayer = Multiplayer(::notifyTurnStarted)
 
         Concurrency.run {
-            val status = onlineMultiplayer.restoreConfiguredAuthoritativeSession(
+            onlineMultiplayer.restoreConfiguredAuthoritativeSession(
                 settings.multiplayer.getServer(),
                 ::createApiV3SessionTokenStore,
             )
-            if (status == com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.LegacyServer) {
-                // Check legacy server features only after authoritative detection
-                // has explicitly classified the configured origin as API-v1/v2.
-                try {
-                    onlineMultiplayer.legacy.multiplayerServer.checkServerStatus()
-                } catch (ex: Exception) {
-                    debug("Couldn't connect to server: " + ex.message)
-                }
-            }
         }
 
         ImageGetter.resetAtlases()

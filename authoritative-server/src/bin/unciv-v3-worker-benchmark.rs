@@ -271,6 +271,7 @@ fn tiny_setup() -> WorkerGameSetup {
         no_ruins: true,
         no_natural_wonders: true,
         owner_civilization_id: "Rome".to_owned(),
+        ..WorkerGameSetup::default()
     }
 }
 
@@ -305,6 +306,7 @@ fn representative_setup() -> WorkerGameSetup {
         no_ruins: false,
         no_natural_wonders: false,
         owner_civilization_id: "Rome".to_owned(),
+        ..WorkerGameSetup::default()
     }
 }
 

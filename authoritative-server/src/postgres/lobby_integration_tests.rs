@@ -83,6 +83,8 @@ async fn lobby_password_slots_civilizations_and_start_are_transactionally_enforc
         .await
         .unwrap();
     assert_eq!(owner_ready.lobby_revision, 1);
+    assert_eq!(owner_ready.base_ruleset_name, "Civ V - Vanilla");
+    assert!(owner_ready.mod_names.is_empty());
     assert_eq!(
         repository.set_lobby_ready(player, game, 0, true).await,
         Err(CommitError::Stale {
@@ -148,6 +150,8 @@ async fn open_lobby_browser_excludes_started_games_and_hides_password_hashes() {
     assert_eq!(page.lobbies.len(), 1);
     assert!(page.lobbies[0].password_required);
     assert_eq!(page.lobbies[0].members.len(), 1);
+    assert_eq!(page.lobbies[0].base_ruleset_name, "Civ V - Vanilla");
+    assert!(page.lobbies[0].mod_names.is_empty());
 
     repository.start_lobby(owner, game, 0).await.unwrap();
     assert!(

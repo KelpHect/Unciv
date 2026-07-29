@@ -17,9 +17,6 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeLobbyConfiguration
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
-import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
-import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
-import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.models.metadata.BaseRuleset
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
@@ -44,7 +41,7 @@ import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
-import com.unciv.ui.screens.multiplayerscreens.MultiplayerScreen
+import com.unciv.ui.screens.multiplayerscreens.AuthoritativeLobbyScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
@@ -59,6 +56,7 @@ class NewGameScreen(
         AuthoritativeCreationRetryState(),
     private val lobbyConfiguration: AuthoritativeLobbyConfiguration? = null,
 ): IPreviousScreen, PickerScreen(), RecreateOnResize {
+    internal val isAuthoritativeLobbySetup get() = lobbyConfiguration != null
 
     override val gameSetupInfo = defaultGameSetupInfo ?: GameSetupInfo.fromSettings()
     override val ruleset = Ruleset()  // updateRuleset will clear and add
@@ -69,7 +67,13 @@ class NewGameScreen(
 
     init {
         if (lobbyConfiguration != null)
-            gameSetupInfo.gameParameters.isOnlineMultiplayer = true
+            gameSetupInfo.gameParameters.apply {
+                isOnlineMultiplayer = true
+                baseRuleset = lobbyConfiguration.rulesetManifest.baseRuleset.name
+                mods = lobbyConfiguration.rulesetManifest.mods
+                    .mapTo(linkedSetOf()) { it.name }
+            }
+        else gameSetupInfo.gameParameters.isOnlineMultiplayer = false
         val isPortrait = isNarrowerThan4to3()
 
         tryUpdateRuleset(updateUI = false)  // must come before playerPickerTable so mod nations from fromSettings
@@ -117,13 +121,17 @@ class NewGameScreen(
                     val gameSetupInfo = GameSetupInfo().apply {
                         gameParameters.espionageEnabled = true
                     }
-                    game.replaceCurrentScreen(NewGameScreen(gameSetupInfo))
+                    game.replaceCurrentScreen(
+                        NewGameScreen(gameSetupInfo, lobbyConfiguration = lobbyConfiguration),
+                    )
                 }.open(true)
             }
             horizontalGroup.addActor(resetToDefaultsButton)
         }
 
-        val startGameButton = "Start game!".toTextButton().apply { color = Color.GREEN }        
+        val startGameButton =
+            (if (isAuthoritativeLobbySetup) "Create lobby" else "Start game!")
+                .toTextButton().apply { color = Color.GREEN }
         startGameButton.onClick(this::startGameAvoidANRs)
         horizontalGroup.addActor(startGameButton)
         pickerPane.rightSideButton.remove()
@@ -168,25 +176,20 @@ class NewGameScreen(
     
     // Should be run NOT on main thread because it contacts MP server and loads maps etc
     fun getErrorMessage(): String? {
-        if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
-            when (multiplayerCreationRoute()) {
-                MultiplayerCreationRoute.LegacyCreationDisabled ->
-                    return legacyCreationDisabledMessage
-                MultiplayerCreationRoute.AuthoritativeUnavailable ->
-                    return authoritativeUnavailableMessage()
-                MultiplayerCreationRoute.AuthoritativeApiV3 -> {
-                val humanPlayers = gameSetupInfo.gameParameters.players.count {
-                    it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
-                }
-                if (humanPlayers != 1) {
-                    return "API v3 creates the authenticated owner first; other players join the lobby."
-                }
-                runCatching { ApiV3GameSetup.from(gameSetupInfo) }
-                    .exceptionOrNull()
-                    ?.let { return it.message ?: "This setup is not supported by API v3." }
-                }
-                MultiplayerCreationRoute.Local -> Unit
+        if (isAuthoritativeLobbySetup) {
+            if (game.onlineMultiplayer.authoritativeSession == null)
+                return authoritativeUnavailableMessage()
+            if (lobbyConfiguration!!.humanSlots > gameSetupInfo.gameParameters.players.size)
+                return "Human slots cannot exceed the number of major civilizations."
+            val humanPlayers = gameSetupInfo.gameParameters.players.count {
+                it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
             }
+            if (humanPlayers != 1) {
+                return "API v3 creates the authenticated owner first; other players join the lobby."
+            }
+            runCatching { ApiV3GameSetup.from(gameSetupInfo) }
+                .exceptionOrNull()
+                ?.let { return it.message ?: "This setup is not supported by API v3." }
         }
 
         if (gameSetupInfo.gameParameters.players.none {
@@ -249,7 +252,13 @@ class NewGameScreen(
     private fun initLandscape() {
         scrollPane.setScrollingDisabled(true,true)
 
-        topTable.add("Game Options".toLabel(fontSize = Constants.headingFontSize)).pad(20f, 0f)
+        if (isAuthoritativeLobbySetup)
+            topTable.add("MULTIPLAYER SETUP  •  STEP 1 OF 2".toLabel(Color.GOLD))
+                .colspan(5).growX().left().pad(12f).row()
+        topTable.add(
+            (if (isAuthoritativeLobbySetup) "Match Rules" else "Game Options")
+                .toLabel(fontSize = Constants.headingFontSize),
+        ).pad(20f, 0f)
         topTable.addSeparatorVertical(ImageGetter.CHARCOAL, 1f)
         topTable.add("Map Options".toLabel(fontSize = Constants.headingFontSize)).pad(20f,0f)
         topTable.addSeparatorVertical(ImageGetter.CHARCOAL, 1f)
@@ -271,13 +280,18 @@ class NewGameScreen(
     private fun initPortrait() {
         scrollPane.setScrollingDisabled(false,false)
 
-        topTable.add(ExpanderTab("Game Options") {
+        if (isAuthoritativeLobbySetup)
+            topTable.add("MULTIPLAYER SETUP  •  STEP 1 OF 2".toLabel(Color.GOLD))
+                .expandX().fillX().left().pad(12f).row()
+        topTable.add(ExpanderTab(if (isAuthoritativeLobbySetup) "Match Rules" else "Game Options") {
             it.add(newGameOptionsTable).row()
         }).expandX().fillX().row()
         topTable.addSeparator(Color.DARK_GRAY, height = 1f)
 
-        topTable.add(newGameOptionsTable.modCheckboxes).expandX().fillX().row()
-        topTable.addSeparator(Color.DARK_GRAY, height = 1f)
+        if (!isAuthoritativeLobbySetup) {
+            topTable.add(newGameOptionsTable.modCheckboxes).expandX().fillX().row()
+            topTable.addSeparator(Color.DARK_GRAY, height = 1f)
+        }
 
         topTable.add(ExpanderTab("Map Options") {
             it.add(mapOptionsTable).row()
@@ -298,30 +312,9 @@ class NewGameScreen(
             ImageGetter.setNewRuleset(ruleset) // To build the temp atlases
         }
 
-        when (multiplayerCreationRoute()) {
-            MultiplayerCreationRoute.AuthoritativeApiV3 -> {
-                startAuthoritativeGame(popup)
-                return@coroutineScope
-            }
-            MultiplayerCreationRoute.AuthoritativeUnavailable -> {
-                launchOnGLThread {
-                    popup.reuseWith(authoritativeUnavailableMessage(), true)
-                    rightSideButton.enable()
-                    rightSideButton.setText("Start game!".tr())
-                    Gdx.input.inputProcessor = stage
-                }
-                return@coroutineScope
-            }
-            MultiplayerCreationRoute.LegacyCreationDisabled -> {
-                launchOnGLThread {
-                    popup.reuseWith(legacyCreationDisabledMessage, true)
-                    rightSideButton.enable()
-                    rightSideButton.setText("Start game!".tr())
-                    Gdx.input.inputProcessor = stage
-                }
-                return@coroutineScope
-            }
-            MultiplayerCreationRoute.Local -> Unit
+        if (isAuthoritativeLobbySetup) {
+            startAuthoritativeGame(popup)
+            return@coroutineScope
         }
 
         val newGame:GameInfo
@@ -385,50 +378,11 @@ class NewGameScreen(
             return@coroutineScope
         }
 
-        if (gameSetupInfo.gameParameters.isOnlineMultiplayer) {
-            newGame.isUpToDate = true // So we don't try to download it from dropbox the second after we upload it - the file is not yet ready for loading!
-            try {
-                game.onlineMultiplayer.legacy.createGame(newGame)
-                game.files.autosaves.requestAutoSave(newGame)
-            } catch (ex: FileStorageRateLimitReached) {
-                launchOnGLThread {
-                    popup.reuseWith("Server limit reached! Please wait for [${ex.limitRemainingSeconds}] seconds", true)
-                    rightSideButton.enable()
-                    rightSideButton.setText("Start game!".tr())
-                }
-                Gdx.input.inputProcessor = stage
-                return@coroutineScope
-            } catch (ex: Exception) {
-                Log.error("Error while creating game", ex)
-                launchOnGLThread {
-                    popup.reuseWith("Could not upload game!", true)
-                    rightSideButton.enable()
-                    rightSideButton.setText("Start game!".tr())
-                }
-                Gdx.input.inputProcessor = stage
-                return@coroutineScope
-            }
-        }
-
         val worldScreen = game.loadGame(newGame)
         
         worldScreen.autoSave()
 
-        if (newGame.gameParameters.isOnlineMultiplayer) {
-            launchOnGLThread {
-                    // Save gameId to clipboard because you have to do it anyway.
-                    Gdx.app.clipboard.contents = newGame.gameId
-                    // Popup to notify the User that the gameID got copied to the clipboard
-                    ToastPopup("Game ID copied to clipboard!".tr(), worldScreen, 2500)
-            }
-        }
     }
-
-    private fun multiplayerCreationRoute() =
-        multiplayerCreationRoute(
-            gameSetupInfo.gameParameters.isOnlineMultiplayer,
-            game.onlineMultiplayer.authoritativeStatus,
-        )
 
     private fun authoritativeUnavailableMessage() =
         when (game.onlineMultiplayer.authoritativeStatus) {
@@ -440,9 +394,6 @@ class NewGameScreen(
             else -> "Could not establish the authoritative multiplayer session."
         }
 
-    private val legacyCreationDisabledMessage =
-        "Creating new legacy multiplayer games is disabled. " +
-            "Log in to an API v3 server to create an online game."
 
     private suspend fun startAuthoritativeGame(popup: Popup) {
         try {
@@ -454,11 +405,11 @@ class NewGameScreen(
             }
             val setup = ApiV3GameSetup.from(gameSetupInfo)
             val meaning = AuthoritativeCreationMeaning(
-                gameSetupInfo.gameParameters.baseRuleset,
-                gameSetupInfo.gameParameters.mods,
+                lobby.rulesetManifest.baseRuleset.name,
+                lobby.rulesetManifest.mods.mapTo(linkedSetOf()) { it.name },
                 setup,
             )
-            session.createAuthoritativeGame(
+            val creation = session.createAuthoritativeGame(
                 meaning.baseRulesetName,
                 meaning.modNames,
                 meaning.setup,
@@ -468,9 +419,10 @@ class NewGameScreen(
                 lobby.password,
                 ruleset.nations.values.filter { it.isMajorCiv }.map { it.name }.sorted(),
             )
+            val createdLobby = session.lobby(creation.metadata.gameId)
             Concurrency.runOnGLThread {
                 popup.close()
-                game.replaceCurrentScreen(MultiplayerScreen())
+                game.replaceCurrentScreen(AuthoritativeLobbyScreen(createdLobby, session))
             }
         } catch (exception: Exception) {
             Log.error("Error while creating authoritative game", exception)

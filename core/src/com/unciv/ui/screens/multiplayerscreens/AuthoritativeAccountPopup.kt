@@ -27,10 +27,18 @@ class AuthoritativeAccountPopup(
     }
 
     init {
-        addGoodSizedLabel("Authoritative multiplayer account").colspan(2).row()
-        add(username).colspan(2).growX().pad(12f).row()
-        add(password).colspan(2).growX().pad(12f).row()
-        add(recoverButton).colspan(2).growX().pad(0f, 12f, 12f, 12f).row()
+        addGoodSizedLabel("MULTIPLAYER ACCOUNT").colspan(3).row()
+        addGoodSizedLabel(
+            "Use one account on desktop and Android. Your matches are stored on the server.",
+        ).colspan(3).growX().padBottom(12f).row()
+        addGoodSizedLabel("Username").colspan(3).left().row()
+        add(username).colspan(3).growX().pad(12f).row()
+        addGoodSizedLabel("Password").colspan(3).left().row()
+        add(password).colspan(3).growX().pad(12f).row()
+        addGoodSizedLabel(
+            "New accounts require a strong password. Recovery codes are shown once after creation.",
+        ).colspan(3).growX().padBottom(8f).row()
+        add(recoverButton).colspan(3).growX().pad(0f, 12f, 12f, 12f).row()
         addCloseButton().growX().padRight(6f)
         add(loginButton).growX().pad(0f, 6f, 0f, 6f)
         add(registerButton).growX().padLeft(6f)

@@ -111,6 +111,8 @@ pub struct LobbySummary {
     pub display_name: String,
     pub owner_username: String,
     pub ruleset_manifest_hash: String,
+    pub base_ruleset_name: String,
+    pub mod_names: Vec<String>,
     pub human_slots: u8,
     pub occupied_slots: u8,
     pub password_required: bool,

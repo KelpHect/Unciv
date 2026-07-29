@@ -2,7 +2,6 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
-import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapShape
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.MapType
@@ -11,6 +10,8 @@ import com.unciv.logic.map.mapgenerator.MapResourceSetting
 import com.unciv.models.metadata.GameSetupInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.JsonNames
 
 @Serializable
 enum class ApiV3GeneratedMapType {
@@ -37,6 +38,15 @@ enum class ApiV3GeneratedMapShape {
 }
 
 @Serializable
+enum class ApiV3MirroringType {
+    @SerialName("none") None,
+    @SerialName("top_bottom") TopBottom,
+    @SerialName("left_right") LeftRight,
+    @SerialName("around_center_tile") AroundCenterTile,
+    @SerialName("four_way") FourWay,
+}
+
+@Serializable
 enum class ApiV3GeneratedMapSize {
     @SerialName("tiny") Tiny,
     @SerialName("small") Small,
@@ -60,31 +70,74 @@ enum class ApiV3BarbarianMode {
 }
 
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class ApiV3GameSetup(
+    @JsonNames("ownerCivilizationId")
     @SerialName("owner_civilization_id") val ownerCivilizationId: String,
     val difficulty: String,
     val speed: String,
+    @JsonNames("startingEra")
     @SerialName("starting_era") val startingEra: String,
+    @JsonNames("victoryTypes")
     @SerialName("victory_types") val victoryTypes: List<String>,
+    @JsonNames("majorCivilizations")
     @SerialName("major_civilizations") val majorCivilizations: Int,
+    @JsonNames("cityStates")
     @SerialName("city_states") val cityStates: Int,
+    @JsonNames("maxTurns")
     @SerialName("max_turns") val maxTurns: Int,
+    @JsonNames("mapType")
     @SerialName("map_type") val mapType: ApiV3GeneratedMapType,
+    @JsonNames("mapShape")
     @SerialName("map_shape") val mapShape: ApiV3GeneratedMapShape,
+    @JsonNames("mapSize")
     @SerialName("map_size") val mapSize: ApiV3GeneratedMapSize,
+    @JsonNames("mapResources")
     @SerialName("map_resources") val mapResources: ApiV3MapResourceDensity,
     val barbarians: ApiV3BarbarianMode,
+    @JsonNames("oneCityChallenge")
     @SerialName("one_city_challenge") val oneCityChallenge: Boolean,
+    @JsonNames("nuclearWeaponsEnabled")
     @SerialName("nuclear_weapons_enabled") val nuclearWeaponsEnabled: Boolean,
+    @JsonNames("espionageEnabled")
     @SerialName("espionage_enabled") val espionageEnabled: Boolean,
+    @JsonNames("noStartBias")
     @SerialName("no_start_bias") val noStartBias: Boolean,
+    @JsonNames("shufflePlayerOrder")
     @SerialName("shuffle_player_order") val shufflePlayerOrder: Boolean,
+    @JsonNames("noCityRazing")
     @SerialName("no_city_razing") val noCityRazing: Boolean,
+    @JsonNames("worldWrap")
     @SerialName("world_wrap") val worldWrap: Boolean,
+    @JsonNames("strategicBalance")
     @SerialName("strategic_balance") val strategicBalance: Boolean,
+    @JsonNames("legendaryStart")
     @SerialName("legendary_start") val legendaryStart: Boolean,
+    @JsonNames("noRuins")
     @SerialName("no_ruins") val noRuins: Boolean,
+    @JsonNames("noNaturalWonders")
     @SerialName("no_natural_wonders") val noNaturalWonders: Boolean,
+    @JsonNames("mapSeed")
+    @SerialName("map_seed") val mapSeed: Long? = null,
+    val mirroring: ApiV3MirroringType = ApiV3MirroringType.None,
+    @JsonNames("tilesPerBiomeArea")
+    @SerialName("tiles_per_biome_area") val tilesPerBiomeArea: Int = 6,
+    @JsonNames("maxCoastExtension")
+    @SerialName("max_coast_extension") val maxCoastExtension: Int = 2,
+    @JsonNames("elevationExponent")
+    @SerialName("elevation_exponent") val elevationExponent: Float = 0.7f,
+    @JsonNames("temperatureIntensity")
+    @SerialName("temperature_intensity") val temperatureIntensity: Float = 0.6f,
+    @JsonNames("temperatureShift")
+    @SerialName("temperature_shift") val temperatureShift: Float = 0f,
+    @JsonNames("vegetationRichness")
+    @SerialName("vegetation_richness") val vegetationRichness: Float = 0.4f,
+    @JsonNames("rareFeaturesRichness")
+    @SerialName("rare_features_richness") val rareFeaturesRichness: Float = 0.05f,
+    @JsonNames("resourceRichness")
+    @SerialName("resource_richness") val resourceRichness: Float = 0.1f,
+    @JsonNames("waterThreshold")
+    @SerialName("water_threshold") val waterThreshold: Float = 0f,
 ) {
     companion object {
         fun from(setup: GameSetupInfo): ApiV3GameSetup {
@@ -115,21 +168,6 @@ data class ApiV3GameSetup(
             require(!game.godMode) {
                 "API v3 does not support client god mode"
             }
-            val defaultMap = MapParameters()
-            require(
-                map.mirroring == MirroringType.none &&
-                    map.tilesPerBiomeArea == defaultMap.tilesPerBiomeArea &&
-                    map.maxCoastExtension == defaultMap.maxCoastExtension &&
-                    map.elevationExponent == defaultMap.elevationExponent &&
-                    map.temperatureintensity == defaultMap.temperatureintensity &&
-                    map.temperatureShift == defaultMap.temperatureShift &&
-                    map.vegetationRichness == defaultMap.vegetationRichness &&
-                    map.rareFeaturesRichness == defaultMap.rareFeaturesRichness &&
-                    map.resourceRichness == defaultMap.resourceRichness &&
-                    map.waterThreshold == defaultMap.waterThreshold
-            ) {
-                "API v3 does not accept client-authored advanced map generation values"
-            }
             return ApiV3GameSetup(
                 ownerCivilizationId = owner.chosenCiv,
                 difficulty = game.difficulty,
@@ -159,9 +197,29 @@ data class ApiV3GameSetup(
                 legendaryStart = map.legendaryStart,
                 noRuins = map.noRuins,
                 noNaturalWonders = map.noNaturalWonders,
+                mapSeed = map.seed,
+                mirroring = map.mirroring.toApiV3Mirroring(),
+                tilesPerBiomeArea = map.tilesPerBiomeArea,
+                maxCoastExtension = map.maxCoastExtension,
+                elevationExponent = map.elevationExponent,
+                temperatureIntensity = map.temperatureintensity,
+                temperatureShift = map.temperatureShift,
+                vegetationRichness = map.vegetationRichness,
+                rareFeaturesRichness = map.rareFeaturesRichness,
+                resourceRichness = map.resourceRichness,
+                waterThreshold = map.waterThreshold,
             )
         }
     }
+}
+
+private fun String.toApiV3Mirroring() = when (this) {
+    MirroringType.none -> ApiV3MirroringType.None
+    MirroringType.topbottom -> ApiV3MirroringType.TopBottom
+    MirroringType.leftright -> ApiV3MirroringType.LeftRight
+    MirroringType.aroundCenterTile -> ApiV3MirroringType.AroundCenterTile
+    MirroringType.fourway -> ApiV3MirroringType.FourWay
+    else -> error("Unsupported API v3 mirroring type: $this")
 }
 
 private fun String.toApiV3MapType() = when (this) {

@@ -58,7 +58,7 @@ pub use city_state::{
 pub use deadlines::{WorkerDeadlineConfigError, WorkerDeadlines};
 pub use game_setup::{
     BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
-    WorkerGameSetup,
+    MirroringType, WorkerGameSetup,
 };
 pub use intents::{
     AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,

@@ -9,8 +9,6 @@ import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
 import com.unciv.UncivGame
 import com.unciv.logic.civilization.PlayerType
-import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
-import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.Player
 import com.unciv.models.ruleset.Ruleset
@@ -91,7 +89,12 @@ class GameOptionsTable(
 
         add(Table().apply {
             defaults().pad(5f)
-            addBaseRulesetSelectBox()
+            if (usesAuthoritativeCreation()) {
+                add("Server ruleset".toLabel()).left()
+                add(gameParameters.baseRuleset.toLabel()).left().row()
+            } else {
+                addBaseRulesetSelectBox()
+            }
             addDifficultySelectBox()
             addGameSpeedSelectBox()
             addEraSelectBox()
@@ -114,7 +117,6 @@ class GameOptionsTable(
 
         val checkboxTable = Table().apply { defaults().left().pad(2.5f) }
         val selectBoxTable = Table()
-        checkboxTable.addIsOnlineMultiplayerCheckbox()
         if (gameParameters.isOnlineMultiplayer && !usesAuthoritativeCreation()) {
             checkboxTable.addAnyoneCanSpectateCheckbox()
             selectBoxTable.addDurationSelectBox("Time until skip turn:", GameParameters::minutesUntilSkipTurn, 1, 0, 0)
@@ -157,7 +159,7 @@ class GameOptionsTable(
         }
         add(expander).pad(10f).row()
 
-        if (!isPortrait)
+        if (!isPortrait && !usesAuthoritativeCreation())
             add(modCheckboxes).padTop(0f).row()
 
         pack()
@@ -196,24 +198,8 @@ class GameOptionsTable(
             addCheckbox("Enable Nuclear Weapons", gameParameters.nuclearWeaponsEnabled)
             { gameParameters.nuclearWeaponsEnabled = it }
 
-    private fun Table.addIsOnlineMultiplayerCheckbox() =
-            addCheckbox("Online Multiplayer", gameParameters.isOnlineMultiplayer, lockable = false)
-            { shouldUseMultiplayer ->
-                gameParameters.isOnlineMultiplayer = shouldUseMultiplayer
-                updatePlayerPickerTable("")
-                update()
-            }
-
-    private fun multiplayerCreationRoute() =
-        multiplayerCreationRoute(
-            gameParameters.isOnlineMultiplayer,
-            if (previousScreen is NewGameScreen)
-                UncivGame.Current.onlineMultiplayer.authoritativeStatus
-            else com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
-        )
-
     private fun usesAuthoritativeCreation() =
-        multiplayerCreationRoute() == MultiplayerCreationRoute.AuthoritativeApiV3
+        (previousScreen as? NewGameScreen)?.isAuthoritativeLobbySetup == true
 
     private fun Table.addAnyoneCanSpectateCheckbox() =
             addCheckbox("Allow anyone to spectate", gameParameters.anyoneCanSpectate)

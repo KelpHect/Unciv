@@ -7,7 +7,6 @@ import kotlinx.coroutines.sync.withLock
 enum class AuthoritativeSessionStatus {
     NotStarted,
     Detecting,
-    LegacyServer,
     SecureStoreUnavailable,
     LoginRequired,
     Authenticated,
@@ -73,7 +72,9 @@ class AuthoritativeSessionLifecycle(
         }
         if (version != ApiVersion.APIv3) {
             clearSession()
-            status = AuthoritativeSessionStatus.LegacyServer
+            failureMessage =
+                "This server is not an authoritative API v3 multiplayer server."
+            status = AuthoritativeSessionStatus.Failed
             return@withLock status
         }
 

@@ -67,11 +67,25 @@ async fn seed_repository(repository: &PostgresGameRepository) -> (Uuid, Uuid) {
         .execute(&repository.pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO ruleset_manifests (hash, engine_build, manifest) VALUES ($1, 'test-engine', '{}'::jsonb)")
-        .bind(&manifest_hash)
-        .execute(&repository.pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO ruleset_manifests (hash, engine_build, manifest)
+         VALUES (
+             $1,
+             'test-engine',
+             jsonb_build_object(
+                 'engineBuild', 'test-engine',
+                 'baseRuleset', jsonb_build_object(
+                     'name', 'Civ V - Vanilla',
+                     'sha256', repeat('b', 64)
+                 ),
+                 'mods', '[]'::jsonb
+             )
+         )",
+    )
+    .bind(&manifest_hash)
+    .execute(&repository.pool)
+    .await
+    .unwrap();
     repository
         .create_game(NewGame {
             game_id: game,

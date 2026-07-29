@@ -69,18 +69,18 @@ pub(super) async fn set_lobby_ready(
     Json(request): Json<SetLobbyReadyRequest>,
 ) -> Result<Json<unciv_authoritative_server::postgres::LobbySummary>, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
-    Ok(Json(
-        state
-            .repository
-            .set_lobby_ready(
-                actor.id,
-                game_id,
-                request.expected_lobby_revision,
-                request.ready,
-            )
-            .await
-            .map_err(game_error)?,
-    ))
+    let lobby = state
+        .repository
+        .set_lobby_ready(
+            actor.id,
+            game_id,
+            request.expected_lobby_revision,
+            request.ready,
+        )
+        .await
+        .map_err(game_error)?;
+    state.notifications.require_resync_for_all();
+    Ok(Json(lobby))
 }
 
 #[utoipa::path(
@@ -98,11 +98,11 @@ pub(super) async fn start_lobby(
     Json(request): Json<StartLobbyRequest>,
 ) -> Result<Json<unciv_authoritative_server::postgres::LobbySummary>, ApiError> {
     let actor = authenticated_account(&state, &headers).await?;
-    Ok(Json(
-        state
-            .repository
-            .start_lobby(actor.id, game_id, request.expected_lobby_revision)
-            .await
-            .map_err(game_error)?,
-    ))
+    let lobby = state
+        .repository
+        .start_lobby(actor.id, game_id, request.expected_lobby_revision)
+        .await
+        .map_err(game_error)?;
+    state.notifications.require_resync_for_all();
+    Ok(Json(lobby))
 }

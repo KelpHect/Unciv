@@ -13,30 +13,15 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
         val start = source.substring(
             source.indexOf("private suspend fun startNewGame()"),
-            source.indexOf("private fun multiplayerCreationRoute()"),
+            source.indexOf("private suspend fun startAuthoritativeGame("),
         )
-        val authoritativeBranch =
-            start.indexOf("MultiplayerCreationRoute.AuthoritativeApiV3 ->")
-        val unavailableBranch =
-            start.indexOf("MultiplayerCreationRoute.AuthoritativeUnavailable ->")
-        val legacyDisabledBranch =
-            start.indexOf("MultiplayerCreationRoute.LegacyCreationDisabled ->")
+        val authoritativeBranch = start.indexOf("if (isAuthoritativeLobbySetup)")
         val localConstruction = start.indexOf("GameStarter.startNewGame")
 
         assertTrue(authoritativeBranch >= 0)
         assertTrue(localConstruction > authoritativeBranch)
-        assertTrue(localConstruction > unavailableBranch)
-        assertTrue(localConstruction > legacyDisabledBranch)
         assertTrue(
             start.substring(authoritativeBranch, localConstruction)
-                .contains("return@coroutineScope"),
-        )
-        assertTrue(
-            start.substring(unavailableBranch, localConstruction)
-                .contains("return@coroutineScope"),
-        )
-        assertTrue(
-            start.substring(legacyDisabledBranch, localConstruction)
                 .contains("return@coroutineScope"),
         )
     }
@@ -54,10 +39,11 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         assertFalse(options.contains("showDropboxWarning"))
+        assertFalse(options.contains("\"Online Multiplayer\""))
         assertFalse(players.contains("Player ID from clipboard"))
         assertFalse(newGame.contains("checkConnectionToMultiplayerServer"))
-        assertTrue(newGame.contains("LegacyCreationDisabled"))
-        assertTrue(newGame.contains("Creating new legacy multiplayer games is disabled"))
+        assertFalse(newGame.contains("onlineMultiplayer.legacy"))
+        assertFalse(newGame.contains("Game ID copied to clipboard"))
     }
 
     @Test
@@ -71,11 +57,11 @@ class AuthoritativeProductionRoutingTests {
         )
 
         assertTrue(creation.contains("requireNotNull(lobbyConfiguration)"))
-        assertTrue(creation.contains("game.replaceCurrentScreen(MultiplayerScreen())"))
+        assertTrue(creation.contains("game.replaceCurrentScreen(AuthoritativeLobbyScreen("))
         assertFalse(creation.contains("openGame("))
         assertFalse(creation.contains("AuthoritativeWorldScreen("))
-        assertTrue(creation.contains("gameSetupInfo.gameParameters.baseRuleset"))
-        assertTrue(creation.contains("gameSetupInfo.gameParameters.mods"))
+        assertTrue(creation.contains("lobby.rulesetManifest.baseRuleset.name"))
+        assertTrue(creation.contains("lobby.rulesetManifest.mods"))
         assertTrue(creation.contains("meaning.baseRulesetName"))
         assertTrue(creation.contains("meaning.modNames"))
         assertFalse(creation.contains("GameStarter"))
@@ -146,9 +132,9 @@ class AuthoritativeProductionRoutingTests {
                 "AuthoritativeWorldScreen.kt",
         ).readText()
 
-        assertTrue(multiplayer.contains("Authoritative multiplayer"))
-        assertTrue(multiplayer.contains("Open matches"))
-        assertTrue(multiplayer.contains("Your games"))
+        assertTrue(multiplayer.contains("\"MULTIPLAYER\""))
+        assertTrue(multiplayer.contains("OPEN LOBBIES"))
+        assertTrue(multiplayer.contains("YOUR MATCHES"))
         assertFalse(multiplayer.contains("legacy saved game", ignoreCase = true))
         assertTrue(world.contains("Retry uncertain action"))
         assertTrue(world.contains("retryPendingIfOpen"))
@@ -162,14 +148,56 @@ class AuthoritativeProductionRoutingTests {
         val multiplayer = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
         ).readText()
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
 
-        assertTrue(multiplayer.contains("session!!.joinLobby("))
-        assertTrue(multiplayer.contains("Join selected faction"))
+        assertTrue(lobby.contains("session.joinLobby("))
+        assertTrue(lobby.contains("Your civilization"))
+        assertTrue(lobby.contains("Join lobby"))
         assertTrue(multiplayer.contains("AuthoritativeGameDirectory(activeSession).open(summary)"))
         assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
-        assertFalse(multiplayer.contains("GameInfo"))
-        assertFalse(multiplayer.contains("GameStarter"))
-        assertFalse(multiplayer.contains("playerId"))
+        assertFalse(multiplayer.contains("GameInfo") || lobby.contains("GameInfo"))
+        assertFalse(multiplayer.contains("GameStarter") || lobby.contains("GameStarter"))
+        assertFalse(multiplayer.contains("playerId") || lobby.contains("playerId"))
+    }
+
+    @Test
+    fun stagedLobbyUsesServerRulesetsAndShowsTheCompleteSetupInRealtime() {
+        val multiplayer = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val newGame = sourceFile(
+            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        ).readText()
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+
+        assertTrue(multiplayer.contains("listRulesetManifests()"))
+        assertTrue(multiplayer.contains("manifests[ruleset.selectedIndex]"))
+        assertTrue(newGame.contains("MULTIPLAYER SETUP  •  STEP 1 OF 2"))
+        assertTrue(lobby.contains("MULTIPLAYER LOBBY  •  STEP 2 OF 2"))
+        for (label in listOf(
+            "Ruleset",
+            "Map shape",
+            "Map seed",
+            "Mirroring",
+            "Resources",
+            "Difficulty",
+            "Game speed",
+            "Starting era",
+            "Major civilizations",
+            "City-states",
+            "Turn limit",
+            "Victory conditions",
+            "Map generation",
+            "Terrain scale",
+            "Advanced rules",
+        )) assertTrue("Missing lobby setup field: $label", lobby.contains("\"$label\""))
+        assertTrue(lobby.contains("session.observeLobby(lobby.gameId)"))
+        assertTrue(lobby.contains("Timer.schedule(refreshTask"))
+        assertTrue(lobby.contains("isNarrowerThan4to3()"))
     }
 
     @Test

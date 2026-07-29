@@ -5,13 +5,10 @@ import com.badlogic.gdx.scenes.scene2d.Touchable
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
-import com.unciv.UncivGame
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.civilization.PlayerType.AI
 import com.unciv.logic.civilization.PlayerType.Human
 import com.unciv.logic.multiplayer.FriendList
-import com.unciv.logic.multiplayer.authoritative.MultiplayerCreationRoute
-import com.unciv.logic.multiplayer.authoritative.multiplayerCreationRoute
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
@@ -230,19 +227,11 @@ class PlayerPickerTable(
         return playerTable
     }
 
-    private fun multiplayerCreationRoute() =
-        multiplayerCreationRoute(
-            gameParameters.isOnlineMultiplayer,
-            if (previousScreen is NewGameScreen)
-                UncivGame.Current.onlineMultiplayer.authoritativeStatus
-            else com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
-        )
-
     private fun usesAuthoritativeCreation() =
-        multiplayerCreationRoute() == MultiplayerCreationRoute.AuthoritativeApiV3
+        (previousScreen as? NewGameScreen)?.isAuthoritativeLobbySetup == true
 
     private fun normalizeAuthoritativePlayers() {
-        if (multiplayerCreationRoute() != MultiplayerCreationRoute.AuthoritativeApiV3) return
+        if (!usesAuthoritativeCreation()) return
         gameParameters.players.removeAll { it.chosenCiv == Constants.spectator }
         if (gameParameters.players.isEmpty())
             gameParameters.players += Player(Constants.random, PlayerType.Human)

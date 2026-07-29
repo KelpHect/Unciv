@@ -106,6 +106,25 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun lobbyObserversReceiveWebSocketHintsAndCanUnsubscribe() = runBlocking {
+        val transport = FakeTransport().apply { restored = true }
+        val session = session(transport)
+        assertTrue(session.restore())
+        eventually { transport.notifications.subscriptionCount.value == 1 }
+        var changes = 0
+        val subscription = session.observeLobby(GAME_ID) { changes++ }
+
+        transport.notifications.emit(ApiV3RevisionNotification("resync_required", 4))
+        eventually { changes == 1 }
+        subscription.close()
+        transport.notifications.emit(ApiV3RevisionNotification("resync_required", 4))
+        delay(50)
+
+        assertEquals(1, changes)
+        session.close()
+    }
+
+    @Test
     fun v3TurnTransitionRequestsPlatformAttentionExactlyOnce() = runBlocking {
         val transport = FakeTransport().apply {
             restored = true
@@ -191,6 +210,31 @@ class AuthoritativeMultiplayerSessionTests {
         assertThrows<IllegalStateException> {
             session.resolveRulesetManifest("Civ V - Gods & Kings", setOf("Server Mod"))
         }
+        session.close()
+    }
+
+    @Test
+    fun matchSetupListsEveryServerInstalledRulesetPage() = runBlocking {
+        val cursor = "b".repeat(64)
+        val transport = FakeTransport().apply {
+            restored = true
+            manifestPages[null] = ApiV3RulesetManifestPage(
+                listOf(manifest("a", "Civ V - Vanilla", emptyList())),
+                cursor,
+            )
+            manifestPages[cursor] = ApiV3RulesetManifestPage(
+                listOf(manifest("c", "Civ V - Gods & Kings", listOf("Server Mod"))),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+
+        val manifests = session.listRulesetManifests()
+
+        assertEquals(listOf("Civ V - Vanilla", "Civ V - Gods & Kings"), manifests.map {
+            it.baseRuleset.name
+        })
+        assertEquals(listOf(null, cursor), transport.manifestListCalls)
         session.close()
     }
 

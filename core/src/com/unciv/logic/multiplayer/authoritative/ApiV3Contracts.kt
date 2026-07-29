@@ -122,6 +122,8 @@ data class ApiV3Lobby(
     val setup: ApiV3GameSetup,
     val members: List<ApiV3LobbyMember>,
     @SerialName("available_civilizations") val availableCivilizations: List<String>,
+    @SerialName("base_ruleset_name") val baseRulesetName: String = "",
+    @SerialName("mod_names") val modNames: List<String> = emptyList(),
 )
 
 @Serializable

@@ -1,7 +1,7 @@
 use super::*;
 use unciv_authoritative_server::worker::{
     BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
-    WorkerGameSetup,
+    MirroringType, WorkerGameSetup,
 };
 
 #[derive(Deserialize, ToSchema)]
@@ -31,6 +31,28 @@ pub(super) struct CreateGameSetupRequest {
     legendary_start: bool,
     no_ruins: bool,
     no_natural_wonders: bool,
+    #[serde(default)]
+    map_seed: Option<i64>,
+    #[serde(default)]
+    mirroring: MirroringType,
+    #[serde(default = "default_tiles_per_biome_area")]
+    tiles_per_biome_area: u8,
+    #[serde(default = "default_max_coast_extension")]
+    max_coast_extension: u8,
+    #[serde(default = "default_elevation_exponent")]
+    elevation_exponent: f32,
+    #[serde(default = "default_temperature_intensity")]
+    temperature_intensity: f32,
+    #[serde(default)]
+    temperature_shift: f32,
+    #[serde(default = "default_vegetation_richness")]
+    vegetation_richness: f32,
+    #[serde(default = "default_rare_features_richness")]
+    rare_features_richness: f32,
+    #[serde(default = "default_resource_richness")]
+    resource_richness: f32,
+    #[serde(default)]
+    water_threshold: f32,
 }
 
 impl CreateGameSetupRequest {
@@ -57,6 +79,15 @@ impl CreateGameSetupRequest {
             || !(2..=16).contains(&self.major_civilizations)
             || self.city_states > 64
             || !(100..=1500).contains(&self.max_turns)
+            || !(1..=15).contains(&self.tiles_per_biome_area)
+            || !(1..=5).contains(&self.max_coast_extension)
+            || !finite_range(self.elevation_exponent, 0.6, 0.8)
+            || !finite_range(self.temperature_intensity, 0.4, 0.8)
+            || !finite_range(self.temperature_shift, -0.4, 0.4)
+            || !finite_range(self.vegetation_richness, 0.0, 1.0)
+            || !finite_range(self.rare_features_richness, 0.0, 0.5)
+            || !finite_range(self.resource_richness, 0.0, 0.5)
+            || !finite_range(self.water_threshold, -0.1, 0.1)
         {
             return Err(ApiError::bad_request("invalid_game_setup"));
         }
@@ -86,8 +117,51 @@ impl CreateGameSetupRequest {
             legendary_start: self.legendary_start,
             no_ruins: self.no_ruins,
             no_natural_wonders: self.no_natural_wonders,
+            map_seed: self.map_seed,
+            mirroring: self.mirroring,
+            tiles_per_biome_area: self.tiles_per_biome_area,
+            max_coast_extension: self.max_coast_extension,
+            elevation_exponent: self.elevation_exponent,
+            temperature_intensity: self.temperature_intensity,
+            temperature_shift: self.temperature_shift,
+            vegetation_richness: self.vegetation_richness,
+            rare_features_richness: self.rare_features_richness,
+            resource_richness: self.resource_richness,
+            water_threshold: self.water_threshold,
         })
     }
+}
+
+fn finite_range(value: f32, minimum: f32, maximum: f32) -> bool {
+    value.is_finite() && (minimum..=maximum).contains(&value)
+}
+
+fn default_tiles_per_biome_area() -> u8 {
+    6
+}
+
+fn default_max_coast_extension() -> u8 {
+    2
+}
+
+fn default_elevation_exponent() -> f32 {
+    0.7
+}
+
+fn default_temperature_intensity() -> f32 {
+    0.6
+}
+
+fn default_vegetation_richness() -> f32 {
+    0.4
+}
+
+fn default_rare_features_richness() -> f32 {
+    0.05
+}
+
+fn default_resource_richness() -> f32 {
+    0.1
 }
 
 fn bounded_name(value: &str) -> bool {
@@ -123,7 +197,7 @@ mod tests {
         );
 
         let mut unknown = valid_setup();
-        unknown["seed"] = json!(1234);
+        unknown["client_snapshot"] = json!("not allowed");
         assert!(serde_json::from_value::<CreateGameSetupRequest>(unknown).is_err());
     }
 
@@ -153,6 +227,17 @@ mod tests {
             "legendary_start": false,
             "no_ruins": false,
             "no_natural_wonders": false
+            ,"map_seed": 1234
+            ,"mirroring": "none"
+            ,"tiles_per_biome_area": 6
+            ,"max_coast_extension": 2
+            ,"elevation_exponent": 0.7
+            ,"temperature_intensity": 0.6
+            ,"temperature_shift": 0.0
+            ,"vegetation_richness": 0.4
+            ,"rare_features_richness": 0.05
+            ,"resource_richness": 0.1
+            ,"water_threshold": 0.0
         })
     }
 }

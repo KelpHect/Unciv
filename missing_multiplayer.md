@@ -207,16 +207,19 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   production multiplayer screen no longer exposes API-v1/v2 discovery,
   credentials, player IDs, file-server probes, legacy creation controls, local
   online `GameInfo` construction, or whole-save upload.
-- [x] Migrate the new-game UI to bounded server setup choices, server-owned
-  seed/randomness, exact ruleset-manifest resolution, retry-stable creation,
+- [x] Migrate the new-game UI to bounded server setup choices, an explicit
+  bounded setup seed or server-generated seed, server-owned gameplay
+  randomness, exact ruleset-manifest resolution, retry-stable creation,
   progress/error handling, and the returned revision-zero lobby. The production
-  multiplayer create action reuses the complete single-player setup screen,
-  adds a match name, human-slot count and optional password, strips legacy
-  player IDs and public-spectator setup choices,
-  rejects unsupported client nation pools, god mode, and advanced map values,
-  and retains an operation ID only while setup meaning is unchanged. The
-  owner chooses their faction during setup; the private worker cross-validates
-  the resulting canonical faction pool before the screen returns to the lobby.
+  multiplayer create action now begins with a labeled match-name, exact
+  server-ruleset, human-slot, and optional-password form, then reuses the
+  complete single-player setup controls as step one. It strips legacy player
+  IDs and public-spectator setup choices, rejects client nation pools and god
+  mode, and carries map seed, mirroring, generation sliders, resources, map
+  type/shape/size, victory conditions, era, speed, difficulty, and gameplay
+  toggles through one closed Rust-to-worker setup contract. The owner chooses
+  their faction during setup; the private worker cross-validates the resulting
+  canonical faction pool before the screen enters the real-time lobby.
 - [x] Migrate game discovery, join, civilization assignment, and open-game UI
   to the server-owned lobby directory, account membership, and server
   projections. Open lobbies list their name, password requirement, and occupied
@@ -226,6 +229,13 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   idempotency rules. Each human controls only their readiness, only the owner
   can start, and exact capacity plus unanimous readiness is required. A fresh
   device reconstructs every lobby and active game without a local save.
+- [x] Replace the production lobby popup with a responsive staged room. Desktop
+  uses side-by-side player/faction and complete match-setting panels; narrow
+  Android layouts stack the same content in a scroll pane. Readiness, joins,
+  faction choices, and start transitions reconcile on WebSocket hints with
+  authenticated HTTP truth and a bounded polling fallback. The lobby displays
+  the server manifest's friendly base/mod names instead of exposing only a
+  content hash.
 - [x] Add the projection-only world foundation. Projection v54 carries bounded
   explored terrain, terrain features, natural wonders, and only resources the
   actor can reveal. Opening an available player membership now constructs a

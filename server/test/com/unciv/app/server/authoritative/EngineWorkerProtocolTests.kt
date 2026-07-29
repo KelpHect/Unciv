@@ -237,6 +237,17 @@ class EngineWorkerProtocolTests {
                         mapSize = GeneratedMapSize.Tiny,
                         barbarians = BarbarianMode.Disabled,
                         noRuins = true,
+                        mapSeed = 13579L,
+                        mirroring = WorkerMirroringType.LeftRight,
+                        tilesPerBiomeArea = 9,
+                        maxCoastExtension = 4,
+                        elevationExponent = 0.8f,
+                        temperatureIntensity = 0.4f,
+                        temperatureShift = 0.2f,
+                        vegetationRichness = 0.7f,
+                        rareFeaturesRichness = 0.2f,
+                        resourceRichness = 0.3f,
+                        waterThreshold = 0.1f,
                     ),
                 ),
             ),
@@ -245,7 +256,7 @@ class EngineWorkerProtocolTests {
         assertNull(response.error)
         assertEquals(1_700_000_000_000L, response.serverTimeMillis)
         val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
-        assertEquals(987654321L, game.tileMap.mapParameters.seed)
+        assertEquals(13579L, game.tileMap.mapParameters.seed)
         assertEquals(1_700_000_000_000L, game.currentTurnStartTime)
         assertEquals(baseRuleset.name, game.gameParameters.baseRuleset)
         assertEquals(2, game.gameParameters.players.size)
@@ -254,6 +265,16 @@ class EngineWorkerProtocolTests {
         assertTrue(game.tileMap.mapParameters.noRuins)
         assertEquals("Rectangular", game.tileMap.mapParameters.shape)
         assertEquals("Tiny", game.tileMap.mapParameters.mapSize.name)
+        assertEquals("Left-right", game.tileMap.mapParameters.mirroring)
+        assertEquals(9, game.tileMap.mapParameters.tilesPerBiomeArea)
+        assertEquals(4, game.tileMap.mapParameters.maxCoastExtension)
+        assertEquals(0.8f, game.tileMap.mapParameters.elevationExponent)
+        assertEquals(0.4f, game.tileMap.mapParameters.temperatureintensity)
+        assertEquals(0.2f, game.tileMap.mapParameters.temperatureShift)
+        assertEquals(0.7f, game.tileMap.mapParameters.vegetationRichness)
+        assertEquals(0.2f, game.tileMap.mapParameters.rareFeaturesRichness)
+        assertEquals(0.3f, game.tileMap.mapParameters.resourceRichness)
+        assertEquals(0.1f, game.tileMap.mapParameters.waterThreshold)
         assertTrue(game.gameParameters.isOnlineMultiplayer)
         assertEquals(
             "account-1",
@@ -278,6 +299,17 @@ class EngineWorkerProtocolTests {
                         mapSize = GeneratedMapSize.Tiny,
                         barbarians = BarbarianMode.Disabled,
                         noRuins = true,
+                        mapSeed = 13579L,
+                        mirroring = WorkerMirroringType.LeftRight,
+                        tilesPerBiomeArea = 9,
+                        maxCoastExtension = 4,
+                        elevationExponent = 0.8f,
+                        temperatureIntensity = 0.4f,
+                        temperatureShift = 0.2f,
+                        vegetationRichness = 0.7f,
+                        rareFeaturesRichness = 0.2f,
+                        resourceRichness = 0.3f,
+                        waterThreshold = 0.1f,
                     ),
                 ),
             ),

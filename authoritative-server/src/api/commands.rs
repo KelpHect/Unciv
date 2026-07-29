@@ -42,6 +42,7 @@ pub(super) async fn join_game(
         )
         .await
         .map_err(game_error)?;
+    state.notifications.require_resync_for_all();
     Ok(Json(accepted))
 }
 

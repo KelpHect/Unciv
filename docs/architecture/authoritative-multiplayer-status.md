@@ -20,11 +20,11 @@ Built and qualified on 2026-07-29:
   extracted into a clean directory and remained alive through a 12-second
   smoke launch.
 - Candidate artifacts are in `deploy/Unciv-V3-lobby-20260729`. SHA-256 values:
-  `3486AD67D1F87737262F50771B657727E4B7F497BAAC1B4418A97F5FF0DC6CC2`
+  `7C9AE9DB3BFFA7EE4349E757E8639E8E85DAD968DA4BD3219D14307E5E5B2EC2`
   (APK),
-  `821535CCA7DFB3043E0D0A12C188CC3F02EB60782915219FD081376D96BC7C6D`
+  `6002D5BC2EC941EF2E5DDEA4820253B94B57B1AC46CA9F1EAB887771F79CE80A`
   (portable Windows ZIP), and
-  `E1B14AAF1BD94D857915D6C233F14F9D51811C5D9E262FBCBE363711FBD6A45B`
+  `A365775BFC5A3DA870065070A00FF9B290D662B9AD3B7E4F9E66CFE58B9ECFC8`
   (desktop JAR).
 
 ## Direct-install Android and portable Windows match clients
@@ -7970,6 +7970,66 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
+
+## Server-manifest staged multiplayer lobby
+
+Implemented on 2026-07-29:
+
+- Production creation now starts from the authenticated server's paginated,
+  content-addressed manifest inventory. The client selects one exact server
+  base-plus-mod identity and pins the setup screen to it, eliminating the
+  inherited single-player ruleset mismatch that previously surfaced as
+  `No installed API v3 ruleset manifest matches this setup`.
+- The closed public, Rust worker, and Kotlin engine setup contracts now carry
+  the generated-map seed, mirroring, biome/coast scale, elevation,
+  temperature, vegetation, rare-feature, resource-richness, and water controls
+  in addition to map type/shape/size, resources, difficulty, speed, era,
+  civilization counts, turn limit, victories, and rule toggles. Every numeric
+  value is independently bounded by Rust and Kotlin before `GameStarter`.
+- Multiplayer is a labeled two-stage flow. Step one is the complete bounded
+  match setup; step two is a dedicated real-time room. The desktop room uses
+  side-by-side player/faction and full-setting panels, while narrow Android
+  layouts stack the same panels in one scroll view. Join, ready, and start
+  changes use WebSocket resynchronization hints plus authenticated HTTP
+  reconciliation and a polling fallback.
+- Lobby responses now include the validated friendly base-ruleset and mod
+  names, while continuing to retain the immutable manifest hash. Production
+  single-player creation no longer offers the legacy `Online Multiplayer`
+  switch, and startup no longer falls back to a legacy server when API v3
+  negotiation fails. Compatibility-only legacy save code remains isolated for
+  existing saves and imports.
+
+Focused verification on 2026-07-29:
+
+- The client/session/routing and private-worker Gradle slice passes 87 tests;
+  the dedicated production routing class also passes after the responsive
+  layout update.
+- Rust setup, notifications, generated HTTP/OpenAPI, and all-target compilation
+  gates pass. The API gate passes all 29 tests after regenerating the checked-in
+  contract.
+- Five serialized lobby and retry-safe creation tests pass against
+  `PostgreSQL 19beta2` using only
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The lobby tests now assert friendly manifest names as well as password,
+  capacity, unique-faction, stale revision, readiness, and owner-start
+  behavior.
+
+Failure repair:
+
+1. The first focused production-routing run found a dead private legacy
+   `Online Multiplayer` checkbox builder. The obsolete builder was removed and
+   the exact Gradle slice passed on rerun.
+2. The first PostgreSQL lobby run stopped at migration 24 because the
+   disposable database lacked the project runtime roles. The project-owned
+   bootstrap-role fixture was applied to the same PostgreSQL 19 Beta 2
+   instance; the exact two-test command then passed.
+3. The friendly-name query exposed that the shared test fixture used an empty
+   manifest unlike production. The fixture now stores a valid closed worker
+   manifest; focused lobby and creation tests pass without weakening
+   fail-closed parsing.
+4. The first HTTP gate detected expected checked-in OpenAPI drift after the
+   schema expansion. The project generator updated the contract and the exact
+   29-test API gate passed.
 
 ## Protocol-4 client detection and scaled desktop text (2026-07-29)
 

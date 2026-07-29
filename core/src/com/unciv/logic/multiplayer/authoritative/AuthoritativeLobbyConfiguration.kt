@@ -4,6 +4,7 @@ data class AuthoritativeLobbyConfiguration(
     val displayName: String,
     val humanSlots: Int,
     val password: String?,
+    val rulesetManifest: ApiV3RulesetManifestSummary,
 ) {
     init {
         require(displayName.isNotBlank() && displayName.length <= 80)

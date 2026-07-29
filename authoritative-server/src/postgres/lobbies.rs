@@ -102,13 +102,14 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<LobbySummary, CommitError> {
         let row = sqlx::query(
-            "SELECT g.display_name, g.ruleset_manifest_hash, g.head_revision,
+            "SELECT g.display_name, g.ruleset_manifest_hash, m.manifest, g.head_revision,
                     r.canonical_state_hash, l.human_slots, l.available_civilizations,
                     l.password_hash IS NOT NULL AS password_required,
                     l.lobby_revision, l.started_at IS NOT NULL AS started,
                     l.setup, owner.username_normalized AS owner_username
              FROM game_lobbies l
              JOIN games g ON g.id=l.game_id
+             JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash
              JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
              JOIN accounts owner ON owner.id=l.owner_account_id
              WHERE l.game_id=$1 AND l.closed_at IS NULL",
@@ -156,6 +157,26 @@ impl PostgresGameRepository {
         .fetch_optional(&self.pool)
         .await
         .map_err(CommitError::storage)?;
+        let manifest = row.get::<serde_json::Value, _>("manifest");
+        let base_ruleset_name = manifest
+            .get("baseRuleset")
+            .and_then(|base| base.get("name"))
+            .and_then(serde_json::Value::as_str)
+            .ok_or(CommitError::WorkerRevisionMismatch)?
+            .to_owned();
+        let mod_names = manifest
+            .get("mods")
+            .and_then(serde_json::Value::as_array)
+            .ok_or(CommitError::WorkerRevisionMismatch)?
+            .iter()
+            .map(|component| {
+                component
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+                    .ok_or(CommitError::WorkerRevisionMismatch)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(LobbySummary {
             game_id,
             committed_revision: u64::try_from(row.get::<i64, _>("head_revision"))
@@ -164,6 +185,8 @@ impl PostgresGameRepository {
             display_name: row.get("display_name"),
             owner_username: row.get("owner_username"),
             ruleset_manifest_hash: row.get("ruleset_manifest_hash"),
+            base_ruleset_name,
+            mod_names,
             human_slots: u8::try_from(row.get::<i16, _>("human_slots"))
                 .expect("lobby slot constraint fits u8"),
             occupied_slots: u8::try_from(members.len()).expect("lobby member count fits u8"),

@@ -6,6 +6,7 @@ import com.unciv.logic.map.MapParameters
 import com.unciv.logic.map.MapShape
 import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.MapType
+import com.unciv.logic.map.MirroringType
 import com.unciv.logic.map.mapgenerator.MapResourceSetting
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
@@ -35,6 +36,15 @@ enum class GeneratedMapShape {
     @SerialName("rectangular") Rectangular,
     @SerialName("hexagonal") Hexagonal,
     @SerialName("flat_earth") FlatEarth,
+}
+
+@Serializable
+enum class WorkerMirroringType {
+    @SerialName("none") None,
+    @SerialName("top_bottom") TopBottom,
+    @SerialName("left_right") LeftRight,
+    @SerialName("around_center_tile") AroundCenterTile,
+    @SerialName("four_way") FourWay,
 }
 
 @Serializable
@@ -86,6 +96,17 @@ data class WorkerGameSetup(
     val legendaryStart: Boolean,
     val noRuins: Boolean,
     val noNaturalWonders: Boolean,
+    val mapSeed: Long? = null,
+    val mirroring: WorkerMirroringType = WorkerMirroringType.None,
+    val tilesPerBiomeArea: Int = 6,
+    val maxCoastExtension: Int = 2,
+    val elevationExponent: Float = 0.7f,
+    val temperatureIntensity: Float = 0.6f,
+    val temperatureShift: Float = 0f,
+    val vegetationRichness: Float = 0.4f,
+    val rareFeaturesRichness: Float = 0.05f,
+    val resourceRichness: Float = 0.1f,
+    val waterThreshold: Float = 0f,
 ) {
     fun materialize(
         manifest: WorkerRulesetManifest,
@@ -102,6 +123,16 @@ data class WorkerGameSetup(
         require(victoryTypes.distinct().size == victoryTypes.size) {
             "Victory selection must be unique"
         }
+        require(tilesPerBiomeArea in 1..15 && maxCoastExtension in 1..5) {
+            "Advanced map sizes are outside server bounds"
+        }
+        require(elevationExponent in 0.6f..0.8f)
+        require(temperatureIntensity in 0.4f..0.8f)
+        require(temperatureShift in -0.4f..0.4f)
+        require(vegetationRichness in 0f..1f)
+        require(rareFeaturesRichness in 0f..0.5f)
+        require(resourceRichness in 0f..0.5f)
+        require(waterThreshold in -0.1f..0.1f)
 
         val mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
         val ruleset = RulesetCache.getComplexRuleset(mods, manifest.baseRuleset.name)
@@ -151,11 +182,21 @@ data class WorkerGameSetup(
             gameParameters.baseRuleset = manifest.baseRuleset.name
             gameParameters.mods = mods
 
-            mapParameters.seed = serverSeed
+            mapParameters.seed = mapSeed ?: serverSeed
             mapParameters.type = mapType.toEngine()
             mapParameters.shape = mapShape.toEngine()
             mapParameters.mapSize = mapSize.toEngine()
             mapParameters.mapResources = mapResources.toEngine()
+            mapParameters.mirroring = mirroring.toEngine()
+            mapParameters.tilesPerBiomeArea = tilesPerBiomeArea
+            mapParameters.maxCoastExtension = maxCoastExtension
+            mapParameters.elevationExponent = elevationExponent
+            mapParameters.temperatureintensity = temperatureIntensity
+            mapParameters.temperatureShift = temperatureShift
+            mapParameters.vegetationRichness = vegetationRichness
+            mapParameters.rareFeaturesRichness = rareFeaturesRichness
+            mapParameters.resourceRichness = resourceRichness
+            mapParameters.waterThreshold = waterThreshold
             mapParameters.worldWrap = worldWrap
             mapParameters.strategicBalance = strategicBalance
             mapParameters.legendaryStart = legendaryStart
@@ -165,6 +206,14 @@ data class WorkerGameSetup(
             mapParameters.mods = LinkedHashSet(mods)
         }
     }
+}
+
+private fun WorkerMirroringType.toEngine() = when (this) {
+    WorkerMirroringType.None -> MirroringType.none
+    WorkerMirroringType.TopBottom -> MirroringType.topbottom
+    WorkerMirroringType.LeftRight -> MirroringType.leftright
+    WorkerMirroringType.AroundCenterTile -> MirroringType.aroundCenterTile
+    WorkerMirroringType.FourWay -> MirroringType.fourway
 }
 
 private fun GeneratedMapType.toEngine() = when (this) {

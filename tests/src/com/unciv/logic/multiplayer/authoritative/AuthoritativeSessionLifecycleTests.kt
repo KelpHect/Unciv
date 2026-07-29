@@ -15,7 +15,7 @@ import org.junit.Test
 
 class AuthoritativeSessionLifecycleTests {
     @Test
-    fun legacyServerNeverCreatesAnAuthoritativeSession() = runBlocking {
+    fun nonV3ServerFailsClosedWithoutLegacyFallback() = runBlocking {
         var storeRequested = false
         val lifecycle = lifecycle(ApiVersion.APIv2, restored = false)
 
@@ -24,9 +24,10 @@ class AuthoritativeSessionLifecycleTests {
             InMemoryApiV3SessionTokenStore()
         }
 
-        assertEquals(AuthoritativeSessionStatus.LegacyServer, status)
+        assertEquals(AuthoritativeSessionStatus.Failed, status)
         assertNull(lifecycle.session)
         assertEquals(false, storeRequested)
+        assertTrue(lifecycle.failureMessage?.contains("not an authoritative API v3") == true)
     }
 
     @Test

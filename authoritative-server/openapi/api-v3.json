@@ -12110,6 +12110,10 @@
           "difficulty": {
             "type": "string"
           },
+          "elevation_exponent": {
+            "type": "number",
+            "format": "float"
+          },
           "espionage_enabled": {
             "type": "boolean"
           },
@@ -12124,6 +12128,13 @@
           "map_resources": {
             "$ref": "#/components/schemas/MapResourceDensity"
           },
+          "map_seed": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
           "map_shape": {
             "$ref": "#/components/schemas/GeneratedMapShape"
           },
@@ -12133,10 +12144,18 @@
           "map_type": {
             "$ref": "#/components/schemas/GeneratedMapType"
           },
+          "max_coast_extension": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
           "max_turns": {
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "mirroring": {
+            "$ref": "#/components/schemas/MirroringType"
           },
           "no_city_razing": {
             "type": "boolean"
@@ -12159,6 +12178,14 @@
           "owner_civilization_id": {
             "type": "string"
           },
+          "rare_features_richness": {
+            "type": "number",
+            "format": "float"
+          },
+          "resource_richness": {
+            "type": "number",
+            "format": "float"
+          },
           "shuffle_player_order": {
             "type": "boolean"
           },
@@ -12171,11 +12198,32 @@
           "strategic_balance": {
             "type": "boolean"
           },
+          "temperature_intensity": {
+            "type": "number",
+            "format": "float"
+          },
+          "temperature_shift": {
+            "type": "number",
+            "format": "float"
+          },
+          "tiles_per_biome_area": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "vegetation_richness": {
+            "type": "number",
+            "format": "float"
+          },
           "victory_types": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "water_threshold": {
+            "type": "number",
+            "format": "float"
           },
           "world_wrap": {
             "type": "boolean"
@@ -13040,6 +13088,8 @@
           "display_name",
           "owner_username",
           "ruleset_manifest_hash",
+          "base_ruleset_name",
+          "mod_names",
           "human_slots",
           "occupied_slots",
           "password_required",
@@ -13067,6 +13117,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "base_ruleset_name": {
+            "type": "string"
           },
           "canonical_state_hash": {
             "type": "string"
@@ -13097,6 +13150,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LobbyMemberSummary"
+            }
+          },
+          "mod_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "occupied_slots": {
@@ -13224,6 +13283,16 @@
           "sparse",
           "default",
           "abundant"
+        ]
+      },
+      "MirroringType": {
+        "type": "string",
+        "enum": [
+          "none",
+          "top_bottom",
+          "left_right",
+          "around_center_tile",
+          "four_way"
         ]
       },
       "MoveConstructionRequest": {

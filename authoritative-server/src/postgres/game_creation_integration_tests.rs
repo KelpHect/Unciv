@@ -294,6 +294,7 @@ fn setup() -> WorkerGameSetup {
         no_ruins: false,
         no_natural_wonders: false,
         owner_civilization_id: "Rome".to_owned(),
+        ..WorkerGameSetup::default()
     }
 }
 

@@ -277,16 +277,27 @@ Rust rejects missing, repeated, comma-separated, unspecified, or multicast
 addresses. PostgreSQL, the Kotlin worker, and the Rust API remain unreachable
 from remote interfaces.
 
-Pregame lobbies are non-canonical but remain authorization-sensitive. The
-server stores only an Argon2 password verifier, never returns it, and
-transactionally enforces capacity, one faction per human, per-account
-readiness, stale lobby revisions, and owner-only start. The faction list comes
-from the private worker's created canonical game rather than trusting the
-client's ruleset inventory. Gameplay projections and ordinary commands are
-closed until exact human capacity and unanimous readiness have been satisfied.
-Lobby join is still a typed canonical worker operation, so accepting a lobby
-entry cannot patch or replace a save. Timed resignation is disabled; a client
-cannot manufacture a timeout to remove another human.
+Pregame lobby metadata remains authorization-sensitive even though the private
+worker has already created immutable canonical revision zero. The server stores
+only an Argon2 password verifier, never returns it, and transactionally enforces
+capacity, one faction per human, per-account readiness, stale lobby revisions,
+and owner-only start. The faction list and friendly ruleset identity come from
+the worker-validated canonical game and content-addressed manifest rather than
+trusting the client's ruleset inventory. Gameplay projections and ordinary
+commands are closed until exact human capacity and unanimous readiness have
+been satisfied. Lobby join is still a typed canonical worker operation, so
+accepting a lobby entry cannot patch or replace a save.
+
+An explicit map seed is treated as bounded match configuration, not trusted
+evidence or client-generated gameplay randomness. Rust validates and journals
+the setup meaning, Kotlin independently bounds it, and the worker alone
+materializes the map. When no explicit seed is present the control plane uses
+OS entropy that is never supplied by the client. All randomness after creation
+remains worker-owned. Lobby WebSocket traffic carries only a resynchronization
+hint; every client fetches the authenticated HTTP lobby representation before
+rendering a changed member, faction, ready state, or start transition. Timed
+resignation is disabled; a client cannot manufacture a timeout to remove
+another human.
 
 ### Security validation priorities
 

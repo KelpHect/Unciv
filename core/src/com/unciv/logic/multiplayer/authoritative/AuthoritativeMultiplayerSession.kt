@@ -29,6 +29,8 @@ class AuthoritativeMultiplayerSession(
     private val lifecycleMutex = Mutex()
     private val games = ConcurrentHashMap<String, AuthoritativeGameCommandBus>()
     private val openedGameIds = ConcurrentHashMap.newKeySet<String>()
+    private val lobbyObservers =
+        ConcurrentHashMap<String, MutableSet<() -> Unit>>()
     private var notificationJob: Job? = null
     @Volatile
     private var negotiated = false
@@ -163,6 +165,22 @@ class AuthoritativeMultiplayerSession(
         return RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
     }
 
+    suspend fun listRulesetManifests(): List<ApiV3RulesetManifestSummary> {
+        requireAuthenticated()
+        val manifests = mutableListOf<ApiV3RulesetManifestSummary>()
+        val seenCursors = mutableSetOf<String>()
+        var cursor: String? = null
+        do {
+            val page = transport.listRulesetManifests(cursor, 100)
+            manifests += page.manifests
+            cursor = page.nextCursor
+            check(cursor == null || seenCursors.add(cursor)) {
+                "API v3 manifest pagination repeated a cursor"
+            }
+        } while (cursor != null)
+        return manifests
+    }
+
     suspend fun createAuthoritativeGame(
         baseRulesetName: String,
         modNames: Set<String>,
@@ -204,6 +222,17 @@ class AuthoritativeMultiplayerSession(
     suspend fun lobby(gameId: String): ApiV3Lobby {
         requireAuthenticated()
         return transport.lobby(gameId)
+    }
+
+    fun observeLobby(gameId: String, onChanged: () -> Unit): AutoCloseable {
+        require(gameId.isNotBlank())
+        lobbyObservers.computeIfAbsent(gameId) { ConcurrentHashMap.newKeySet() }.add(onChanged)
+        return AutoCloseable {
+            lobbyObservers[gameId]?.let { observers ->
+                observers.remove(onChanged)
+                if (observers.isEmpty()) lobbyObservers.remove(gameId, observers)
+            }
+        }
     }
 
     suspend fun joinLobby(
@@ -1867,6 +1896,7 @@ class AuthoritativeMultiplayerSession(
         notificationJob = null
         mutex.withLock { games.clear() }
         openedGameIds.clear()
+        lobbyObservers.clear()
     }
 
     private suspend fun negotiate() = lifecycleMutex.withLock {
@@ -1893,6 +1923,12 @@ class AuthoritativeMultiplayerSession(
         if (notificationJob?.isActive == true) return
         notificationJob = scope.launch {
             transport.notifications().collect { notification ->
+                val observers =
+                    if (notification.type == "resync_required")
+                        lobbyObservers.values.flatMap(Set<() -> Unit>::toList)
+                    else
+                        notification.gameId?.let(lobbyObservers::get)?.toList().orEmpty()
+                observers.forEach { observer -> runCatching(observer) }
                 val targets = mutex.withLock {
                     if (notification.type == "resync_required") games.values.toList()
                     else listOfNotNull(notification.gameId?.let(games::get))

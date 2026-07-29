@@ -486,11 +486,17 @@ class WorldScreen(
                     .map { it.otherCiv } // we're now lazily enumerating over CivilizationInfo's we're at war with
                     .flatMap { it.cities.asSequence() } // ... all *their* cities
                     .filter { it.health == 1 } // ... those ripe for conquering
-                    .flatMap { it.getCenterTile().getTilesInDistance(2) }
-                    // ... all tiles around those in range of an average melee unit
-                    // -> and now we look for a unit that could do the conquering because it's ours
-                    //    no matter whether civilian, air or ranged, tell user he needs melee
-                    .any { it.getUnits().any { unit -> unit.civ == viewingCiv } }
+                    .any { city ->
+                        var hasNearbyUnit = false
+                        // Look through all tiles in range of an average melee unit for one
+                        // of ours. Even civilian, air, or ranged units should trigger the
+                        // tutorial explaining that a melee unit is required.
+                        city.getCenterTile().forEachTileInDistance(2) { tile ->
+                            if (tile.getUnits().any { unit -> unit.civ == viewingCiv })
+                                hasNearbyUnit = true
+                        }
+                        hasNearbyUnit
+                    }
         }
         displayTutorial(TutorialTrigger.AfterConquering) { viewingCiv.cities.any { it.hasJustBeenConquered } }
 

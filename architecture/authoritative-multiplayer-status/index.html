@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#direct-install-android-and-portable-windows-match-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct-install Android and portable Windows match clients
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whole-game-start-of-turn-consensual-rewind" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5692,6 +5703,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#direct-install-android-and-portable-windows-match-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct-install Android and portable Windows match clients
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whole-game-start-of-turn-consensual-rewind" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8418,6 +8440,32 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="direct-install-android-and-portable-windows-match-clients">Direct-install Android and portable Windows match clients</h2>
+<p>Qualified on 2026-07-29:</p>
+<ul>
+<li>The Android build no longer enables the unused deprecated RenderScript
+  pipeline. The intentional API 21-22 <code>KeyPairGeneratorSpec</code> compatibility
+  path has a documented file-scoped suppression; API 23+ continues to use
+  <code>KeyGenParameterSpec</code>. The already-unstrippable libGDX native library is
+  declared explicitly instead of producing a misleading strip warning.</li>
+<li>The JVM test runtime now includes the repository's aligned Logback provider
+  and deliberately disables class-data sharing when the required Mockito agent
+  is attached. This removes the missing-SLF4J-provider and bootstrap-classpath
+  warnings without hiding application diagnostics.</li>
+<li><code>:tests:test</code>, <code>:android:assembleDebug</code>, <code>:android:assembleRelease</code>, and
+  <code>:desktop:dist</code> passed together after the changes. The project-owned
+  <code>:desktop:packrWindows64</code> task produced a portable archive containing
+  <code>Unciv.exe</code>, <code>Unciv.jar</code>, its configuration, icon, native libraries, and a
+  private Java 21 runtime.</li>
+<li>The non-debuggable release APK was signed with the fork's existing testing
+  certificate for direct pilot sideloading. Android signature schemes v1, v2,
+  and v3 verify, the APK installed successfully, and <code>AndroidLauncher</code> became
+  the resumed emulator activity. This testing certificate is not a production
+  or Google Play signing identity.</li>
+<li>The portable ZIP was expanded into a clean directory and its packaged
+  <code>Unciv.exe</code> remained alive through a 12-second smoke launch. Neither client
+  requires a separately installed Java runtime or game-data download.</li>
+</ul>
 <h2 id="whole-game-start-of-turn-consensual-rewind">Whole-game start-of-turn consensual rewind</h2>
 <p>Implemented on 2026-07-29:</p>
 <ul>

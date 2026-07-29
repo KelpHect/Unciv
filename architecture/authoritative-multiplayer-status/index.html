@@ -3874,6 +3874,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#oracle-arm64-pilot-deployment-2026-07-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Oracle ARM64 pilot deployment (2026-07-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v3-only-production-lobby-and-unlimited-turn-milestone" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7731,6 +7742,17 @@
     <span class="md-ellipsis">
       
         Typed server-seeded revision-zero creation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oracle-arm64-pilot-deployment-2026-07-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Oracle ARM64 pilot deployment (2026-07-29)
       
     </span>
   </a>
@@ -15764,6 +15786,40 @@ and uploading a local save.</p>
 <li>Rust entry façades remain nearly logic-free (<code>main.rs</code> 6 lines and <code>lib.rs</code>
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.</li>
+</ul>
+<h2 id="oracle-arm64-pilot-deployment-2026-07-29">Oracle ARM64 pilot deployment (2026-07-29)</h2>
+<ul>
+<li>The attested bundle inputs were rebuilt from commit
+  <code>0508a55febf3fe5c8f0a7f56a4e4ff11b557f7e1</code> on the target four-core ARM64
+  Ubuntu 24.04 VPS. The closed bundle verifier accepted bundle ID
+  <code>1c9f8c6888d0b81e6418e63dfd27d0ed5b8e1d6634fde2569646828a8f233b08</code>.
+  Syft 1.49.0 image digest
+  <code>sha256:13b53ebabe3d215268c90cf8fb9b875f0183908245f376fd4b3a2cb69d21d484</code>
+  produced the embedded SPDX inventory.</li>
+<li>PostgreSQL runs only from
+  <code>postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5</code>.
+  The migration job exited zero at exact migration head 30, the ruleset
+  acquisition job atomically activated the vanilla manifest, and the packaged
+  worker and Rust API reported ready.</li>
+<li>External <code>GET http://51.170.50.210/readyz</code> returned HTTP 200 with PostgreSQL
+  and worker ready. An external disposable-account smoke registered, logged in,
+  listed the V3 lobby page, and deleted the account successfully. The existing
+  <code>https://ci.rusticstack.com</code> endpoint still returned HTTP 200 after Caddy
+  validation and reload.</li>
+<li>First deployment attempts exposed three bounded Compose defects rather than
+  gameplay defects: PostgreSQL automatically executed a mounted role SQL file
+  a second time without psql variables; the migrator was given
+  <code>UNCIV_V3_DATABASE_URL</code> instead of its closed
+  <code>UNCIV_V3_MIGRATION_DATABASE_URL</code>; and the worker had no acquired ruleset
+  tree as its working directory. The production Compose contract, bootstrap
+  script, environment example, runbook, and focused regression test now encode
+  the corrected boundaries. The initial empty failed database volume was
+  removed before any account or game existed.</li>
+<li>The pilot endpoint is intentionally plain HTTP on a raw IP for the requested
+  friend test. It is not a TLS production endpoint and must not be used for
+  valuable passwords or long-lived tokens. Moving to a DNS name with HTTPS and
+  the loopback trusted-proxy boundary remains the operator acceptance step
+  before treating this endpoint as durable public production.</li>
 </ul>
 <h2 id="v3-only-production-lobby-and-unlimited-turn-milestone">V3-only production lobby and unlimited-turn milestone</h2>
 <p>Implemented on 2026-07-29:</p>

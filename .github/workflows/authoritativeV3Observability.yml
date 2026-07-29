@@ -6,11 +6,15 @@ on:
       - '.github/workflows/authoritativeV3Observability.yml'
       - 'authoritative-server/Cargo.lock'
       - 'authoritative-server/Cargo.toml'
+      - 'authoritative-server/migrations/**'
       - 'authoritative-server/observability/**'
+      - 'authoritative-server/openapi/api-v3.json'
+      - 'authoritative-server/postgresql/**'
       - 'authoritative-server/src/**'
       - 'authoritative-server/tests/observability_policy.rs'
       - 'authoritative-server/tests/observability_runtime.rs'
       - 'docs/operations/authoritative-observability.md'
+      - 'server/src/**'
   push:
     branches:
       - master
@@ -20,11 +24,15 @@ on:
       - '.github/workflows/authoritativeV3Observability.yml'
       - 'authoritative-server/Cargo.lock'
       - 'authoritative-server/Cargo.toml'
+      - 'authoritative-server/migrations/**'
       - 'authoritative-server/observability/**'
+      - 'authoritative-server/openapi/api-v3.json'
+      - 'authoritative-server/postgresql/**'
       - 'authoritative-server/src/**'
       - 'authoritative-server/tests/observability_policy.rs'
       - 'authoritative-server/tests/observability_runtime.rs'
       - 'docs/operations/authoritative-observability.md'
+      - 'server/src/**'
   workflow_dispatch:
 
 concurrency:
@@ -61,3 +69,91 @@ jobs:
             -v "$PWD/observability:/observability:ro" \
             prom/prometheus@sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80 \
             check rules /observability/prometheus-alerts.yml
+
+  # Carrier for the `#[ignore]` integration tests, which need a real database and
+  # the packaged Kotlin worker. Deliberately a separate job from `qualify` so a
+  # slow integration failure is a distinct red check from a fast unit failure.
+  postgres-integration:
+    name: PostgreSQL 19 Beta 2 integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        # The sole supported production and test target, pinned by digest.
+        image: postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5
+        env:
+          POSTGRES_DB: unciv_authoritative
+          POSTGRES_PASSWORD: authoritative-v3-integration-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d unciv_authoritative"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.97.0 --profile minimal --no-self-update
+          rustup override set 1.97.0
+      - name: Install Java 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      # The handoff, worker-death and response-loss tests exec this jar from
+      # server/build/libs; they fail fast if it was never built.
+      - name: Build the packaged Kotlin worker
+        run: ./gradlew --no-daemon --console=plain :server:authoritativeWorkerDist
+      - name: Bootstrap database roles
+        env:
+          PGPASSWORD: authoritative-v3-integration-only
+        run: |
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres -d postgres \
+            --set runtime_password=integration-runtime \
+            --set migration_password=integration-migrate \
+            --set backup_password=integration-backup \
+            --set restore_password=integration-restore \
+            --set audit_password=integration-audit \
+            -f authoritative-server/postgresql/bootstrap-roles.sql
+          # Production caps unciv_migrate at 2 connections. These tests open
+          # several independent pools at once to prove cross-replica behaviour,
+          # so raise the cap for this disposable database only - without it the
+          # replica, lease and worker-death tests fail with PoolTimedOut.
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 -U postgres \
+            -d unciv_authoritative \
+            -c 'ALTER ROLE unciv_migrate CONNECTION LIMIT 50;'
+      # The tests run migrations and TRUNCATE canonical tables themselves, so
+      # they need the schema-owning role rather than unciv_runtime.
+      - name: Run ignored PostgreSQL and worker integration tests
+        working-directory: authoritative-server
+        env:
+          UNCIV_V3_DATABASE_URL: postgresql://unciv_migrate:integration-migrate@127.0.0.1:5432/unciv_authoritative?sslmode=disable
+        # --test-threads=1 is required, not a tuning knob: the shared fixture
+        # TRUNCATEs canonical tables, so concurrent tests destroy each other.
+        #
+        # The six exclusions below are the tests this carrier cannot yet honour.
+        # Every other ignored test passes; do not widen this list to hide a
+        # regression.
+        #   restored_backup_fixture_*        needs an externally restored backup
+        #   disk_full_commit_*               needs the destructive disk-full
+        #   recovered_space_*                  qualification, which fills a real
+        #                                      volume and is not runnable here
+        #   retirement_switch_*              need UNCIV_LEGACY_SERVER_JAR, which
+        #   same_uuid_legacy_upload_*          this workflow does not build
+        #   postgres_promotion_*             starts its own primary/standby
+        #                                      containers but never runs
+        #                                      bootstrap-roles.sql inside them,
+        #                                      so its migration aborts on the
+        #                                      missing unciv_runtime role
+        run: |
+          cargo test --all-features -- --ignored --test-threads=1 \
+            --skip restored_backup_fixture_preserves_every_required_invariant \
+            --skip disk_full::disk_full_commit_leaves_no_phantom_revision \
+            --skip disk_full::recovered_space_allows_one_idempotent_retry \
+            --skip retirement_switch_rejects_writes_but_preserves_legacy_reads \
+            --skip same_uuid_legacy_upload_cannot_read_or_mutate_v3_canonical_state \
+            --skip scenario::postgres_promotion_reconnects_under_load_without_splitting_canonical_history

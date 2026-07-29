@@ -48,6 +48,150 @@ See `docs/architecture/current-multiplayer-flow.md` and
 `docs/architecture/adr/0001-authoritative-multiplayer-v3.md` before changing
 the legacy multiplayer path.
 
+## Final-state verification record
+
+Every material API v3 change must end with one verification record in the
+handoff. Create the record only after the last material edit. Identify that
+state with the `HEAD` commit, the output of `git status --short`, and, when
+tracked changes remain, the output of
+`git diff HEAD --binary | git hash-object --stdin`. List and SHA-256 hash any
+material untracked files separately. If a material file changes after a check,
+that check is stale and must be rerun.
+
+Assess each lane below and run the smallest affected project-owned gate first.
+Add broader gates only when the impact requires them:
+
+- Kotlin rules, commands, projections, saves, AI, or turn progression: run the
+  focused `:tests:test --tests ...` case or class covering the changed
+  invariant, then `./gradlew :tests:test`.
+- Rust API, protocol, persistence, recovery, or observability: run the focused
+  `cargo test` target, then `cargo fmt --all -- --check` and
+  `cargo clippy --all-targets --all-features -- -D warnings` from
+  `authoritative-server`.
+- Desktop production UI or routing: run its focused Kotlin tests when present
+  and the affected `:desktop:dist` packaging gate.
+- Android production UI, routing, credentials, or platform behavior: run the
+  focused unit or instrumentation test and the affected
+  `:android:assembleDebug`, `:android:bundleDebug`,
+  `:android:assembleRelease`, or `:android:bundleRelease` gate. Do not claim an
+  emulator or release gate that was not run.
+- PostgreSQL schema, queries, concurrency, backup, recovery, or reconciliation:
+  run the affected deterministic database test against the digest-pinned
+  PostgreSQL 19 Beta 2 target and name the exact image digest.
+- Kotlin worker or release packaging: run the affected
+  `:server:authoritativeWorkerDist`, `:desktop:dist`, release-bundle, or
+  packaged-handoff preflight.
+- Mods or rulesets: run packaged-worker parity with a representative approved,
+  content-addressed mod manifest.
+- Legacy or shared gameplay behavior: run the smallest affected single-player,
+  hotseat, save-compatibility, API-v2, or legacy-v3 isolation regression gate.
+
+Use exactly one row per assessed lane:
+
+```text
+Final-state verification
+Revision: <HEAD commit; worktree state; diff hash; material untracked hashes>
+Last material edit: <path and change>
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | <exact command> | <behavior> | <exact result> | - |
+| Rust | not affected | - | <reason it is outside the change> | - | - |
+| Android | unavailable | <exact attempted or required gate> | <behavior> | - | <missing prerequisite and resume condition> |
+```
+
+Allowed statuses are `passed`, `failed`, `unavailable`, and `not affected`.
+`passed` requires a successful result from the recorded final state. `failed`
+retains the exact failure and must not be presented as completion.
+`unavailable` names the missing tool, service, credential, platform, or
+external boundary and the condition for rerunning it. `not affected` gives a
+specific impact reason and never implies that the lane ran. Never use a broad
+suite, an earlier revision, a checklist mark, or a handoff statement as a
+substitute for the affected final-state gate.
+
+## Failure-repair record
+
+When an affected check fails, preserve one ordered failure-repair record in the
+validation handoff. Do not replace the original failure with only the final
+pass:
+
+```text
+Failure repair
+1. Failed check: <exact command, cwd, fixture or target, revision/worktree identity, exit status, and bounded failure output>
+2. Minimal reproduction: <smallest command and inputs that reproduce the same failure>
+3. Causal diagnosis: <supported cause, evidence that localizes it, and rejected alternatives when material>
+4. Bounded repair owner: <smallest file, module, configuration, service, or external owner changed; exact repair>
+5. Final state: <HEAD, git status, tracked diff hash, and material untracked hashes after the last repair edit>
+6. Final rerun: <same command and result after step 5, or justified equivalent and equivalence evidence>
+```
+
+Keep the steps in that order. The causal diagnosis must connect the reproduced
+failure to the bounded repair; a speculative explanation or unrelated cleanup
+is not a diagnosis. The repair owner must be the smallest owner that corrects
+the supported cause and must preserve the V3 authority and compatibility
+boundaries.
+
+Rerun the same failed check after the repair and after the last material edit.
+Use an equivalent check only when the record explains why it covers the same
+behavior, inputs, risk, and scope as the original. If another material edit
+occurs after the rerun, mark the result stale and rerun it again.
+
+A retry with no causal diagnosis is a `retry-only pass`, not a confirmed
+repair. Record it separately with the original failure still unresolved.
+Repeated retries, daemon restarts, cache clearing, broader suites, or a
+different passing test do not establish repair unless the record contains the
+reproduction, supported cause, bounded owner, and final-state rerun above. If
+the failure cannot be reproduced or diagnosed, report it as unresolved with
+the exact blocker and resume condition.
+
+## Delivery-closure record
+
+When a task requests a commit, push, PR, CI result, merge, release, deployment,
+APK, desktop artifact, or another delivered effect, append one delivery-closure
+record to the final-state verification record. Bind it to the same target
+revision and worktree identity.
+
+Record the requested artifact or remote target exactly. Keep local validation
+in a separate table from delivery acceptance:
+
+```text
+Delivery closure
+Target revision: <same final-state revision and worktree identity>
+Requested delivery: <artifact names and paths, or remote repository, branch, PR, release, or environment>
+
+Local validation
+| Check | Status | Result | Blocker |
+| <exact command> | passed|failed|unavailable|skipped | <exact result> | <resume condition or reason> |
+
+Delivery acceptance
+| Boundary | Decision | Evidence | Recovery owner | Blocker or next action |
+| Commit | accepted|rejected|pending|unavailable|skipped|not requested | <commit id or exact absence> | <owner> | <next action> |
+| PR / CI / merge | ... | <URL, run, revision-bound decision, or exact absence> | <owner> | <next action> |
+| Release / deployment | ... | <release or environment decision, or exact absence> | <owner> | <next action> |
+| APK | ... | <artifact path and acceptance result, or exact absence> | <owner> | <next action> |
+| Desktop artifact | ... | <artifact path and acceptance result, or exact absence> | <owner> | <next action> |
+```
+
+The actual acceptance decision is the decision at that boundary, not the
+agent's completion statement. Local tests, builds, lint, hashes, and
+`git diff --check` are validation evidence only. They never prove that a commit
+was created, a push reached its remote, a PR or CI run passed, a merge landed,
+a release or deployment succeeded, or an APK or desktop artifact was accepted.
+
+Use `pending` when an authorized boundary has started but has no final decision.
+Use `unavailable` when a required boundary cannot be reached; retain the
+missing credential, service, platform, approval, callback, or other prerequisite
+and the exact condition for resuming it. Use `skipped` only with the authority
+and reason that allowed the gate to be skipped. Use `not requested` only when
+the delivery contract did not include that boundary. Never convert `pending`,
+`unavailable`, `skipped`, or `not requested` into acceptance.
+
+Name a recovery owner for every requested persistent or external effect. The
+owner must have a concrete retry, revert, restore, compensation, artifact
+replacement, or escalation route and a post-recovery check. If no effect
+occurred, state who owns safe retry or escalation. A handoff is closed only
+when every requested boundary is `accepted`, or when each unresolved boundary
+remains explicitly `pending`, `unavailable`, `skipped`, or `rejected` with its
+owner and next action.
+
 ## V3 change-impact contract
 
 Authoritative multiplayer is a continuing compatibility surface, not a

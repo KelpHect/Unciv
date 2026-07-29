@@ -8052,6 +8052,40 @@ Failure repair:
    history, and emits a resynchronization hint. The focused PostgreSQL 19 Beta
    2 lifecycle test covers both disable and delete; the disposable smoke lobby
    was explicitly closed.
+7. The first replacement SBOM preflight rejected a revision-suffixed Syft
+   document name. No service or active bundle changed. Regenerating with the
+   policy-required exact `unciv-authoritative-v3-release-bundle` identity made
+   the same `verify-sbom` gate pass. The resulting 45-artifact bundle
+   `cca314784c98039fe94e7f55e6a096d0e938df6009e240b30d3663b3207f0283`
+   verifies and is active on `unciv.rusticstack.com`.
+8. The first external readiness request used the nonexistent prefixed paths
+   `/api/v3/ready` and `/api/v3/health`, which correctly returned `404`.
+   Repeating the probe against the closed contract's `/readyz` and `/healthz`
+   routes returned protocol 4 with PostgreSQL and the private worker ready.
+9. The first operator database assertion was rejected by local PowerShell/SSH
+   quoting before it could produce a result. Passing the same read-only SQL
+   through `psql` standard input avoided cross-shell interpolation and proved
+   that HTTPS smoke game `207b7f0d-5203-45b7-9583-67120356c942` was
+   automatically `closed`, its account was deleted and disabled, and its
+   immutable owner membership remained present.
+
+Production qualification on 2026-07-29:
+
+- Revision `c586c37d139d202baec7c9c71a74ba77dda84d81` is pushed to
+  `origin/master`. Its Rust release binaries were rebuilt on the VPS; the
+  unchanged Kotlin worker and desktop artifacts remain byte-identical to the
+  preceding lobby release.
+- Syft 1.49.0 ran from pinned image
+  `anchore/syft:v1.49.0@sha256:13b53ebabe3d215268c90cf8fb9b875f0183908245f376fd4b3a2cb69d21d484`.
+  The bundle verifier accepted the SBOM and the resulting bundle before
+  activation.
+- Compose migration and ruleset acquisition jobs exited successfully, the
+  worker became healthy, and the API started. Public HTTPS readiness reports
+  protocol 4, PostgreSQL ready, and engine worker ready.
+- A fresh external account could authenticate, list the installed
+  `Civ V - Vanilla` manifest, create an active revision-zero lobby, and delete
+  itself. The transactional database assertion above proves the lifecycle
+  repair in production without leaving another active disposable lobby.
 
 ## Protocol-4 client detection and scaled desktop text (2026-07-29)
 

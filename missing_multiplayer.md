@@ -161,7 +161,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `account_handoff` preflight now proves lobby creation, independent faction
   choice, both-human readiness, owner start, identical Android-to-desktop
   projection restoration for one account, and server-AI advancement on the
-  exact PostgreSQL 19 Beta 2 target. Projection v60 also
+  exact PostgreSQL 19 Beta 2 target. The deployed HTTPS pilot also proves live
+  ruleset discovery, lobby creation, owner reconfiguration, and actor-scoped
+  faction selection through revisions 0-2 on migration 31 and the verified
+  ARM64 release bundle. Projection v60 also
   publishes the canonical winner/type/turn, disables terminal controls, and
   rejects post-victory worker mutations. The remaining unchecked evidence is
   the two-person Android/desktop release run through an actual Domination

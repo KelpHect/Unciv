@@ -80,6 +80,17 @@ Rebuilt from the final lobby implementation and qualified on 2026-07-29:
   The first remote Rust build also found that root's secure-path environment
   omits Cargo; deployment uses the root-owned Cargo binary by absolute path
   rather than weakening sudo policy.
+- ARM64 bundle
+  `cba3979ce7fa0bf28ca8c1681858f4a4a9dd09633a9cc62e99b3b68a3fe3212d`
+  contains 46 verified artifacts built from runtime revision `7ccacf397`.
+  The Oracle pilot applied migration 31, reacquired the active vanilla ruleset,
+  restarted the authenticated worker and API, and remained ready through Caddy
+  at `https://unciv.rusticstack.com`. The live OpenAPI advertises both lobby
+  mutation routes. A disposable HTTPS account discovered manifest
+  `ffb1743100cd04c92fbb0360cd2abd18c203918ac364b6f1ca349cf4d06fd575`,
+  created a lobby at revision 0, changed owner configuration at revision 1,
+  selected a different worker-approved faction at revision 2, then closed the
+  smoke game and deleted the account.
 
 ## Direct-install Android and portable Windows match clients
 

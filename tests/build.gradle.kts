@@ -7,6 +7,7 @@ val mockitoAgent = configurations.create("mockitoAgent")
 dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito)
+    testRuntimeOnly(libs.logback)
     mockitoAgent(libs.mockito) { isTransitive = false }
 }
 
@@ -23,7 +24,9 @@ tasks {
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         }
 
-        jvmArgs = listOf("-javaagent:${mockitoAgent.asPath}") // this actually merges into pre-existing jvm args
+        // Mockito's explicit agent disables class-data sharing, so turn it off deliberately
+        // instead of making every test JVM print the bootstrap-classpath warning.
+        jvmArgs = listOf("-Xshare:off", "-javaagent:${mockitoAgent.asPath}")
     }
 }
 

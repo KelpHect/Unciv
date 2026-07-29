@@ -1,5 +1,32 @@
 # Authoritative multiplayer v3 status
 
+## Direct-install Android and portable Windows match clients
+
+Qualified on 2026-07-29:
+
+- The Android build no longer enables the unused deprecated RenderScript
+  pipeline. The intentional API 21-22 `KeyPairGeneratorSpec` compatibility
+  path has a documented file-scoped suppression; API 23+ continues to use
+  `KeyGenParameterSpec`. The already-unstrippable libGDX native library is
+  declared explicitly instead of producing a misleading strip warning.
+- The JVM test runtime now includes the repository's aligned Logback provider
+  and deliberately disables class-data sharing when the required Mockito agent
+  is attached. This removes the missing-SLF4J-provider and bootstrap-classpath
+  warnings without hiding application diagnostics.
+- `:tests:test`, `:android:assembleDebug`, `:android:assembleRelease`, and
+  `:desktop:dist` passed together after the changes. The project-owned
+  `:desktop:packrWindows64` task produced a portable archive containing
+  `Unciv.exe`, `Unciv.jar`, its configuration, icon, native libraries, and a
+  private Java 21 runtime.
+- The non-debuggable release APK was signed with the fork's existing testing
+  certificate for direct pilot sideloading. Android signature schemes v1, v2,
+  and v3 verify, the APK installed successfully, and `AndroidLauncher` became
+  the resumed emulator activity. This testing certificate is not a production
+  or Google Play signing identity.
+- The portable ZIP was expanded into a clean directory and its packaged
+  `Unciv.exe` remained alive through a 12-second smoke launch. Neither client
+  requires a separately installed Java runtime or game-data download.
+
 ## Whole-game start-of-turn consensual rewind
 
 Implemented on 2026-07-29:

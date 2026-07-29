@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // API 21-22 require KeyPairGeneratorSpec; API 23+ uses KeyGenParameterSpec.
+
 package com.unciv.app
 
 import android.annotation.SuppressLint

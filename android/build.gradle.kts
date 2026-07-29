@@ -16,7 +16,6 @@ android {
             manifest.srcFile("AndroidManifest.xml")
             java.srcDirs("src")
             aidl.srcDirs("src")
-            renderscript.srcDirs("src")
             res.srcDirs("res")
             assets.srcDirs("assets")
             jniLibs.srcDirs("libs")
@@ -27,6 +26,8 @@ android {
         resources.excludes += "META-INF/robovm/ios/robovm.xml"
         // part of kotlinx-coroutines-android, should not go into the apk
         resources.excludes += "DebugProbesKt.bin"
+        // libGDX ships this native library without symbols the Android toolchain can strip.
+        jniLibs.keepDebugSymbols += "**/libgdx.so"
     }
     defaultConfig {
         namespace = BuildConfig.identifier
@@ -83,7 +84,6 @@ android {
         ignoreAssetsPattern = "!SaveFiles:!fonts:!maps:!music:!mods"
     }
     buildFeatures {
-        renderScript = true
         aidl = true
     }
 }

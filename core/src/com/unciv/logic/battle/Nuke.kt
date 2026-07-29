@@ -49,7 +49,7 @@ object Nuke {
         }
 
         val blastRadius = nuke.unit.getNukeBlastRadius()
-        for (tile in targetTile.getTilesInDistance(blastRadius)) {
+        for (tile in targetTile.tilesInDistanceSequence(blastRadius)) {
             checkDefenderCiv(tile.getOwner())
             checkDefenderCiv(Battle.getMapCombatantOfTile(tile)?.getCivInfo())
         }
@@ -59,13 +59,13 @@ object Nuke {
     @Suppress("FunctionName")   // Yes we want this name to stand out
     fun NUKE(attacker: MapUnitCombatant, targetTile: Tile) {
         val attackingCiv = attacker.getCivInfo()
-        val nukeStrength = attacker.unit.getMatchingUniques(UniqueType.NuclearWeapon)
+        val nukeStrength = attacker.unit.matchingUniquesSequence(UniqueType.NuclearWeapon)
             .firstOrNull()?.params?.get(0)?.toInt() ?: return
 
-        val blastRadius = attacker.unit.getMatchingUniques(UniqueType.BlastRadius)
+        val blastRadius = attacker.unit.matchingUniquesSequence(UniqueType.BlastRadius)
             .firstOrNull()?.params?.get(0)?.toInt() ?: 2
 
-        val hitTiles = targetTile.getTilesInDistance(blastRadius)
+        val hitTiles = targetTile.tilesInDistanceSequence(blastRadius)
 
         val (hitCivsTerritory, notifyDeclaredWarCivs) =
             declareWarOnHitCivs(attackingCiv, hitTiles, attacker, targetTile)
@@ -253,7 +253,7 @@ object Nuke {
             // Note: Safe from concurrent modification exceptions only because removeTerrainFeature
             // *replaces* terrainFeatureObjects and the loop will continue on the old one
             for (terrainFeature in tile.terrainFeatureObjects) {
-                for (unique in terrainFeature.getMatchingUniques(UniqueType.DestroyableByNukesChance)) {
+                for (unique in terrainFeature.matchingUniquesSequence(UniqueType.DestroyableByNukesChance)) {
                     val chance = unique.params[0].toFloat() / 100f
                     if (!(chance > 0f && isGroundZero) && tileRng.nextFloat() >= chance) continue
                     tile.removeTerrainFeature(terrainFeature.name)
@@ -308,7 +308,7 @@ object Nuke {
     @Readonly
     private fun City.getAggregateModifier(uniqueType: UniqueType): Float {
         var modifier = 1f
-        for (unique in getMatchingUniques(uniqueType)) {
+        for (unique in matchingUniquesSequence(uniqueType)) {
             if (!matchesFilter(unique.params[1])) continue
             modifier *= unique.params[0].toPercent()
         }

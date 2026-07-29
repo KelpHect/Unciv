@@ -56,7 +56,7 @@ object BattleDamage {
                 modifiers[greatGeneralName] = greatGeneralBonus
 
         } else if (combatant is CityCombatant) {
-            for (unique in combatant.city.getMatchingUniques(UniqueType.StrengthForCities, conditionalState)) {
+            for (unique in combatant.city.matchingUniquesSequence(UniqueType.StrengthForCities, conditionalState)) {
                 modifiers.add(getModifierStringFromUnique(unique), unique.params[0].toInt())
             }
         }
@@ -96,12 +96,12 @@ object BattleDamage {
         val civInfo = combatant.getCivInfo()
         val modifiers = Counter<String>()
 
-        for (unique in combatant.getMatchingUniques(UniqueType.Strength, conditionalState, true)) {
+        for (unique in combatant.matchingUniquesSequence(UniqueType.Strength, conditionalState, true)) {
             modifiers.add(getModifierStringFromUnique(unique), unique.params[0].toInt())
         }
 
         // e.g., Mehal Sefari https://civilization.fandom.com/wiki/Mehal_Sefari_(Civ5)
-        for (unique in combatant.getMatchingUniques(
+        for (unique in combatant.matchingUniquesSequence(
             UniqueType.StrengthNearCapital, conditionalState, true
         )) {
             if (civInfo.cities.isEmpty() || civInfo.getCapital() == null) break
@@ -122,7 +122,7 @@ object BattleDamage {
 
         // e.g., Maori Warrior - https://civilization.fandom.com/wiki/Maori_Warrior_(Civ5)
         val strengthMalus = adjacentUnits.filter { it.civ.isAtWarWith(combatant.getCivInfo()) }
-            .flatMap { it.getMatchingUniques(UniqueType.StrengthForAdjacentEnemies) }
+            .flatMap { it.matchingUniquesSequence(UniqueType.StrengthForAdjacentEnemies) }
             .filter { combatant.matchesFilter(it.params[1]) && combatant.getTile().matchesFilter(it.params[2]) }
             .maxByOrNull { it.params[0] }
         if (strengthMalus != null) {
@@ -157,7 +157,7 @@ object BattleDamage {
                     var flankingBonus = BattleConstants.BASE_FLANKING_BONUS
 
                     // e.g., Discipline policy - https://civilization.fandom.com/wiki/Discipline_(Civ5)
-                    for (unique in attacker.unit.getMatchingUniques(UniqueType.FlankAttackBonus, checkCivInfoUniques = true,
+                    for (unique in attacker.unit.matchingUniquesSequence(UniqueType.FlankAttackBonus, checkCivInfoUniques = true,
                             gameContext = getGameContext(CombatAction.Attack, attacker, defender)))
                         flankingBonus *= unique.params[0].toPercent()
                     modifiers["Flanking"] =
@@ -215,7 +215,7 @@ object BattleDamage {
         val modifiers = Counter<String>()
 
         if (attacker is MapUnitCombatant) {
-            for (unique in attacker.unit.getMatchingUniques(UniqueType.StrengthWhenAirsweep)) {
+            for (unique in attacker.unit.matchingUniquesSequence(UniqueType.StrengthWhenAirsweep)) {
                 modifiers.add(getModifierStringFromUnique(unique), unique.params[0].toInt())
             }
         }

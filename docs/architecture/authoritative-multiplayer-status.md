@@ -1,5 +1,38 @@
 # Authoritative multiplayer v3 status
 
+## Warning-free shared engine and client builds
+
+Implemented on 2026-07-30:
+
+- Kotlin warnings are now build failures in the root multiplatform project,
+  build tooling, core, tests, private server worker, desktop, and Android.
+  Incremental compilation can no longer conceal a clean-build warning backlog.
+- The clean compiler initially reported 389 shared-engine and UI warnings:
+  377 deprecated tile/unique traversal calls plus 12 unnecessary null,
+  conversion, safe-call, and constant-condition constructs. Call sites now use
+  explicit lazy sequence APIs whose names preserve allocation and
+  short-circuiting intent; callback forms remain available for hot paths.
+- Compatibility-only references remain narrowly suppressed at their exact
+  owners: the old specialist-food unique for legacy rulesets, the serialized
+  victory-stat field for old saves, and the Coast name for legacy rulesets and
+  test fixtures. No project-wide warning or deprecation suppression was added.
+- The first full gameplay run found a recursion between the new interface alias
+  and `BaseUnit`'s UnitType-aware override. The minimal repair makes the
+  interface alias read its own unique map and gives `BaseUnit` an explicit
+  UnitType-aware lazy override. A dedicated regression test proves UnitType
+  uniques remain visible through that API.
+- Focused tile/command-bus tests, the complete 1,140-test gameplay suite, the
+  private packaged-worker server suite with the representative Authoritative
+  V3 Parity mod, desktop distribution, and Android debug/release APK and AAB
+  builds pass with warnings denied. The accepted self-contained desktop
+  package continues to use `jpackage`; Packr's upstream reflection diagnostic
+  is not part of the release path.
+- This maintenance changes shared iteration entrypoints but not canonical
+  authority: V3 clients remain projection-only, while all gameplay and AI
+  execution remains inside the packaged Kotlin worker controlled by the Rust
+  API. Rust protocol, OpenAPI, PostgreSQL schema, and production routing are
+  unchanged.
+
 ## Revisioned live lobby configuration
 
 Implemented on 2026-07-29:

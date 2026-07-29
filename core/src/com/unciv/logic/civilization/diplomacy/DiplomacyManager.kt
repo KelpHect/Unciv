@@ -476,11 +476,11 @@ class DiplomacyManager() : IsPartOfGameInfoSerialization {
     internal fun getCityStateInfluenceRestingPoint(): Float {
         var restingPoint = 0f
 
-        for (unique in otherCiv.getMatchingUniques(UniqueType.CityStateRestingPoint))
+        for (unique in otherCiv.matchingUniquesSequence(UniqueType.CityStateRestingPoint))
             restingPoint += unique.params[0].toInt()
 
         if (civInfo.cities.any() && civInfo.getCapital() != null)
-            for (unique in otherCiv.getMatchingUniques(UniqueType.RestingPointOfCityStatesFollowingReligionChange))
+            for (unique in otherCiv.matchingUniquesSequence(UniqueType.RestingPointOfCityStatesFollowingReligionChange))
                 if (otherCiv.religionManager.religion?.name == civInfo.getCapital()!!.religion.getMajorityReligionName())
                     restingPoint += unique.params[0].toInt()
 
@@ -503,7 +503,7 @@ class DiplomacyManager() : IsPartOfGameInfoSerialization {
         }
 
         var modifierPercent = 0f
-        for (unique in otherCiv.getMatchingUniques(UniqueType.CityStateInfluenceDegradation))
+        for (unique in otherCiv.matchingUniquesSequence(UniqueType.CityStateInfluenceDegradation))
             modifierPercent += unique.params[0].toFloat()
 
         val religion = if (civInfo.cities.isEmpty() || civInfo.getCapital() == null) null
@@ -512,7 +512,7 @@ class DiplomacyManager() : IsPartOfGameInfoSerialization {
             modifierPercent -= 25f  // 25% slower degrade when sharing a religion
 
         for (civ in civInfo.gameInfo.civilizations.filter { it.isMajorCiv() && it != otherCiv}) {
-            for (unique in civ.getMatchingUniques(UniqueType.OtherCivsCityStateRelationsDegradeFaster)) {
+            for (unique in civ.matchingUniquesSequence(UniqueType.OtherCivsCityStateRelationsDegradeFaster)) {
                 modifierPercent += unique.params[0].toFloat()
             }
         }

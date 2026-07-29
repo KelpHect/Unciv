@@ -133,7 +133,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
         var maintenanceCost = 0f
         val freeBuildings = city.civ.civConstructions.getFreeBuildingNames(city)
 
-        val buildingMaintenanceUniques = city.getMatchingUniques(UniqueType.BuildingMaintenance)
+        val buildingMaintenanceUniques = city.matchingUniquesSequence(UniqueType.BuildingMaintenance)
             .filter { city.matchesFilter(it.params[2]) }.toList()
 
         for (building in getBuiltBuildings().filterNot { it.name in freeBuildings }) {
@@ -173,7 +173,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
         val turnsToConstruction = turnsToConstruction(construction.name, useStoredProduction)
         val currentProgress = if (useStoredProduction) getWorkDone(construction.name) else 0
         val lines = ArrayList<String>()
-        val buildable = !construction.getMatchingUniques(UniqueType.Unbuildable)
+        val buildable = !construction.matchingUniquesSequence(UniqueType.Unbuildable)
             .any { it.conditionalsApply(city.state) }
         if (buildable)
             lines += (if (currentProgress == 0) "" else "$currentProgress/") +
@@ -681,11 +681,11 @@ class CityConstructions : IsPartOfGameInfoSerialization {
             }
         }
 
-        for (unique in city.getTriggeredUniques(UniqueType.TriggerUponConstructingBuilding, stateForConditionals,
+        for (unique in city.triggeredUniquesSequence(UniqueType.TriggerUponConstructingBuilding, stateForConditionals,
                 { building.matchesFilter(it.params[0], stateForConditionals) }))
             UniqueTriggerActivation.triggerUnique(unique, city, triggerNotificationText = triggerNotificationText)
 
-        for (unique in city.getTriggeredUniques(UniqueType.TriggerUponConstructingBuildingCityFilter, stateForConditionals,
+        for (unique in city.triggeredUniquesSequence(UniqueType.TriggerUponConstructingBuildingCityFilter, stateForConditionals,
                 { building.matchesFilter(it.params[0], stateForConditionals) && city.matchesFilter(it.params[1]) }))
             UniqueTriggerActivation.triggerUnique(unique, city, triggerNotificationText = triggerNotificationText)
     }
@@ -794,8 +794,8 @@ class CityConstructions : IsPartOfGameInfoSerialization {
             val conditionalState = city.state
 
             if ((
-                    city.civ.getMatchingUniques(UniqueType.BuyUnitsIncreasingCost, conditionalState) +
-                    city.civ.getMatchingUniques(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
+                    city.civ.matchingUniquesSequence(UniqueType.BuyUnitsIncreasingCost, conditionalState) +
+                    city.civ.matchingUniquesSequence(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
                 ).any {
                     (
                         construction is BaseUnit && construction.matchesFilter(it.params[0], conditionalState) ||
@@ -830,7 +830,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
     @Readonly
     fun isConstructionPurchaseAllowed(construction: INonPerpetualConstruction, stat: Stat, constructionBuyCost: Int): Boolean {
         return when {
-            city.isPuppet && !city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets).any() -> false
+            city.isPuppet && !city.matchingUniquesSequence(UniqueType.MayBuyConstructionsInPuppets).any() -> false
             city.isInResistance() -> false
             !construction.isPurchasable(city.cityConstructions) -> false    // checks via 'rejection reason'
             construction is BaseUnit && !city.canPlaceNewUnit(construction) -> false
@@ -843,7 +843,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun isConstructionPurchaseBlockedByUnit(construction: INonPerpetualConstruction): Boolean {
-        return !city.isPuppet && !city.getMatchingUniques(UniqueType.MayBuyConstructionsInPuppets)
+        return !city.isPuppet && !city.matchingUniquesSequence(UniqueType.MayBuyConstructionsInPuppets)
             .any() &&
             !city.isInResistance() &&
             construction.isPurchasable(city.cityConstructions) &&

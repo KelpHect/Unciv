@@ -42,7 +42,7 @@ object GreatGeneralImplementation {
 
         val greatGeneral = allGenerals
             .flatMap { general ->
-                general.getMatchingUniques(UniqueType.StrengthBonusInRadius,
+                general.matchingUniquesSequence(UniqueType.StrengthBonusInRadius,
                     GameContext(unit.civ, ourCombatant = ourUnitCombatant, theirCombatant = enemy, combatAction = combatAction))
                     .map { GeneralBonusData(general, it) }
             }.filter {
@@ -86,8 +86,8 @@ object GreatGeneralImplementation {
         // Send generals to the same place as our units, so they don't get stuck at the wrong side of our empire. Update this when changing global unit movement
 
         val militaryUnitTile = militaryUnitTilesInDistance.maxByOrNull { unitTile ->
-            (2 * unitTile.getTilesInDistance(2).count { it.militaryUnit?.civ == general.civ }
-                - unitTile.getTilesInDistance(2).count { it.militaryUnit?.civ != general.civ }
+            (2 * unitTile.tilesInDistanceSequence(2).count { it.militaryUnit?.civ == general.civ }
+                - unitTile.tilesInDistanceSequence(2).count { it.militaryUnit?.civ != general.civ }
                 - if (closestReachableEnemyCity != null) 3 * unitTile.aerialDistanceTo(closestReachableEnemyCity.getCenterTile()) else 0)
             // Scoring here is found to help AI defeat former AI,
             // a more robust scoring may be necessary to avoid leaving generals en-prise,

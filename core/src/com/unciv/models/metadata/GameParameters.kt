@@ -39,6 +39,8 @@ class GameParameters : IsPartOfGameInfoSerialization { // Default values are the
     @Deprecated("Since 4.21.0, use showCivilizationStats")
     var showVictoryStats = true
     // TODO: remove nullable after migration
+    // The deprecated serialized field is intentionally mirrored when loading and saving older games.
+    @Suppress("DEPRECATION")
     var showCivilizationStats: Boolean? = null
         get() = field ?: showVictoryStats
         set(value) {

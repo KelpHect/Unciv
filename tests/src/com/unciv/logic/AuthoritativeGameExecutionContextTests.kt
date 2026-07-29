@@ -1228,7 +1228,7 @@ class AuthoritativeGameExecutionContextTests {
         val city = civilization.addCity(origin.position)
         val unit = civilization.units.addUnit("Paratrooper", city)!!
         civilization.cache.updateViewableTiles()
-        val destination = origin.getTilesAtDistance(2).first { it.isLand && it.militaryUnit == null }
+        val destination = origin.tilesAtDistanceSequence(2).first { it.isLand && it.militaryUnit == null }
         val snapshot = engine.serializeSnapshot(game)
 
         val first = engine.paradropUnit(
@@ -1256,7 +1256,7 @@ class AuthoritativeGameExecutionContextTests {
         val city = civilization.addCity(origin.position)
         val unit = civilization.units.addUnit("Paratrooper", city)!!
         civilization.cache.updateViewableTiles()
-        val destination = origin.getTilesAtDistance(6).first()
+        val destination = origin.tilesAtDistanceSequence(6).first()
         val foreignEngine = HeadlessGameEngine(serverContext("account-2") { serverTime })
 
         Assert.assertThrows(IllegalStateException::class.java) {
@@ -1367,7 +1367,7 @@ class AuthoritativeGameExecutionContextTests {
         val founder = rome.units.getCivUnits().first { it.isCivilian() }
         val city = rome.addCity(founder.currentTile.position)
         val defender = greece.units.getCivUnits().first { !it.isCivilian() }
-        val target = city.getCenterTile().getTilesAtDistance(2)
+        val target = city.getCenterTile().tilesAtDistanceSequence(2)
             .first { it.isLand && it.militaryUnit == null }
         defender.removeFromTile()
         defender.putInTile(target)
@@ -1435,7 +1435,7 @@ class AuthoritativeGameExecutionContextTests {
         rome.diplomacyFunctions.makeCivilizationsMeet(greece)
         val city = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
         val nuke = rome.units.placeUnitNearTile(city.location, "Nuclear Missile")!!
-        val target = city.getCenterTile().getTilesAtDistance(3)
+        val target = city.getCenterTile().tilesAtDistanceSequence(3)
             .first { !it.isCityCenter() && it.getUnits().none() }
         target.setExplored(rome, true)
         val candidatesBeforeHiddenVictim = engine.playerProjection(game, "Rome").ownUnits
@@ -1516,7 +1516,7 @@ class AuthoritativeGameExecutionContextTests {
         rome.diplomacyFunctions.makeCivilizationsMeet(greece)
         rome.getDiplomacyManager(greece)!!.declareWar()
         val romanCity = rome.addCity(rome.units.getCivUnits().first().currentTile.position)
-        val target = romanCity.getCenterTile().getTilesAtDistance(4)
+        val target = romanCity.getCenterTile().tilesAtDistanceSequence(4)
             .first { it.isLand && !it.isCityCenter() && it.getUnits().none() }
         val greekCity = greece.addCity(target.position)
         val attacker = rome.units.placeUnitNearTile(romanCity.location, "Fighter")!!

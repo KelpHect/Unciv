@@ -165,8 +165,14 @@ class BaseUnit : RulesetObject(), INonPerpetualConstruction {
     /** Allows unique functions (getMatchingUniques, hasUnique) to "see" uniques from the UnitType */
     @Readonly
     override fun getMatchingUniques(uniqueType: UniqueType, state: GameContext): Sequence<Unique> {
-        return if (::ruleset.isInitialized) rulesetUniqueMap.getMatchingUniques(uniqueType, state)
-        else super<RulesetObject>.getMatchingUniques(uniqueType, state)
+        return matchingUniquesSequence(uniqueType, state)
+    }
+
+    /** Includes UnitType uniques while preserving the explicit lazy API. */
+    @Readonly
+    override fun matchingUniquesSequence(uniqueType: UniqueType, state: GameContext): Sequence<Unique> {
+        return if (::ruleset.isInitialized) rulesetUniqueMap.matchingUniquesSequence(uniqueType, state)
+        else super<RulesetObject>.matchingUniquesSequence(uniqueType, state)
     }
 
     /** Allows unique functions (getMatchingUniques, hasUnique) to "see" uniques from the UnitType */
@@ -285,7 +291,7 @@ class BaseUnit : RulesetObject(), INonPerpetualConstruction {
                 }
         }
 
-        for (unique in civ.getMatchingUniques(UniqueType.CannotBuildUnits, stateForConditionals))
+        for (unique in civ.matchingUniquesSequence(UniqueType.CannotBuildUnits, stateForConditionals))
             if (this@BaseUnit.matchesFilter(unique.params[0], stateForConditionals)) {
                 yield(RejectionReasonType.CannotBeBuilt.toInstance())
             }
@@ -383,13 +389,13 @@ class BaseUnit : RulesetObject(), INonPerpetualConstruction {
         @Suppress("LocalVariableName")
         var XP = 0
 
-        for (unique in cityConstructions.city.getMatchingUniques(UniqueType.UnitStartingExperience)) {
+        for (unique in cityConstructions.city.matchingUniquesSequence(UniqueType.UnitStartingExperience)) {
             if (unit.matchesFilter(unique.params[0]) && cityConstructions.city.matchesFilter(unique.params[2]))
                 XP += unique.params[1].toInt()
         }
         unit.promotions.XP = XP
 
-        for (unique in cityConstructions.city.getMatchingUniques(UniqueType.UnitStartingPromotions)
+        for (unique in cityConstructions.city.matchingUniquesSequence(UniqueType.UnitStartingPromotions)
             .filter { cityConstructions.city.matchesFilter(it.params[1]) }) {
             val filter = unique.params[0]
             val promotion = unique.params.last()

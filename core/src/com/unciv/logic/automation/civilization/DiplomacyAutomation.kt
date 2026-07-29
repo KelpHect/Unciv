@@ -494,7 +494,7 @@ object DiplomacyAutomation {
     ) {
         val nearbyTiles = civInfo.cities.asSequence()
             .flatMap { it.getTiles() }
-            .flatMap { it.getTilesInDistance(2) }
+            .flatMap { it.tilesInDistanceSequence(2) }
             .filter { it.getOwner() != civInfo } // skip open borders
             .filter { it.isVisible(civInfo) }
             .toSet()

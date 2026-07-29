@@ -22,6 +22,7 @@ dependencies {
 
 kotlin {
     compilerOptions {
+        allWarningsAsErrors.set(true)
         jvmTarget = JvmTarget.JVM_1_8
     }
 }

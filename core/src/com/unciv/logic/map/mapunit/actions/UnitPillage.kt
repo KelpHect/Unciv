@@ -46,7 +46,7 @@ object UnitPillage {
         }
         if (pillagingImprovement) {
             var healAmount = 25f
-            for (unique in unit.getMatchingUniques(
+            for (unique in unit.matchingUniquesSequence(
                 UniqueType.PercentHealthFromPillaging,
                 checkCivInfoUniques = true,
             )) healAmount *= unique.params[0].toPercent()
@@ -62,7 +62,7 @@ object UnitPillage {
         var pillageYield = Stats()
         val stateForConditionals = unit.cache.state
         val random = Random(unit.civ.gameInfo.turns * tile.position.hashCode().toLong())
-        for (unique in improvement.getMatchingUniques(UniqueType.PillageYieldRandom, stateForConditionals)) {
+        for (unique in improvement.matchingUniquesSequence(UniqueType.PillageYieldRandom, stateForConditionals)) {
             for ((stat, value) in unique.stats) {
                 var yield = Stats()
                 yield.add(stat, random.nextInt((value + 1).toInt()) + random.nextInt((value + 1).toInt()).toFloat())
@@ -71,13 +71,13 @@ object UnitPillage {
                 pillageYield.add(yield)
             }
         }
-        for (unique in improvement.getMatchingUniques(UniqueType.PillageYieldFixed, stateForConditionals)) {
+        for (unique in improvement.matchingUniquesSequence(UniqueType.PillageYieldFixed, stateForConditionals)) {
             var yield = unique.stats
             if (unique.isModifiedByGameSpeed()) yield *= unit.civ.gameInfo.speed.modifier
             if (unique.isModifiedByGameProgress()) yield *= unique.getGameProgressModifier(unit.civ)
             pillageYield.add(yield)
         }
-        for (unique in unit.getMatchingUniques(
+        for (unique in unit.matchingUniquesSequence(
             UniqueType.PercentYieldFromPillaging,
             checkCivInfoUniques = true,
         )) pillageYield *= unique.params[0].toPercent()

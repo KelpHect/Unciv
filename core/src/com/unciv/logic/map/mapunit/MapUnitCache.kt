@@ -83,7 +83,7 @@ class MapUnitCache(private val mapUnit: MapUnit) {
         canMoveOnWater = mapUnit.hasUnique(UniqueType.CanMoveOnWater)
 
         doubleMovementInTerrain.clear()
-        for (unique in mapUnit.getMatchingUniques(UniqueType.DoubleMovementOnTerrain,
+        for (unique in mapUnit.matchingUniquesSequence(UniqueType.DoubleMovementOnTerrain,
                 gameContext = GameContext.IgnoreConditionals, true)) {
             val param = unique.params[0]
             val terrain = mapUnit.civ.gameInfo.ruleset.terrains[param]
@@ -103,9 +103,9 @@ class MapUnitCache(private val mapUnit: MapUnit) {
             .none { it.value.terrainTarget != DoubleMovementTerrainTarget.Feature }
         noFilteredDoubleMovementUniques = doubleMovementInTerrain
             .none { it.value.terrainTarget == DoubleMovementTerrainTarget.Filter }
-        costToDisembark = (mapUnit.getMatchingUniques(UniqueType.ReducedDisembarkCost, checkCivInfoUniques = true))
+        costToDisembark = (mapUnit.matchingUniquesSequence(UniqueType.ReducedDisembarkCost, checkCivInfoUniques = true))
             .minOfOrNull { it.params[0].toFloat() }
-        costToEmbark = mapUnit.getMatchingUniques(UniqueType.ReducedEmbarkCost, checkCivInfoUniques = true)
+        costToEmbark = mapUnit.matchingUniquesSequence(UniqueType.ReducedEmbarkCost, checkCivInfoUniques = true)
             .minOfOrNull { it.params[0].toFloat() }
 
         //todo: consider parameterizing [terrainFilter] in some of the following:
@@ -122,7 +122,7 @@ class MapUnitCache(private val mapUnit: MapUnit) {
         canEnterCityStates = mapUnit.hasUnique(UniqueType.CanTradeWithCityStateForGoldAndInfluence)
 
         hasStrengthBonusInRadiusUnique = mapUnit.hasUnique(UniqueType.StrengthBonusInRadius, GameContext.IgnoreConditionals)
-        hasCitadelPlacementUnique = mapUnit.getMatchingUniques(UniqueType.ConstructImprovementInstantly)
+        hasCitadelPlacementUnique = mapUnit.matchingUniquesSequence(UniqueType.ConstructImprovementInstantly)
             .mapNotNull { mapUnit.civ.gameInfo.ruleset.tileImprovements[it.params[0]] }
             .any { it.hasUnique(UniqueType.OneTimeTakeOverTilesInRadius) }
     }

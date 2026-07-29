@@ -21,11 +21,11 @@ object UnitActionsUpgrade {
         val unitTile = unit.getTile()
         val civInfo = unit.civ
         val specialUpgradesTo = if (isSpecial) 
-                unit.baseUnit.getMatchingUniques(UniqueType.RuinsUpgrade, unit.cache.state).firstOrNull()
+                unit.baseUnit.matchingUniquesSequence(UniqueType.RuinsUpgrade, unit.cache.state).firstOrNull()
                     ?.let { Pair(it.params[0], it) }
             else null
         val baseUpgrade = unit.baseUnit.upgradesTo?.let { Pair(it, null) }
-        val uniqueUpgrades = unit.baseUnit.getMatchingUniques(UniqueType.CanUpgrade, unit.cache.state)
+        val uniqueUpgrades = unit.baseUnit.matchingUniquesSequence(UniqueType.CanUpgrade, unit.cache.state)
             .map { Pair(it.params[0], it)}
         val upgradeUnits = if (specialUpgradesTo != null) sequenceOf(specialUpgradesTo)
             else if (baseUpgrade != null) uniqueUpgrades + baseUpgrade

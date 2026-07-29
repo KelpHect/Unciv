@@ -150,7 +150,7 @@ internal class BaseRulesetValidator(
         // In the combined case, don't complain about ModRequires!
         if (ruleset.name.isEmpty() && ruleset.mods.size > 1) return
 
-        for (unique in ruleset.modOptions.getMatchingUniques(UniqueType.ModRequires)) {
+        for (unique in ruleset.modOptions.matchingUniquesSequence(UniqueType.ModRequires)) {
             lines.add("Mod option '${unique.text}' is invalid for a base ruleset.", sourceObject = null)
         }
     }
@@ -513,7 +513,7 @@ internal class BaseRulesetValidator(
         }
 
         // We should ignore conditionals here - there are condition implementations on this out there that require a game state (and will test false without)
-        for (unique in unit.getMatchingUniques(UniqueType.ConstructImprovementInstantly, GameContext.IgnoreConditionals)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.ConstructImprovementInstantly, GameContext.IgnoreConditionals)) {
             val improvementName = unique.params[0]
             if (ruleset.tileImprovements[improvementName] == null) continue // this will be caught in the uniqueValidator.checkUniques
             if ((ruleset.tileImprovements[improvementName] as Stats).isEmpty() &&

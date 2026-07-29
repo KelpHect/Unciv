@@ -323,7 +323,7 @@ open class RulesetValidator protected constructor(
         if (ruleset.modOptions.uniqueObjects.count { it.type in audioVisualUniqueTypes } > 1)
             lines.add("A mod should only specify one of the 'can/should/cannot be used as permanent audiovisual mod' options.", sourceObject = null)
 
-        val mapSelectUniques = ruleset.modOptions.getMatchingUniques(UniqueType.ModMapPreselection).toList()
+        val mapSelectUniques = ruleset.modOptions.matchingUniquesSequence(UniqueType.ModMapPreselection).toList()
         if (mapSelectUniques.size > 1)
             lines.add("Specifying more than one map as preselection makes no sense", RulesetErrorSeverity.WarningOptionsOnly, sourceObject = null)
         if (mapSelectUniques.isNotEmpty()) {

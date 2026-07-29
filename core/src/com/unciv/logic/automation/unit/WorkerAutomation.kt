@@ -227,7 +227,7 @@ class WorkerAutomation(
             && (currentTile.isPillaged() || currentTile.hasFalloutEquivalent() || tileHasWorkToDo(currentTile, unit)))
             return currentTile
         
-        val workableTilesCenterFirst = currentTile.getTilesInDistance(3)
+        val workableTilesCenterFirst = currentTile.tilesInDistanceSequence(3)
             .filter {
                 (it.getOwner() == null || it.getOwner() == unit.civ || it.getOwner()!!.isCityState)
                     && isAutomationWorkableTile(it, tilesToAvoid, currentTile, unit) 
@@ -275,7 +275,7 @@ class WorkerAutomation(
         if (tile.isCityCenter()) return false
         if (tile in roadBetweenCitiesAutomation.tilesOfRoadsMap) return true
         // Don't try to improve tiles we can't benefit from at all
-        if (!civInfo.canSeeResource(tile.tileResource) && tile.getTilesInDistance(civInfo.gameInfo.ruleset.modOptions.constants.cityWorkRange)
+        if (!civInfo.canSeeResource(tile.tileResource) && tile.tilesInDistanceSequence(civInfo.gameInfo.ruleset.modOptions.constants.cityWorkRange)
                 .none { it.isCityCenter() && it.getCity()?.civ == civInfo }
         ) return false
         if (tile.tileImprovement?.hasUnique(UniqueType.AutomatedUnitsWillNotReplace) == true && !tile.isPillaged()) return false
@@ -555,7 +555,7 @@ class WorkerAutomation(
                 if (currentImprovement != null && tile.tileResource!!.isImprovedBy(currentImprovement)) {
                     value -= 0.3f // enough to offset the 0.2f food vs production value difference
                 }
-                if (isResourceImprovedByNewImprovement && tile.getTilesInDistance(4).none { it.tileImprovement == improvement }) {
+                if (isResourceImprovedByNewImprovement && tile.tilesInDistanceSequence(4).none { it.tileImprovement == improvement }) {
                     value += 0.3f
                 }
             }

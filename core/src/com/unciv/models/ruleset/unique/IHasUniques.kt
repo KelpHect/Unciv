@@ -48,7 +48,12 @@ interface IHasUniques : INamed {
     @Readonly
     /** forEachMatchingUnique faster, for cases that require high perf */
     fun getMatchingUniques(uniqueType: UniqueType, state: GameContext = GameContext.EmptyState) =
-        uniqueMap.getMatchingUniques(uniqueType, state)
+        uniqueMap.matchingUniquesSequence(uniqueType, state)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesSequence(uniqueType: UniqueType, state: GameContext = GameContext.EmptyState) =
+        uniqueMap.matchingUniquesSequence(uniqueType, state)
 
     @Readonly
     fun forEachMatchingUnique(uniqueType: UniqueType, gameContext: GameContext, filter:(Unique)->Boolean, op: (unique: Unique)->Unit)
@@ -127,7 +132,7 @@ interface IHasUniques : INamed {
         if (this !is BaseUnit && this !is Building) return weight
         val personality = gameContext.civInfo?.getPersonality() ?: return weight
 
-        for (unique in personality.getMatchingUniques(UniqueType.PersonalityAiWeight, gameContext)) {
+        for (unique in personality.matchingUniquesSequence(UniqueType.PersonalityAiWeight, gameContext)) {
             val factor = unique.params[0].toPercent()
             when (this) {
                 is BaseUnit if matchesFilter(unique.params[1], gameContext) -> weight *= factor

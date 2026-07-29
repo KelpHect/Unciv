@@ -86,6 +86,7 @@ class TileImprovementConstructionTests {
         testResourceImprovements("Improvements improving a resource cannot be built on that resource when the domain does not match -", wrongDomain = true)
     }
 
+    @Suppress("DEPRECATION") // Constants.coast is intentionally retained as a legacy ruleset fixture.
     private fun testResourceImprovements(title: String, wrongDomain: Boolean) {
         val landTile = tileMap[1,1]
         val coastTile = tileMap[1,2]
@@ -127,6 +128,7 @@ class TileImprovementConstructionTests {
     }
 
     @Test
+    @Suppress("DEPRECATION") // Constants.coast is intentionally retained as a legacy ruleset fixture.
     fun coastalImprovementsCanBeBuilt() {
         val coastTile = tileMap[1,2]
         coastTile.baseTerrain = Constants.coast

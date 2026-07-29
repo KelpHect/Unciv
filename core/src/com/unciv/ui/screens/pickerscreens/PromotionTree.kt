@@ -111,7 +111,7 @@ class PromotionTree(val unit: MapUnit) {
                 node.unreachable = true
 
             // Slight copy from UnitPromotions.isAvailable
-            if (node.promotion.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+            if (node.promotion.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                     .any { !it.conditionalsApply(state) })
                 node.unreachable = true
             if (node.promotion.hasUnique(UniqueType.Unavailable, state)) node.unreachable = true

@@ -164,7 +164,7 @@ object WorldMapTileUpdater {
         // Z-Layer: 2
         // Add back in the red markers for Air Unit Attack range since they can't move, but can still attack
         if (unit.cache.cannotMove && isAirUnit && !unit.isPreparingAirSweep()) {
-            val tilesInAttackRange = unit.getTile().getTilesInDistanceRange(IntRange(1, unit.getRange()))
+            val tilesInAttackRange = unit.getTile().tilesInDistanceRangeSequence(IntRange(1, unit.getRange()))
             for (tile in tilesInAttackRange) {
                 // The tile is within attack range
                 tileGroups[tile]!!.layerOverlay.showHighlight(Color.RED, 0.3f)
@@ -208,7 +208,7 @@ object WorldMapTileUpdater {
 
             val attackableTiles: List<AttackableTile> =
                 if (nukeBlastRadius >= 0)
-                    selectedTile!!.getTilesInDistance(nukeBlastRadius)
+                    selectedTile!!.tilesInDistanceSequence(nukeBlastRadius)
                         // Should not display invisible submarine units even if the tile is visible.
                         .filter { targetTile -> (targetTile.isVisible(unit.civ) && targetTile.getUnits().any { !it.isInvisible(unit.civ) })
                                 || (targetTile.isCityCenter() && unit.civ.hasExplored(targetTile)) }

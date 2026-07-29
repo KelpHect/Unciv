@@ -34,6 +34,7 @@ class TargetHelperTest {
     }
 
     @Test
+    @Suppress("DEPRECATION") // Constants.coast is intentionally retained as a legacy ruleset fixture.
     fun `should retrieve city bombardable tiles`() {
         // given
         val attackerCity = testGame.addCity(attackerCiv, testGame.getTile(HexCoord.Zero))

@@ -167,9 +167,9 @@ class Religion() : INamed, IsPartOfGameInfoSerialization {
     @Readonly
     private fun unlockedBuildingsPurchasable(): List<String> {
         return getAllBeliefsOrdered().flatMap { belief ->
-            belief.getMatchingUniques(UniqueType.BuyBuildingsWithStat).map { it.params[0] } +
-            belief.getMatchingUniques(UniqueType.BuyBuildingsForAmountStat).map { it.params[0] } +
-            belief.getMatchingUniques(UniqueType.BuyBuildingsIncreasingCost).map { it.params[0] }
+            belief.matchingUniquesSequence(UniqueType.BuyBuildingsWithStat).map { it.params[0] } +
+            belief.matchingUniquesSequence(UniqueType.BuyBuildingsForAmountStat).map { it.params[0] } +
+            belief.matchingUniquesSequence(UniqueType.BuyBuildingsIncreasingCost).map { it.params[0] }
         }.filter { gameInfo.ruleset.buildings.containsKey(it) }.toList()
     }
 }

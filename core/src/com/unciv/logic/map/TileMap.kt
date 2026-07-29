@@ -238,8 +238,12 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
     @Deprecated(message = "forEachTileInDistance is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileInDistance"))
     fun getTilesInDistance(origin: HexCoord, distance: Int): Sequence<Tile> =
-        @Suppress("DEPRECATION")
-        getTilesInDistanceRange(origin, 0..distance)
+        tilesInDistanceSequence(origin, distance)
+
+    /** Lazy counterpart to [forEachTileInDistance] for pipelines that require a [Sequence]. */
+    @Readonly
+    fun tilesInDistanceSequence(origin: HexCoord, distance: Int): Sequence<Tile> =
+        tilesInDistanceRangeSequence(origin, 0..distance)
 
     /** @return All tiles in a hexagonal ring around [origin] with the distances in [range]. Excludes the [origin] tile unless [range] starts at 0.
      *  Respects map edges and world wrap. */
@@ -247,8 +251,12 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
     @Deprecated(message = "forEachTileInDistanceRange is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileInDistanceRange"))
     fun getTilesInDistanceRange(origin: HexCoord, range: IntRange): Sequence<Tile> =
-        @Suppress("DEPRECATION")
-        range.asSequence().flatMap { getTilesAtDistance(origin, it) }
+        tilesInDistanceRangeSequence(origin, range)
+
+    /** Lazy counterpart to [forEachTileInDistanceRange] for pipelines that require a [Sequence]. */
+    @Readonly
+    fun tilesInDistanceRangeSequence(origin: HexCoord, range: IntRange): Sequence<Tile> =
+        range.asSequence().flatMap { tilesAtDistanceSequence(origin, it) }
 
     /** @return All tiles in a hexagonal ring 1 tile wide around [origin] with the [distance]. Contains the [origin] if and only if [distance] is <= 0.
      *  Respects map edges and world wrap. */
@@ -256,6 +264,11 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
     @Deprecated(message = "forEachTileAtDistance is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileAtDistance"))
     fun getTilesAtDistance(origin: HexCoord, distance: Int): Sequence<Tile> =
+        tilesAtDistanceSequence(origin, distance)
+
+    /** Lazy counterpart to [forEachTileAtDistance] for pipelines that require a [Sequence]. */
+    @Readonly
+    fun tilesAtDistanceSequence(origin: HexCoord, distance: Int): Sequence<Tile> =
             if (distance <= 0) // silently take negatives.
                 sequenceOf(get(origin))
             else

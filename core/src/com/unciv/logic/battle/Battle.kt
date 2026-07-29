@@ -224,7 +224,7 @@ object Battle {
         // Must come before normal conquest logic so units that cannot capture cities can still destroy them
         // Melee units can capture capitals; any unit with CanDestroyCities can destroy non-capital cities
         if (defender.isDefeated() && defender.city.canBeDestroyed()) {
-            val destroyFilters = attacker.unit.getMatchingUniques(UniqueType.CanDestroyCities).map { it.params[0] }
+            val destroyFilters = attacker.unit.matchingUniquesSequence(UniqueType.CanDestroyCities).map { it.params[0] }
             if (destroyFilters.any { filter -> defender.city.matchesFilter(filter.trim(), attacker.getCivInfo()) }) {
                 val cityName = defender.city.name
                 val defendingCiv = defender.getCivInfo()
@@ -356,17 +356,17 @@ object Battle {
 
         val gameContext = GameContext(civInfo = civUnit.getCivInfo(), ourCombatant = civUnit, theirCombatant = defeatedUnit)
         if (civUnit is MapUnitCombatant) {
-            bonusUniques.addAll(civUnit.getMatchingUniques(UniqueType.KillUnitPlunder, gameContext, true))
+            bonusUniques.addAll(civUnit.matchingUniquesSequence(UniqueType.KillUnitPlunder, gameContext, true))
         } else {
-            bonusUniques.addAll(civUnit.getCivInfo().getMatchingUniques(UniqueType.KillUnitPlunder, gameContext))
+            bonusUniques.addAll(civUnit.getCivInfo().matchingUniquesSequence(UniqueType.KillUnitPlunder, gameContext))
         }
 
         val cityWithReligion =
-            civUnit.getTile().getTilesInDistance(4).firstOrNull {
-                it.isCityCenter() && it.getCity()!!.getMatchingUniques(UniqueType.KillUnitPlunderNearCity, gameContext).any()
+            civUnit.getTile().tilesInDistanceSequence(4).firstOrNull {
+                it.isCityCenter() && it.getCity()!!.matchingUniquesSequence(UniqueType.KillUnitPlunderNearCity, gameContext).any()
             }?.getCity()
         if (cityWithReligion != null) {
-            bonusUniques.addAll(cityWithReligion.getMatchingUniques(UniqueType.KillUnitPlunderNearCity, gameContext))
+            bonusUniques.addAll(cityWithReligion.matchingUniquesSequence(UniqueType.KillUnitPlunderNearCity, gameContext))
         }
         return bonusUniques
     }
@@ -484,7 +484,7 @@ object Battle {
         val civ = plunderingUnit.getCivInfo()
         val plunderedGoods = Stats()
 
-        for (unique in plunderingUnit.unit.getMatchingUniques(UniqueType.DamageUnitsPlunder, checkCivInfoUniques = true)) {
+        for (unique in plunderingUnit.unit.matchingUniquesSequence(UniqueType.DamageUnitsPlunder, checkCivInfoUniques = true)) {
             if (!plunderedUnit.matchesFilter(unique.params[1])) continue
 
             val percentage = unique.params[0].toFloat()
@@ -569,7 +569,7 @@ object Battle {
     private fun tryHealAfterKilling(attacker: ICombatant) {
         if (attacker !is MapUnitCombatant) return
         
-        for (unique in attacker.unit.getMatchingUniques(UniqueType.HealsAfterKilling, checkCivInfoUniques = true)) {
+        for (unique in attacker.unit.matchingUniquesSequence(UniqueType.HealsAfterKilling, checkCivInfoUniques = true)) {
             val amountToHeal = unique.params[0].toInt()
             attacker.unit.healBy(amountToHeal)
         }
@@ -623,11 +623,11 @@ object Battle {
         val gameContext = GameContext(civInfo = civ, ourCombatant = thisCombatant, theirCombatant = otherCombatant)
 
         val baseXP = amount + thisCombatant
-            .getMatchingUniques(UniqueType.FlatXPGain, gameContext, true)
+            .matchingUniquesSequence(UniqueType.FlatXPGain, gameContext, true)
             .sumOf { it.params[0].toInt() }
 
         val xpBonus = thisCombatant
-            .getMatchingUniques(UniqueType.PercentageXPGain, gameContext, true)
+            .matchingUniquesSequence(UniqueType.PercentageXPGain, gameContext, true)
             .sumOf { it.params[0].toDouble() }
         val xpModifier = 1.0 + xpBonus / 100
 
@@ -650,7 +650,7 @@ object Battle {
 
             for (unit in greatGeneralUnits) {
                 val greatGeneralPointsBonus = thisCombatant
-                    .getMatchingUniques(UniqueType.GreatPersonEarnedFaster, gameContext, true)
+                    .matchingUniquesSequence(UniqueType.GreatPersonEarnedFaster, gameContext, true)
                     .filter { unit.matchesFilter(it.params[0], gameContext) }
                     .sumOf { it.params[1].toDouble() }
                 val greatGeneralPointsModifier = 1.0 + greatGeneralPointsBonus / 100
@@ -711,7 +711,7 @@ object Battle {
         }
 
         val gameContext = GameContext(civInfo = attackerCiv, city=city, unit = attacker.unit, ourCombatant = attacker, attackedTile = city.getCenterTile())
-        for (unique in attacker.getMatchingUniques(UniqueType.CaptureCityPlunder, gameContext, true)) {
+        for (unique in attacker.matchingUniquesSequence(UniqueType.CaptureCityPlunder, gameContext, true)) {
             val resource = attacker.getCivInfo().gameInfo.ruleset.getGameResource(unique.params[2])
                 ?: continue
             attackerCiv.addGameResource(
@@ -863,7 +863,7 @@ object Battle {
         if (defender.isCivilian()) return DamageDealt.None
 
         var damageDealt = DamageDealt.None
-        for (unique in attacker.unit.getMatchingUniques(UniqueType.ExtraRangedAttack)) {
+        for (unique in attacker.unit.matchingUniquesSequence(UniqueType.ExtraRangedAttack)) {
             val baseRangedStrengthForExtraAttack = (attacker.unit.baseUnit.strength * 
                 unique.params[0].toFloat() / 100).toInt()
             val fakeAttacker = FakeUnitForExtraRangedAttack(attacker, baseRangedStrengthForExtraAttack)
@@ -886,7 +886,7 @@ object Battle {
         override fun getAttackingStrength(defender: ICombatant?): Int {
             val state = GameContext(this, defender, this.getTile(), CombatAction.Attack)
             val extraStrength =
-                mapUnitCombatant.unit.getMatchingUniques(UniqueType.StrengthAmount, state)
+                mapUnitCombatant.unit.matchingUniquesSequence(UniqueType.StrengthAmount, state)
                     .sumOf { it.params[0].toInt() }
             return baseRangedStrength + extraStrength // Is always ranged
         }

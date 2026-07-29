@@ -113,8 +113,8 @@ class TechManager : IsPartOfGameInfoSerialization {
         val mapSizePredef = civInfo.gameInfo.tileMap.mapParameters.mapSize.getPredefinedOrNextSmaller()
         techCost *= mapSizePredef.techCostMultiplier
         var cityModifier = (civInfo.cities.count { !it.isPuppet } - 1) * mapSizePredef.techCostPerCityModifier
-        for (unique in civInfo.getMatchingUniques(UniqueType.LessTechCostFromCities)) cityModifier *= 1 - unique.params[0].toFloat() / 100
-        for (unique in civInfo.getMatchingUniques(UniqueType.LessTechCost)) techCost *= unique.params[0].toPercent()
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.LessTechCostFromCities)) cityModifier *= 1 - unique.params[0].toFloat() / 100
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.LessTechCost)) techCost *= unique.params[0].toPercent()
         techCost *= 1 + cityModifier
         return techCost.toInt()
     }
@@ -170,7 +170,7 @@ class TechManager : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun isUnresearchable(tech: Technology): Boolean {
-        if (tech.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any { !it.conditionalsApply(civInfo.state) })
+        if (tech.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any { !it.conditionalsApply(civInfo.state) })
             return true
         if (tech.hasUnique(UniqueType.Unavailable, civInfo.state)) return true
         return false
@@ -237,7 +237,7 @@ class TechManager : IsPartOfGameInfoSerialization {
     private fun scienceFromResearchAgreements(): Int {
         // https://forums.civfanatics.com/resources/research-agreements-bnw.25568/
         var researchAgreementModifier = 0.5f
-        for (unique in civInfo.getMatchingUniques(UniqueType.ScienceFromResearchAgreements)) {
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.ScienceFromResearchAgreements)) {
             researchAgreementModifier += unique.params[0].toFloat() / 200f
         }
         return (scienceFromResearchAgreements / 3 * researchAgreementModifier).toInt()
@@ -352,7 +352,7 @@ class TechManager : IsPartOfGameInfoSerialization {
 
         obsoleteOldUnits(techName)
 
-        for (unique in civInfo.getMatchingUniques(UniqueType.MayanGainGreatPerson)) {
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.MayanGainGreatPerson)) {
             if (unique.params[1] != techName) continue
             civInfo.addNotification("You have unlocked [The Long Count]!",
                 MayaLongCountAction(), NotificationCategory.General, MayaCalendar.notificationIcon)
@@ -524,7 +524,7 @@ class TechManager : IsPartOfGameInfoSerialization {
 
     private fun updateTransientBooleans() {
         unitsCanEmbark = civInfo.hasUnique(UniqueType.LandUnitEmbarkation)
-        val enterOceanUniques = civInfo.getMatchingUniques(UniqueType.UnitsMayEnterOcean)
+        val enterOceanUniques = civInfo.matchingUniquesSequence(UniqueType.UnitsMayEnterOcean)
         allUnitsCanEnterOcean = enterOceanUniques.any { it.params[0] in Constants.all }
         embarkedUnitsCanEnterOcean = allUnitsCanEnterOcean ||
                 enterOceanUniques.any { it.params[0] == Constants.embarked }

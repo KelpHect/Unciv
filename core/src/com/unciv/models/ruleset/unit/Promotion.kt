@@ -131,10 +131,10 @@ class Promotion : RulesetObject() {
         }
 
         val grantors = ruleset.buildings.values.filter {
-            building -> building.getMatchingUniques(UniqueType.UnitStartingPromotions)
+            building -> building.matchingUniquesSequence(UniqueType.UnitStartingPromotions)
             .any { it.params[2] == name }
         } + ruleset.terrains.values.filter {
-            terrain -> terrain.getMatchingUniques(UniqueType.TerrainGrantsPromotion).any {
+            terrain -> terrain.matchingUniquesSequence(UniqueType.TerrainGrantsPromotion).any {
                 name == it.params[0]
             }
         }

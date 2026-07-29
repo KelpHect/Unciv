@@ -283,7 +283,7 @@ enum class CityOverviewTabColumn : ISortableGridContentProvider<City, EmpireOver
             fun getColumns(viewingPlayer: Civilization) = viewingPlayer.gameInfo.ruleset.tileResources.values
                 .filter {
                     it.isCityWide &&
-                    it.getMatchingUniques(UniqueType.NotShownOnWorldScreen, viewingPlayer.state).none()
+                    it.matchingUniquesSequence(UniqueType.NotShownOnWorldScreen, viewingPlayer.state).none()
                 }
                 .map { CityWideResourceColumn(it) }
         }

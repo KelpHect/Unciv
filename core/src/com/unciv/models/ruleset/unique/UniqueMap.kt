@@ -89,6 +89,11 @@ open class UniqueMap() {
                 }
             }
 
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesSequence(uniqueType: UniqueType, state: GameContext = GameContext.EmptyState) =
+        getMatchingUniques(uniqueType, state)
+
     @Readonly
     fun forEachMatchingUnique(uniqueType: UniqueType, gameContext: GameContext, op: (Unique)->Unit)
         = forEachMatchingUnique(uniqueType, gameContext, NO_UNIQUE_FILTER, op)

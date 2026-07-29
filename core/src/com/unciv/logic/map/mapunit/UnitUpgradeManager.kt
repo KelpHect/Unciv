@@ -59,7 +59,7 @@ class UnitUpgradeManager(val unit: MapUnit) {
         // Actually instantiating every intermediate to support such mods: todo
         var civModifier = 1f
         val stateForConditionals = unit.cache.state
-        for (unique in unit.civ.getMatchingUniques(UniqueType.UnitUpgradeCost, stateForConditionals))
+        for (unique in unit.civ.matchingUniquesSequence(UniqueType.UnitUpgradeCost, stateForConditionals))
             civModifier *= unique.params[0].toPercent()
 
         var cost = constants.base

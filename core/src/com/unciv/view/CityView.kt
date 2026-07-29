@@ -78,7 +78,7 @@ class CityView(internal val city: City, internal val viewer: Civilization) {
     @Readonly fun currentConstructionName(): String = city.cityConstructions.currentConstructionName()
     @Readonly fun getBuiltBuildings(): Sequence<Building> = city.cityConstructions.getBuiltBuildings()
     @Readonly fun isPuppet(): Boolean = city.isPuppet
-    @Readonly fun hasMatchingUnique(uniqueType: UniqueType): Boolean = city.getMatchingUniques(uniqueType).any()
+    @Readonly fun hasMatchingUnique(uniqueType: UniqueType): Boolean = city.matchingUniquesSequence(uniqueType).any()
     @Readonly fun getDisabledConstructions(): Set<String> = city.disabledConstructions
     @Readonly fun isStatRelated(stat: Stat, building: Building): Boolean = building.isStatRelated(stat, city)
     @Readonly fun getProductionTooltip(construction: PerpetualConstruction): String = construction.getProductionTooltip(city)

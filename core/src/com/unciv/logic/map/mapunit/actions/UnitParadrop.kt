@@ -10,7 +10,7 @@ object UnitParadrop {
     /** Rebuilds the derived destination filters from the unit's canonical uniques. */
     fun rebuildDestinationFilters(unit: MapUnit): Boolean {
         unit.cache.paradropDestinationTileFilters.clear()
-        for (unique in unit.getMatchingUniques(UniqueType.MayParadrop, unit.cache.state)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.MayParadrop, unit.cache.state)) {
             val tileFilter = unique.params[0]
             val distance = unique.params[1].toInt()
             val previousDistance = unit.cache.paradropDestinationTileFilters[tileFilter]

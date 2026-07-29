@@ -323,7 +323,7 @@ object UnitActions {
             if (recipient.isAtWarWith(unit.civ)) return@sequence // No gifts to enemy CS
             // City States only take military units (and units specifically allowed by uniques)
             if (!unit.isMilitary()
-                && unit.getMatchingUniques(
+                && unit.matchingUniquesSequence(
                     UniqueType.GainInfluenceWithUnitGiftToCityState,
                     checkCivInfoUniques = true
                 )
@@ -343,7 +343,7 @@ object UnitActions {
 
         val giftAction = {
             if (recipient.isCityState) {
-                for (unique in unit.getMatchingUniques(
+                for (unique in unit.matchingUniquesSequence(
                     UniqueType.GainInfluenceWithUnitGiftToCityState,
                     checkCivInfoUniques = true
                 )) {

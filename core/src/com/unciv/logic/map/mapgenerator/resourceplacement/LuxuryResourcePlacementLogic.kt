@@ -63,7 +63,7 @@ object LuxuryResourcePlacementLogic {
             // Pick a luxury at random. Weight is reduced if the luxury has been picked before
             val regionConditional = GameContext(region = region)
             region.luxury = candidateLuxuries.randomWeighted(regionRng) {
-                val weightingUnique = it.getMatchingUniques(UniqueType.ResourceWeighting, regionConditional).firstOrNull()
+                val weightingUnique = it.matchingUniquesSequence(UniqueType.ResourceWeighting, regionConditional).firstOrNull()
                 val relativeWeight = if (weightingUnique == null) 1f else weightingUnique.params[0].toFloat()
                 relativeWeight / (1f + amountRegionsWithLuxury[it.name]!!)
             }.name
@@ -166,7 +166,7 @@ object LuxuryResourcePlacementLogic {
 
             val luxury = candidateLuxuries.randomWeighted(rng) {
                 val weightingUnique =
-                    it.getMatchingUniques(UniqueType.LuxuryWeightingForCityStates).firstOrNull()
+                    it.matchingUniquesSequence(UniqueType.LuxuryWeightingForCityStates).firstOrNull()
                 if (weightingUnique == null)
                     1f
                 else
@@ -250,7 +250,7 @@ object LuxuryResourcePlacementLogic {
         val rng = GameContext(gameInfo = tileMap.gameInfo)
             .stateBasedRandom("LuxuryResourcePlacementLogic.addExtraLuxuryToStarts")
         for (region in regions) {
-            val tilesToCheck = tileMap[region.startPosition!!].getTilesInDistanceRange(1..2)
+            val tilesToCheck = tileMap[region.startPosition!!].tilesInDistanceRangeSequence(1..2)
             val candidateLuxuries = randomLuxuries.shuffled(rng).toMutableList()
             if (!tileMap.mapParameters.getStrategicBalance())
                 candidateLuxuries += specialLuxuries.shuffled(rng)
@@ -357,7 +357,7 @@ object LuxuryResourcePlacementLogic {
         for (startLocation in tileMap.startingLocationsByNation
             .filterKeys { ruleset.nations[it]!!.isCityState }.map { it.value.first() }) {
             val region = regions.firstOrNull { startLocation in it.tiles }
-            val tilesToCheck = startLocation.getTilesInDistanceRange(1..2)
+            val tilesToCheck = startLocation.tilesInDistanceRangeSequence(1..2)
             // 75% probability that we first attempt to place a "city state" luxury, then a random or regional one
             // 25% probability of going the other way around
             val globalLuxuries =
@@ -400,7 +400,7 @@ object LuxuryResourcePlacementLogic {
 
             val luxuryToPlace = ruleset.tileResources[region.luxury] ?: continue
             // First check 2 inner rings
-            val firstPass = tileMap[region.startPosition!!].getTilesInDistanceRange(1..2)
+            val firstPass = tileMap[region.startPosition!!].tilesInDistanceRangeSequence(1..2)
                 .shuffled(rng).sortedBy { it.getTileFertility(false) } // Check bad tiles first
             targetLuxuries -= MapRegionResources.tryAddingResourceToTiles(
                 tileData,
@@ -411,7 +411,7 @@ object LuxuryResourcePlacementLogic {
             ) // Skip every 2nd tile on first pass
 
             if (targetLuxuries > 0) {
-                val secondPass = firstPass + tileMap[region.startPosition!!].getTilesAtDistance(3)
+                val secondPass = firstPass + tileMap[region.startPosition!!].tilesAtDistanceSequence(3)
                     .shuffled(rng).sortedBy { it.getTileFertility(false) } // Check bad tiles first
                 targetLuxuries -= MapRegionResources.tryAddingResourceToTiles(
                     tileData,

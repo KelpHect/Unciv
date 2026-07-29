@@ -149,7 +149,7 @@ object UnitActionsFromUniques {
         unit.cache.paradropDestinationTileFilters.clear()
 
         // Retrieve all parardrop uniques, considering the state of the unit
-        val paradropUniques = unit.getMatchingUniques(UniqueType.MayParadrop, unit.cache.state)
+        val paradropUniques = unit.matchingUniquesSequence(UniqueType.MayParadrop, unit.cache.state)
         var useFrequency = 0f
 
         // Construct the list of possible destination tile filters, keeping the largest distance
@@ -178,7 +178,7 @@ object UnitActionsFromUniques {
 
     internal fun getAirSweepActions(unit: MapUnit, tile: Tile): Sequence<UnitAction> {
         val airsweepUnique =
-            unit.getMatchingUniques(UniqueType.CanAirsweep).firstOrNull() ?: return emptySequence()
+            unit.matchingUniquesSequence(UniqueType.CanAirsweep).firstOrNull() ?: return emptySequence()
         val useFrequency = getUseFrequency(unit, airsweepUnique, 90f)
         return sequenceOf(UnitAction(UnitActionType.AirSweep,
             isCurrentAction = unit.isPreparingAirSweep(),
@@ -195,7 +195,7 @@ object UnitActionsFromUniques {
     // Instead of Withdrawing, stand your ground!
     // Different than Fortify
     internal fun getGuardActions(unit: MapUnit, tile: Tile): Sequence<UnitAction> {
-        val unique = unit.getMatchingUniques(UniqueType.WithdrawsBeforeMeleeCombat).firstOrNull() ?: return emptySequence()
+        val unique = unit.matchingUniquesSequence(UniqueType.WithdrawsBeforeMeleeCombat).firstOrNull() ?: return emptySequence()
         val useFrequency = getUseFrequency(unit, unique, 0f)
 
         if (unit.isGuarding()) {
@@ -285,7 +285,7 @@ object UnitActionsFromUniques {
     }
 
     internal fun getAddInCapitalActions(unit: MapUnit, tile: Tile): Sequence<UnitAction> {
-        val unique = unit.getMatchingUniques(UniqueType.AddInCapital).firstOrNull() ?: return emptySequence()
+        val unique = unit.matchingUniquesSequence(UniqueType.AddInCapital).firstOrNull() ?: return emptySequence()
         val useFrequency = getUseFrequency(unit, unique, 80f)
         return sequenceOf(UnitAction(UnitActionType.AddInCapital,
             title = "Add to [${unique.params[0]}]",
@@ -307,7 +307,7 @@ object UnitActionsFromUniques {
     }
 
     private fun getWaterImprovementAction(unit: MapUnit, tile: Tile): UnitAction? {
-        val unique = unit.getMatchingUniques(UniqueType.CreateWaterImprovements).firstOrNull()
+        val unique = unit.matchingUniquesSequence(UniqueType.CreateWaterImprovements).firstOrNull()
         if (!tile.isWater || unique == null) return null
 
         val improvement = tile.tileResource?.getImprovingImprovement(tile, unit.cache.state) ?: return null
@@ -340,7 +340,7 @@ object UnitActionsFromUniques {
                 if (tile.improvementFunctions.getImprovementBuildingProblems(improvement, gameContext).any { it.permanent })
                     continue
 
-                val resourcesAvailable = improvement.getMatchingUniques(UniqueType.ConsumesResources).none { improvementUnique ->
+                val resourcesAvailable = improvement.matchingUniquesSequence(UniqueType.ConsumesResources).none { improvementUnique ->
                         (civResources[improvementUnique.params[1]] ?: 0) < improvementUnique.params[0].toInt()
                 }
 
@@ -406,17 +406,17 @@ object UnitActionsFromUniques {
         val civInfo = unit.civ
         val stateForConditionals = unit.cache.state
 
-        for (unique in unit.getMatchingUniques(UniqueType.CanTransform, stateForConditionals)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanTransform, stateForConditionals)) {
             val unitToTransformTo = civInfo.getEquivalentUnit(unique.params[0])
 
             // Respect OnlyAvailable criteria
-            if (unitToTransformTo.getMatchingUniques(
+            if (unitToTransformTo.matchingUniquesSequence(
                     UniqueType.OnlyAvailable, GameContext.IgnoreConditionals
                 ).any { !it.conditionalsApply(stateForConditionals) }
             ) continue
 
             // Respect Unavailable criteria
-            if (unitToTransformTo.getMatchingUniques(UniqueType.Unavailable, stateForConditionals).any())
+            if (unitToTransformTo.matchingUniquesSequence(UniqueType.Unavailable, stateForConditionals).any())
                 continue
 
             // Check _new_ resource requirements
@@ -474,7 +474,7 @@ object UnitActionsFromUniques {
         if (!unit.cache.hasUniqueToBuildImprovements) return emptySequence()
         // Conditional uniques (e.g. <when above [0] [Stockpile]>) may no longer apply even though
         // the cache flag was set true - use firstOrNull to avoid NoSuchElementException (#15114)
-        val unique = unit.getMatchingUniques(UniqueType.BuildImprovements).firstOrNull()
+        val unique = unit.matchingUniquesSequence(UniqueType.BuildImprovements).firstOrNull()
             ?: return emptySequence()
 
         val couldConstruct = unit.hasMovement()
@@ -525,7 +525,7 @@ object UnitActionsFromUniques {
         val tile = unit.getTile()
         if (tile.isCityCenter()) return null
         if (!tile.isPillaged()) return null
-        val unique = unit.getMatchingUniques(UniqueType.BuildImprovements).firstOrNull()
+        val unique = unit.matchingUniquesSequence(UniqueType.BuildImprovements).firstOrNull()
             ?: return null
 
         val couldConstruct = unit.hasMovement()

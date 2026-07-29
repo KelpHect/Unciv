@@ -352,9 +352,9 @@ class UnitMovement(val unit: MapUnit) {
         return when {
             unit.cache.cannotMove -> sequenceOf(unit.getTile())
             unit.baseUnit.movesLikeAirUnits ->
-                unit.getTile().getTilesInDistanceRange(IntRange(1, unit.getMaxMovementForAirUnits()))
+                unit.getTile().tilesInDistanceRangeSequence(IntRange(1, unit.getMaxMovementForAirUnits()))
             unit.isPreparingParadrop() -> {
-                unit.getTile().getTilesInDistance(unit.cache.paradropDestinationTileFilters.maxOf { it.value } )
+                unit.getTile().tilesInDistanceSequence(unit.cache.paradropDestinationTileFilters.maxOf { it.value } )
                     .filter { unit.movement.canParadropOn(it, it.aerialDistanceTo(unit.getTile())) }
             }
             includeOtherEscortUnit && unit.isEscorting() -> {
@@ -438,7 +438,7 @@ class UnitMovement(val unit: MapUnit) {
             return // This unit can stay here - e.g. it has "May enter foreign tiles without open borders"
         while (allowedTile == null && distance < 5) {
             distance++
-            allowedTile = unit.getTile().getTilesAtDistance(distance)
+            allowedTile = unit.getTile().tilesAtDistanceSequence(distance)
                 // can the unit be placed safely there? Is tile either unowned or friendly?
                 .filter { canMoveTo(it) && it.getOwner()?.isAtWarWith(unit.civ) != true }
                 // out of those where it can be placed, can it reach them in any meaningful way?
@@ -796,7 +796,7 @@ class UnitMovement(val unit: MapUnit) {
 
         val unitSpecificAllowOcean: Boolean by lazy {
             unit.civ.tech.specificUnitsCanEnterOcean &&
-                unit.civ.getMatchingUniques(UniqueType.UnitsMayEnterOcean)
+                unit.civ.matchingUniquesSequence(UniqueType.UnitsMayEnterOcean)
                     .any { unit.matchesFilter(it.params[0]) }
         }
         if (tile.isWater && unit.baseUnit.isLandUnit && !unit.cache.canMoveOnWater) {
@@ -884,7 +884,7 @@ class UnitMovement(val unit: MapUnit) {
         while (tilesToCheck.isNotEmpty()) {
             val newTilesToCheck = ArrayList<Tile>()
             for (currentTileToCheck in tilesToCheck) {
-                val reachableTiles = currentTileToCheck.getTilesInDistance(unit.getRange())
+                val reachableTiles = currentTileToCheck.tilesInDistanceSequence(unit.getRange())
                     .filter { unit.movement.canMoveTo(it) }
                 for (reachableTile in reachableTiles) {
                     if (tilesReached.containsKey(reachableTile)) continue

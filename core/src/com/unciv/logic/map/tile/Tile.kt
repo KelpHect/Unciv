@@ -1,4 +1,4 @@
-﻿package com.unciv.logic.map.tile
+package com.unciv.logic.map.tile
 
 import com.unciv.Constants
 import com.unciv.GUI
@@ -114,7 +114,7 @@ class Tile : IsPartOfGameInfoSerialization {
     // This is for performance - since we access the neighbors of a tile ALL THE TIME,
     // and the neighbors of a tile never change, it's much more efficient to save the list once and for all!
     @delegate:Transient
-    val neighbors: Sequence<Tile> by lazy { getTilesAtDistance(1).toList().asSequence() }
+    val neighbors: Sequence<Tile> by lazy { tilesAtDistanceSequence(1).toList().asSequence() }
     // We have to .toList() so that the values are stored together once for caching,
     // and the toSequence so that aggregations (like neighbors.flatMap{it.units} don't take up their own space
 
@@ -439,7 +439,7 @@ class Tile : IsPartOfGameInfoSerialization {
     /** Get all uniques of this type that any TERRAIN on this tile has */
     @Readonly
     fun getTerrainMatchingUniques(uniqueType: UniqueType, gameContext: GameContext = stateThisTile ): Sequence<Unique> {
-        return cachedTerrainData.uniques.getMatchingUniques(uniqueType, gameContext)
+        return cachedTerrainData.uniques.matchingUniquesSequence(uniqueType, gameContext)
     }
 
     /** Get all uniques of this type that any part of this tile has: terrains, improvement, resource */
@@ -448,12 +448,17 @@ class Tile : IsPartOfGameInfoSerialization {
         var uniques = getTerrainMatchingUniques(uniqueType, gameContext)
         val tileImprovement = getUnpillagedTileImprovement()
         if (tileImprovement != null) {
-            uniques += tileImprovement.getMatchingUniques(uniqueType, gameContext)
+            uniques += tileImprovement.matchingUniquesSequence(uniqueType, gameContext)
         }
         if (tileResource != null)
-            uniques += tileResource!!.getMatchingUniques(uniqueType, gameContext)
+            uniques += tileResource!!.matchingUniquesSequence(uniqueType, gameContext)
         return uniques
     }
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesSequence(uniqueType: UniqueType, gameContext: GameContext = stateThisTile) =
+        getMatchingUniques(uniqueType, gameContext)
 
     @Readonly
     fun getWorkingCity(): City? {
@@ -624,13 +629,18 @@ class Tile : IsPartOfGameInfoSerialization {
     @Readonly fun getViewableTilesList(distance: Int): List<Tile> = tileMap.getViewableTiles(position, distance)
     @Deprecated(message = "forEachTileInDistance is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileInDistance"))
-    @Readonly fun getTilesInDistance(distance: Int): Sequence<Tile> = tileMap.getTilesInDistance(position, distance)
+    @Readonly fun getTilesInDistance(distance: Int): Sequence<Tile> = tilesInDistanceSequence(distance)
     @Deprecated(message = "forEachTileInDistanceRange is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileInDistanceRange"))
-    @Readonly fun getTilesInDistanceRange(range: IntRange): Sequence<Tile> = tileMap.getTilesInDistanceRange(position, range)
+    @Readonly fun getTilesInDistanceRange(range: IntRange): Sequence<Tile> = tilesInDistanceRangeSequence(range)
     @Deprecated(message = "forEachTileAtDistance is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTileAtDistance"))
-    @Readonly fun getTilesAtDistance(distance: Int): Sequence<Tile> = tileMap.getTilesAtDistance(position, distance)
+    @Readonly fun getTilesAtDistance(distance: Int): Sequence<Tile> = tilesAtDistanceSequence(distance)
+
+    /** Lazy counterparts for call sites that require sequence transformations or short-circuiting. */
+    @Readonly fun tilesInDistanceSequence(distance: Int): Sequence<Tile> = tileMap.tilesInDistanceSequence(position, distance)
+    @Readonly fun tilesInDistanceRangeSequence(range: IntRange): Sequence<Tile> = tileMap.tilesInDistanceRangeSequence(position, range)
+    @Readonly fun tilesAtDistanceSequence(distance: Int): Sequence<Tile> = tileMap.tilesAtDistanceSequence(position, distance)
 
     @Readonly fun forEachTileInDistance(distance: Int, op: (Tile)->Unit) = tileMap.forEachTileInDistance(position, distance, op)
     @Readonly fun forEachTileInDistance(distance: Int, filter: (Tile)->Boolean, op: (Tile)->Unit) = tileMap.forEachTileInDistance(position, distance, filter, op)
@@ -649,7 +659,7 @@ class Tile : IsPartOfGameInfoSerialization {
         if (naturalWonder != null) bonus += getNaturalWonder().defenceBonus
         val tileImprovement = getUnpillagedTileImprovement()
         if (tileImprovement != null && includeImprovementBonus) {
-            for (unique in tileImprovement.getMatchingUniques(UniqueType.DefensiveBonus, unit?.cache?.state ?: stateThisTile))
+            for (unique in tileImprovement.matchingUniquesSequence(UniqueType.DefensiveBonus, unit?.cache?.state ?: stateThisTile))
                 bonus += unique.params[0].toFloat() / 100
         }
         return bonus
@@ -685,9 +695,9 @@ class Tile : IsPartOfGameInfoSerialization {
         val modConstants = tileMap.gameInfo.ruleset.modOptions.constants
         return when {
             isWater || isImpassible() -> false
-            getTilesInDistance(modConstants.minimalCityDistanceOnDifferentContinents)
+            tilesInDistanceSequence(modConstants.minimalCityDistanceOnDifferentContinents)
                 .any { it.isCityCenter() && it.getContinent() != getContinent() } -> false
-            getTilesInDistance(modConstants.minimalCityDistance)
+            tilesInDistanceSequence(modConstants.minimalCityDistance)
                 .any { it.isCityCenter() && it.getContinent() == getContinent() } -> false
             // cannot settle in someone else's territory
             owningCity != null && owningCity!!.civ != civ -> false
@@ -827,7 +837,7 @@ class Tile : IsPartOfGameInfoSerialization {
         // We can't replicate the MapRegions resource distributor, so let's try to get
         // a close probability of major deposits per tile
         var probability = 0.0
-        for (unique in allTerrains.flatMap { it.getMatchingUniques(UniqueType.MajorStrategicFrequency) }) {
+        for (unique in allTerrains.flatMap { it.matchingUniquesSequence(UniqueType.MajorStrategicFrequency) }) {
             val frequency = unique.params[0].toIntOrNull() ?: continue
             if (frequency <= 0) continue
             // The unique param is literally "every N tiles", so to get a probability p=1/f
@@ -938,7 +948,7 @@ class Tile : IsPartOfGameInfoSerialization {
             return
         }
 
-        for (unique in newResource.getMatchingUniques(UniqueType.ResourceAmountOnTiles, stateThisTile)) {
+        for (unique in newResource.matchingUniquesSequence(UniqueType.ResourceAmountOnTiles, stateThisTile)) {
             if (matchesTerrainFilter(unique.params[0], null)) {
                 resourceAmount = unique.params[1].toInt()
                 return
@@ -972,7 +982,7 @@ class Tile : IsPartOfGameInfoSerialization {
             else -> getBaseTerrain()
         }
 
-        unitHeight = allTerrains.flatMap { it.getMatchingUniques(UniqueType.VisibilityElevation) }
+        unitHeight = allTerrains.flatMap { it.matchingUniquesSequence(UniqueType.VisibilityElevation) }
             .sumOf { it.params[0].toInt() }
         tileHeight = if (terrainHasUnique(UniqueType.BlocksLineOfSightAtSameElevation)) unitHeight + 1
         else unitHeight

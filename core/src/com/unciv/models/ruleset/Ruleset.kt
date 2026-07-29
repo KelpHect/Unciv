@@ -612,7 +612,7 @@ class Ruleset {
     internal fun updateBuildingCosts() {
         for (building in buildings.values) {
             if (building.cost != -1) continue
-            if (building.getMatchingUniques(UniqueType.Unbuildable).any { it.modifiers.isEmpty() }) continue
+            if (building.matchingUniquesSequence(UniqueType.Unbuildable).any { it.modifiers.isEmpty() }) continue
             val column = building.techColumn(this) ?: continue
             building.cost = if (building.isAnyWonder()) column.wonderCost else column.buildingCost
         }

@@ -289,7 +289,7 @@ object TechnologyDescriptions {
                         it.uniqueTo == null || civInfo?.matchesFilter(it.uniqueTo!!) == true
                     }
             ).filter { obj: RulesetStatsObject ->
-                obj.getMatchingUniques(UniqueType.ObsoleteWith).any { it.params[0] == techName }
+                obj.matchingUniquesSequence(UniqueType.ObsoleteWith).any { it.params[0] == techName }
             }
 
     /** Readability - for the 'obsoleted' in [getTechEnabledIcons] */

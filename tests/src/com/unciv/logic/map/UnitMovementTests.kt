@@ -138,6 +138,7 @@ class UnitMovementTests(
     }
 
     @Test
+    @Suppress("DEPRECATION") // Constants.coast is intentionally retained as a legacy ruleset fixture.
     fun canNOTEnterCoastUntilProperTechIsResearched() {
         civInfo.tech.unitsCanEmbark = false
         tile.baseTerrain = Constants.coast

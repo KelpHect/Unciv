@@ -38,7 +38,7 @@ class RulesetErrorList(
 ) : ArrayList<RulesetError>() {
     private val globalSuppressionFilters: Set<String> =
         ruleset?.modOptions
-        ?.getMatchingUniques(UniqueType.SuppressWarnings, GameContext.IgnoreConditionals)
+        ?.matchingUniquesSequence(UniqueType.SuppressWarnings, GameContext.IgnoreConditionals)
         ?.map { it.params[0] }
         ?.toSet()
         ?: emptySet()

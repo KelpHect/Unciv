@@ -51,7 +51,7 @@ class MapGenTileData(val tile: Tile, val region: Region?, ruleset: Ruleset) {
             ?: tile.terrainFeatureObjects.first()
 
         // Add all applicable qualities
-        for (unique in terrainToCheck.getMatchingUniques(
+        for (unique in terrainToCheck.matchingUniquesSequence(
             UniqueType.HasQuality,
             GameContext(region = region)
         )) {

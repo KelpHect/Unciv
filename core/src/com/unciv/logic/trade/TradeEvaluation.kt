@@ -171,7 +171,7 @@ class TradeEvaluation {
                     return 0 // We don't trust you for resources
                 
                 val lowestExplicitBuyCost = civInfo.gameInfo.ruleset.tileResources[offer.name]!!
-                    .getMatchingUniques(UniqueType.AiWillBuyAt, GameContext(civInfo))
+                    .matchingUniquesSequence(UniqueType.AiWillBuyAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
 
                 if (lowestExplicitBuyCost != null) return lowestExplicitBuyCost
@@ -196,7 +196,7 @@ class TradeEvaluation {
 
 
                 val lowestExplicitBuyCost = civInfo.gameInfo.ruleset.tileResources[offer.name]!!
-                    .getMatchingUniques(UniqueType.AiWillBuyAt, GameContext(civInfo))
+                    .matchingUniquesSequence(UniqueType.AiWillBuyAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
                 if (lowestExplicitBuyCost != null) return lowestExplicitBuyCost
 
@@ -213,7 +213,7 @@ class TradeEvaluation {
             
             TradeOfferType.Stockpiled_Resource -> {
                 val resource = civInfo.gameInfo.ruleset.tileResources[offer.name] ?: return 0
-                val lowestBuyCost = resource.getMatchingUniques(UniqueType.AiWillBuyAt, GameContext(civInfo))
+                val lowestBuyCost = resource.matchingUniquesSequence(UniqueType.AiWillBuyAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
                 return lowestBuyCost ?: 0
             }
@@ -378,7 +378,7 @@ class TradeEvaluation {
             }
             TradeOfferType.Luxury_Resource -> {
                 val lowestExplicitSellCost = civInfo.gameInfo.ruleset.tileResources[offer.name]!!
-                    .getMatchingUniques(UniqueType.AiWillSellAt, GameContext(civInfo))
+                    .matchingUniquesSequence(UniqueType.AiWillSellAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
 
                 if (lowestExplicitSellCost != null) return lowestExplicitSellCost
@@ -386,7 +386,7 @@ class TradeEvaluation {
                 return when {
                     civInfo.getResourceAmount(offer.name) > 1 -> 250 // fair price
                     civInfo.hasUnique(UniqueType.RetainHappinessFromLuxury) -> // If we retain 100% happiness, value it as a duplicate lux
-                        600 - (civInfo.getMatchingUniques(UniqueType.RetainHappinessFromLuxury)
+                        600 - (civInfo.matchingUniquesSequence(UniqueType.RetainHappinessFromLuxury)
                             .first().params[0].toFloat() * 3.5f).toInt()
                     else -> 600 // you want to take away our last lux of this type?!
                 }
@@ -399,7 +399,7 @@ class TradeEvaluation {
                     return Int.MAX_VALUE // We'd rather win the game, thanks
                 
                 val lowestExplicitSellCost = civInfo.gameInfo.ruleset.tileResources[offer.name]!!
-                    .getMatchingUniques(UniqueType.AiWillSellAt, GameContext(civInfo))
+                    .matchingUniquesSequence(UniqueType.AiWillSellAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
                 
                 if (lowestExplicitSellCost != null) return lowestExplicitSellCost
@@ -430,7 +430,7 @@ class TradeEvaluation {
             }
             TradeOfferType.Stockpiled_Resource -> {
                 val resource = civInfo.gameInfo.ruleset.tileResources[offer.name] ?: return 0
-                val lowestSellCost = resource.getMatchingUniques(UniqueType.AiWillSellAt, GameContext(civInfo))
+                val lowestSellCost = resource.matchingUniquesSequence(UniqueType.AiWillSellAt, GameContext(civInfo))
                     .minOfOrNull { it.params[0].toInt() }
                 return lowestSellCost ?: Int.MAX_VALUE
             }
@@ -554,7 +554,7 @@ class TradeEvaluation {
 
     @Readonly
     private fun introductionValue(ruleSet: Ruleset): Int {
-        val unique = ruleSet.modOptions.getMatchingUniques(UniqueType.TradeCivIntroductions).firstOrNull()
+        val unique = ruleSet.modOptions.matchingUniquesSequence(UniqueType.TradeCivIntroductions).firstOrNull()
             ?: return 0
         return unique.params[0].toInt()
     }

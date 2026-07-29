@@ -17,7 +17,7 @@ import kotlin.math.min
 object UnitActionsGreatPerson {
 
     internal fun getHurryResearchActions(unit: MapUnit, tile: Tile) = sequence {
-        for (unique in unit.getMatchingUniques(UniqueType.CanHurryResearch)){
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanHurryResearch)){
             val useFrequency = getUseFrequency(unit, unique, 76f)
             yield(UnitAction(
                 UnitActionType.HurryResearch, useFrequency,
@@ -34,7 +34,7 @@ object UnitActionsGreatPerson {
     }
 
     internal fun getHurryPolicyActions(unit: MapUnit, tile: Tile) = sequence {
-        for (unique in unit.getMatchingUniques(UniqueType.CanHurryPolicy)){
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanHurryPolicy)){
             val useFrequency = getUseFrequency(unit, unique, 76f)
             yield(UnitAction(
                 UnitActionType.HurryPolicy, useFrequency,
@@ -47,7 +47,7 @@ object UnitActionsGreatPerson {
     }
 
     internal fun getHurryWonderActions(unit: MapUnit, tile: Tile) = sequence {
-        for (unique in unit.getMatchingUniques(UniqueType.CanSpeedupWonderConstruction)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanSpeedupWonderConstruction)) {
             val canHurryWonder =
                 if (!tile.isCityCenter()) false
                 else tile.getCity()!!.cityConstructions.isBuildingWonder()
@@ -70,7 +70,7 @@ object UnitActionsGreatPerson {
     }
 
     internal fun getHurryBuildingActions(unit: MapUnit, tile: Tile) = sequence {
-        for (unique in unit.getMatchingUniques(UniqueType.CanSpeedupConstruction)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanSpeedupConstruction)) {
             val useFrequency = getUseFrequency(unit, unique, 75f)
             if (!tile.isCityCenter()) {
                 yield(UnitAction(UnitActionType.HurryBuilding, useFrequency, action = null))
@@ -107,7 +107,7 @@ object UnitActionsGreatPerson {
         val canConductTradeMission = tile.owningCity?.civ?.isCityState == true
             && tile.owningCity?.civ != unit.civ
             && tile.owningCity?.civ?.isAtWarWith(unit.civ) == false
-        for (unique in unit.getMatchingUniques(UniqueType.CanTradeWithCityStateForGoldAndInfluence)) {
+        for (unique in unit.matchingUniquesSequence(UniqueType.CanTradeWithCityStateForGoldAndInfluence)) {
             val influenceEarned = unique.params[0].toFloat()
             val useFrequency = getUseFrequency(unit, unique, 70f)
 
@@ -118,7 +118,7 @@ object UnitActionsGreatPerson {
                     var goldEarned = (350 + 50 * unit.civ.getEraNumber()) * unit.civ.gameInfo.speed.goldCostModifier
 
                     // Apply the gold trade mission modifier
-                    for (goldUnique in unit.getMatchingUniques(UniqueType.PercentGoldFromTradeMissions, checkCivInfoUniques = true))
+                    for (goldUnique in unit.matchingUniquesSequence(UniqueType.PercentGoldFromTradeMissions, checkCivInfoUniques = true))
                         goldEarned *= goldUnique.params[0].toPercent()
 
                     val goldEarnedInt = goldEarned.toInt()

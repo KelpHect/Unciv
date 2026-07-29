@@ -28,7 +28,7 @@ open class Counter<K>(
     override operator fun get(key: K): Int { // don't return null if empty
         return if (containsKey(key))
         // .toInt(), because GDX deserializes Counter values as *floats* for some reason
-            super.get(key)!!.toInt()
+            super.get(key)!!
         else 0
     }
 

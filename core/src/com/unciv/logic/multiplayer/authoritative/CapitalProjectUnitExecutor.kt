@@ -9,7 +9,7 @@ import com.unciv.models.ruleset.unique.UniqueType
 object CapitalProjectUnitExecutor {
     @Suppress("DEPRECATION")
     fun projectName(unit: MapUnit): String? {
-        val unique = unit.getMatchingUniques(UniqueType.AddInCapital).firstOrNull() ?: return null
+        val unique = unit.matchingUniquesSequence(UniqueType.AddInCapital).firstOrNull() ?: return null
         val city = unit.currentTile.getCity() ?: return null
         if (!unit.currentTile.isCityCenter() || city.civ != unit.civ || !city.isCapital()) return null
         return unique.params.firstOrNull()?.takeIf { it.isNotBlank() }

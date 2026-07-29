@@ -295,7 +295,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
 
     @Readonly
     fun containsBuildingUnique(uniqueType: UniqueType, state: GameContext = this.state) =
-        cityConstructions.builtBuildingUniqueMap.getMatchingUniques(uniqueType, state).any()
+        cityConstructions.builtBuildingUniqueMap.matchingUniquesSequence(uniqueType, state).any()
 
     @Readonly fun getGreatPersonPercentageBonus() = GreatPersonPointsBreakdown.getGreatPersonPercentageBonus(this)
     @Readonly fun getGreatPersonPoints() = GreatPersonPointsBreakdown(this).sum()
@@ -351,7 +351,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
 
     /** Gets max air units that can remain in the city untransported */
     @Readonly fun getMaxAirUnits(): Int = civ.gameInfo.ruleset.modOptions.constants.cityAirUnitCapacity +
-        getMatchingUniques(UniqueType.CarryExtraAirUnits)
+        matchingUniquesSequence(UniqueType.CarryExtraAirUnits)
             .filter { it.params[1] == "Air" }
             .sumOf { it.params[0].toInt() }
 
@@ -406,7 +406,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
         tileMap = civInfo.gameInfo.tileMap
         centerTile = tileMap[location]
         state = GameContext(this)
-        tilesInRange = getCenterTile().getTilesInDistance(getWorkRange()).toHashSet()
+        tilesInRange = getCenterTile().tilesInDistanceSequence(getWorkRange()).toHashSet()
         population.city = this
         expansion.city = this
         expansion.setTransients()
@@ -629,13 +629,21 @@ class City : IsPartOfGameInfoSerialization, INamed {
         uniqueType: UniqueType,
         gameContext: GameContext = state,
         includeCivUniques: Boolean = true
+    ): Sequence<Unique> = matchingUniquesSequence(uniqueType, gameContext, includeCivUniques)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesSequence(
+        uniqueType: UniqueType,
+        gameContext: GameContext = state,
+        includeCivUniques: Boolean = true
     ): Sequence<Unique> {
         return if (includeCivUniques)
-            civ.getMatchingUniques(uniqueType, gameContext) +
-                getLocalMatchingUniques(uniqueType, gameContext)
+            civ.matchingUniquesSequence(uniqueType, gameContext) +
+                localMatchingUniquesSequence(uniqueType, gameContext)
         else (
             cityConstructions.builtBuildingUniqueMap.getUniques(uniqueType)
-                + religion.getUniques(uniqueType)
+                + religion.uniquesSequence(uniqueType)
             ).filter {
                 !it.isTimedTriggerable && it.conditionalsApply(gameContext)
             }.flatMap { it.getMultiplied(gameContext) }
@@ -667,9 +675,16 @@ class City : IsPartOfGameInfoSerialization, INamed {
     @Readonly
     @Deprecated(message = "forEachLocalMatchingUnique is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachLocalMatchingUnique"))
-    fun getLocalMatchingUniques(uniqueType: UniqueType, gameContext: GameContext = state): Sequence<Unique> {
+    fun getLocalMatchingUniques(
+        uniqueType: UniqueType,
+        gameContext: GameContext = state
+    ): Sequence<Unique> = localMatchingUniquesSequence(uniqueType, gameContext)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun localMatchingUniquesSequence(uniqueType: UniqueType, gameContext: GameContext = state): Sequence<Unique> {
         val uniques = cityConstructions.builtBuildingUniqueMap.getUniques(uniqueType).filter { it.isLocalEffect } +
-            religion.getUniques(uniqueType)
+            religion.uniquesSequence(uniqueType)
         return uniques.filter { !it.isTimedTriggerable && it.conditionalsApply(gameContext) }
                 .flatMap { it.getMultiplied(gameContext) }
     }
@@ -685,7 +700,17 @@ class City : IsPartOfGameInfoSerialization, INamed {
     @Readonly
     @Deprecated(message = "forEachMatchingUniqueWithNonLocalEffects is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachMatchingUniqueWithNonLocalEffects"))
-    fun getMatchingUniquesWithNonLocalEffects(uniqueType: UniqueType, gameContext: GameContext = state): Sequence<Unique> {
+    fun getMatchingUniquesWithNonLocalEffects(
+        uniqueType: UniqueType,
+        gameContext: GameContext = state
+    ): Sequence<Unique> = matchingUniquesWithNonLocalEffectsSequence(uniqueType, gameContext)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesWithNonLocalEffectsSequence(
+        uniqueType: UniqueType,
+        gameContext: GameContext = state
+    ): Sequence<Unique> {
         val uniques = cityConstructions.builtBuildingUniqueMap.getUniques(uniqueType)
         // Memory performance showed that this function was very memory intensive, thus we only create the filter if needed
         return if (uniques.any()) uniques.filter { !it.isLocalEffect && !it.isTimedTriggerable
@@ -720,7 +745,17 @@ class City : IsPartOfGameInfoSerialization, INamed {
         trigger: UniqueType,
         gameContext: GameContext = state,
         triggerFilter: (Unique) -> Boolean = { true },
-        includeCivUniques: Boolean = true): Sequence<Unique> {
+        includeCivUniques: Boolean = true
+    ): Sequence<Unique> = triggeredUniquesSequence(trigger, gameContext, triggerFilter, includeCivUniques)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun triggeredUniquesSequence(
+        trigger: UniqueType,
+        gameContext: GameContext = state,
+        triggerFilter: (Unique) -> Boolean = { true },
+        includeCivUniques: Boolean = true
+    ): Sequence<Unique> {
         if (includeCivUniques) {
             return civ.getTriggeredUniques(trigger, gameContext, triggerFilter).asSequence() +
                 getLocalTriggeredUniques(trigger, gameContext, triggerFilter)

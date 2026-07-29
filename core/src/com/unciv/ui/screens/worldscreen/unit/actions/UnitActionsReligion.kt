@@ -79,7 +79,7 @@ object UnitActionsReligion {
     private fun getPressureAddedFromSpread(unit: MapUnit): Int {
         var pressureAdded = unit.baseUnit.religiousStrength.toFloat()
 
-        for (unique in unit.getMatchingUniques(UniqueType.SpreadReligionStrength, checkCivInfoUniques = true))
+        for (unique in unit.matchingUniquesSequence(UniqueType.SpreadReligionStrength, checkCivInfoUniques = true))
             pressureAdded *= unique.params[0].toPercent()
 
         return pressureAdded.toInt()
@@ -101,7 +101,7 @@ object UnitActionsReligion {
             title = title,
             action = {
                 val followersOfOtherReligions = city.religion.getFollowersOfOtherReligionsThan(unit.religion!!)
-                for (unique in unit.getMatchingUniques(UniqueType.StatsWhenSpreading, checkCivInfoUniques = true)) {
+                for (unique in unit.matchingUniquesSequence(UniqueType.StatsWhenSpreading, checkCivInfoUniques = true)) {
                     unit.civ.addStat(Stat.valueOf(unique.params[1]), followersOfOtherReligions * unique.params[0].toInt())
                 }
                 val previousReligion = city.religion.getMajorityReligion()
@@ -142,7 +142,7 @@ object UnitActionsReligion {
         if (!hasNewStyleAbility) return emptySequence()
 
         val title =
-            UnitActionModifiers.actionTextWithSideEffects("Remove Heresy", newStyleUnique!!, unit)
+            UnitActionModifiers.actionTextWithSideEffects("Remove Heresy", newStyleUnique, unit)
         val useFrequency = getUseFrequency(unit, newStyleUnique, 69f)
 
         return sequenceOf(UnitAction(

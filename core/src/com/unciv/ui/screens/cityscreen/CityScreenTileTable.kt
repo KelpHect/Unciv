@@ -148,7 +148,7 @@ class CityScreenTileTable(private val cityScreen: CityScreen) : Table() {
             }
         }
 
-        @Readonly private fun getRing(ring: Int) = cityView.centerTile().getTilesInDistance(ring).filter { it.owningCity() == null }
+        @Readonly private fun getRing(ring: Int) = cityView.centerTile().tilesInDistanceSequence(ring).filter { it.owningCity() == null }
         @Readonly private fun countBuyableInRing(ring: Int) = getRing(ring).count()
         @Readonly private fun getRingCost(ring: Int) = getRing(ring).withIndex()
             .sumOf { cityView.getGoldCostOfTile(it.value, it.index) }

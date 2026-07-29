@@ -129,7 +129,7 @@ class TradeLogic(val ourCivilization: Civilization, val otherCivilization: Civil
         fun transferTrade(from: Civilization, to: Civilization, offer: TradeOffer) {
             when (offer.type) {
                 TradeOfferType.Embassy -> {
-                    for (tile in from.getCapital()!!.getCenterTile().getTilesInDistance(2))
+                    for (tile in from.getCapital()!!.getCenterTile().tilesInDistanceSequence(2))
                         tile.setExplored(to, true)
                 }
                 TradeOfferType.Gold -> {

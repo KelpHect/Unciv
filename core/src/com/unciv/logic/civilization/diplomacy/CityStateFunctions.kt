@@ -377,7 +377,7 @@ class CityStateFunctions(val civInfo: Civilization) {
                 && civInfo.cities.any()
                 && civInfo.getDiplomacyManager(otherCiv)!!.isRelationshipLevelEQ(RelationshipLevel.Ally)
                 && !otherCiv.getDiplomacyManager(civInfo)!!.hasFlag(DiplomacyFlags.MarriageCooldown)
-                && otherCiv.getMatchingUniques(UniqueType.CityStateCanBeBoughtForGold).any()
+                && otherCiv.matchingUniquesSequence(UniqueType.CityStateCanBeBoughtForGold).any()
                 && otherCiv.gold >= getDiplomaticMarriageCost())
 
     }
@@ -473,7 +473,7 @@ class CityStateFunctions(val civInfo: Civilization) {
             return modifiers
 
         val bullyRange = (civInfo.gameInfo.tileMap.tileMatrix.size / 10).coerceIn(5, 10)   // Longer range for larger maps
-        @Suppress("DEPRECATION") val inRangeTiles = civInfo.getCapital()!!.getCenterTile().getTilesInDistanceRange(1..bullyRange)
+        @Suppress("DEPRECATION") val inRangeTiles = civInfo.getCapital()!!.getCenterTile().tilesInDistanceRangeSequence(1..bullyRange)
         val forceNearCity = inRangeTiles
             .sumOf { if (it.militaryUnit?.civ == demandingCiv)
                     it.militaryUnit!!.getForceEvaluation()
@@ -813,10 +813,17 @@ class CityStateFunctions(val civInfo: Civilization) {
     @Readonly
     @Deprecated(message = "forEachUniqueProvidedByCityStates is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachUniqueProvidedByCityStates"))
-    fun getUniquesProvidedByCityStates(uniqueType: UniqueType, gameContext: GameContext): Sequence<Unique> {
+    fun getUniquesProvidedByCityStates(
+        uniqueType: UniqueType,
+        gameContext: GameContext
+    ): Sequence<Unique> = uniquesProvidedByCityStatesSequence(uniqueType, gameContext)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun uniquesProvidedByCityStatesSequence(uniqueType: UniqueType, gameContext: GameContext): Sequence<Unique> {
         if (civInfo.isCityState) return emptySequence()
         return civInfo.cache.cityStateBonusUniqueMaps.asSequence()
-            .flatMap { it.getMatchingUniques(uniqueType, gameContext) }
+            .flatMap { it.matchingUniquesSequence(uniqueType, gameContext) }
     }
 
     @Readonly

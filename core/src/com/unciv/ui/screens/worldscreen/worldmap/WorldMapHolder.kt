@@ -214,7 +214,7 @@ class WorldMapHolder(
         if (newSelectedUnit == null || newSelectedUnit.isCivilian()) {
             val unitsInTile = selectedTile!!.getUnits()
             if (previousSelectedCity != null && previousSelectedCity.canBombard()
-                    && selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile())
+                    && selectedTile!!.tilesInDistanceSequence(2).contains(previousSelectedCity.getCenterTile())
                     && unitsInTile.any()
                     && unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)) {
                 // try to select the closest city to bombard this guy

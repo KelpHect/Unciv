@@ -35,6 +35,7 @@ class UnitFilterTests {
     }
 
     @Test
+    @Suppress("DEPRECATION") // Constants.coast is intentionally retained as a legacy ruleset fixture.
     fun testFilteredUnits() {
         val wetTile = game.tileMap[3,1]
         val deSela = game.addCiv(game.ruleset.nations["Lhasa"]!!)

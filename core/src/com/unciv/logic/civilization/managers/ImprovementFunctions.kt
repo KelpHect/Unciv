@@ -24,7 +24,7 @@ object ImprovementFunctions {
                 yield(ImprovementBuildingProblem.Replaced)
             if (improvement.techRequired != null && !civInfo.tech.isResearched(improvement.techRequired!!))
                 yield(ImprovementBuildingProblem.MissingTech)
-            if (improvement.getMatchingUniques(UniqueType.Unbuildable, GameContext.IgnoreConditionals)
+            if (improvement.matchingUniquesSequence(UniqueType.Unbuildable, GameContext.IgnoreConditionals)
                     .any { it.modifiers.isEmpty() })
                 yield(ImprovementBuildingProblem.Unbuildable)
             else if (improvement.hasUnique(UniqueType.Unbuildable, gameContext))
@@ -33,15 +33,15 @@ object ImprovementFunctions {
             if (improvement.hasUnique(UniqueType.Unavailable, gameContext))
                 yield(ImprovementBuildingProblem.ConditionallyUnbuildable)
 
-            if (improvement.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+            if (improvement.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                     .any { !it.conditionalsApply(gameContext) })
                 yield(ImprovementBuildingProblem.UnmetConditional)
 
-            if (improvement.getMatchingUniques(UniqueType.ObsoleteWith, gameContext)
+            if (improvement.matchingUniquesSequence(UniqueType.ObsoleteWith, gameContext)
                     .any { civInfo.tech.isResearched(it.params[0]) })
                 yield(ImprovementBuildingProblem.Obsolete)
 
-            if (improvement.getMatchingUniques(UniqueType.ConsumesResources, gameContext)
+            if (improvement.matchingUniquesSequence(UniqueType.ConsumesResources, gameContext)
                     .any { civInfo.getResourceAmount(it.params[1]) < it.params[0].toInt() })
                 yield(ImprovementBuildingProblem.MissingResources)
 

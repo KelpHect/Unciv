@@ -75,7 +75,7 @@ class Era : RulesetObject() {
             // This second part is empty in our base rulesets, yes
             ruleset.allRulesetObjects()
             .flatMap { obj ->
-                obj.getMatchingUniques(
+                obj.matchingUniquesSequence(
                     UniqueType.OnlyAvailable,
                     GameContext.IgnoreConditionals
                 )

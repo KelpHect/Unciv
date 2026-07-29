@@ -42,7 +42,7 @@ class UnitTurnManager(val unit: MapUnit) {
                 && !unit.civ.diplomacyFunctions.canPassThroughTiles(unit.getTile().getOwner()!!)
         ) {
             val lostReligiousStrength =
-                    unit.getMatchingUniques(UniqueType.CanEnterForeignTilesButLosesReligiousStrength)
+                    unit.matchingUniquesSequence(UniqueType.CanEnterForeignTilesButLosesReligiousStrength)
                         .map { it.params[0].toInt() }
                         .minOrNull()
             if (lostReligiousStrength != null)
@@ -81,7 +81,7 @@ class UnitTurnManager(val unit: MapUnit) {
                     it.getUnpillagedImprovement() != null &&
                     unit.civ.isAtWarWith(it.getOwner()!!)
             }.map { tile ->
-                tile to tile.tileImprovement!!.getMatchingUniques(UniqueType.DamagesAdjacentEnemyUnits, tile.stateThisTile)
+                tile to tile.tileImprovement!!.matchingUniquesSequence(UniqueType.DamagesAdjacentEnemyUnits, tile.stateThisTile)
                     .sumOf { it.params[0].toInt() }
             }.maxByOrNull { it.second }
             ?: return
@@ -148,7 +148,7 @@ class UnitTurnManager(val unit: MapUnit) {
         // Wake sleeping units if there's an enemy in vision range:
         // Military units always but civilians only if not protected.
         if (unit.isSleeping() && (unit.isMilitary() || (unit.currentTile.militaryUnit == null && !unit.currentTile.isCityCenter())) &&
-                unit.currentTile.getTilesInDistance(3).any {
+                unit.currentTile.tilesInDistanceSequence(3).any {
                     it.militaryUnit != null && it in unit.civ.viewableTiles && it.militaryUnit!!.civ.isAtWarWith(unit.civ)
                 }
         )  unit.action = null

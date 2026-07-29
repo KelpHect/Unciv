@@ -183,7 +183,7 @@ class ImprovementPickerScreen(
             && !improvement.isRoad()
             && stats.max() > 0f
             && !improvement.name.startsWith(Constants.remove)
-            && !tile.getTilesInDistance(currentPlayerCiv.modConstants.cityWorkRange)
+            && !tile.tilesInDistanceSequence(currentPlayerCiv.modConstants.cityWorkRange)
                 .any { it.isCityCenter() && it.getCity()!!.civ == currentPlayerCiv }
         )
             labelText += "\n" + "Not in city work range".tr()
@@ -236,21 +236,21 @@ class ImprovementPickerScreen(
     // Not centralized in [TileStatFunctions] because the actual upkeep calculation can optimize some things and rounding errors might accumulate differently
     private fun getMaintenance(improvement: TileImprovement): Stats {
         val maintenance = Stats()
-        if (currentPlayerCiv.getMatchingUniques(UniqueType.NoImprovementMaintenanceInSpecificTiles)
+        if (currentPlayerCiv.matchingUniquesSequence(UniqueType.NoImprovementMaintenanceInSpecificTiles)
                 .any { tile.matchesFilter(it.params[0], currentPlayerCiv) }
         ) return maintenance
 
         val context = GameContext(currentPlayerCiv, tile = tile)
-        val maintenanceUniques = improvement.getMatchingUniques(UniqueType.ImprovementAllMaintenance, context) +
+        val maintenanceUniques = improvement.matchingUniquesSequence(UniqueType.ImprovementAllMaintenance, context) +
             // ImprovementMaintenance only applies inside city territory; ImprovementAllMaintenance applies everywhere.
-            (if (tile.getOwner() == currentPlayerCiv) improvement.getMatchingUniques(UniqueType.ImprovementMaintenance, context) else emptySequence())
+            (if (tile.getOwner() == currentPlayerCiv) improvement.matchingUniquesSequence(UniqueType.ImprovementMaintenance, context) else emptySequence())
         for (maintenanceUnique in maintenanceUniques) {
             val amount = maintenanceUnique.params[0].toFloat()
             val statName = Stat.safeValueOf(maintenanceUnique.params[1]) ?: continue
             maintenance.add(statName, -amount)
         }
 
-        for (unique in currentPlayerCiv.getMatchingUniques(UniqueType.RoadMaintenance))
+        for (unique in currentPlayerCiv.matchingUniquesSequence(UniqueType.RoadMaintenance))
             maintenance.timesInPlace(unique.params[0].toPercent())
         return maintenance
     }
@@ -344,7 +344,7 @@ class ImprovementPickerScreen(
             if (ImprovementBuildingProblem.OutsideBorders in unbuildableBecause)
                 proposedSolutions.add("Have this tile inside your empire" to null)
             if (ImprovementBuildingProblem.MissingResources in unbuildableBecause) {
-                val resources = improvement.getMatchingUniques(UniqueType.ConsumesResources)
+                val resources = improvement.matchingUniquesSequence(UniqueType.ConsumesResources)
                     .filter { currentPlayerCiv.getResourceAmount(it.params[1]) < it.params[0].toInt() }
                     .map { "Acquire more [${it.params[1]}]" to ruleset.tileResources[it.params[1]]?.makeLink() }
                 proposedSolutions.addAll(resources)

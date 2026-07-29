@@ -35,10 +35,10 @@ class PantheonPickerScreen(
         }
     }
     fun beliefIsAllowed(belief: Belief, choosingCiv: Civilization): Boolean {
-        if (belief.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+        if (belief.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                 .any { !it.conditionalsApply(choosingCiv.state) })
             return false
-        if (belief.getMatchingUniques(UniqueType.Unavailable, choosingCiv.state).any())
+        if (belief.matchingUniquesSequence(UniqueType.Unavailable, choosingCiv.state).any())
             return false
         return true
     }

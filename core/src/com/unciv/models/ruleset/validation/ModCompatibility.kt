@@ -81,7 +81,7 @@ object ModCompatibility {
 
     @Readonly
     private fun isIncompatibleWith(mod: Ruleset, otherMod: Ruleset) =
-        mod.modOptions.getMatchingUniques(UniqueType.ModIncompatibleWith)
+        mod.modOptions.matchingUniquesSequence(UniqueType.ModIncompatibleWith)
             .any { modNameFilter(otherMod.name, it.params[0]) }
 
     @Readonly
@@ -105,7 +105,7 @@ object ModCompatibility {
             .map { it.name }
             .toList()
 
-        for (unique in mod.modOptions.getMatchingUniques(UniqueType.ModRequires)) {
+        for (unique in mod.modOptions.matchingUniquesSequence(UniqueType.ModRequires)) {
             val filter = unique.params[0]
             if (modNameFilter(baseRuleset.name, filter)) continue
             if (allOtherExtensionModNames.none { modNameFilter(it, filter) }) return false
@@ -129,7 +129,7 @@ object ModCompatibility {
         val otherSelectedExtensionMods = selectedExtensionMods.filterNot { it == mod }.toList()
         if (otherSelectedExtensionMods.any { isIncompatible(mod, it) }) return false
 
-        for (unique in mod.modOptions.getMatchingUniques(UniqueType.ModRequires)) {
+        for (unique in mod.modOptions.matchingUniquesSequence(UniqueType.ModRequires)) {
             val filter = unique.params[0]
             if (modNameFilter(baseRuleset.name, filter)) continue
             if (otherSelectedExtensionMods.none { modNameFilter(it.name, filter) }) return false

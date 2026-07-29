@@ -168,13 +168,13 @@ class CityStatsTable(private val cityScreen: CityScreen) : Table() {
 
         // Supply
         for (resourceSupply in cityView.getCityResourcesAvailableToCity())
-            if (resourceSupply.resource.getMatchingUniques(UniqueType.NotShownOnWorldScreen, cityView.getState()).none())
+            if (resourceSupply.resource.matchingUniquesSequence(UniqueType.NotShownOnWorldScreen, cityView.getState()).none())
                 resourceCounter.add(resourceSupply.resource, resourceSupply.amount)
 
         // Stockpiles
         for ((resourceName, amount) in cityView.getResourceStockpiles()) {
             val resourceObj = cityView.getRuleset().tileResources[resourceName] ?: continue
-            if (resourceObj.getMatchingUniques(UniqueType.NotShownOnWorldScreen, cityView.getState()).none())
+            if (resourceObj.matchingUniquesSequence(UniqueType.NotShownOnWorldScreen, cityView.getState()).none())
                 resourceCounter.add(resourceObj, amount)
         }
 

@@ -117,7 +117,7 @@ object ReligionAutomation {
         if (validCitiesToBuy.isEmpty()) return
 
         val citiesWithBonusCharges = validCitiesToBuy.filter { city ->
-            city.getMatchingUniques(UniqueType.UnitStartingPromotions).any {
+            city.matchingUniquesSequence(UniqueType.UnitStartingPromotions).any {
                 val promotionName = it.params[2]
                 val promotion = city.getRuleset().unitPromotions[promotionName] ?: return@any false
                 promotion.hasUnique(UniqueType.CanSpreadReligion)
@@ -211,7 +211,7 @@ object ReligionAutomation {
         var score = 0f // Roughly equivalent to the sum of stats gained across all cities
 
         for (city in civInfo.cities) {
-            for (tile in city.getCenterTile().getTilesInDistance(city.getWorkRange())) {
+            for (tile in city.getCenterTile().tilesInDistanceSequence(city.getWorkRange())) {
                 val tileRng = tile.stateThisTile.stateBasedRandom("ReligionAutomation.rateBelief")
                 val tileScore = beliefBonusForTile(belief, tile, city)
                 
@@ -494,9 +494,9 @@ object ReligionAutomation {
                 (it.type == beliefType || beliefType == BeliefType.Any)
                     && !additionalBeliefsToExclude.contains(it)
                     && civInfo.religionManager.getReligionWithBelief(it) == null
-                    && it.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+                    && it.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                         .none { unique -> !unique.conditionalsApply(civInfo.state) }
-                    && it.getMatchingUniques(UniqueType.Unavailable, civInfo.state).none()
+                    && it.matchingUniquesSequence(UniqueType.Unavailable, civInfo.state).none()
             }
             .maxByOrNull { rateBelief(civInfo, it) }
     }

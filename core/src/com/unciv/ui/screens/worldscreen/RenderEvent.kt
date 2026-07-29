@@ -50,7 +50,7 @@ class RenderEvent(
                 add(event.renderCivilopediaText(stageWidth * 0.5f, ::openCivilopedia)).row()
             }
 
-            for (choice in choices!!) addChoice(choice)
+            for (choice in choices) addChoice(choice)
         }
     }
 

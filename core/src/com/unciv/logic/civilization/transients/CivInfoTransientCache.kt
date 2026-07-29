@@ -166,7 +166,7 @@ class CivInfoTransientCache(val civInfo: Civilization) {
     private fun updateViewableInvisibleTiles() {
         val newViewableInvisibleTiles = HashSet<Tile>()
         for (unit in civInfo.units.getCivUnits()) {
-            val invisibleUnitUniques = unit.getMatchingUniques(UniqueType.CanSeeInvisibleUnits)
+            val invisibleUnitUniques = unit.matchingUniquesSequence(UniqueType.CanSeeInvisibleUnits)
             if (invisibleUnitUniques.none()) continue
             val visibleUnitTypes = invisibleUnitUniques.map { it.params[0] }
                 .toList() // save this, it'll be seeing a lot of use
@@ -266,7 +266,7 @@ class CivInfoTransientCache(val civInfo: Civilization) {
                 }
             }
 
-            for (unique in civInfo.getMatchingUniques(UniqueType.StatBonusWhenDiscoveringNaturalWonder)) {
+            for (unique in civInfo.matchingUniquesSequence(UniqueType.StatBonusWhenDiscoveringNaturalWonder)) {
 
                 val normalBonus = Stats.parse(unique.params[0])
                 val firstDiscoveredBonus = Stats.parse(unique.params[1])
@@ -303,7 +303,7 @@ class CivInfoTransientCache(val civInfo: Civilization) {
     fun updateHasActiveEnemyMovementPenalty() {
         civInfo.hasActiveEnemyMovementPenalty = civInfo.hasUnique(UniqueType.EnemyUnitsSpendExtraMovement)
         civInfo.enemyMovementPenaltyUniques =
-                civInfo.getMatchingUniques(UniqueType.EnemyUnitsSpendExtraMovement)
+                civInfo.matchingUniquesSequence(UniqueType.EnemyUnitsSpendExtraMovement)
     }
 
     fun updateCitiesConnectedToCapital(initialSetup: Boolean = false):Unit = timeThis("CivInfoTransientCache.updateCitiesConnectedToCapital") {
@@ -360,7 +360,7 @@ class CivInfoTransientCache(val civInfo: Civilization) {
             // First we get all these resources of each city state separately
             val cityStateProvidedResources = ResourceSupplyList()
             var resourceBonusPercentage = 1f
-            for (unique in civInfo.getMatchingUniques(UniqueType.CityStateResources))
+            for (unique in civInfo.matchingUniquesSequence(UniqueType.CityStateResources))
                 resourceBonusPercentage += unique.params[0].toFloat() / 100
             for (cityStateAlly in civInfo.getKnownCivs().filter { it.allyCiv == civInfo }) {
                 for (resourceSupply in cityStateAlly.cityStateFunctions.getCityStateResourcesForAlly()) {
@@ -373,7 +373,7 @@ class CivInfoTransientCache(val civInfo: Civilization) {
             newDetailedCivResources.addByResource(cityStateProvidedResources, Constants.cityStates)
         }
 
-        for (unique in civInfo.getMatchingUniques(UniqueType.ProvidesResources)) {
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.ProvidesResources)) {
             if (unique.sourceObjectType == UniqueTarget.Building || unique.sourceObjectType == UniqueTarget.Wonder) continue // already calculated in city
             val resource = civInfo.gameInfo.ruleset.tileResources[unique.params[1]]!!
             newDetailedCivResources.add(

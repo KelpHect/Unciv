@@ -10,7 +10,9 @@ class TileView(internal val tile: Tile, internal val viewer: Civilization) {
     @Readonly fun owningCity(): CityView? = tile.owningCity?.let { CityView(it, viewer) }
     @Readonly fun getWorkingCity(): CityView? = tile.getWorkingCity()?.let { CityView(it, viewer) }
     @Readonly fun getTilesInDistance(distance: Int): Sequence<TileView> =
-        tile.getTilesInDistance(distance).map { TileView(it, viewer) }
+        tilesInDistanceSequence(distance)
+    @Readonly fun tilesInDistanceSequence(distance: Int): Sequence<TileView> =
+        tile.tilesInDistanceSequence(distance).map { TileView(it, viewer) }
 
     @Readonly fun isCityCenter(): Boolean = tile.isCityCenter()
     @Readonly fun isLocked(): Boolean = tile.isLocked()

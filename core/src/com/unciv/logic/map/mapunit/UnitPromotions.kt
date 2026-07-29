@@ -70,7 +70,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
     @Readonly
     private fun promotionCostModifier(): Float {
         var totalPromotionCostModifier = 1f
-        for (unique in unit.civ.getMatchingUniques(UniqueType.XPForPromotionModifier)) {
+        for (unique in unit.civ.matchingUniquesSequence(UniqueType.XPForPromotionModifier)) {
             totalPromotionCostModifier *= unique.params[0].toPercent()
         }
         // base case if you don't have any the unique that reduce or higher the promotion cost
@@ -191,7 +191,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
 
         val stateForConditionals = unit.cache.state
         if (promotion.hasUnique(UniqueType.Unavailable, stateForConditionals)) return false
-        if (promotion.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+        if (promotion.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
             .any { !it.conditionalsApply(stateForConditionals) }) return false
         return true
     }

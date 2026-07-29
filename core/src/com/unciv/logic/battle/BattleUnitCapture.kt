@@ -48,7 +48,7 @@ object BattleUnitCapture {
     
     @Readonly
     private fun unitCapturedPrizeShipsUnique(attacker: MapUnitCombatant, defender: MapUnitCombatant): Boolean {
-        if (attacker.unit.getMatchingUniques(UniqueType.KillUnitCapture)
+        if (attacker.unit.matchingUniquesSequence(UniqueType.KillUnitCapture)
                 .none { defender.matchesFilter(it.params[0]) }
         ) return false
 
@@ -67,7 +67,7 @@ object BattleUnitCapture {
         if (!attacker.isMelee()) return false
         var unitCaptured = false
         val state = GameContext(attacker.getCivInfo(), ourCombatant = attacker, theirCombatant = defender)
-        for (unique in attacker.getMatchingUniques(UniqueType.GainFromDefeatingUnit, state, true)) {
+        for (unique in attacker.matchingUniquesSequence(UniqueType.GainFromDefeatingUnit, state, true)) {
             if (defender.unit.matchesFilter(unique.params[0])) {
                 attacker.getCivInfo().addGold(unique.params[1].toInt())
                 unitCaptured = true
@@ -202,7 +202,7 @@ object BattleUnitCapture {
         capturedUnit.cache.state = GameContext(capturedUnit)
 
         val workerTypeUnit = capturingCiv.gameInfo.ruleset.units.values
-            .firstOrNull { it.isCivilian() && it.getMatchingUniques(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
+            .firstOrNull { it.isCivilian() && it.matchingUniquesSequence(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
             .any { unique -> unique.params[0] == "Land" } }
             ?: return null
         return capturingCiv.units.placeUnitNearTile(capturedUnit.currentTile.position, workerTypeUnit, capturedUnit.id)

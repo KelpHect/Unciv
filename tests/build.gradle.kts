@@ -4,6 +4,12 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 // Java 21+ deprecates dynamic agent loading: https://openjdk.org/jeps/451
 val mockitoAgent = configurations.create("mockitoAgent")
 
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+    }
+}
+
 dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito)

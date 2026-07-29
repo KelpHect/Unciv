@@ -4,6 +4,12 @@ plugins {
     id("kotlin")
 }
 
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+    }
+}
+
 dependencies {
     testImplementation(libs.junit)
 }

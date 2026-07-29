@@ -91,7 +91,7 @@ class CityConquestFunctions(val city: City) {
                 city.cityConstructions.removeBuilding(building)
 
             // Check if we exceed MaxNumberBuildable for any buildings
-            for (unique in building.getMatchingUniques(UniqueType.MaxNumberBuildable)) {
+            for (unique in building.matchingUniquesSequence(UniqueType.MaxNumberBuildable)) {
                 if (city.civ.cities
                         .count {
                             it.cityConstructions.containsBuildingOrEquivalent(building.name)

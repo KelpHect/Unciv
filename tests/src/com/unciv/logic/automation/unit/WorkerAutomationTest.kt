@@ -119,7 +119,7 @@ internal class WorkerAutomationTest {
         }
 
         testGame.addCity(civInfo, testGame.tileMap[0,0])
-        for (tile in testGame.tileMap[0,0].getTilesInDistance(3)) {
+        for (tile in testGame.tileMap[0,0].tilesInDistanceSequence(3)) {
             tile.baseTerrain = Constants.grassland
         }
 
@@ -148,10 +148,10 @@ internal class WorkerAutomationTest {
         val centerTile = testGame.tileMap[0,0] // owned by city
         val city = testGame.addCity(civInfo, centerTile)
         civInfo.addGold(100000000)
-        for (tile in centerTile.getTilesInDistanceRange(2..3)) {
+        for (tile in centerTile.tilesInDistanceRangeSequence(2..3)) {
             city.expansion.buyTile(tile)
         }
-        for (tile in centerTile.getTilesInDistance(3)) {
+        for (tile in centerTile.tilesInDistanceSequence(3)) {
             tile.baseTerrain = Constants.plains
         }
         city.reassignAllPopulation()
@@ -181,7 +181,7 @@ internal class WorkerAutomationTest {
 
         var finishedCount = 0      
         var inProgressCount = 0
-        for (tile in centerTile.getTilesInDistance(3)) {
+        for (tile in centerTile.tilesInDistanceSequence(3)) {
             if (tile.improvement != null && !tile.isCityCenter()) finishedCount++
             if (tile.turnsToImprovement != 0) inProgressCount++
         }
@@ -206,7 +206,7 @@ internal class WorkerAutomationTest {
         val cities = listOf(city1, city2)
         civInfo.addGold(100000000)
         for (city in cities) {
-            for (tile in city.getCenterTile().getTilesInDistance(3)) {
+            for (tile in city.getCenterTile().tilesInDistanceSequence(3)) {
                 if (tile.owningCity == null)
                     city.expansion.buyTile(tile)
                 tile.baseTerrain = Constants.grassland
@@ -245,7 +245,7 @@ internal class WorkerAutomationTest {
         var inProgressCount = 0
         val checkedTiles = HashSet<Tile>()
         for (city in cities) {
-            for (tile in city.getCenterTile().getTilesInDistance(3)) {
+            for (tile in city.getCenterTile().tilesInDistanceSequence(3)) {
                 if (checkedTiles.contains(tile)) continue
                 if (tile.improvement != null && !tile.isCityCenter()) finishedCount++
                 if (tile.turnsToImprovement != 0) inProgressCount++
@@ -283,7 +283,7 @@ internal class WorkerAutomationTest {
         val cities = listOf(city1, city2)
         civInfo.addGold(100000000)
         for (city in cities) {
-            for (tile in city.getCenterTile().getTilesInDistance(3)) {
+            for (tile in city.getCenterTile().tilesInDistanceSequence(3)) {
                 if (tile.owningCity == null)
                     city.expansion.buyTile(tile)
             }
@@ -319,7 +319,7 @@ internal class WorkerAutomationTest {
 
         var finishedCount = 0
         var inProgressCount = 0
-        for (tile in testGame.tileMap[0,0].getTilesInDistance(5)) {
+        for (tile in testGame.tileMap[0,0].tilesInDistanceSequence(5)) {
             if (tile.roadStatus != RoadStatus.None && !tile.isCityCenter()) finishedCount++
             if (tile.turnsToImprovement != 0) inProgressCount++
         }

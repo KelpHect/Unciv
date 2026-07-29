@@ -416,7 +416,7 @@ object NextTurnAutomation {
         
         val citiesRequiringManualPlacement = civInfo.getKnownCivs().filter { it.isAtWarWith(civInfo) }
             .flatMap { it.cities }
-            .filter { it.getCenterTile().getTilesInDistance(4).count { it.militaryUnit?.civ == civInfo } > 4 }
+            .filter { it.getCenterTile().tilesInDistanceSequence(4).count { it.militaryUnit?.civ == civInfo } > 4 }
             .toList()
 
         for (unit in sortedUnits) applyPromotions(unit)
@@ -464,7 +464,7 @@ object NextTurnAutomation {
 
     /** All units will continue after this to the regular automation, so units not moved in this function will still move */
     private fun automateCityConquer(civInfo: Civilization, city: City){
-        @Readonly fun ourUnitsInRange(range: Int) = city.getCenterTile().getTilesInDistance(range)
+        @Readonly fun ourUnitsInRange(range: Int) = city.getCenterTile().tilesInDistanceSequence(range)
             .mapNotNull { it.militaryUnit }.filter { it.civ == civInfo && (!it.baseUnit.isMelee() || it.health > 30) }.toList()
         
         
@@ -495,13 +495,13 @@ object NextTurnAutomation {
             // We're so close, full speed ahead!
             if (city.health < city.getMaxHealth() / 5) attackIfPossible(unit, city.getCenterTile())
             
-            val tilesToTarget = city.getCenterTile().getTilesInDistance(4).toList()
+            val tilesToTarget = city.getCenterTile().tilesInDistanceSequence(4).toList()
             
             val attackableEnemies = TargetHelper.getAttackableEnemies(unit,
                 unit.movement.getDistanceToTiles(), tilesToTarget)
             if (attackableEnemies.isEmpty()) continue
             val mostSurroundedEnemy = attackableEnemies.maxBy {
-                it.tileToAttack.getTilesAtDistance(1).count { it.militaryUnit?.civ == unit.civ }
+                it.tileToAttack.tilesAtDistanceSequence(1).count { it.militaryUnit?.civ == unit.civ }
             } // aims to maximize flanking bonus and number of hits in order to get kills
 
             Battle.moveAndAttack(MapUnitCombatant(unit), mostSurroundedEnemy)
@@ -511,7 +511,7 @@ object NextTurnAutomation {
     @VisibleForTesting
     fun automateSettlerEscorting(civInfo: Civilization){
         val capitalTile = civInfo.getCapital()!!.getCenterTile()
-        @Readonly fun bestUnitInRange(tile: Tile, range: Int) = tile.getTilesInDistance(range)
+        @Readonly fun bestUnitInRange(tile: Tile, range: Int) = tile.tilesInDistanceSequence(range)
             .mapNotNull { it.militaryUnit }.filter {
                 it.civ == civInfo
                     && it.health >= 100
@@ -601,7 +601,7 @@ object NextTurnAutomation {
             // all suitable land may be occupied already
             // 10 tiles away and 6 "options" are heuristics based on nothing, feel free to change 
             val unoccupiedNearishTiles = civInfo.cities.asSequence()
-                .flatMap { it.getCenterTile().getTilesInDistance(10) }
+                .flatMap { it.getCenterTile().tilesInDistanceSequence(10) }
                 .filter { it.owningCity == null && it.neighbors.all { it.owningCity == null } }
                 .count()
             if (unoccupiedNearishTiles < 6) return
@@ -620,7 +620,7 @@ object NextTurnAutomation {
         if (settlersInFlight >= maxSettlersInFlight) return
         val settlerUnits = civInfo.gameInfo.ruleset.units.values
                 .filter { it.isCityFounder() && it.isBuildable(civInfo) &&
-                    personality.getMatchingUniques(UniqueType.WillNotBuild, civInfo.state)
+                    personality.matchingUniquesSequence(UniqueType.WillNotBuild, civInfo.state)
                         .none { unique -> it.matchesFilter(unique.params[0], civInfo.state) } }
         if (settlerUnits.isEmpty()) return
 

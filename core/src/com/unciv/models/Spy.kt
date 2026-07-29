@@ -424,7 +424,7 @@ class Spy private constructor() : IsPartOfGameInfoSerialization {
         val maxRank = civInfo.gameInfo.ruleset.modOptions.constants.maxSpyRank
         var effective = rank
         val city = getCityOrNull() ?: return effective.coerceIn(1, maxRank)
-        effective += city.getMatchingUniques(
+        effective += city.matchingUniquesSequence(
             UniqueType.CounterIntelligenceSpyRankBonus,
             city.state,
             includeCivUniques = true
@@ -451,18 +451,18 @@ class Spy private constructor() : IsPartOfGameInfoSerialization {
         when {
             city == null -> {
                 // Spy is in hideout - effectiveness won't matter
-                friendlyUniques = civInfo.getMatchingUniques(UniqueType.SpyEffectiveness)
+                friendlyUniques = civInfo.matchingUniquesSequence(UniqueType.SpyEffectiveness)
                 enemyUniques = emptySequence()
             }
             city.civ == civInfo -> {
                 // Spy is in our own city
-                friendlyUniques = city.getMatchingUniques(UniqueType.SpyEffectiveness, city.state, includeCivUniques = true)
+                friendlyUniques = city.matchingUniquesSequence(UniqueType.SpyEffectiveness, city.state, includeCivUniques = true)
                 enemyUniques = emptySequence()
             }
             else -> {
                 // Spy is active in a foreign city
-                friendlyUniques = civInfo.getMatchingUniques(UniqueType.SpyEffectiveness)
-                enemyUniques = city.getMatchingUniques(UniqueType.EnemySpyEffectiveness, city.state, includeCivUniques = true)
+                friendlyUniques = civInfo.matchingUniquesSequence(UniqueType.SpyEffectiveness)
+                enemyUniques = city.matchingUniquesSequence(UniqueType.EnemySpyEffectiveness, city.state, includeCivUniques = true)
             }
         }
         var totalEfficiency = 1.0

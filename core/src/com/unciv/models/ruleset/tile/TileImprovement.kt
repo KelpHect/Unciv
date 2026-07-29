@@ -36,9 +36,9 @@ class TileImprovement : RulesetStatsObject() {
     fun getTurnsToBuild(civInfo: Civilization, unit: MapUnit): Int {
         val state = GameContext(civInfo, unit = unit)
         
-        val buildSpeedUniques = unit.getMatchingUniques(UniqueType.SpecificImprovementTime, state, checkCivInfoUniques = true)
+        val buildSpeedUniques = unit.matchingUniquesSequence(UniqueType.SpecificImprovementTime, state, checkCivInfoUniques = true)
             .filter { matchesFilter(it.params[1], state) }
-        val buildSpeedIncreases = unit.getMatchingUniques(UniqueType.ImprovementTimeIncrease, state, checkCivInfoUniques = true)
+        val buildSpeedIncreases = unit.matchingUniquesSequence(UniqueType.ImprovementTimeIncrease, state, checkCivInfoUniques = true)
             .filter { matchesFilter(it.params[0], state) }
         val increase = buildSpeedIncreases.sumOf { it.params[1].toDouble() }.toFloat().toPercent()
         val buildTime = if (increase == 0f) 0f
@@ -175,7 +175,7 @@ class TileImprovement : RulesetStatsObject() {
         return ruleset.units.values.asSequence()
             .filter { unit ->
                 turnsToBuild != -1
-                    && unit.getMatchingUniques(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
+                    && unit.matchingUniquesSequence(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
                         .any { matchesBuildImprovementsFilter(it.params[0]) }
                 || unit.hasUnique(UniqueType.CreateWaterImprovements)
                     && terrainsCanBeBuiltOnTypes.contains(TerrainType.Water)
@@ -197,7 +197,7 @@ class TileImprovement : RulesetStatsObject() {
     fun getCreatingUnits(ruleset: Ruleset): List<BaseUnit> {
         return ruleset.units.values.asSequence()
             .filter { unit ->
-                unit.getMatchingUniques(UniqueType.ConstructImprovementInstantly, GameContext.IgnoreConditionals)
+                unit.matchingUniquesSequence(UniqueType.ConstructImprovementInstantly, GameContext.IgnoreConditionals)
                     .any { it.params[0] == name }
             }.toList()
     }

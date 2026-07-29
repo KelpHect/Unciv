@@ -250,7 +250,7 @@ class MapEditorEditTab(
                 bfs.stepToEnd()
                 bfs.getReachedTiles().toSet()
             } else {
-                tile.getTilesInDistance(brushSize - 1).toSet()
+                tile.tilesInDistanceSequence(brushSize - 1).toSet()
             }
         
         for (tileToPaint in tiles) {

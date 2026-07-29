@@ -34,7 +34,7 @@ class UnitNameGroup : RulesetObject() {
     @Readonly
     fun getUnits(ruleset: Ruleset, gameContext: GameContext = GameContext.IgnoreConditionals) =
         ruleset.units.values.filter { unit ->
-            unit.getMatchingUniques(UniqueType.OneTimeUnitGetsName).any { unique ->
+            unit.matchingUniquesSequence(UniqueType.OneTimeUnitGetsName).any { unique ->
                 // Match by using either the direct name, or a tag
                 unique.params[1] == name || hasTagUnique(unique.params[1], gameContext)
             }

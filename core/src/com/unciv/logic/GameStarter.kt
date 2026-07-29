@@ -396,7 +396,7 @@ class GameStarter private constructor(
 
         val cityCenterMinStats = sequenceOf(ruleSet.tileImprovements[Constants.cityCenter])
             .filterNotNull()
-            .flatMap { it.getMatchingUniques(UniqueType.EnsureMinimumStats, GameContext.IgnoreConditionals) }
+            .flatMap { it.matchingUniquesSequence(UniqueType.EnsureMinimumStats, GameContext.IgnoreConditionals) }
             .firstOrNull()
             ?.stats ?: Stats.DefaultCityCenterMinimum
 
@@ -626,7 +626,7 @@ class GameStarter private constructor(
             val distanceToNext = minimumDistanceBetweenStartingLocations /
                 (if (civ.isCityState) 2 else 1) // We allow city states to squeeze in tighter
             @Suppress("DEPRECATION")
-            freeTiles.removeAll(tileMap.getTilesInDistance(startingLocation.position, distanceToNext)
+            freeTiles.removeAll(tileMap.tilesInDistanceSequence(startingLocation.position, distanceToNext)
                 .toSet())
         }
         return if (startingLocations.size < civsOrderedByAvailableLocations.size) null else startingLocations
@@ -680,7 +680,7 @@ class GameStarter private constructor(
                     val tileToAvoid = startBias.getPlaceholderParameters()[0]
                     preferredTiles.filter { tile ->
                         @Suppress("DEPRECATION")
-                        !tile.getTilesInDistance(1).any {
+                        !tile.tilesInDistanceSequence(1).any {
                             it.matchesTerrainFilter(tileToAvoid, null)
                         }
                     }
@@ -688,7 +688,7 @@ class GameStarter private constructor(
                 startBias in tileMap.naturalWonders -> preferredTiles  // passthrough: already failed
                 else -> preferredTiles.filter { tile ->
                     @Suppress("DEPRECATION")
-                    tile.getTilesInDistance(1).any {
+                    tile.tilesInDistanceSequence(1).any {
                         it.matchesTerrainFilter(startBias, null)
                     }
                 }

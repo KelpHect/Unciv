@@ -138,12 +138,12 @@ class Nation : RulesetObject() {
     fun getStartBias(ruleset: Ruleset, gameContext: GameContext = GameContext.IgnoreConditionals): Collection<String> {
         val result = LinkedHashSet<String>()
         result.addAll(startBias)
-        for (unique in uniqueMap.getMatchingUniques(UniqueType.StartBias, gameContext)) {
+        for (unique in uniqueMap.matchingUniquesSequence(UniqueType.StartBias, gameContext)) {
             result.add(unique.params[0])
         }
         val typeName = cityStateType ?: return result
         val type = ruleset.cityStateTypes[typeName] ?: return result
-        for (unique in type.uniqueMap.getMatchingUniques(UniqueType.StartBias, gameContext)) {
+        for (unique in type.uniqueMap.matchingUniquesSequence(UniqueType.StartBias, gameContext)) {
             result.add(unique.params[0])
         }
         return result

@@ -30,7 +30,7 @@ sealed class PerpetualConstruction(override var name: String, val description: S
 
             val context = city.state
             @Suppress("DEPRECATION") // forEachMatchingUnique doesn't allow a `return true` exit
-            return city.civ.getMatchingUniques(UniqueType.EnablesStatProduction, context)
+            return city.civ.matchingUniquesSequence(UniqueType.EnablesStatProduction, context)
                 .any { it.params[0] == stat.name }
         }
     }

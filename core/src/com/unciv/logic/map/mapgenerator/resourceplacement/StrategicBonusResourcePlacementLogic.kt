@@ -91,7 +91,7 @@ object StrategicBonusResourcePlacementLogic {
                 .maxByOrNull { it.value }!!.key
             else region.type
             val resourceUnique =
-                ruleset.terrains[terrain]!!.getMatchingUniques(UniqueType.RegionExtraResource).firstOrNull()
+                ruleset.terrains[terrain]!!.matchingUniquesSequence(UniqueType.RegionExtraResource).firstOrNull()
             // If this region has an explicit "this is the bonus" unique go with that, else random appropriate
             val resource = if (resourceUnique != null) ruleset.tileResources[resourceUnique.params[0]]!!
             else {
@@ -100,7 +100,7 @@ object StrategicBonusResourcePlacementLogic {
                 if (possibleResources.isEmpty()) continue
                 possibleResources.random(rng)
             }
-            val candidateTiles = tileMap[region.startPosition!!].getTilesAtDistance(3).shuffled(rng)
+            val candidateTiles = tileMap[region.startPosition!!].tilesAtDistanceSequence(3).shuffled(rng)
             val amount = if (resourceUnique != null) 2 else 1 // Place an extra if the region type requests it
             if (MapRegionResources.tryAddingResourceToTiles(tileData, resource, amount, candidateTiles) == 0) {
                 // We couldn't place any, try adding a fish instead
@@ -245,7 +245,7 @@ object StrategicBonusResourcePlacementLogic {
                 if (fallbackStrategic) {
                     if (it.generatesNaturallyOn(tile)) 1f else 0f
                 } else {
-                    val uniques = it.getMatchingUniques(UniqueType.MinorDepositWeighting, conditionalTerrain).toList()
+                    val uniques = it.matchingUniquesSequence(UniqueType.MinorDepositWeighting, conditionalTerrain).toList()
                     uniques.sumOf { unique -> unique.params[0].toInt() }.toFloat()
                 }
             }
@@ -284,7 +284,7 @@ object StrategicBonusResourcePlacementLogic {
                         tileData,
                         resourceToPlace,
                         1,
-                        cityStateLocation.getTilesInDistanceRange(1..3)
+                        cityStateLocation.tilesInDistanceRangeSequence(1..3)
                     )
             }
     }

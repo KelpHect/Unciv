@@ -117,9 +117,9 @@ open class Policy : RulesetObject() {
         }
 
         fun isEnabledByPolicy(rulesetObject: IRulesetObject) =
-                rulesetObject.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any {
+                rulesetObject.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any {
                     it.getModifiers(UniqueType.ConditionalAfterPolicyOrBelief).any { it.params[0] == name } }
-                || rulesetObject.getMatchingUniques(UniqueType.Unavailable).any {
+                || rulesetObject.matchingUniquesSequence(UniqueType.Unavailable).any {
                     it.getModifiers(UniqueType.ConditionalBeforePolicyOrBelief).any { it.params[0] == name }
                 }
 
@@ -136,12 +136,12 @@ open class Policy : RulesetObject() {
 
 
         fun isDisabledByPolicy(rulesetObject: IRulesetObject): Boolean {
-            if (rulesetObject.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any {
+            if (rulesetObject.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals).any {
                     it.getModifiers(UniqueType.ConditionalBeforePolicyOrBelief).any { it.params[0] == name }
                 })
                 return true
 
-            if (rulesetObject.getMatchingUniques(UniqueType.Unavailable, GameContext.IgnoreConditionals).any {
+            if (rulesetObject.matchingUniquesSequence(UniqueType.Unavailable, GameContext.IgnoreConditionals).any {
                     it.getModifiers(UniqueType.ConditionalAfterPolicyOrBelief).any { it.params[0] == name } })
                 return true
             

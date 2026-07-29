@@ -53,7 +53,7 @@ class RuinsManager(
         if (ruinReward.isUnavailableBySettings(civInfo.gameInfo)) return false
         val gameContext = GameContext(civInfo, unit = unit, tile = unit.getTile())
         if (ruinReward.hasUnique(UniqueType.Unavailable, gameContext)) return false
-        if (ruinReward.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+        if (ruinReward.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                 .any { !it.conditionalsApply(gameContext) }) return false
         return true
     }

@@ -161,21 +161,21 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
 
         val conditionalState = city.state
         return (
-            city.getMatchingUniques(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
+            city.matchingUniquesSequence(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
                 .any {
                     it.params[2] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
                     && city.matchesFilter(it.params[3])
                 }
-            || city.getMatchingUniques(UniqueType.BuyBuildingsByProductionCost, conditionalState)
+            || city.matchingUniquesSequence(UniqueType.BuyBuildingsByProductionCost, conditionalState)
                 .any { it.params[1] == stat.name && matchesFilter(it.params[0], conditionalState) }
-            || city.getMatchingUniques(UniqueType.BuyBuildingsWithStat, conditionalState)
+            || city.matchingUniquesSequence(UniqueType.BuyBuildingsWithStat, conditionalState)
                 .any {
                     it.params[1] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
                     && city.matchesFilter(it.params[2])
                 }
-            || city.getMatchingUniques(UniqueType.BuyBuildingsForAmountStat, conditionalState)
+            || city.matchingUniquesSequence(UniqueType.BuyBuildingsForAmountStat, conditionalState)
                 .any {
                     it.params[2] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
@@ -189,7 +189,7 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
     private fun getSpecificBuyCost(city: City, stat: Stat): Float? {
         val conditionalState = city.state
         return sequence {
-            yieldAll(city.getMatchingUniques(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
+            yieldAll(city.matchingUniquesSequence(UniqueType.BuyBuildingsIncreasingCost, conditionalState)
                 .filter {
                     it.params[2] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
@@ -202,11 +202,11 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
                     ) * city.civ.gameInfo.speed.statCostModifiers[stat]!!
                 }
             )
-            yieldAll(city.getMatchingUniques(UniqueType.BuyBuildingsByProductionCost, conditionalState)
+            yieldAll(city.matchingUniquesSequence(UniqueType.BuyBuildingsByProductionCost, conditionalState)
                 .filter { it.params[1] == stat.name && matchesFilter(it.params[0], conditionalState) }
                 .map { (getProductionCost(city.civ, city) * it.params[2].toInt()).toFloat() }
             )
-            if (city.getMatchingUniques(UniqueType.BuyBuildingsWithStat, conditionalState)
+            if (city.matchingUniquesSequence(UniqueType.BuyBuildingsWithStat, conditionalState)
                 .any {
                     it.params[1] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
@@ -215,7 +215,7 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
             ) {
                 yield(city.civ.getEra().baseUnitBuyCost * city.civ.gameInfo.speed.statCostModifiers[stat]!!)
             }
-            yieldAll(city.getMatchingUniques(UniqueType.BuyBuildingsForAmountStat, conditionalState)
+            yieldAll(city.matchingUniquesSequence(UniqueType.BuyBuildingsForAmountStat, conditionalState)
                 .filter {
                     it.params[2] == stat.name
                     && matchesFilter(it.params[0], conditionalState)
@@ -236,11 +236,11 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
         var cost = getBaseBuyCost(city, stat)?.toDouble() ?: return null
         val conditionalState = city.state
 
-        for (unique in city.getMatchingUniques(UniqueType.BuyItemsDiscount))
+        for (unique in city.matchingUniquesSequence(UniqueType.BuyItemsDiscount))
             if (stat.name == unique.params[0])
                 cost *= unique.params[1].toPercent()
 
-        for (unique in city.getMatchingUniques(UniqueType.BuyBuildingsDiscount)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.BuyBuildingsDiscount)) {
             if (stat.name == unique.params[0] && matchesFilter(unique.params[1], conditionalState))
                 cost *= unique.params[2].toPercent()
         }
@@ -327,11 +327,11 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
                         yield(RejectionReasonType.MustBeNextToTile.toInstance(unique.text))
 
                 UniqueType.MustNotBeNextTo ->
-                    if (cityCenter.getTilesInDistance(1).any { it.matchesFilter(unique.params[0], civ) })
+                    if (cityCenter.tilesInDistanceSequence(1).any { it.matchesFilter(unique.params[0], civ) })
                         yield(RejectionReasonType.MustNotBeNextToTile.toInstance(unique.text))
 
                 UniqueType.MustHaveOwnedWithinTiles ->
-                    if (cityCenter.getTilesInDistance(unique.params[1].toInt())
+                    if (cityCenter.tilesInDistanceSequence(unique.params[1].toInt())
                         .none { it.matchesFilter(unique.params[0], civ) && it.getOwner() == civ }
                     )
                         yield(RejectionReasonType.MustOwnTile.toInstance(unique.text))
@@ -431,7 +431,7 @@ class Building : RulesetStatsObject(), INonPerpetualConstruction {
                 yield(RejectionReasonType.RequiresNearbyResource.toInstance("Nearby $requiredNearbyImprovedResources required"))
         }
 
-        for (unique in civ.getMatchingUniques(UniqueType.CannotBuildBuildings, stateForConditionals))
+        for (unique in civ.matchingUniquesSequence(UniqueType.CannotBuildBuildings, stateForConditionals))
             if (this@Building.matchesFilter(unique.params[0], stateForConditionals)) {
                 yield(RejectionReasonType.CannotBeBuilt.toInstance())
             }

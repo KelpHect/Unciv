@@ -129,7 +129,7 @@ class UnitManager(val civInfo: Civilization) {
         if (unit.getResourceRequirementsPerTurn().isNotEmpty())
             civInfo.cache.updateCivResources()
 
-        for (unique in civInfo.getMatchingUniques(UniqueType.LandUnitsCrossTerrainAfterUnitGained, unit.cache.state)) {
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.LandUnitsCrossTerrainAfterUnitGained, unit.cache.state)) {
             if (unit.matchesFilter(unique.params[1])) {
                 civInfo.passThroughImpassableUnlocked = true    // Update the cached Boolean
                 civInfo.passableImpassables.add(unique.params[0])   // Add to list of passable impassables

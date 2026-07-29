@@ -1133,15 +1133,20 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## Current verification health
 
-- [ ] Eliminate the clean-build Kotlin warning backlog and add a warning-free
-  compiler gate. A clean Linux worker/desktop build currently succeeds but
-  reports existing deprecated engine iteration APIs, unnecessary null
-  assertions/safe calls, and always-true conditions across shared gameplay and
-  UI sources. Incremental Windows builds can hide this backlog; do not describe
-  the repository as warning-clean until a clean cross-platform compile emits
-  none. The Packr 4.0.0 packaging JVM also emits its upstream
-  `Reflection.getCallerClass` performance diagnostic; replace or patch that
-  build-only tool before claiming a completely diagnostic-free release lane.
+- [x] Eliminate the clean-build Kotlin warning backlog and add a warning-free
+  compiler gate. Every Kotlin-bearing project now enables
+  `allWarningsAsErrors`, including core, tests, server, desktop, Android, the
+  root multiplatform project, and build tooling. The cleanup replaced deprecated
+  eager-looking engine iteration calls with explicit lazy sequence APIs,
+  removed unnecessary null/conversion/control-flow constructs, and retains
+  narrowly documented suppressions only where old saves, old rulesets, or
+  legacy test fixtures require deprecated serialized names. A regression test
+  proves the explicit BaseUnit lookup still includes UnitType uniques. Clean
+  worker/desktop/client compilation, the complete gameplay suite, packaged
+  worker/mod parity, desktop distribution, and Android debug/release APK/AAB
+  gates pass without compiler warnings. The accepted portable desktop path
+  uses `jpackage`, not Packr 4.0.0, so its upstream reflection diagnostic is
+  outside the release lane.
 - Clean commit `a42aa6263` produced the installable debug-signed Android APK,
   standalone desktop JAR, and self-contained Windows desktop image. Android
   emulator installation/launch, both desktop smoke launches, the focused

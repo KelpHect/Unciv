@@ -184,7 +184,7 @@ object UniqueTriggerActivation {
                 if (civUnit.isCityFounder() && civInfo.isOneCityChallenger())
                     return null
 
-                val limit = civUnit.getMatchingUniques(UniqueType.MaxNumberBuildable)
+                val limit = civUnit.matchingUniquesSequence(UniqueType.MaxNumberBuildable)
                     .map { it.params[0].toInt() }.minOrNull()
                 if (limit != null && limit <= civInfo.units.getCivUnits().count { it.name == civUnit.name })
                     return null
@@ -225,7 +225,7 @@ object UniqueTriggerActivation {
                 if (civUnit.isCityFounder() && civInfo.isOneCityChallenger())
                     return null
 
-                val limit = civUnit.getMatchingUniques(UniqueType.MaxNumberBuildable)
+                val limit = civUnit.matchingUniquesSequence(UniqueType.MaxNumberBuildable)
                     .map { it.params[0].toInt() }.minOrNull()
                 val unitCount = civInfo.units.getCivUnits().count { it.name == civUnit.name }
                 val amountFromTriggerable = unique.params[0].toInt()
@@ -317,7 +317,7 @@ object UniqueTriggerActivation {
                     return null
 
                 // Existing limit logic (based on the number of similar units the civ already owns)
-                val limit = civUnit.getMatchingUniques(UniqueType.MaxNumberBuildable)
+                val limit = civUnit.matchingUniquesSequence(UniqueType.MaxNumberBuildable)
                     .map { it.params[0].toInt() }.minOrNull()
                 val unitCount = civInfo.units.getCivUnits().count { it.name == civUnit.name }
                 val amountFromTriggerable = unique.params[0].toInt()
@@ -368,7 +368,7 @@ object UniqueTriggerActivation {
                 if (civUnit.isCityFounder() && civInfo.isOneCityChallenger()) {
                      val replacementUnit = ruleset.units.values
                          .firstOrNull {
-                             it.getMatchingUniques(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
+                             it.matchingUniquesSequence(UniqueType.BuildImprovements, GameContext.IgnoreConditionals)
                                 .any { unique -> unique.params[0] == "Land" }
                          } ?: return null
                     civUnit = civInfo.getEquivalentUnit(replacementUnit.name)
@@ -971,7 +971,7 @@ object UniqueTriggerActivation {
                 val isAll = amount in Constants.all
                 val positions = ArrayList<HexCoord>()
 
-                var explorableTiles = tile.getTilesInDistance(radius)
+                var explorableTiles = tile.tilesInDistanceSequence(radius)
                     .filter { !it.isExplored(civInfo) && it.matchesFilter(filter) }
 
                 if (explorableTiles.none())
@@ -1008,14 +1008,14 @@ object UniqueTriggerActivation {
                 val radius = unique.params[1].toInt()
                 val chance = unique.params[2].toFloat() / 100f
 
-                val revealCenter = tile.getTilesAtDistance(distance)
+                val revealCenter = tile.tilesAtDistanceSequence(distance)
                     .filter { !it.isExplored(civInfo) }
                     .toList()
                     .randomOrNull(tileBasedRandom)
                     ?: return null
 
                 return {
-                    revealCenter.getTilesInDistance(radius)
+                    revealCenter.tilesInDistanceSequence(radius)
                         .filter { tileBasedRandom.nextFloat() < chance }
                         .forEach { it.setExplored(civInfo, true) }
                     civInfo.cache.updateViewableTiles()
@@ -1369,7 +1369,7 @@ object UniqueTriggerActivation {
                 val tileFilter = unique.params[0]
                 val radius = unique.params[1].toInt()
                 if (radius < 0) return null
-                val tilesToTakeOver = tile.getTilesInDistance(radius)
+                val tilesToTakeOver = tile.tilesInDistanceSequence(radius)
                     .filter {
                         !it.isCityCenter() && it.matchesFilter(tileFilter) && it.getOwner() != civInfo
                     }.toList()
@@ -1429,9 +1429,9 @@ object UniqueTriggerActivation {
                     }
                     .filter {
                         // Validate that it's available
-                        it.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+                        it.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                             .none { unique -> !unique.conditionalsApply(unit.cache.state) } &&
-                        it.getMatchingUniques(UniqueType.Unavailable, GameContext.IgnoreConditionals)
+                        it.matchingUniquesSequence(UniqueType.Unavailable, GameContext.IgnoreConditionals)
                             .none { unique -> unique.conditionalsApply(unit.cache.state) }
                     }
                     .flatMap { group -> 

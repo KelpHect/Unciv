@@ -277,11 +277,11 @@ object MinorCivPlacer {
                 startBias.equalsPlaceholderText("Avoid []") -> {
                     val tileToAvoid = startBias.getPlaceholderParameters()[0]
                     preferred.filter { tile ->
-                        tile.getTilesInDistance(1).none { it.matchesTerrainFilter(tileToAvoid, null) }
+                        tile.tilesInDistanceSequence(1).none { it.matchesTerrainFilter(tileToAvoid, null) }
                     }
                 }
                 else -> preferred.filter { tile ->
-                    tile.getTilesInDistance(1).any { it.matchesTerrainFilter(startBias, null) }
+                    tile.tilesInDistanceSequence(1).any { it.matchesTerrainFilter(startBias, null) }
                 }
             }
         }
@@ -296,7 +296,7 @@ object MinorCivPlacer {
     @Readonly
     private fun canPlaceMinorCiv(tile: Tile, tileData: TileDataMap) = !tile.isWater && !tile.isImpassible() &&
         !tileData[tile]!!.isJunk &&
-        tile.getBaseTerrain().getMatchingUniques(UniqueType.HasQuality).none { it.params[0] == "Undesirable" } && // So we don't get snow hills
+        tile.getBaseTerrain().matchingUniquesSequence(UniqueType.HasQuality).none { it.params[0] == "Undesirable" } && // So we don't get snow hills
         tile.neighbors.count() == 6 // Avoid map edges
 
     private fun placeMinorCiv(civ: Civilization, tileMap: TileMap, tile: Tile, tileData: TileDataMap, ruleset: Ruleset) {

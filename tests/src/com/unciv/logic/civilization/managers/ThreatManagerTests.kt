@@ -174,8 +174,8 @@ class ThreatManagerTests {
         testGame.addUnit("Warrior", enemyCiv, testGame.getTile(3,0))
         testGame.addUnit("Archer", enemyCiv, testGame.getTile(-3,0))
         val dangerousTiles = threatManager.getDangerousTiles(centerTile.militaryUnit!!,3)
-        assertEquals(null, testGame.getTile(3,0).getTilesInDistance(1).firstOrNull {tile -> !dangerousTiles.contains(tile)})
-        assertEquals(null, testGame.getTile(-3,0).getTilesInDistance(2).firstOrNull {tile -> !dangerousTiles.contains(tile)})
+        assertEquals(null, testGame.getTile(3,0).tilesInDistanceSequence(1).firstOrNull {tile -> !dangerousTiles.contains(tile)})
+        assertEquals(null, testGame.getTile(-3,0).tilesInDistanceSequence(2).firstOrNull {tile -> !dangerousTiles.contains(tile)})
     }
 
 }

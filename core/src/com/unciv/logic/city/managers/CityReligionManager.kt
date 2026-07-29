@@ -63,7 +63,11 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
     @Readonly
     @Deprecated(message = "forEachUnique is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachUnique"))
-    fun getUniques(uniqueType: UniqueType): Sequence<Unique> {
+    fun getUniques(uniqueType: UniqueType): Sequence<Unique> = uniquesSequence(uniqueType)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun uniquesSequence(uniqueType: UniqueType): Sequence<Unique> {
         val majorityReligion = getMajorityReligion() ?: return emptySequence()
         return majorityReligion.followerBeliefUniqueMap.getUniques(uniqueType)
     }
@@ -140,7 +144,7 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
         val religionOwningCiv = newMajorityReligionObject.foundingCiv
         if (religionOwningCiv.hasUnique(UniqueType.StatsWhenAdoptingReligion)) {
             val statsGranted =
-                religionOwningCiv.getMatchingUniques(UniqueType.StatsWhenAdoptingReligion).map { it.stats.times(if (!it.isModifiedByGameSpeed()) 1f else city.civ.gameInfo.speed.modifier) }
+                religionOwningCiv.matchingUniquesSequence(UniqueType.StatsWhenAdoptingReligion).map { it.stats.times(if (!it.isModifiedByGameSpeed()) 1f else city.civ.gameInfo.speed.modifier) }
                 .reduce { acc, stats -> acc + stats }
 
             for ((key, value) in statsGranted)
@@ -284,13 +288,13 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
     private fun getSpreadRange(): Int {
         var spreadRange = 10
 
-        for (unique in city.getMatchingUniques(UniqueType.ReligionSpreadDistance)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.ReligionSpreadDistance)) {
             spreadRange += unique.params[0].toInt()
         }
 
         val majorityReligion = getMajorityReligion()
         if (majorityReligion != null) {
-            for (unique in majorityReligion.foundingCiv.getMatchingUniques(UniqueType.ReligionSpreadDistance))
+            for (unique in majorityReligion.foundingCiv.matchingUniquesSequence(UniqueType.ReligionSpreadDistance))
                 spreadRange += unique.params[0].toInt()
         }
 
@@ -322,7 +326,7 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun isProtectedByInquisitor(fromReligion: String? = null): Boolean {
-        for (tile in city.getCenterTile().getTilesInDistance(1)) {
+        for (tile in city.getCenterTile().tilesInDistanceSequence(1)) {
             for (unit in listOf(tile.civilianUnit, tile.militaryUnit)) {
                 if (unit?.religion != null
                     && (fromReligion == null || unit.religion != fromReligion)
@@ -338,7 +342,7 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
         var pressure = pressureFromAdjacentCities.toFloat()
 
         // Follower beliefs of this religion
-        for (unique in city.getMatchingUniques(UniqueType.NaturalReligionSpreadStrength)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.NaturalReligionSpreadStrength)) {
             if (pressuredCity.matchesFilter(unique.params[1]))
                 pressure *= unique.params[0].toPercent()
         }
@@ -346,7 +350,7 @@ class CityReligionManager : IsPartOfGameInfoSerialization {
         // Founder beliefs of this religion
         val majorityReligion = getMajorityReligion()
         if (majorityReligion != null) {
-            for (unique in majorityReligion.foundingCiv.getMatchingUniques(UniqueType.NaturalReligionSpreadStrength))
+            for (unique in majorityReligion.foundingCiv.matchingUniquesSequence(UniqueType.NaturalReligionSpreadStrength))
                 if (pressuredCity.matchesFilter(unique.params[1]))
                     pressure *= unique.params[0].toPercent()
         }

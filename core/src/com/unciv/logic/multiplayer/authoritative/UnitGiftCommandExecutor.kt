@@ -13,7 +13,7 @@ object UnitGiftCommandExecutor {
         if (recipient == unit.civ || unit.isTransported || !unit.hasMovement()) return false
         if (recipient.isCityState) {
             if (recipient.isAtWarWith(unit.civ)) return false
-            if (!unit.isMilitary() && unit.getMatchingUniques(
+            if (!unit.isMilitary() && unit.matchingUniquesSequence(
                     UniqueType.GainInfluenceWithUnitGiftToCityState,
                     checkCivInfoUniques = true,
                 ).none { unit.matchesFilter(it.params[1]) }) return false
@@ -27,7 +27,7 @@ object UnitGiftCommandExecutor {
         require(canGift(unit)) { "Unit gift is unavailable in canonical state" }
         val recipient = unit.currentTile.getOwner()!!
         if (recipient.isCityState) {
-            for (unique in unit.getMatchingUniques(
+            for (unique in unit.matchingUniquesSequence(
                 UniqueType.GainInfluenceWithUnitGiftToCityState,
                 checkCivInfoUniques = true,
             )) {

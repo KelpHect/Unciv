@@ -42,7 +42,7 @@ class TileDataMap(size: Int) {
 
         for (ring in 1..radius) {
             val ringValue = radius - ring + 1
-            for (outerTile in tile.getTilesAtDistance(ring)) {
+            for (outerTile in tile.tilesAtDistanceSequence(ring)) {
                 val data = this[outerTile]!!
                 if (data.impacts.containsKey(type))
                     data.impacts[type] = min(50, max(ringValue, data.impacts[type]!!) + 2)
@@ -407,16 +407,16 @@ class MapRegions (val ruleset: Ruleset) {
 
             for (type in regionTypes) {
                 // Test exclusion criteria first
-                if (type.getMatchingUniques(UniqueType.RegionRequireFirstLessThanSecond).any {
+                if (type.matchingUniquesSequence(UniqueType.RegionRequireFirstLessThanSecond).any {
                         region.getTerrainAmount(it.params[0]) >= region.getTerrainAmount(it.params[1])
                     }) {
                     continue
                 }
                 // Test inclusion criteria
-                if (type.getMatchingUniques(UniqueType.RegionRequirePercentSingleType).any {
+                if (type.matchingUniquesSequence(UniqueType.RegionRequirePercentSingleType).any {
                         region.getTerrainAmount(it.params[1]) >= (it.params[0].toInt() * region.tiles.size) / 100
                     }
-                    || type.getMatchingUniques(UniqueType.RegionRequirePercentTwoTypes).any {
+                    || type.matchingUniquesSequence(UniqueType.RegionRequirePercentTwoTypes).any {
                         region.getTerrainAmount(it.params[1]) + region.getTerrainAmount(it.params[2]) >= (it.params[0].toInt() * region.tiles.size) / 100
                     }
                 ) {
@@ -494,9 +494,9 @@ fun Tile.getTileFertility(checkCoasts: Boolean): Int {
     var fertility = 0
     for (terrain in allTerrains) {
         if (terrain.hasUnique(UniqueType.OverrideFertility))
-            return terrain.getMatchingUniques(UniqueType.OverrideFertility).first().params[0].toInt()
+            return terrain.matchingUniquesSequence(UniqueType.OverrideFertility).first().params[0].toInt()
         else
-            fertility += terrain.getMatchingUniques(UniqueType.AddFertility)
+            fertility += terrain.matchingUniquesSequence(UniqueType.AddFertility)
                 .sumOf { it.params[0].toInt() }
     }
     if (isAdjacentToRiver()) fertility += 1
@@ -513,9 +513,9 @@ fun getRegionPriority(terrain: Terrain?): Int? {
         null
     else
         if (terrain.hasUnique(UniqueType.RegionRequirePercentSingleType))
-            terrain.getMatchingUniques(UniqueType.RegionRequirePercentSingleType).first().params[2].toInt()
+            terrain.matchingUniquesSequence(UniqueType.RegionRequirePercentSingleType).first().params[2].toInt()
         else
-            terrain.getMatchingUniques(UniqueType.RegionRequirePercentTwoTypes).first().params[3].toInt()
+            terrain.matchingUniquesSequence(UniqueType.RegionRequirePercentTwoTypes).first().params[3].toInt()
 }
 
 /** @return a fake unique with the same conditionals, but sorted alphabetically.

@@ -226,7 +226,7 @@ internal class ModCheckTab(
         if (ModCompatibility.isAudioVisualMod(mod)) return true
         // Very borderline case: DO check mods with invalid requirements. This duplicates a tiny part of RulesetValidator,
         // but ends up simpler than calling the full validator and filtering for a specific message.
-        if (mod.modOptions.getMatchingUniques(UniqueType.ModRequires).any {
+        if (mod.modOptions.matchingUniquesSequence(UniqueType.ModRequires).any {
                 UniqueParameterType.ModName.getErrorSeverity(it.params[0], mod) != null
             }) return true
         val baseRuleset = RulesetCache[base] ?: emptyRuleset  // MOD_CHECK_WITHOUT_BASE compares compatibility against an empty Ruleset

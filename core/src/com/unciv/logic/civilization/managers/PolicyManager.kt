@@ -172,8 +172,8 @@ class PolicyManager : IsPartOfGameInfoSerialization {
         val worldSizeModifier = civInfo.gameInfo.tileMap.mapParameters.mapSize.getPredefinedOrNextSmaller().policyCostPerCityModifier
         var cityModifier = worldSizeModifier * (civInfo.cities.count { !it.isPuppet } - 1)
 
-        for (unique in civInfo.getMatchingUniques(UniqueType.LessPolicyCostFromCities)) cityModifier *= 1 - unique.params[0].toFloat() / 100
-        for (unique in civInfo.getMatchingUniques(UniqueType.LessPolicyCost)) policyCultureCost *= unique.params[0].toPercent()
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.LessPolicyCostFromCities)) cityModifier *= 1 - unique.params[0].toFloat() / 100
+        for (unique in civInfo.matchingUniquesSequence(UniqueType.LessPolicyCost)) policyCultureCost *= unique.params[0].toPercent()
         if (civInfo.isHuman()) policyCultureCost *= civInfo.getDifficulty().policyCostModifier
         policyCultureCost *= civInfo.gameInfo.speed.cultureCostModifier
         val cost: Int = (policyCultureCost * (1 + cityModifier)).roundToInt()
@@ -223,7 +223,7 @@ class PolicyManager : IsPartOfGameInfoSerialization {
         if (policy.policyBranchType == PolicyBranchType.BranchComplete) return false
         if (!getAdoptedPolicies().containsAll(policy.requires!!)) return false
         if (checkEra && civInfo.gameInfo.ruleset.eras[policy.branch.era]!!.eraNumber > civInfo.getEraNumber()) return false
-        if (policy.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+        if (policy.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
                 .any { !it.conditionalsApply(civInfo.state) }) return false
         if (policy.hasUnique(UniqueType.Unavailable, civInfo.state)) return false
         return true

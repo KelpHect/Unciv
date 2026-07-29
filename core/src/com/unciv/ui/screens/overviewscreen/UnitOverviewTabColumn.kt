@@ -94,7 +94,7 @@ enum class UnitOverviewTabColumn(
         }
         @Readonly
         private fun getClosestCityTile(item: MapUnit) = item.getTile()
-            .getTilesInDistance(3).firstOrNull { it.isCityCenter() }
+            .tilesInDistanceSequence(3).firstOrNull { it.isCityCenter() }
     },
 
     Promotions(isNumeric = true) {

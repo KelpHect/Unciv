@@ -105,9 +105,9 @@ internal object ReligionChoiceExecutor {
     }
 
     private fun beliefIsAllowed(belief: Belief, civilization: Civilization): Boolean =
-        belief.getMatchingUniques(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
+        belief.matchingUniquesSequence(UniqueType.OnlyAvailable, GameContext.IgnoreConditionals)
             .none { !it.conditionalsApply(civilization.state) } &&
-            belief.getMatchingUniques(UniqueType.Unavailable, civilization.state).none()
+            belief.matchingUniquesSequence(UniqueType.Unavailable, civilization.state).none()
 
     private fun requireValidDisplayName(
         civilization: Civilization,

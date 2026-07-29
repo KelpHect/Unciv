@@ -330,7 +330,7 @@ class MapGenerator(val ruleset: Ruleset, private val coroutineScope: CoroutineSc
         fun convertTerrains(ruleset: Ruleset, tiles: Iterable<Tile>) {
             for (tile in tiles) {
                 val conversionUnique =
-                    tile.getBaseTerrain().getMatchingUniques(UniqueType.ChangesTerrain, GameContext(tile = tile))
+                    tile.getBaseTerrain().matchingUniquesSequence(UniqueType.ChangesTerrain, GameContext(tile = tile))
                         .firstOrNull { tile.isAdjacentTo(it.params[1]) }
                         ?: continue
                 val terrain = ruleset.terrains[conversionUnique.params[0]] ?: continue
@@ -349,7 +349,7 @@ class MapGenerator(val ruleset: Ruleset, private val coroutineScope: CoroutineSc
         for (i in 1..map.mapParameters.maxCoastExtension) {
             val toCoast = mutableListOf<Tile>()
             for (tile in map.values.filter { it.isOcean }) {
-                val tilesInDistance = tile.getTilesInDistance(1)
+                val tilesInDistance = tile.tilesInDistanceSequence(1)
                 for (neighborTile in tilesInDistance) {
                     if (neighborTile.isLand) {
                         toCoast.add(tile)

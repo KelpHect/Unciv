@@ -49,7 +49,7 @@ internal object CityTileBatchPurchaseExecutor {
     @Suppress("DEPRECATION")
     private fun proposal(city: City, ring: Int): Proposal? {
         if (city.isPuppet || city.isBeingRazed || city.isInResistance()) return null
-        val remaining = city.getCenterTile().getTilesInDistance(ring)
+        val remaining = city.getCenterTile().tilesInDistanceSequence(ring)
             .filter { it.getOwner() == null && it in city.tilesInRange }
             .sortedWith(compareBy<Tile> { it.position.x }.thenBy { it.position.y })
             .toMutableList()

@@ -53,7 +53,7 @@ class NaturalWonderGenerator(val ruleset: Ruleset, val randomness: MapGeneration
             }
         }
 
-        val tilesTooCloseToSpawnLocations = tileMap.startingLocationsByNation.values.flatten().flatMap { it.getTilesInDistance(5) }.toSet()
+        val tilesTooCloseToSpawnLocations = tileMap.startingLocationsByNation.values.flatten().flatMap { it.tilesInDistanceSequence(5) }.toSet()
 
         // First attempt to spawn the chosen wonders in order of least candidate tiles
         chosenWonders.forEach {
@@ -101,7 +101,7 @@ class NaturalWonderGenerator(val ruleset: Ruleset, val randomness: MapGeneration
     private fun trySpawnOnSuitableLocation(suitableLocations: List<Tile>, wonder: Terrain): Boolean {
         val minGroupSize: Int
         val maxGroupSize: Int
-        val groupUnique = wonder.getMatchingUniques(UniqueType.NaturalWonderGroups).firstOrNull()
+        val groupUnique = wonder.matchingUniquesSequence(UniqueType.NaturalWonderGroups).firstOrNull()
         if (groupUnique == null) {
             minGroupSize = 1
             maxGroupSize = 1
@@ -126,7 +126,7 @@ class NaturalWonderGenerator(val ruleset: Ruleset, val randomness: MapGeneration
                 for (tileToConvert in list) {
                     placeNaturalWonder(wonder, tileToConvert)
                     // Add all tiles within a certain distance to a blacklist so NW:s don't cluster
-                    blockedTiles.addAll(tileToConvert.getTilesInDistance(tileToConvert.tileMap.mapParameters.mapSize.height / 5))
+                    blockedTiles.addAll(tileToConvert.tilesInDistanceSequence(tileToConvert.tileMap.mapParameters.mapSize.height / 5))
                 }
 
                 debug("Natural Wonder %s @%s", wonder.name, location.position)
@@ -150,7 +150,7 @@ class NaturalWonderGenerator(val ruleset: Ruleset, val randomness: MapGeneration
                 clearTile(location, wonder.occursOn)
             }
 
-            val conversionUniques = wonder.getMatchingUniques(UniqueType.NaturalWonderConvertNeighbors, GameContext.IgnoreConditionals)
+            val conversionUniques = wonder.matchingUniquesSequence(UniqueType.NaturalWonderConvertNeighbors, GameContext.IgnoreConditionals)
             if (conversionUniques.none()) return
 
             for (tile in location.neighbors) {

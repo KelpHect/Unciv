@@ -580,7 +580,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     fun getResourceModifier(resource: TileResource): Float {
         var finalModifier = 1f
 
-        for (unique in getMatchingUniques(UniqueType.PercentResourceProduction))
+        for (unique in matchingUniquesSequence(UniqueType.PercentResourceProduction))
             if (resource.matchesFilter(unique.params[1]))
                 finalModifier += unique.params[0].toFloat() / 100f
 
@@ -592,7 +592,7 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun hasUnique(uniqueType: UniqueType, gameContext: GameContext = state) =
-        getMatchingUniques(uniqueType, gameContext).any()
+        matchingUniquesSequence(uniqueType, gameContext).any()
 
     // Does not return local uniques, only global ones.
     /** Destined to replace getMatchingUniques, gradually, as we fill the enum */
@@ -602,21 +602,28 @@ class Civilization : IsPartOfGameInfoSerialization {
     fun getMatchingUniques(
         uniqueType: UniqueType,
         gameContext: GameContext = state
-    ): Sequence<Unique> = sequence {
-        yieldAll(nation.getMatchingUniques(uniqueType, gameContext))
-        yieldAll(cities.asSequence()
-            .flatMap { city -> city.getMatchingUniquesWithNonLocalEffects(uniqueType, gameContext) }
-        )
-        yieldAll(policies.policyUniques.getMatchingUniques(uniqueType, gameContext))
-        yieldAll(tech.techUniques.getMatchingUniques(uniqueType, gameContext))
-        yieldAll(temporaryUniques.getMatchingTagUniques(uniqueType, gameContext))
-        yieldAll(getEra().getMatchingUniques(uniqueType, gameContext))
-        yieldAll(cityStateFunctions.getUniquesProvidedByCityStates(uniqueType, gameContext))
-        if (religionManager.religion != null)
-            yieldAll(religionManager.religion!!.founderBeliefUniqueMap.getMatchingUniques(uniqueType, gameContext))
+    ): Sequence<Unique> = matchingUniquesSequence(uniqueType, gameContext)
 
-        yieldAll(civResourcesUniqueMap.getMatchingUniques(uniqueType, gameContext))
-        yieldAll(gameInfo.getGlobalUniques().getMatchingUniques(uniqueType, gameContext))
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun matchingUniquesSequence(
+        uniqueType: UniqueType,
+        gameContext: GameContext = state
+    ): Sequence<Unique> = sequence {
+        yieldAll(nation.matchingUniquesSequence(uniqueType, gameContext))
+        yieldAll(cities.asSequence()
+            .flatMap { city -> city.matchingUniquesWithNonLocalEffectsSequence(uniqueType, gameContext) }
+        )
+        yieldAll(policies.policyUniques.matchingUniquesSequence(uniqueType, gameContext))
+        yieldAll(tech.techUniques.matchingUniquesSequence(uniqueType, gameContext))
+        yieldAll(temporaryUniques.getMatchingTagUniques(uniqueType, gameContext))
+        yieldAll(getEra().matchingUniquesSequence(uniqueType, gameContext))
+        yieldAll(cityStateFunctions.uniquesProvidedByCityStatesSequence(uniqueType, gameContext))
+        if (religionManager.religion != null)
+            yieldAll(religionManager.religion!!.founderBeliefUniqueMap.matchingUniquesSequence(uniqueType, gameContext))
+
+        yieldAll(civResourcesUniqueMap.matchingUniquesSequence(uniqueType, gameContext))
+        yieldAll(gameInfo.getGlobalUniques().matchingUniquesSequence(uniqueType, gameContext))
     }
 
     @Readonly
@@ -659,6 +666,15 @@ class Civilization : IsPartOfGameInfoSerialization {
     @Deprecated(message = "forEachTriggeredUnique is faster. If not viable, then this can still be used",
         replaceWith = ReplaceWith("forEachTriggeredUnique"))
     fun getTriggeredUniques(
+        trigger: UniqueType,
+        gameContext: GameContext = state,
+        triggerFilter: (Unique) -> Boolean = { true },
+        ignoreCities: Boolean = false
+    ): Sequence<Unique> = triggeredUniquesSequence(trigger, gameContext, triggerFilter, ignoreCities)
+
+    /** Explicit lazy form for pipelines that require sequence transformations or short-circuiting. */
+    @Readonly
+    fun triggeredUniquesSequence(
         trigger: UniqueType,
         gameContext: GameContext = state,
         triggerFilter: (Unique) -> Boolean = { true },
@@ -897,7 +913,7 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun isLongCountActive(): Boolean {
-        val unique = getMatchingUniques(UniqueType.MayanGainGreatPerson).firstOrNull()
+        val unique = matchingUniquesSequence(UniqueType.MayanGainGreatPerson).firstOrNull()
             ?: return false
         return tech.isResearched(unique.params[1])
     }

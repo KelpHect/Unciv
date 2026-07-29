@@ -262,7 +262,7 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
                 var maxExtraDamageToDefender = 0
                 var minExtraDamageToDefender = 0
-                for (unique in attacker.unit.getMatchingUniques(UniqueType.ExtraRangedAttack)) {
+                for (unique in attacker.unit.matchingUniquesSequence(UniqueType.ExtraRangedAttack)) {
                     val baseRangedStrengthForExtraAttack = (attacker.unit.baseUnit.strength *
                         unique.params[0].toFloat() / 100).toInt()
                     val fakeAttacker = Battle.FakeUnitForExtraRangedAttack(attacker, baseRangedStrengthForExtraAttack)
@@ -381,7 +381,7 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
         val blastRadius = attacker.unit.getNukeBlastRadius()
 
         val defenderNameWrapper = Table()
-        for (tile in targetTile.getTilesInDistance(blastRadius)) {
+        for (tile in targetTile.tilesInDistanceSequence(blastRadius)) {
             val defender = tryGetDefenderAtTile(tile, true) ?: continue
 
             val defenderLabel = defender.getName().toLabel(hideIcons = true)
@@ -463,7 +463,7 @@ class BattleTable(val worldScreen: WorldScreen) : Table() {
 
         val attackButton = "Air Sweep".toTextButton().apply { color = Color.RED }
 
-        val canReach = attacker.unit.currentTile.getTilesInDistance(attacker.unit.getRange()).contains(targetTile)
+        val canReach = attacker.unit.currentTile.tilesInDistanceSequence(attacker.unit.getRange()).contains(targetTile)
 
         if (!worldScreen.isPlayersTurn || !attacker.canAttack() || !canReach || !canAttack) {
             attackButton.disable()

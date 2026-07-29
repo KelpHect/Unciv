@@ -16,7 +16,7 @@ object UnitActionModifierEffects {
 
     @Readonly
     fun usableUniques(unit: MapUnit, actionUniqueType: UniqueType) =
-        unit.getMatchingUniques(actionUniqueType)
+        unit.matchingUniquesSequence(actionUniqueType)
             .filter { !it.hasModifier(UniqueType.UnitActionExtraLimitedTimes) }
             .filter { canUse(unit, it) }
 
@@ -100,7 +100,7 @@ object UnitActionModifierEffects {
 
     @Readonly
     fun maxUsages(unit: MapUnit, actionUnique: Unique): Int? {
-        val extraTimes = unit.getMatchingUniques(actionUnique.type!!)
+        val extraTimes = unit.matchingUniquesSequence(actionUnique.type!!)
             .filter { it.text.removeConditionals() == actionUnique.text.removeConditionals() }
             .flatMap { it.getModifiers(UniqueType.UnitActionExtraLimitedTimes) }
             .sumOf { it.params[0].toInt() }

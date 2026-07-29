@@ -49,7 +49,7 @@ class GreatPersonManager : IsPartOfGameInfoSerialization {
 
     @Readonly
     private fun getPoolKey(greatPerson: String) = civInfo.getEquivalentUnit(greatPerson)
-        .getMatchingUniques(UniqueType.GPPointPool)
+        .matchingUniquesSequence(UniqueType.GPPointPool)
         // An empty string is used to indicate the Unique wasn't found
         .firstOrNull()?.params?.get(0) ?: ""
     

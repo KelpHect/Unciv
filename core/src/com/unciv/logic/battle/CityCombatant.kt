@@ -49,7 +49,7 @@ class CityCombatant(val city: City) : ICombatant {
         var strength = modConstants.cityStrengthBase
         strength += (city.population.population * modConstants.cityStrengthPerPop) // Each 5 pop gives 2 defence
         val cityTile = city.getCenterTile()
-        for (unique in cityTile.allTerrains.flatMap { it.getMatchingUniques(UniqueType.GrantsCityStrength) })
+        for (unique in cityTile.allTerrains.flatMap { it.matchingUniquesSequence(UniqueType.GrantsCityStrength) })
             strength += unique.params[0].toInt()
         // as tech progresses so does city strength
         val techCount = getCivInfo().gameInfo.ruleset.technologies.size
@@ -67,11 +67,11 @@ class CityCombatant(val city: City) : ICombatant {
         var buildingsStrength = city.getStrength()
         val gameContext = GameContext(getCivInfo(), city, ourCombatant = this, theirCombatant = theirCombatant, combatAction = combatAction)
 
-        for (unique in getCivInfo().getMatchingUniques(UniqueType.BetterDefensiveBuildings, gameContext))
+        for (unique in getCivInfo().matchingUniquesSequence(UniqueType.BetterDefensiveBuildings, gameContext))
             buildingsStrength *= unique.params[0].toPercent()
         strength += buildingsStrength
 
-        val extraStrength = city.getMatchingUniques(UniqueType.StrengthAmount, gameContext).sumOf { it.params[0].toInt() }
+        val extraStrength = city.matchingUniquesSequence(UniqueType.StrengthAmount, gameContext).sumOf { it.params[0].toInt() }
         strength += extraStrength
 
         return strength.roundToInt()
@@ -83,7 +83,7 @@ class CityCombatant(val city: City) : ICombatant {
         gameContext: GameContext,
         triggerFilter: (Unique) -> Boolean
     ): Sequence<Unique> {
-        return city.getTriggeredUniques(trigger, gameContext, triggerFilter)
+        return city.triggeredUniquesSequence(trigger, gameContext, triggerFilter)
     }
 
     override fun toString() = city.name // for debug

@@ -2,6 +2,12 @@ plugins {
     `kotlin-dsl`
 }
 
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+    }
+}
+
 repositories {
     mavenCentral()
 }

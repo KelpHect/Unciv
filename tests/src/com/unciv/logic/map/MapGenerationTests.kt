@@ -180,7 +180,7 @@ class MapGenerationTests {
     // Terrain generation is not supposed to be random, but it is.
     // Even when that is fixed, we should *still* use assertApproximately, because
     // we don't want the tests to break every time we make a change to map generation.
-    inline fun assertApproximately(value: Int?, target: Int, ratio: Double=2.0) {
+    fun assertApproximately(value: Int?, target: Int, ratio: Double=2.0) {
         val min = (target / ratio).toInt() - 1
         val max = (target * ratio).toInt() + 1
         Assert.assertTrue(

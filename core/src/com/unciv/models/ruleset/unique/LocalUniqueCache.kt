@@ -18,13 +18,13 @@ class LocalUniqueCache(val cache: Boolean = true) {
         uniqueType: UniqueType,
         gameContext: GameContext = city.state
     ): Sequence<Unique> = timeThis("LocalUniqueCache.forCiyGetMatchingUniques") {
-        // City uniques are a combination of *global civ* uniques plus *city relevant* uniques (see City.getMatchingUniques())
+        // City uniques are a combination of *global civ* uniques plus *city relevant* uniques (see City.matchingUniquesSequence())
         // We can cache the civ uniques separately, so if we have several cities using the same cache,
         //   we can cache the list of *civ uniques* to reuse between cities.
 
         val citySpecificUniques = get(
             "city-${city.id}-${uniqueType.name}",
-            city.getLocalMatchingUniques(uniqueType, GameContext.IgnoreMultiplicationForCaching)
+            city.localMatchingUniquesSequence(uniqueType, GameContext.IgnoreMultiplicationForCaching)
         ).filter { it.conditionalsApply(gameContext) }
             .flatMap { it.getMultiplied(gameContext) }
 
@@ -39,7 +39,7 @@ class LocalUniqueCache(val cache: Boolean = true) {
         uniqueType: UniqueType,
         gameContext: GameContext = civ.state
     ): Sequence<Unique> = timeThis("LocalUniqueCache.forCivGetMatchingUniques") {
-        val sequence = civ.getMatchingUniques(uniqueType, GameContext.IgnoreMultiplicationForCaching)
+        val sequence = civ.matchingUniquesSequence(uniqueType, GameContext.IgnoreMultiplicationForCaching)
         // The uniques CACHED are ALL civ uniques, regardless of conditional matching.
         // The uniques RETURNED are uniques AFTER conditional matching.
         // This allows reuse of the cached values, between runs with different conditionals -

@@ -51,7 +51,7 @@ class CityExpansionManager : IsPartOfGameInfoSerialization {
         if (city.civ.isCityState)
             cultureToNextTile *= 1.5f   // City states grow slower, perhaps 150% cost?
 
-        for (unique in city.getMatchingUniques(UniqueType.BorderGrowthPercentage))
+        for (unique in city.matchingUniquesSequence(UniqueType.BorderGrowthPercentage))
             if (city.matchesFilter(unique.params[1]))
                 cultureToNextTile *= unique.params[0].toPercent()
 
@@ -95,7 +95,7 @@ class CityExpansionManager : IsPartOfGameInfoSerialization {
 
         cost *= city.civ.gameInfo.speed.goldCostModifier
 
-        for (unique in city.getMatchingUniques(UniqueType.TileCostPercentage)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.TileCostPercentage)) {
             if (city.matchesFilter(unique.params[1]))
                 cost *= unique.params[0].toPercent()
         }
@@ -104,7 +104,7 @@ class CityExpansionManager : IsPartOfGameInfoSerialization {
     }
 
     @Readonly
-    fun getChoosableTiles() = city.getCenterTile().getTilesInDistance(city.getExpandRange())
+    fun getChoosableTiles() = city.getCenterTile().tilesInDistanceSequence(city.getExpandRange())
         .filter { it.getOwner() == null }
 
     @Readonly
@@ -129,7 +129,7 @@ class CityExpansionManager : IsPartOfGameInfoSerialization {
         // It becomes an invisible city and weird shit starts happening
         takeOwnership(city.getCenterTile())
 
-        for (tile in city.getCenterTile().getTilesInDistance(1)
+        for (tile in city.getCenterTile().tilesInDistanceSequence(1)
                 .filter { it.getCity() == null }) // can't take ownership of owned tiles (by other cities)
             takeOwnership(tile)
     }

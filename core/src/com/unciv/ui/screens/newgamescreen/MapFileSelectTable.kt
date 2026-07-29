@@ -212,7 +212,7 @@ class MapFileSelectTable(
         fun getPreselect(): MapWrapper? {
             if (mapFiles.isEmpty) return null
             val modOptionPreselect = RulesetCache[selectedRuleset]
-                ?.modOptions?.getMatchingUniques(UniqueType.ModMapPreselection)
+                ?.modOptions?.matchingUniquesSequence(UniqueType.ModMapPreselection)
                 ?.firstOrNull()?.params?.get(0)
             if (modOptionPreselect != null) {
                 val preselectFile = mapFiles.firstOrNull { it.fileHandle.name() == modOptionPreselect }

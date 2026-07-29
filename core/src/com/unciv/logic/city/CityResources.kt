@@ -44,7 +44,7 @@ object CityResources {
     private fun getResourceModifiers(city: City): Map<String, Float> {
         val modifiers = mutableMapOf<String, Float>()
         val resources = city.getRuleset().tileResources.values
-        for (unique in city.getMatchingUniques(UniqueType.PercentResourceProduction)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.PercentResourceProduction)) {
             val bonus = unique.params[0].toFloat() / 100f
             for (resource in resources) {
                 if (resource.matchesFilter(unique.params[1], city.state))
@@ -111,7 +111,7 @@ object CityResources {
         for (tileInfo in applicableTiles) {
             val gameContext = GameContext(city.civ, city, tile = tileInfo)
             val tileImprovement = tileInfo.getUnpillagedTileImprovement()
-            for (unique in tileImprovement!!.getMatchingUniques(UniqueType.ProvidesResources, gameContext)) {
+            for (unique in tileImprovement!!.matchingUniquesSequence(UniqueType.ProvidesResources, gameContext)) {
                 val resource = city.getRuleset().tileResources[unique.params[1]] ?: continue
                 resourceSupplyList.add(
                     resource, "Improvements",
@@ -127,7 +127,7 @@ object CityResources {
         for (tileInfo in applicableTiles) {
             val gameContext = GameContext(city.civ, city, tile = tileInfo)
             val tileImprovement = tileInfo.getUnpillagedTileImprovement()
-            for (unique in tileImprovement!!.getMatchingUniques(UniqueType.ConsumesResources, gameContext)) {
+            for (unique in tileImprovement!!.matchingUniquesSequence(UniqueType.ConsumesResources, gameContext)) {
                 val resource = city.getRuleset().tileResources[unique.params[1]] ?: continue
                 resourceSupplyList.add(
                     resource, "Improvements",
@@ -156,7 +156,7 @@ object CityResources {
         val buildingResources = ResourceSupplyList()
 
         // ProvidesResources - Example: "Provides [1] [Iron]"
-        for (unique in city.getMatchingUniques(UniqueType.ProvidesResources, includeCivUniques = includeCivUniques)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.ProvidesResources, includeCivUniques = includeCivUniques)) {
             val resource = city.getRuleset().tileResources[unique.params[1]]
                 ?: continue
             buildingResources.add(
@@ -166,7 +166,7 @@ object CityResources {
         }
 
         // StatPercentFromObjectToResource - Example: "[50]% of [Culture] from every [improvementFilter/buildingFilter] in the city added to [Iron]"
-        for (unique in city.getMatchingUniques(UniqueType.StatPercentFromObjectToResource, city.state, includeCivUniques)) {
+        for (unique in city.matchingUniquesSequence(UniqueType.StatPercentFromObjectToResource, city.state, includeCivUniques)) {
             val resource = city.getRuleset().tileResources[unique.params[3]] ?: continue
             val stat = Stat.safeValueOf(unique.params[1]) ?: continue
             val filter = unique.params[2]

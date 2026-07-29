@@ -72,6 +72,8 @@ object Automation {
     }
 
     @Readonly
+    // Required for compatibility with rulesets that still use the legacy specialist-food unique.
+    @Suppress("DEPRECATION")
     fun rankStatsForCityWork(stats: Stats, city: City, areWeRankingSpecialist: Boolean): Float
         = timeThis("Automation.rankStatsForCityWork") {
         val cityAIFocus = city.getCityFocus()

@@ -28,6 +28,27 @@ class UnitUniquesTests {
     }
 
     @Test
+    fun `explicit lazy unit unique lookup includes UnitType uniques`() {
+        val (unit, unitTypeUnique) = game.ruleset.units.values.asSequence()
+            .mapNotNull { unit ->
+                unit.type.uniqueObjects
+                    .firstOrNull { typeUnique ->
+                        typeUnique.type != null &&
+                            unit.uniqueObjects.none { it.type == typeUnique.type }
+                    }
+                    ?.let { unit to it }
+            }
+            .first()
+        val uniqueType = unitTypeUnique.type ?: error("Test setup must select a typed UnitType unique")
+
+        Assert.assertTrue(
+            unit.matchingUniquesSequence(uniqueType).any {
+                it.placeholderText == unitTypeUnique.placeholderText
+            }
+        )
+    }
+
+    @Test
     fun `Sweden can gift Great Persons to City States`() {
         // when
         game.makeHexagonalMap(1)

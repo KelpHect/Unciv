@@ -24,6 +24,7 @@ tasks.named("processResources") {
 
 kotlin {
     compilerOptions {
+        allWarningsAsErrors.set(true)
         jvmTarget = JvmTarget.JVM_1_8
     }
 }

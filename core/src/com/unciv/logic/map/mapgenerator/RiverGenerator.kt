@@ -48,14 +48,14 @@ class RiverGenerator(
 
     private fun Tile.isFarEnoughFromWater(): Boolean {
         for (distance in 1 until minRiverLength) {
-            if (getTilesAtDistance(distance).any { it.isWater }) return false
+            if (tilesAtDistanceSequence(distance).any { it.isWater }) return false
         }
         return true
     }
 
     fun getClosestWaterTile(tile: Tile): Tile? {
         for (distance in 1..maxRiverLength) {
-            val waterTiles = tile.getTilesAtDistance(distance).filter { it.isWater }
+            val waterTiles = tile.tilesAtDistanceSequence(distance).filter { it.isWater }
             if (waterTiles.any())
                 return waterTiles.toList().random(randomness.RNG)
         }

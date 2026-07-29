@@ -110,7 +110,7 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
 
         // What if the stores are already over foodNeededToGrow but NullifiesGrowth is in effect?
         // We could simply test food==0 - but this way NullifiesStat(food) will still allow growth:
-        if (city.getMatchingUniques(UniqueType.NullifiesGrowth).any())
+        if (city.matchingUniquesSequence(UniqueType.NullifiesGrowth).any())
             return
 
         // Hard block growth when using Avoid Growth, cap stored food
@@ -122,7 +122,7 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
         // growth!
         foodStored -= foodNeededToGrow
         val percentOfFoodCarriedOver =
-            city.getMatchingUniques(UniqueType.CarryOverFood)
+            city.matchingUniquesSequence(UniqueType.CarryOverFood)
                 .filter { city.matchesFilter(it.params[1]) }
                 .sumOf { it.params[0].toInt() }
                 .coerceAtMost(95)  // Try to avoid runaway food gain in mods, just in case
@@ -153,6 +153,8 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
     }
 
     /** Only assigns free population */
+    // Required for compatibility with rulesets that still use the legacy specialist-food unique.
+    @Suppress("DEPRECATION")
     internal fun autoAssignPopulation():Unit = timeThis("CityPopulationManager.autoAssignPopulation") {
         city.cityStats.update()  // calculate current stats with current assignments
         val freePopulation = getFreePopulation()
@@ -161,7 +163,7 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
         val cityStats = city.cityStats.currentCityStats
         city.currentGPPBonus = city.getGreatPersonPercentageBonus()  // pre-calculate for use in Automation.rankSpecialist
         var specialistFoodBonus = 2f  // See CityStats.calcFoodEaten()
-        for (unique in city.getMatchingUniques(UniqueType.FoodConsumptionBySpecialists))
+        for (unique in city.matchingUniquesSequence(UniqueType.FoodConsumptionBySpecialists))
             if (city.matchesFilter(unique.params[1]))
                 specialistFoodBonus *= unique.params[0].toPercent()
         specialistFoodBonus = 2f - specialistFoodBonus

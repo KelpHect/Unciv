@@ -92,7 +92,7 @@ object Suppression {
         var suppressions = globalSuppressionFilters.asSequence()
         // Allow suppressing from suppression uniques in the same Unique collection
         if (sourceObject != null)
-            suppressions += sourceObject.getMatchingUniques(UniqueType.SuppressWarnings, GameContext.IgnoreConditionals).map { getWildcardFilter(it) }
+            suppressions += sourceObject.matchingUniquesSequence(UniqueType.SuppressWarnings, GameContext.IgnoreConditionals).map { getWildcardFilter(it) }
         // Allow suppressing from modifiers in the same Unique
         if (sourceUnique != null)
             suppressions += sourceUnique.getModifiers(UniqueType.SuppressWarnings).map { getWildcardFilter(it) }

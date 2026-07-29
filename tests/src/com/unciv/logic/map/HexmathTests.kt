@@ -25,7 +25,7 @@ class HexmathTests {
             val coords = HexMath.getHexCoordsAtDistance(HexCoord.Zero, ring, 100, false)
             val ringStartCoordinate = 1 + 6 * ring * (ring - 1) / 2
             for (coord in coords) {
-                val mapping = HexMath.getZeroBasedIndex(coord.x.toInt(), coord.y.toInt())
+                val mapping = HexMath.getZeroBasedIndex(coord.x, coord.y)
                 Assert.assertFalse("Duplicate coords found: $coord", seenCoordsMapping.contains(mapping))
                 Assert.assertTrue("Coords $coord should be in ring $ring, actual mapping $mapping", mapping in ringStartCoordinate .. (ringStartCoordinate + 6 * ring - 1))
 

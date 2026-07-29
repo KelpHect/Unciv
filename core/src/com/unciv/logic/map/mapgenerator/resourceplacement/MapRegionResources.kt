@@ -36,7 +36,7 @@ object MapRegionResources {
         }
         val conditionalTerrain = GameContext(attackedTile = tileList.firstOrNull())
         val weightings = resourceOptions.associateWith {
-            val unique = it.getMatchingUniques(UniqueType.ResourceWeighting, conditionalTerrain).firstOrNull()
+            val unique = it.matchingUniquesSequence(UniqueType.ResourceWeighting, conditionalTerrain).firstOrNull()
             val weight = if (unique != null) unique.params[0].toFloat() else 1f
             weight
         }
@@ -123,7 +123,7 @@ object MapRegionResources {
         if (tileList.isEmpty()) return mapOf()
 
         val frequency = if (terrain.hasUnique(UniqueType.MajorStrategicFrequency))
-            terrain.getMatchingUniques(UniqueType.MajorStrategicFrequency).first().params[0].toInt()
+            terrain.matchingUniquesSequence(UniqueType.MajorStrategicFrequency).first().params[0].toInt()
         else 25
 
         val terrainRule = getTerrainRule(terrain, ruleset)

@@ -54,9 +54,9 @@ object StartNormalizer {
         val innerProduction =
             startTile.neighbors.sumOf { getPotentialYield(it, Stat.Production).toInt() }
         val outerProduction =
-            startTile.getTilesAtDistance(2).sumOf { getPotentialYield(it, Stat.Production).toInt() }
+            startTile.tilesAtDistanceSequence(2).sumOf { getPotentialYield(it, Stat.Production).toInt() }
         // for very early production we ideally want tiles that also give food
-        val earlyProduction = startTile.getTilesInDistanceRange(1..2).sumOf {
+        val earlyProduction = startTile.tilesInDistanceRangeSequence(1..2).sumOf {
             if (getPotentialYield(it, Stat.Food, unimproved = true) > 0f) getPotentialYield(
                 it,
                 Stat.Production,
@@ -90,7 +90,7 @@ object StartNormalizer {
                         (it.revealedBy == null ||
                             ruleset.technologies[it.revealedBy]!!.era() in earlyEras)
             }.shuffled(rng)
-            val candidateTiles = startTile.getTilesAtDistance(2).shuffled(rng)
+            val candidateTiles = startTile.tilesAtDistanceSequence(2).shuffled(rng)
             for (resource in validResources) {
                 val resourcesAdded = MapRegionResources.tryAddingResourceToTiles(
                     tileData, resource, 1, candidateTiles, majorDeposit = false)
@@ -107,7 +107,7 @@ object StartNormalizer {
         val rng = GameContext(tile = startTile)
             .stateBasedRandom("StartNormalizer.placeStrategicBalanceResources")
         val candidateTiles =
-            startTile.getTilesInDistanceRange(1..2).shuffled(rng) + startTile.getTilesAtDistance(3)
+            startTile.tilesInDistanceRangeSequence(1..2).shuffled(rng) + startTile.tilesAtDistanceSequence(3)
                 .shuffled(rng)
         for (resource in ruleset.tileResources.values.filter { it.hasUnique(UniqueType.StrategicBalanceResource) }) {
             if (MapRegionResources.tryAddingResourceToTiles(
@@ -140,12 +140,12 @@ object StartNormalizer {
     /** Check for very food-heavy starts that might still need some stone to help with production */
     private fun addProductionBonuses(startTile: Tile, ruleset: Ruleset) {
         val rng = GameContext(gameInfo = startTile.tileMap.gameInfo).stateBasedRandom("StartNormalizer.addProductionBonuses")
-        val grassTypePlots = startTile.getTilesInDistanceRange(1..2).filter {
+        val grassTypePlots = startTile.tilesInDistanceRangeSequence(1..2).filter {
             it.isLand &&
                 getPotentialYield(it, Stat.Food, unimproved = true) >= 2f && // Food neutral natively
                 getPotentialYield(it, Stat.Production) == 0f // Production can't even be improved
         }.toMutableList()
-        val plainsTypePlots = startTile.getTilesInDistanceRange(1..2).filter {
+        val plainsTypePlots = startTile.tilesInDistanceRangeSequence(1..2).filter {
             it.isLand &&
                 getPotentialYield(it, Stat.Food) >= 2f && // Something that can be improved to food neutral
                 getPotentialYield(it, Stat.Production, unimproved = true) >= 1f // Some production natively
@@ -187,13 +187,13 @@ object StartNormalizer {
         // 2F is worth 1, 3F is worth 2, 4F is worth 4, 5F is worth 6 and so on
         val innerFood =
             startTile.neighbors.sumOf { (getPotentialYield(it, Stat.Food).pow(2) / 4).toInt() }
-        val outerFood = startTile.getTilesAtDistance(2)
+        val outerFood = startTile.tilesAtDistanceSequence(2)
             .sumOf { (getPotentialYield(it, Stat.Food).pow(2) / 4).toInt() }
         val totalFood = innerFood + outerFood
         // we want at least some two-food tiles to keep growing
         val innerNativeTwoFood =
             startTile.neighbors.count { getPotentialYield(it, Stat.Food, unimproved = true) >= 2f }
-        val outerNativeTwoFood = startTile.getTilesAtDistance(2)
+        val outerNativeTwoFood = startTile.tilesAtDistanceSequence(2)
             .count { getPotentialYield(it, Stat.Food, unimproved = true) >= 2f }
         val totalNativeTwoFood = innerNativeTwoFood + outerNativeTwoFood
 
@@ -231,7 +231,7 @@ object StartNormalizer {
                 ruleset.terrains.values.firstOrNull { it.type == TerrainType.Land && it.food >= 2 }?.name
             val candidateInnerSpots = startTile.neighbors
                 .filter { it.isLand && !it.isImpassible() && it.terrainFeatures.isEmpty() && it.resource == null }
-            val candidateOuterSpots = startTile.getTilesAtDistance(2)
+            val candidateOuterSpots = startTile.tilesAtDistanceSequence(2)
                 .filter { it.isLand && !it.isImpassible() && it.terrainFeatures.isEmpty() && it.resource == null }
             val spot =
                 candidateInnerSpots.shuffled(rng).firstOrNull() ?: candidateOuterSpots.shuffled(rng)
@@ -266,7 +266,7 @@ object StartNormalizer {
         val rangeForBonuses = if (minorCiv) 2 else 3
 
         // Start with list of candidate plots sorted in ring order 1,2,3
-        val candidatePlots = startTile.getTilesInDistanceRange(1..rangeForBonuses)
+        val candidatePlots = startTile.tilesInDistanceRangeSequence(1..rangeForBonuses)
             .filter { it.resource == null && oasisEquivalent !in it.terrainFeatureObjects }
             .shuffled(rng).sortedBy { it.aerialDistanceTo(startTile) }.toMutableList()
 
@@ -291,7 +291,7 @@ object StartNormalizer {
 
             if (validBonuses.isNotEmpty() || goodPlotForOasis) {
                 if (goodPlotForOasis) {
-                    plot.addTerrainFeature(oasisEquivalent!!.name)
+                    plot.addTerrainFeature(oasisEquivalent.name)
                     canPlaceOasis = false
                 } else {
                     plot.setTileResource(validBonuses.random(rng))

@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#warning-free-shared-engine-and-client-builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warning-free shared engine and client builds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#revisioned-live-lobby-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5769,6 +5780,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#warning-free-shared-engine-and-client-builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warning-free shared engine and client builds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#revisioned-live-lobby-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8572,6 +8594,38 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="warning-free-shared-engine-and-client-builds">Warning-free shared engine and client builds</h2>
+<p>Implemented on 2026-07-30:</p>
+<ul>
+<li>Kotlin warnings are now build failures in the root multiplatform project,
+  build tooling, core, tests, private server worker, desktop, and Android.
+  Incremental compilation can no longer conceal a clean-build warning backlog.</li>
+<li>The clean compiler initially reported 389 shared-engine and UI warnings:
+  377 deprecated tile/unique traversal calls plus 12 unnecessary null,
+  conversion, safe-call, and constant-condition constructs. Call sites now use
+  explicit lazy sequence APIs whose names preserve allocation and
+  short-circuiting intent; callback forms remain available for hot paths.</li>
+<li>Compatibility-only references remain narrowly suppressed at their exact
+  owners: the old specialist-food unique for legacy rulesets, the serialized
+  victory-stat field for old saves, and the Coast name for legacy rulesets and
+  test fixtures. No project-wide warning or deprecation suppression was added.</li>
+<li>The first full gameplay run found a recursion between the new interface alias
+  and <code>BaseUnit</code>'s UnitType-aware override. The minimal repair makes the
+  interface alias read its own unique map and gives <code>BaseUnit</code> an explicit
+  UnitType-aware lazy override. A dedicated regression test proves UnitType
+  uniques remain visible through that API.</li>
+<li>Focused tile/command-bus tests, the complete 1,140-test gameplay suite, the
+  private packaged-worker server suite with the representative Authoritative
+  V3 Parity mod, desktop distribution, and Android debug/release APK and AAB
+  builds pass with warnings denied. The accepted self-contained desktop
+  package continues to use <code>jpackage</code>; Packr's upstream reflection diagnostic
+  is not part of the release path.</li>
+<li>This maintenance changes shared iteration entrypoints but not canonical
+  authority: V3 clients remain projection-only, while all gameplay and AI
+  execution remains inside the packaged Kotlin worker controlled by the Rust
+  API. Rust protocol, OpenAPI, PostgreSQL schema, and production routing are
+  unchanged.</li>
+</ul>
 <h2 id="revisioned-live-lobby-configuration">Revisioned live lobby configuration</h2>
 <p>Implemented on 2026-07-29:</p>
 <ul>

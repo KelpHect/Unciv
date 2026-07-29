@@ -8356,8 +8356,14 @@
   vulnerability findings: Bouncy Castle 1.84, Commons Compress 1.26.0,
   Commons Lang 3.18.0, JDOM 2.0.6.1, jose4j 0.9.6, Netty 4.1.136.Final,
   and Protobuf Java/Kotlin 3.25.5.
-  These are build-classpath floors only and can be removed once the Android
-  Gradle Plugin's own graph reaches or exceeds them.</li>
+  These are tooling security floors and can be removed once the Android Gradle
+  Plugin's own graph reaches or exceeds them.</li>
+<li>GitHub's submitted dependency artifact exposed additional AGP-created
+  detached test-tool configurations that bypassed a classpath-only force and
+  still contained Netty 4.1.93/4.1.110 and Protobuf 3.24.4. Every project
+  configuration now upgrades only affected Netty 4.1 and Protobuf modules
+  below the reviewed floors; Netty 4.2 and future versions are left untouched.
+  Hosted dependency submission is the closure gate for those detached graphs.</li>
 <li>Gradle dependency evidence resolves server Netty to 4.2.16.Final and the
   build-tool Netty family to 4.1.136.Final. Android debug Kotlin compilation
   and all 60 server tests pass on the final graph. The complete core test suite

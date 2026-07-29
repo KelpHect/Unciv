@@ -8650,6 +8650,17 @@
   The first remote Rust build also found that root's secure-path environment
   omits Cargo; deployment uses the root-owned Cargo binary by absolute path
   rather than weakening sudo policy.</li>
+<li>ARM64 bundle
+  <code>cba3979ce7fa0bf28ca8c1681858f4a4a9dd09633a9cc62e99b3b68a3fe3212d</code>
+  contains 46 verified artifacts built from runtime revision <code>7ccacf397</code>.
+  The Oracle pilot applied migration 31, reacquired the active vanilla ruleset,
+  restarted the authenticated worker and API, and remained ready through Caddy
+  at <code>https://unciv.rusticstack.com</code>. The live OpenAPI advertises both lobby
+  mutation routes. A disposable HTTPS account discovered manifest
+  <code>ffb1743100cd04c92fbb0360cd2abd18c203918ac364b6f1ca349cf4d06fd575</code>,
+  created a lobby at revision 0, changed owner configuration at revision 1,
+  selected a different worker-approved faction at revision 2, then closed the
+  smoke game and deleted the account.</li>
 </ul>
 <h2 id="direct-install-android-and-portable-windows-match-clients">Direct-install Android and portable Windows match clients</h2>
 <p>Qualified on 2026-07-29:</p>

@@ -1,5 +1,37 @@
 # Authoritative multiplayer v3 status
 
+## Human-match client candidate
+
+Built and qualified from clean commit `a42aa6263` on 2026-07-29:
+
+- `:server:authoritativeWorkerDist`, `:desktop:dist`,
+  `:android:assembleDebug`, and `:android:assembleRelease` passed together.
+  Release lint-vital passed. The installable testing APK is the repository
+  debug-signed build; no production Android signing credential is present.
+- The packaged `account_handoff` PostgreSQL 19 Beta 2 preflight passed again
+  with an Android-labelled owner session, a fresh desktop session for that
+  account, a separate friend account, three major civilizations, and the
+  intervening faction controlled by the packaged server worker.
+- The complete focused `com.unciv.logic.multiplayer.authoritative.*` client
+  suite passed, including exact production route coverage, projection-only
+  controls, account/session lifecycle, invitation/join flows, reconciliation,
+  turn notifications, and terminal-state behavior.
+- The signed APK installed and launched on a connected Android emulator; its
+  `AndroidLauncher` remained the resumed activity with a live
+  `com.unciv.app` process. The self-contained Windows desktop image and the
+  standalone desktop JAR each remained alive through a 12-second smoke launch.
+- Candidate SHA-256 values are
+  `4719041DBF2E1619061E8562350CA6CBD8511BD8ACF1D6D0ECCC221C133AA310`
+  for the APK,
+  `B20F0A92E15A1C1F82B28E08337E49E79902FF382FC9B39662A86E453104F906`
+  for the portable Windows ZIP, and
+  `A9F29A9658830B415D580FC5D08F5EF50B1D882D74C36AFFC9972CBD8E86BBCA`
+  for the desktop JAR.
+- These results prove the candidate clients and automated human-plus-AI
+  protocol preflight, not the still-required real two-person Domination match.
+  Preserve that match's evidence and mark the P0 checklist only after both
+  people complete the qualification procedure.
+
 ## Ktor and transitive dependency security refresh
 
 Implemented and qualified on 2026-07-29:

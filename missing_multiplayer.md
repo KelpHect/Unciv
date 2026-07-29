@@ -1055,6 +1055,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 - No known compile, test, formatting, clippy, or database integration error is
   being deferred from the current milestone.
+- Clean commit `a42aa6263` produced the installable debug-signed Android APK,
+  standalone desktop JAR, and self-contained Windows desktop image. Android
+  emulator installation/launch, both desktop smoke launches, the focused
+  authoritative client suite, and the packaged PostgreSQL/Kotlin/Rust
+  three-major account-handoff/server-AI preflight pass. This is candidate
+  readiness evidence; the actual two-person Domination run remains unchecked.
 - The public Kotlin server now resolves Ktor 3.5.0, Logback 1.5.34, and the
   complete Netty runtime family through an enforced 4.2.16.Final BOM. Android
   Gradle build tooling resolves the reviewed security floors Bouncy Castle

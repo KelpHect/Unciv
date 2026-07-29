@@ -7,6 +7,12 @@ worker protocol remains reachable only on loopback. PostgreSQL has no published
 port. The Compose services mount one attested Linux release bundle read-only;
 build and verify it using `authoritative-release-bundle.md` first.
 
+The one-shot ruleset service acquires and atomically activates the reviewed
+ruleset policy before the worker starts. Set `UNCIV_V3_SOURCE_ASSETS` to the
+reviewed vanilla asset tree, `UNCIV_V3_RULESET_POLICY` to the closed acquisition
+policy, and `UNCIV_V3_RULESETS_ROOT` to the persistent root-owned ruleset store.
+The worker mounts that store read-only and starts from `rulesets/active`.
+
 Copy `.env.vps.example` to an operator-owned `.env.vps`, replace every value,
 and keep that file outside version control. Then:
 

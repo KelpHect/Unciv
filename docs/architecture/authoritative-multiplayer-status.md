@@ -7971,6 +7971,40 @@ Verification on 2026-07-26:
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
 
+## Oracle ARM64 pilot deployment (2026-07-29)
+
+- The attested bundle inputs were rebuilt from commit
+  `0508a55febf3fe5c8f0a7f56a4e4ff11b557f7e1` on the target four-core ARM64
+  Ubuntu 24.04 VPS. The closed bundle verifier accepted bundle ID
+  `1c9f8c6888d0b81e6418e63dfd27d0ed5b8e1d6634fde2569646828a8f233b08`.
+  Syft 1.49.0 image digest
+  `sha256:13b53ebabe3d215268c90cf8fb9b875f0183908245f376fd4b3a2cb69d21d484`
+  produced the embedded SPDX inventory.
+- PostgreSQL runs only from
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+  The migration job exited zero at exact migration head 30, the ruleset
+  acquisition job atomically activated the vanilla manifest, and the packaged
+  worker and Rust API reported ready.
+- External `GET http://51.170.50.210/readyz` returned HTTP 200 with PostgreSQL
+  and worker ready. An external disposable-account smoke registered, logged in,
+  listed the V3 lobby page, and deleted the account successfully. The existing
+  `https://ci.rusticstack.com` endpoint still returned HTTP 200 after Caddy
+  validation and reload.
+- First deployment attempts exposed three bounded Compose defects rather than
+  gameplay defects: PostgreSQL automatically executed a mounted role SQL file
+  a second time without psql variables; the migrator was given
+  `UNCIV_V3_DATABASE_URL` instead of its closed
+  `UNCIV_V3_MIGRATION_DATABASE_URL`; and the worker had no acquired ruleset
+  tree as its working directory. The production Compose contract, bootstrap
+  script, environment example, runbook, and focused regression test now encode
+  the corrected boundaries. The initial empty failed database volume was
+  removed before any account or game existed.
+- The pilot endpoint is intentionally plain HTTP on a raw IP for the requested
+  friend test. It is not a TLS production endpoint and must not be used for
+  valuable passwords or long-lived tokens. Moving to a DNS name with HTTPS and
+  the loopback trusted-proxy boundary remains the operator acceptance step
+  before treating this endpoint as durable public production.
+
 ## V3-only production lobby and unlimited-turn milestone
 
 Implemented on 2026-07-29:

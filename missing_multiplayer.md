@@ -871,6 +871,15 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   bundle on Linux with the five least-privilege database roles, migrations,
   Rust API, private Kotlin worker, registration, worker-loss fail-closed
   readiness, and worker recovery. Production packaging is complete. The
+  2026-07-29 Oracle ARM64 deployment additionally proved the packaged bundle
+  with the digest-pinned PostgreSQL 19 Beta 2 image on a real aarch64 VPS,
+  including migration 30, atomic vanilla-ruleset acquisition, worker/API
+  readiness, external account registration/login/lobby listing/account cleanup,
+  and an existing Caddy service remaining healthy. That deployment exposed and
+  fixed three Compose-only defects: duplicate unparameterized role SQL
+  execution, the migrator environment-variable name, and the missing activated
+  ruleset mount/working directory. A focused contract test now prevents those
+  boundaries from drifting.
   later-prerelease upgrade/rollback rehearsal is the separate unchecked item
   below; no PostgreSQL 19 release newer than Beta 2 exists yet.
 - [x] Configure production TLS/HSTS and explicit trusted-proxy handling. Caddy

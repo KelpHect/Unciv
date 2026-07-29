@@ -31,7 +31,7 @@ services:
       - io_max_concurrency=16
     volumes:
       - postgres-data:/var/lib/postgresql
-      - ./postgresql/bootstrap-roles.sql:/docker-entrypoint-initdb.d/bootstrap-roles.sql:ro
+      - ./postgresql/bootstrap-roles.sql:/bootstrap/bootstrap-roles.sql:ro
       - ./docker/init-roles.sh:/docker-entrypoint-initdb.d/10-init-roles.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d unciv_authoritative"]
@@ -51,10 +51,36 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      UNCIV_V3_DATABASE_URL: postgresql://unciv_migrate:${UNCIV_V3_MIGRATION_DB_PASSWORD}@postgres:5432/unciv_authoritative
+      UNCIV_V3_MIGRATION_DATABASE_URL: postgresql://unciv_migrate:${UNCIV_V3_MIGRATION_DB_PASSWORD}@postgres:5432/unciv_authoritative
     command: ["/bundle/bin/unciv-v3-migrate"]
     volumes:
       - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  rulesets:
+    image: eclipse-temurin:25-jre@sha256:681c543d6f36c50f45e9b5226930a46203dcfa351d3670e9d0bdf0dabae53539
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      UNCIV_V3_DATABASE_URL: postgresql://unciv_migrate:${UNCIV_V3_MIGRATION_DB_PASSWORD}@postgres:5432/unciv_authoritative
+      JAVA_TOOL_OPTIONS: --enable-native-access=ALL-UNNAMED
+    command:
+      - /bundle/bin/unciv-v3-rulesets
+      - acquire
+      - /policy/ruleset-policy.json
+      - /source-assets
+      - /bundle/worker/UncivAuthoritativeWorker.jar
+      - /rulesets
+      - --activate
+    volumes:
+      - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+      - ${UNCIV_V3_SOURCE_ASSETS:?absolute reviewed source assets path}:/source-assets:ro
+      - ${UNCIV_V3_RULESETS_ROOT:?absolute ruleset store path}:/rulesets
+      - ${UNCIV_V3_RULESET_POLICY:?absolute ruleset policy path}:/policy/ruleset-policy.json:ro
     networks: [private]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
@@ -63,16 +89,28 @@ services:
     image: eclipse-temurin:25-jre@sha256:681c543d6f36c50f45e9b5226930a46203dcfa351d3670e9d0bdf0dabae53539
     restart: unless-stopped
     depends_on:
-      migrate:
+      rulesets:
         condition: service_completed_successfully
+    working_dir: /rulesets/active
     environment:
       UNCIV_ENGINE_WORKER_PORT: "43170"
       UNCIV_ENGINE_WORKER_SECRET: ${UNCIV_ENGINE_WORKER_SECRET:?required}
       UNCIV_V3_RELEASE_BUNDLE_ID: ${UNCIV_V3_RELEASE_BUNDLE_ID:?required}
       UNCIV_ENGINE_WORKER_JAR: /bundle/worker/UncivAuthoritativeWorker.jar
-    command: ["java", "-jar", "/bundle/worker/UncivAuthoritativeWorker.jar"]
+    command:
+      - java
+      - --enable-native-access=ALL-UNNAMED
+      - -Djava.awt.headless=true
+      - -Xms64m
+      - -Xmx384m
+      - -XX:MaxMetaspaceSize=96m
+      - -XX:MaxDirectMemorySize=32m
+      - -XX:+ExitOnOutOfMemoryError
+      - -jar
+      - /bundle/worker/UncivAuthoritativeWorker.jar
     volumes:
       - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro
+      - ${UNCIV_V3_RULESETS_ROOT:?absolute ruleset store path}:/rulesets:ro
     ports:
       - "${UNCIV_V3_PUBLIC_BIND:-127.0.0.1}:${UNCIV_V3_PUBLIC_PORT:-3000}:3000"
     networks: [private]
@@ -98,8 +136,10 @@ services:
       UNCIV_V3_DATABASE_URL: postgresql://unciv_runtime:${UNCIV_V3_RUNTIME_DB_PASSWORD}@postgres:5432/unciv_authoritative
       UNCIV_ENGINE_WORKER_ADDR: 127.0.0.1:43170
       UNCIV_ENGINE_WORKER_SECRET: ${UNCIV_ENGINE_WORKER_SECRET:?required}
+      UNCIV_ENGINE_WORKER_JAR: /bundle/worker/UncivAuthoritativeWorker.jar
+      UNCIV_V3_RELEASE_BUNDLE_ROOT: /bundle
       UNCIV_V3_RELEASE_BUNDLE_ID: ${UNCIV_V3_RELEASE_BUNDLE_ID:?required}
-      UNCIV_V3_TRUSTED_PROXY_MODE: ${UNCIV_V3_TRUSTED_PROXY_MODE:-direct}
+      UNCIV_V3_TRUSTED_PROXY: ${UNCIV_V3_TRUSTED_PROXY:-disabled}
     command: ["/bundle/bin/unciv-authoritative-server"]
     volumes:
       - ${UNCIV_V3_RELEASE_BUNDLE:?absolute release bundle path}:/bundle:ro

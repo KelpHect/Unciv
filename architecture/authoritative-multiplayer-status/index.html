@@ -8625,6 +8625,35 @@
   execution remains inside the packaged Kotlin worker controlled by the Rust
   API. Rust protocol, OpenAPI, PostgreSQL schema, and production routing are
   unchanged.</li>
+<li>Runtime commit <code>db743ddf4e053703c663a7cafe6fbce60f7084f9</code> is deployed at
+  <code>https://unciv.rusticstack.com</code> in verified ARM64 bundle
+  <code>ab0fe00bc469d2b023f62fe8ffa6bf5dd4de3f8bf971f80242c21349f7319704</code>
+  with 46 artifacts and a Syft 1.49.0 SPDX SBOM. Migration and ruleset one-shot
+  services exited 0, the worker is healthy, and public <code>/healthz</code> and <code>/readyz</code>
+  report protocol 4 with PostgreSQL and the engine worker ready. The API mount
+  is the new immutable bundle and its startup log reports engine build 4.21.4
+  with two installed rulesets.</li>
+<li>Fresh pilot artifacts are in
+  <code>deploy/Unciv-V3-warning-clean-final-20260730</code>: direct-install APK
+  <code>E4FA7B9AB13D8437572B16EC7A7B2A331AEC48C2BC4D7D555FFE1CF6CD2C3781</code>,
+  portable Windows ZIP
+  <code>E7A71CCE04AE9C13745F0227759D83506D9F25EE66A2F617B9A937668AB33B00</code>,
+  AAB
+  <code>2F796093ACC51521C55D891D2A07877F6C5918C51CF124C83EEB8F3C6DA5FF4</code>,
+  and desktop JAR
+  <code>E6F6FEFFD5F61DEA1EB3389D130435C0C679914B21053F4C06C5740D2163C31A</code>.
+  The APK verifies with v1/v2/v3 signatures, installs, and resumes
+  <code>AndroidLauncher</code>; the portable <code>Unciv.exe</code> passed a 12-second smoke launch.</li>
+<li>Deployment repair evidence: the first remote Cargo attempt used the
+  unprivileged account against the existing root-owned release target and was
+  denied at <code>.cargo-build-lock</code>; a direct root invocation then lacked that
+  account's Rustup selection. The final bounded command kept the existing
+  root-owned target and explicitly reused <code>/home/ubuntu/.rustup</code> and
+  <code>/home/ubuntu/.cargo</code>, after which the five release binaries completed. A
+  later combined Compose command returned nonzero only because <code>compose wait</code>
+  queried one-shot containers after completion; direct inspection confirmed
+  both exited 0 and the worker/API were running. No source, database, or
+  credential repair was required.</li>
 </ul>
 <h2 id="revisioned-live-lobby-configuration">Revisioned live lobby configuration</h2>
 <p>Implemented on 2026-07-29:</p>

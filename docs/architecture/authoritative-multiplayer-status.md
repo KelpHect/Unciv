@@ -32,6 +32,35 @@ Implemented on 2026-07-30:
   execution remains inside the packaged Kotlin worker controlled by the Rust
   API. Rust protocol, OpenAPI, PostgreSQL schema, and production routing are
   unchanged.
+- Runtime commit `db743ddf4e053703c663a7cafe6fbce60f7084f9` is deployed at
+  `https://unciv.rusticstack.com` in verified ARM64 bundle
+  `ab0fe00bc469d2b023f62fe8ffa6bf5dd4de3f8bf971f80242c21349f7319704`
+  with 46 artifacts and a Syft 1.49.0 SPDX SBOM. Migration and ruleset one-shot
+  services exited 0, the worker is healthy, and public `/healthz` and `/readyz`
+  report protocol 4 with PostgreSQL and the engine worker ready. The API mount
+  is the new immutable bundle and its startup log reports engine build 4.21.4
+  with two installed rulesets.
+- Fresh pilot artifacts are in
+  `deploy/Unciv-V3-warning-clean-final-20260730`: direct-install APK
+  `E4FA7B9AB13D8437572B16EC7A7B2A331AEC48C2BC4D7D555FFE1CF6CD2C3781`,
+  portable Windows ZIP
+  `E7A71CCE04AE9C13745F0227759D83506D9F25EE66A2F617B9A937668AB33B00`,
+  AAB
+  `2F796093ACC51521C55D891D2A07877F6C5918C51CF124C83EEB8F3C6DA5FF4`,
+  and desktop JAR
+  `E6F6FEFFD5F61DEA1EB3389D130435C0C679914B21053F4C06C5740D2163C31A`.
+  The APK verifies with v1/v2/v3 signatures, installs, and resumes
+  `AndroidLauncher`; the portable `Unciv.exe` passed a 12-second smoke launch.
+- Deployment repair evidence: the first remote Cargo attempt used the
+  unprivileged account against the existing root-owned release target and was
+  denied at `.cargo-build-lock`; a direct root invocation then lacked that
+  account's Rustup selection. The final bounded command kept the existing
+  root-owned target and explicitly reused `/home/ubuntu/.rustup` and
+  `/home/ubuntu/.cargo`, after which the five release binaries completed. A
+  later combined Compose command returned nonzero only because `compose wait`
+  queried one-shot containers after completion; direct inspection confirmed
+  both exited 0 and the worker/API were running. No source, database, or
+  credential repair was required.
 
 ## Revisioned live lobby configuration
 

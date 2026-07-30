@@ -149,6 +149,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games",
         "/api/v3/lobbies",
         "/api/v3/lobbies/{game_id}",
+        "/api/v3/lobbies/{game_id}/map-preview",
         "/api/v3/lobbies/{game_id}/configuration",
         "/api/v3/lobbies/{game_id}/faction",
         "/api/v3/lobbies/{game_id}/ready",

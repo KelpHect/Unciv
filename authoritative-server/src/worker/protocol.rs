@@ -749,4 +749,7 @@ pub(super) enum WorkerOperation<'a> {
     ProjectSpectatorState {
         snapshot: &'a str,
     },
+    ProjectLobbyTerrain {
+        snapshot: &'a str,
+    },
 }

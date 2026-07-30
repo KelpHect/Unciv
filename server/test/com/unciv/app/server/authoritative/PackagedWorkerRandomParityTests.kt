@@ -331,6 +331,106 @@ class PackagedWorkerRandomParityTests {
         assertNotEquals(result.snapshot, changedState.snapshot)
     }
 
+    /**
+     * The pregame preview must be the map the match will actually be played on,
+     * and must be byte-stable in a fresh worker. Both halves matter: a preview
+     * that drifts from the committed snapshot would mislead every player.
+     */
+    @Test(timeout = 300_000)
+    fun lobbyTerrainProjectionMatchesTheCommittedMapAcrossFreshWorkers() {
+        val fixture = createFixture("Civ V - Vanilla", "00000000-0000-4000-8000-000000000401")
+        val committed = decode(fixture.response.snapshot)
+        val request = request(
+            fixture,
+            WorkerOperation.ProjectLobbyTerrain(
+                snapshot = requireNotNull(fixture.response.snapshot),
+            ),
+            1_700_100_040_000L,
+        )
+
+        val result = PackagedWorkerParityHarness.assertStable(request)
+
+        val projection = requireNotNull(result.lobbyTerrainProjection)
+        assertTrue(projection.isConsistent())
+        assertEquals(committed.tileMap.mapParameters.worldWrap, projection.worldWrap)
+        // Every committed tile is projected with its own base terrain.
+        for (tile in committed.tileMap.values)
+            assertEquals(
+                tile.baseTerrain,
+                projection.terrainAt(tile.position.x, tile.position.y),
+            )
+        // One unlabeled start per major civilization that has a unit placed.
+        val expectedStarts = committed.civilizations
+            .filter { it.isMajorCiv() }
+            .mapNotNull { it.units.getCivUnits().firstOrNull()?.getTile()?.position }
+            .distinct()
+        assertEquals(expectedStarts.size, projection.startPositionCoordinates().size)
+        assertTrue(projection.startPositionCoordinates().containsAll(expectedStarts))
+    }
+
+    /**
+     * A member claiming a different faction must not silently regenerate the
+     * world. The map seed is pinned at creation, so the terrain a lobby shows
+     * has to survive an unrelated reconfiguration byte for byte.
+     */
+    @Test(timeout = 300_000)
+    fun factionOnlyReconfigurationPreservesTheProjectedTerrain() {
+        val gameId = "00000000-0000-4000-8000-000000000402"
+        val fixture = createFixture("Civ V - Vanilla", gameId)
+        val baseSetup = setup("Civ V - Vanilla")
+        val before = requireNotNull(
+            PackagedWorkerParityHarness.execute(
+                request(
+                    fixture,
+                    WorkerOperation.ProjectLobbyTerrain(
+                        snapshot = requireNotNull(fixture.response.snapshot),
+                    ),
+                    1_700_100_041_000L,
+                ),
+            ).lobbyTerrainProjection,
+        )
+
+        // Same pinned map seed, different owner faction, a different per-operation
+        // server seed - exactly the shape of an unrelated pregame edit.
+        val reconfigured = PackagedWorkerParityHarness.execute(
+            request(
+                fixture,
+                WorkerOperation.ReconfigureLobby(
+                    gameId = gameId,
+                    serverSeed = 123_456_789L,
+                    setup = baseSetup.copy(
+                        ownerCivilizationId = "Greece",
+                        mapSeed = requireNotNull(
+                            decode(fixture.response.snapshot).tileMap.mapParameters.seed,
+                        ),
+                    ),
+                    participants = listOf(WorkerLobbyParticipant(actorId, "Greece")),
+                ),
+                1_700_100_042_000L,
+            ),
+        )
+        assertNull(reconfigured.error)
+
+        val after = requireNotNull(
+            PackagedWorkerParityHarness.execute(
+                request(
+                    fixture,
+                    WorkerOperation.ProjectLobbyTerrain(
+                        snapshot = requireNotNull(reconfigured.snapshot),
+                    ),
+                    1_700_100_043_000L,
+                ),
+            ).lobbyTerrainProjection,
+        )
+
+        assertEquals(before.terrainNames, after.terrainNames)
+        assertEquals(before.tiles, after.tiles)
+        assertEquals(before.width, after.width)
+        assertEquals(before.height, after.height)
+        assertEquals(before.minX, after.minX)
+        assertEquals(before.minY, after.minY)
+    }
+
     @Test(timeout = 300_000)
     fun canonicalEventChoiceIsByteStableAcrossFreshWorkers() {
         val fixture = createFixture(

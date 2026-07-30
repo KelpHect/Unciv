@@ -133,6 +133,17 @@ pub struct LobbyPage {
     pub next_cursor: Option<Uuid>,
 }
 
+/// Terrain of the map a pregame lobby revision committed. Bound to that
+/// revision so a client can never present a stale map as current.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct LobbyMapPreview {
+    pub game_id: Uuid,
+    pub preview_version: u16,
+    pub lobby_revision: u64,
+    pub canonical_state_hash: String,
+    pub terrain: crate::LobbyTerrainProjection,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 pub struct PlayerInvitation {
     pub game_id: Uuid,

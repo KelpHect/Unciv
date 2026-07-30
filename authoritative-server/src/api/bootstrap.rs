@@ -152,6 +152,10 @@ pub(crate) async fn run() {
         .route("/api/v3/lobbies", get(list_lobbies))
         .route("/api/v3/lobbies/{game_id}", get(lobby))
         .route(
+            "/api/v3/lobbies/{game_id}/map-preview",
+            get(lobby_map_preview),
+        )
+        .route(
             "/api/v3/lobbies/{game_id}/configuration",
             put(reconfigure_lobby),
         )

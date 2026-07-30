@@ -55,6 +55,33 @@ pub(super) async fn lobby(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/v3/lobbies/{game_id}/map-preview",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    responses(
+        (status = 200, body = unciv_authoritative_server::postgres::LobbyMapPreview),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse)
+    )
+)]
+pub(super) async fn lobby_map_preview(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+) -> Result<Json<unciv_authoritative_server::postgres::LobbyMapPreview>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    Ok(Json(
+        state
+            .repository
+            .lobby_map_preview(&state.worker, actor.id, game_id)
+            .await
+            .map_err(game_error)?,
+    ))
+}
+
+#[utoipa::path(
     put,
     path = "/api/v3/lobbies/{game_id}/configuration",
     params(("game_id" = uuid::Uuid, Path)),

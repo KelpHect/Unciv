@@ -390,6 +390,70 @@ impl PostgresGameRepository {
         self.lobby_summary(actor_account_id, game_id).await
     }
 
+    /// Terrain of the map the lobby's head revision already generated.
+    ///
+    /// Read-only and generation-free: every committed lobby revision stores its
+    /// own snapshot, so this only decodes and projects one. Requires a seated
+    /// `owner`/`player` membership and the inverse lifecycle gate of
+    /// [`Self::lobby_started`] — once a match starts, members read the real
+    /// player projection instead and this route stops answering.
+    pub async fn lobby_map_preview(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        game_id: Uuid,
+    ) -> Result<LobbyMapPreview, CommitError> {
+        let row = sqlx::query(
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable,
+                    r.revision AS head_revision,
+                    r.canonical_state_hash AS revision_state_hash,
+                    s.revision AS snapshot_revision, b.payload, s.codec,
+                    s.compressed_size, s.uncompressed_size,
+                    s.protocol_version AS snapshot_protocol_version,
+                    s.validation_status, s.payload_hash,
+                    s.canonical_state_hash AS snapshot_state_hash,
+                    m.manifest, gm.role, l.lobby_revision
+             FROM game_lobbies l
+             JOIN games g ON g.id=l.game_id
+             JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2
+             JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
+             JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.revision
+             JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
+             JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash
+             WHERE l.game_id=$1 AND l.closed_at IS NULL AND l.started_at IS NULL",
+        )
+        .bind(game_id)
+        .bind(actor_account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CommitError::storage)?
+        .ok_or(CommitError::NotFound)?;
+        let role: String = row.get("role");
+        if !matches!(role.as_str(), "owner" | "player") {
+            return Err(CommitError::Unauthorized);
+        }
+        let snapshot = self.validated_snapshot(game_id, &row).await?;
+        let manifest = serde_json::from_value::<WorkerManifest>(row.get("manifest"))
+            .map_err(|_| CommitError::WorkerRevisionMismatch)?;
+        let terrain = worker
+            .project_lobby_terrain(&actor_account_id.to_string(), &manifest, &snapshot)
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                _ => CommitError::WorkerRevisionMismatch,
+            })?;
+        Ok(LobbyMapPreview {
+            game_id,
+            preview_version: crate::LOBBY_TERRAIN_PROJECTION_VERSION,
+            lobby_revision: u64::try_from(row.get::<i64, _>("lobby_revision"))
+                .map_err(|_| CommitError::Storage)?,
+            canonical_state_hash: row.get("revision_state_hash"),
+            terrain,
+        })
+    }
+
     pub(super) async fn lobby_started(&self, game_id: Uuid) -> Result<bool, CommitError> {
         sqlx::query_scalar::<_, bool>(
             "SELECT started_at IS NOT NULL FROM game_lobbies WHERE game_id=$1",

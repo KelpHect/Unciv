@@ -1,6 +1,7 @@
 package com.unciv.app.server.authoritative
 
 import com.unciv.logic.multiplayer.authoritative.CommandEnvelope
+import com.unciv.logic.multiplayer.authoritative.LobbyTerrainProjection
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
 import kotlinx.serialization.Serializable
@@ -24,6 +25,10 @@ class ReleaseCompatibilityContractTests {
             SpectatorProjection.CURRENT_PROJECTION_VERSION,
             contract.spectatorProjectionVersion,
         )
+        assertEquals(
+            LobbyTerrainProjection.CURRENT_PROJECTION_VERSION,
+            contract.lobbyTerrainProjectionVersion,
+        )
         assertEquals(EngineWorkerProtocol.VERSION, contract.workerProtocolVersion)
         assertEquals(31, contract.latestMigrationVersion)
         assertEquals(
@@ -40,6 +45,7 @@ private data class CompatibilityContract(
     val public_protocol_version: Int,
     val player_projection_version: Int,
     val spectator_projection_version: Int,
+    val lobby_terrain_projection_version: Int,
     val worker_protocol_version: Int,
     val latest_migration_version: Int,
     val postgres_image: String,
@@ -48,6 +54,7 @@ private data class CompatibilityContract(
     val publicProtocolVersion get() = public_protocol_version
     val playerProjectionVersion get() = player_projection_version
     val spectatorProjectionVersion get() = spectator_projection_version
+    val lobbyTerrainProjectionVersion get() = lobby_terrain_projection_version
     val workerProtocolVersion get() = worker_protocol_version
     val latestMigrationVersion get() = latest_migration_version
     val postgresImage get() = postgres_image

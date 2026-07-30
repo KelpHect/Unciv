@@ -1,6 +1,6 @@
 package com.unciv.ui.screens.multiplayerscreens
 
-import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.scenes.scene2d.ui.Container
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.Constants
@@ -15,26 +15,31 @@ import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
+import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.components.input.onChange
-import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.widgets.AutoScrollPane
 import com.unciv.ui.components.widgets.UncivTextField
+import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.Popup
+import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.multiplayerscreens.LobbyChrome.control
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
 import com.unciv.utils.launchOnGLThread
 
 /**
- * API-v3-only first stage. Creation establishes the room, access policy and
- * owner's faction; detailed map/rule settings are then edited in the live room.
+ * API-v3-only first stage, kept deliberately short like a Civilization "host
+ * game" step: it establishes the room, its access policy, and the host's own
+ * faction. Map, rules, victories and advanced settings are then edited live in
+ * the staging room, where every change is a server-validated revision.
  */
 class AuthoritativeCreateLobbyScreen(
     private val manifests: List<ApiV3RulesetManifestSummary>,
     private val session: AuthoritativeMultiplayerSession,
     private val retryState: AuthoritativeCreationRetryState = AuthoritativeCreationRetryState(),
 ) : PickerScreen() {
-    private val content = Table(skin).apply { defaults().pad(8f) }
+    private val content = Table(skin).apply { defaults().pad(6f) }
     private val matchName = UncivTextField("Match name", "New multiplayer match")
     private val humanSlots = UncivTextField("Human players", "2")
     private val password = UncivTextField("Optional password (12+ characters)").apply {
@@ -42,6 +47,7 @@ class AuthoritativeCreateLobbyScreen(
     }
     private val rulesetSelect = SelectBox<String>(skin)
     private val factionSelect = SelectBox<String>(skin)
+    private val factionPortrait = Container<com.badlogic.gdx.scenes.scene2d.Actor?>()
     private val createButton = "Create lobby".toTextButton()
     private var selectedRuleset: Ruleset = rulesetFor(
         manifests.firstOrNull() ?: error("The server has no compatible game rulesets."),
@@ -59,28 +65,52 @@ class AuthoritativeCreateLobbyScreen(
             selectedRuleset = rulesetFor(manifests[rulesetSelect.selectedIndex])
             refreshFactions()
         }
-        createButton.onClick(::createLobby)
+        factionSelect.onChange { refreshFactionPortrait() }
+        createButton.onActivation(::createLobby)
 
         content.top()
-        content.add("CREATE MULTIPLAYER LOBBY  •  STEP 1 OF 2".toLabel(Color.GOLD))
-            .colspan(2).growX().left().row()
-        content.add("Create the room first. Map, rules, victories and advanced settings stay editable in the live lobby."
-            .toLabel()).colspan(2).growX().left().padBottom(18f).row()
-        addField("Match name", matchName)
-        addField("Server ruleset", rulesetSelect)
-        addField("Human player slots", humanSlots)
-        addField("Private match password", password)
-        addField("Your faction", factionSelect)
-        content.add("Each player chooses their own unclaimed faction after joining."
-            .toLabel(Color.LIGHT_GRAY)).colspan(2).growX().left().row()
-        content.add(createButton).colspan(2).growX().padTop(16f).row()
+        content.add(header()).growX().row()
+        content.add(roomCard()).growX().row()
+        content.add(leaderCard()).growX().row()
+        content.add(createButton).growX().padTop(12f).row()
         topTable.add(AutoScrollPane(content)).grow().row()
     }
 
-    private fun addField(label: String, actor: com.badlogic.gdx.scenes.scene2d.Actor) {
-        content.add(label.toLabel(Color.LIGHT_GRAY)).left()
-        content.add(actor).minWidth(stage.width.coerceAtMost(900f) * 0.55f).growX().row()
+    private fun header() = LobbyChrome.card().apply {
+        add(LobbyChrome.caption("Host a match")).colspan(2).growX().left().row()
+        add(LobbyChrome.title("CREATE MULTIPLAYER LOBBY  •  STEP 1 OF 2"))
+            .colspan(2).growX().left().row()
+        add(
+            LobbyChrome.hint(
+                "Create the room first. Map, rules, victories and advanced settings " +
+                    "stay editable in the live staging room.",
+            ),
+        ).colspan(2).growX().left().row()
     }
+
+    private fun roomCard() = LobbyChrome.card("Room").apply {
+        control("Match name", matchName, fieldWidth())
+        control("Server ruleset", rulesetSelect, fieldWidth())
+        control("Human player slots", humanSlots, fieldWidth())
+        control("Private match password", password, fieldWidth())
+        add(
+            LobbyChrome.hint(
+                "Leave the password blank to list the match publicly.",
+            ),
+        ).colspan(2).growX().left().row()
+    }
+
+    private fun leaderCard() = LobbyChrome.card("Your civilization").apply {
+        add(factionPortrait).left().padRight(8f)
+        add(factionSelect).minWidth(fieldWidth()).growX().left().row()
+        add(
+            LobbyChrome.hint(
+                "Every other player claims their own unclaimed civilization after joining.",
+            ),
+        ).colspan(2).growX().left().row()
+    }
+
+    private fun fieldWidth() = stage.width.coerceAtMost(900f) * 0.5f
 
     private fun refreshFactions() {
         val factions = selectedRuleset.nations.values
@@ -91,6 +121,15 @@ class AuthoritativeCreateLobbyScreen(
             .toList()
         check(factions.isNotEmpty()) { "The selected server ruleset has no playable factions." }
         factionSelect.items = com.badlogic.gdx.utils.Array(factions.toTypedArray())
+        refreshFactionPortrait()
+    }
+
+    private fun refreshFactionPortrait() {
+        // Nation portraits resolve their icon atlas and ring colours through the
+        // globally selected ruleset, so a modded manifest needs its own set first.
+        ImageGetter.setNewRuleset(selectedRuleset, ignoreIfModsAreEqual = true)
+        factionPortrait.actor =
+            LobbyChrome.nationBadge(selectedRuleset, factionSelect.selected.orEmpty(), 64f)
     }
 
     private fun createLobby() {
@@ -161,10 +200,7 @@ class AuthoritativeCreateLobbyScreen(
                 }
             }
         } catch (exception: Exception) {
-            com.unciv.ui.popups.ToastPopup(
-                exception.message ?: "Check the labeled lobby fields.",
-                this,
-            )
+            ToastPopup(exception.message ?: "Check the labeled lobby fields.", this)
         }
     }
 

@@ -224,6 +224,20 @@ class AuthoritativeMultiplayerSession(
         return transport.lobby(gameId)
     }
 
+    /**
+     * Terrain of the map the lobby has actually committed. Read-only: the map
+     * changes only through a normal owner reconfiguration, never through this
+     * call. Callers must refetch when [ApiV3Lobby.lobbyRevision] advances.
+     */
+    suspend fun lobbyMapPreview(gameId: String): ApiV3LobbyMapPreview {
+        requireAuthenticated()
+        val preview = transport.lobbyMapPreview(gameId)
+        check(preview.terrain.isConsistent()) {
+            "The server returned a malformed lobby map preview"
+        }
+        return preview
+    }
+
     fun observeLobby(gameId: String, onChanged: () -> Unit): AutoCloseable {
         require(gameId.isNotBlank())
         lobbyObservers.computeIfAbsent(gameId) { ConcurrentHashMap.newKeySet() }.add(onChanged)

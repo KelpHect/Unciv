@@ -11,91 +11,262 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.logic.multiplayer.authoritative.normalizeApiV3BaseUrl
 import com.unciv.models.ruleset.RulesetCache
-import com.unciv.models.translations.tr
+import com.unciv.ui.components.SmallButtonStyle
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
-import com.unciv.ui.components.input.onClick
+import com.unciv.ui.components.input.onActivation
+import com.unciv.ui.components.input.onChange
+import com.unciv.ui.components.widgets.AutoScrollPane
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.multiplayerscreens.LobbyChrome.field
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
 
-/** Production multiplayer entry point. It deliberately exposes API v3 only;
- * legacy save-upload multiplayer remains isolated for compatibility imports. */
+/**
+ * Production multiplayer entry point, shaped like a Civilization game browser:
+ * a server/account header, a searchable list of open staging rooms, and the
+ * account's own matches. It deliberately exposes API v3 only; legacy
+ * save-upload multiplayer remains isolated for compatibility imports.
+ */
 class MultiplayerScreen : PickerScreen() {
     private val session get() = game.onlineMultiplayer.authoritativeSession
     private val content = Table(skin).apply {
         top()
-        defaults().pad(8f)
+        defaults().pad(6f)
     }
+    private val browserCard = LobbyChrome.card("Open staging rooms")
+    private val matchesCard = LobbyChrome.card("Your matches")
+    private val search = UncivTextField("Filter by name, host or ruleset")
+    private var lobbies = emptyList<ApiV3Lobby>()
+    private var games = emptyList<ApiV3GameSummary>()
 
     init {
         setDefaultCloseAction()
         rightSideButton.disable()
         rightSideButton.isVisible = false
-        topTable.add(content).grow().row()
+        topTable.add(AutoScrollPane(content)).grow().row()
         pickerPane.bottomTable.background = skinStrings.getUiBackground(
             "MultiplayerScreen/BottomTable",
             tintColor = skinStrings.skinConfig.clearColor,
         )
-        showLoading()
+        search.onChange { renderBrowser() }
+        content.add(header()).growX().row()
+        content.add(browserCard).growX().row()
+        content.add(matchesCard).growX().row()
+        renderBrowser()
+        renderMatches()
+        if (game.onlineMultiplayer.authoritativeStatus == AuthoritativeSessionStatus.Authenticated)
+            loadDirectory()
     }
 
-    private fun showLoading() {
-        content.clear()
-        content.add("MULTIPLAYER".toLabel(Color.GOLD, 30)).colspan(4).left().row()
-        content.add(
-            "Create a server-hosted match, join a live lobby, or continue one of your games."
-                .toLabel(),
-        ).colspan(4).growX().left().padBottom(18f).row()
-        content.add("SERVER & ACCOUNT".toLabel(Color.GOLD)).colspan(4).growX().left().row()
-        content.add("Server".toLabel(Color.LIGHT_GRAY)).left()
-        content.add(game.settings.multiplayer.getServer().toLabel()).colspan(3).growX().left().row()
+    private fun header() = LobbyChrome.card().apply {
         val status = game.onlineMultiplayer.authoritativeStatus
-        content.add("Connection".toLabel(Color.LIGHT_GRAY)).left()
-        content.add(
-            status.toString().toLabel(
-                if (status == AuthoritativeSessionStatus.Authenticated) Color.GREEN else Color.WHITE,
+        add(LobbyChrome.caption("Multiplayer")).colspan(2).growX().left().row()
+        add(LobbyChrome.title("Server-hosted matches")).colspan(2).growX().left().row()
+        add(
+            LobbyChrome.hint(
+                "Create a server-hosted match, join a live staging room, " +
+                    "or continue one of your games.",
             ),
-        ).colspan(3).growX().left().row()
-        content.add("Server settings".toTextButton().onClick(::openServerPopup))
+        ).colspan(2).growX().left().padBottom(8f).row()
+        field("Server", game.settings.multiplayer.getServer())
+        add(LobbyChrome.hint("Connection")).left()
+        add(
+            status.toString().toLabel(
+                when (status) {
+                    AuthoritativeSessionStatus.Authenticated -> LobbyChrome.ready
+                    AuthoritativeSessionStatus.Failed -> LobbyChrome.danger
+                    else -> Color.WHITE
+                },
+            ),
+        ).growX().left().row()
+        if (status == AuthoritativeSessionStatus.Failed)
+            add(
+                (
+                    game.onlineMultiplayer.authoritativeFailureMessage
+                        ?: "Could not connect to the authoritative server."
+                    ).toLabel(LobbyChrome.danger),
+            ).colspan(2).growX().left().row()
+        add(accountActions(status)).colspan(2).growX().left().padTop(6f).row()
+    }
+
+    private fun accountActions(status: AuthoritativeSessionStatus) = Table(skin).apply {
+        defaults().pad(4f)
+        add("Server settings".toTextButton(SmallButtonStyle()).onActivation(::openServerPopup))
         when (status) {
             AuthoritativeSessionStatus.Authenticated ->
-                content.add("Manage account".toTextButton().onClick {
-                    AuthoritativeAccountManagementPopup(this) { refresh() }.open()
-                })
+                add(
+                    "Manage account".toTextButton(SmallButtonStyle()).onActivation {
+                        AuthoritativeAccountManagementPopup(this@MultiplayerScreen) { refresh() }
+                            .open()
+                    },
+                )
             AuthoritativeSessionStatus.LoginRequired ->
-                content.add("Create account or log in".toTextButton().onClick {
-                    AuthoritativeAccountPopup(this) { refresh() }.open()
-                })
-            else -> content.add("Reconnect".toTextButton().onClick(::restoreSession))
+                add(
+                    "Create account or log in".toTextButton(SmallButtonStyle()).onActivation {
+                        AuthoritativeAccountPopup(this@MultiplayerScreen) { refresh() }.open()
+                    },
+                )
+            else -> add("Reconnect".toTextButton(SmallButtonStyle()).onActivation(::restoreSession))
         }
-        content.add("Create new match".toTextButton().onClick(::openCreateMatchPopup))
-        content.add("Friends".toTextButton().onClick {
-            session?.let {
-                AuthoritativeFriendsPopup(this, it.socialCoordinator()).openAndRefresh()
-            }
-        })
-        content.add("Refresh".toTextButton().onClick(::refresh)).row()
-        when (status) {
-            AuthoritativeSessionStatus.Authenticated -> {
-                content.add(Constants.working.toLabel()).colspan(4).row()
-                loadDirectory()
-            }
-            AuthoritativeSessionStatus.Detecting ->
-                content.add(Constants.working.toLabel()).colspan(4).row()
-            AuthoritativeSessionStatus.Failed ->
-                content.add(
-                    (
-                        game.onlineMultiplayer.authoritativeFailureMessage
-                            ?: "Could not connect to the authoritative server."
-                    ).toLabel(Color.RED),
-                ).colspan(4).row()
-            else -> Unit
+        add(
+            "Friends".toTextButton(SmallButtonStyle()).onActivation {
+                session?.let {
+                    AuthoritativeFriendsPopup(this@MultiplayerScreen, it.socialCoordinator())
+                        .openAndRefresh()
+                }
+            },
+        )
+        if (isNarrowerThan4to3()) row()
+        add("Create new match".toTextButton().onActivation(::openCreateMatchPopup))
+        add("Refresh".toTextButton(SmallButtonStyle()).onActivation(::refresh))
+    }
+
+    private fun renderBrowser() {
+        LobbyChrome.resetCard(browserCard, "Open staging rooms")
+        browserCard.add(search).colspan(2).growX().padBottom(4f).row()
+        val status = game.onlineMultiplayer.authoritativeStatus
+        if (status != AuthoritativeSessionStatus.Authenticated) {
+            browserCard.add(
+                LobbyChrome.hint(
+                    if (status == AuthoritativeSessionStatus.Detecting) Constants.working
+                    else "Log in to this server to browse staging rooms.",
+                ),
+            ).colspan(2).left().row()
+            return
         }
+        val visible = lobbies.filter(::matchesSearch)
+        if (visible.isEmpty()) {
+            browserCard.add(
+                LobbyChrome.hint(
+                    if (lobbies.isEmpty()) "No public staging rooms are waiting for players."
+                    else "No staging room matches this filter.",
+                ),
+            ).colspan(2).left().row()
+            return
+        }
+        for (lobby in visible) browserCard.add(lobbyRow(lobby)).colspan(2).growX().row()
+    }
+
+    private fun matchesSearch(lobby: ApiV3Lobby): Boolean {
+        val needle = search.text.trim().lowercase()
+        if (needle.isEmpty()) return true
+        return needle in lobby.displayName.lowercase() ||
+            needle in lobby.ownerUsername.lowercase() ||
+            needle in lobby.baseRulesetName.lowercase() ||
+            lobby.modNames.any { needle in it.lowercase() }
+    }
+
+    private fun lobbyRow(lobby: ApiV3Lobby) = LobbyChrome.row().apply {
+        val full = lobby.occupiedSlots >= lobby.humanSlots
+        add(
+            Table(skin).apply {
+                add(lobby.displayName.toLabel(hideIcons = true)).left().row()
+                add(
+                    LobbyChrome.hint(
+                        "Host [${lobby.ownerUsername}]  •  ${rulesetLabel(lobby)}  •  " +
+                            "${lobby.setup.mapType.name} ${lobby.setup.mapSize.name}",
+                    ),
+                ).left().row()
+            },
+        ).growX().left()
+        add(
+            "[${lobby.occupiedSlots}]/[${lobby.humanSlots}]".toLabel(
+                if (full) LobbyChrome.waiting else LobbyChrome.ready,
+            ),
+        ).right().padRight(6f)
+        add(
+            (if (lobby.passwordRequired) "Private" else "Open").toLabel(LobbyChrome.muted),
+        ).right().padRight(6f)
+        if (isNarrowerThan4to3()) row()
+        add(
+            (if (lobby.actorRole != null) "Return to room" else "Join")
+                .toTextButton().onActivation {
+                    session?.let { game.pushScreen(AuthoritativeLobbyScreen(lobby, it)) }
+                },
+        ).right()
+    }
+
+    private fun rulesetLabel(lobby: ApiV3Lobby) = buildString {
+        append(lobby.baseRulesetName.ifBlank { "Server ruleset" })
+        if (lobby.modNames.isNotEmpty()) append(" + ").append(lobby.modNames.joinToString())
+    }
+
+    private fun renderMatches() {
+        LobbyChrome.resetCard(matchesCard, "Your matches")
+        val status = game.onlineMultiplayer.authoritativeStatus
+        if (status != AuthoritativeSessionStatus.Authenticated) {
+            matchesCard.add(LobbyChrome.hint("Log in to see your matches."))
+                .colspan(2).left().row()
+            return
+        }
+        val visible = games.filter { it.lifecycleStatus != "archived" }
+        if (visible.isEmpty()) {
+            matchesCard.add(LobbyChrome.hint("You have no active matches yet."))
+                .colspan(2).left().row()
+            return
+        }
+        for (summary in visible) matchesCard.add(matchRow(summary)).colspan(2).growX().row()
+    }
+
+    private fun matchRow(summary: ApiV3GameSummary) = LobbyChrome.row().apply {
+        add(
+            Table(skin).apply {
+                add(summary.displayName.toLabel(hideIcons = true)).left().row()
+                add(
+                    LobbyChrome.hint(
+                        "${summary.lifecycleStatus}  •  revision [${summary.committedRevision}]",
+                    ),
+                ).left().row()
+            },
+        ).growX().left()
+        if (isNarrowerThan4to3()) row()
+        if (summary.available && summary.lifecycleStatus == "active")
+            add("Play".toTextButton().onActivation { openGame(summary) })
+        else add()
+        add(
+            "Chat".toTextButton(SmallButtonStyle()).onActivation {
+                session?.let {
+                    AuthoritativeGameChatPopup(
+                        this@MultiplayerScreen,
+                        it.chatCoordinator(),
+                        summary.gameId,
+                    ).openAndRefresh()
+                }
+            },
+        )
+        if (summary.lifecycleStatus == "active" && summary.role in setOf("owner", "player")) {
+            add(
+                "Rewind turn".toTextButton(SmallButtonStyle()).onActivation {
+                    session?.let {
+                        AuthoritativeRewindPopup(
+                            this@MultiplayerScreen,
+                            summary,
+                            it,
+                            this@MultiplayerScreen::refresh,
+                        ).open()
+                    }
+                },
+            )
+        } else add()
+        if (summary.role == "owner" && summary.lifecycleStatus in setOf("active", "closed")) {
+            add(
+                "Manage".toTextButton(SmallButtonStyle()).onActivation {
+                    session?.let {
+                        AuthoritativeAdministrationPopup(
+                            this@MultiplayerScreen,
+                            summary,
+                            AuthoritativeAdministrationCoordinator(it),
+                            this@MultiplayerScreen::refresh,
+                        ).open()
+                    }
+                },
+            )
+        } else add()
     }
 
     private fun refresh() {
@@ -116,94 +287,23 @@ class MultiplayerScreen : PickerScreen() {
         val activeSession = session ?: return
         Concurrency.runOnNonDaemonThreadPool("Load V3 lobby directory") {
             try {
-                val lobbies = activeSession.listOpenLobbies().lobbies
-                val games = activeSession.listGames().games
-                launchOnGLThread { renderDirectory(lobbies, games) }
+                val openLobbies = activeSession.listOpenLobbies().lobbies
+                val ownGames = activeSession.listGames().games
+                launchOnGLThread {
+                    lobbies = openLobbies
+                    games = ownGames
+                    renderBrowser()
+                    renderMatches()
+                }
             } catch (ex: Exception) {
                 launchOnGLThread {
-                    content.add((ex.message ?: "Could not load multiplayer games.").toLabel(Color.RED))
-                        .colspan(4).row()
+                    browserCard.add(
+                        (ex.message ?: "Could not load multiplayer games.")
+                            .toLabel(LobbyChrome.danger),
+                    ).colspan(2).row()
                 }
             }
         }
-    }
-
-    private fun renderDirectory(lobbies: List<ApiV3Lobby>, games: List<ApiV3GameSummary>) {
-        content.removeActorAt(content.children.size - 1, true)
-        content.add("OPEN LOBBIES".tr().toLabel(Color.GOLD)).colspan(4).growX().left()
-            .padTop(18f).row()
-        if (lobbies.isEmpty())
-            content.add("No public lobbies are waiting for players.".toLabel(Color.LIGHT_GRAY))
-                .colspan(4).left().row()
-        for (lobby in lobbies)
-            content.add(lobbyCard(lobby)).colspan(4).growX().row()
-        content.add("YOUR MATCHES".tr().toLabel(Color.GOLD)).colspan(4).growX().left()
-            .padTop(18f).row()
-        val visibleGames = games.filter { it.lifecycleStatus != "archived" }
-        if (visibleGames.isEmpty())
-            content.add("You have no active matches yet.".toLabel(Color.LIGHT_GRAY))
-                .colspan(4).left().row()
-        for (summary in visibleGames)
-            content.add(gameCard(summary)).colspan(4).growX().row()
-    }
-
-    private fun lobbyCard(lobby: ApiV3Lobby) = Table(skin).apply {
-        defaults().pad(6f)
-        add(lobby.displayName.toLabel()).growX().left()
-        add("${lobby.occupiedSlots}/${lobby.humanSlots} players".toLabel())
-        add((if (lobby.passwordRequired) "PASSWORD" else "OPEN").toLabel(Color.LIGHT_GRAY))
-        if (isNarrowerThan4to3()) row()
-        add("Open lobby".toTextButton().onClick {
-            session?.let { game.pushScreen(AuthoritativeLobbyScreen(lobby, it)) }
-        }).right()
-    }
-
-    private fun gameCard(summary: ApiV3GameSummary) = Table(skin).apply {
-        defaults().pad(6f)
-        add(summary.displayName.toLabel()).growX().left()
-        add(
-            "${summary.lifecycleStatus} • revision [${summary.committedRevision}]".toLabel(),
-        ).left()
-        if (isNarrowerThan4to3()) row()
-        if (summary.available && summary.lifecycleStatus == "active")
-            add("Play".toTextButton().onClick { openGame(summary) })
-        else add()
-        add("Chat".toTextButton().onClick {
-            session?.let {
-                AuthoritativeGameChatPopup(this@MultiplayerScreen, it.chatCoordinator(), summary.gameId)
-                    .openAndRefresh()
-            }
-        })
-        if (
-            summary.lifecycleStatus == "active" &&
-            summary.role in setOf("owner", "player")
-        ) {
-            add("Rewind turn".toTextButton().onClick {
-                session?.let {
-                    AuthoritativeRewindPopup(
-                        this@MultiplayerScreen,
-                        summary,
-                        it,
-                        this@MultiplayerScreen::refresh,
-                    ).open()
-                }
-            })
-        } else add()
-        if (
-            summary.role == "owner" &&
-            summary.lifecycleStatus in setOf("active", "closed")
-        ) {
-            add("Manage".toTextButton().onClick {
-                session?.let {
-                    AuthoritativeAdministrationPopup(
-                        this@MultiplayerScreen,
-                        summary,
-                        AuthoritativeAdministrationCoordinator(it),
-                        this@MultiplayerScreen::refresh,
-                    ).open()
-                }
-            })
-        } else add()
     }
 
     private fun openGame(summary: ApiV3GameSummary) {
@@ -243,29 +343,33 @@ class MultiplayerScreen : PickerScreen() {
         val address = UncivTextField("Server URL or IP", game.settings.multiplayer.getServer())
         popup.addGoodSizedLabel("AUTHORITATIVE MULTIPLAYER SERVER").growX().left().row()
         popup.add(
-            "One account works across desktop and Android when both clients use this server."
-                .toLabel(Color.LIGHT_GRAY),
+            LobbyChrome.hint(
+                "One account works across desktop and Android when both clients use this server.",
+            ),
         ).growX().left().row()
         popup.add("Server URL or test IP".toLabel()).growX().left().row()
         popup.add(address).minWidth(stage.width.coerceAtMost(1000f) * 0.65f).growX().row()
         popup.add(
-            "Use HTTPS for a hostname. Plain HTTP is allowed only for a literal test IP."
-                .toLabel(Color.LIGHT_GRAY),
+            LobbyChrome.hint(
+                "Use HTTPS for a hostname. Plain HTTP is allowed only for a literal test IP.",
+            ),
         ).growX().left().row()
-        popup.add("Save and connect".toTextButton().onClick {
-            try {
-                val normalized = normalizeApiV3BaseUrl(address.text)
-                game.settings.multiplayer.setServer(normalized)
-                game.settings.save()
-                popup.close()
-                restoreSession()
-            } catch (_: Exception) {
-                ToastPopup(
-                    "Use https:// for a hostname, or http:// with a literal test IP.",
-                    this,
-                )
-            }
-        }).row()
+        popup.add(
+            "Save and connect".toTextButton().onActivation {
+                try {
+                    val normalized = normalizeApiV3BaseUrl(address.text)
+                    game.settings.multiplayer.setServer(normalized)
+                    game.settings.save()
+                    popup.close()
+                    restoreSession()
+                } catch (_: Exception) {
+                    ToastPopup(
+                        "Use https:// for a hostname, or http:// with a literal test IP.",
+                        this,
+                    )
+                }
+            },
+        ).row()
         popup.addCloseButton()
         popup.open()
     }
@@ -304,5 +408,4 @@ class MultiplayerScreen : PickerScreen() {
             }
         }
     }
-
 }

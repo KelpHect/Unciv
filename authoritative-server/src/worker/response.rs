@@ -22,6 +22,7 @@ pub(super) struct WorkerResponse {
     pub(super) legacy_import: Option<super::LegacyImportMetadata>,
     pub(super) player_projection: Option<serde_json::Value>,
     pub(super) spectator_projection: Option<serde_json::Value>,
+    pub(super) lobby_terrain_projection: Option<serde_json::Value>,
     pub(super) error: Option<WorkerError>,
     #[serde(skip)]
     pub(super) replay_operation: Option<serde_json::Value>,

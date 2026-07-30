@@ -284,6 +284,9 @@ class ApiV3Client(
     override suspend fun lobby(gameId: String): ApiV3Lobby =
         decode(client.get("api/v3/lobbies/$gameId") { authenticate() })
 
+    override suspend fun lobbyMapPreview(gameId: String): ApiV3LobbyMapPreview =
+        decode(client.get("api/v3/lobbies/$gameId/map-preview") { authenticate() })
+
     override suspend fun reconfigureLobby(
         gameId: String,
         request: ApiV3ReconfigureLobbyRequest,

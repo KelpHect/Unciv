@@ -1933,6 +1933,16 @@ class HeadlessGameEngine(
         SpectatorProjectionBuilder.build(game)
 
     /**
+     * Terrain-only pregame disclosure. It deliberately needs no actor identity:
+     * every lobby member is entitled to the same map, and nothing civilization
+     * specific is projected.
+     */
+    fun lobbyTerrainProjection(game: GameInfo): LobbyTerrainProjection =
+        LobbyTerrainProjection.build(game).also {
+            require(it.isConsistent()) { "The lobby terrain projection is malformed" }
+        }
+
+    /**
      * Rebuilds the ruleset-dependent transient graph from a canonical snapshot.
      * Snapshot validation, size limits, and version selection belong to the
      * Rust control plane before a worker receives this payload.

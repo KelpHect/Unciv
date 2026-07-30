@@ -146,9 +146,9 @@ class AuthoritativeProductionRoutingTests {
                 "AuthoritativeWorldScreen.kt",
         ).readText()
 
-        assertTrue(multiplayer.contains("\"MULTIPLAYER\""))
-        assertTrue(multiplayer.contains("OPEN LOBBIES"))
-        assertTrue(multiplayer.contains("YOUR MATCHES"))
+        assertTrue(multiplayer.contains("LobbyChrome.caption(\"Multiplayer\")"))
+        assertTrue(multiplayer.contains("Open staging rooms"))
+        assertTrue(multiplayer.contains("Your matches"))
         assertFalse(multiplayer.contains("legacy saved game", ignoreCase = true))
         assertTrue(world.contains("Retry uncertain action"))
         assertTrue(world.contains("retryPendingIfOpen"))
@@ -167,8 +167,8 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         assertTrue(lobby.contains("session.joinLobby("))
-        assertTrue(lobby.contains("Your civilization"))
-        assertTrue(lobby.contains("Join lobby"))
+        assertTrue(lobby.contains("control(\"Civilization\", civilization)"))
+        assertTrue(lobby.contains("Join match"))
         assertTrue(multiplayer.contains("AuthoritativeGameDirectory(activeSession).open(summary)"))
         assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
         assertFalse(multiplayer.contains("GameInfo") || lobby.contains("GameInfo"))
@@ -200,7 +200,7 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(multiplayer.contains("listRulesetManifests()"))
         assertTrue(multiplayer.contains("AuthoritativeCreateLobbyScreen(manifests, activeSession)"))
         assertTrue(creation.contains("CREATE MULTIPLAYER LOBBY  •  STEP 1 OF 2"))
-        assertTrue(lobby.contains("MULTIPLAYER LOBBY  •  STEP 2 OF 2"))
+        assertTrue(lobby.contains("LobbyChrome.caption(\"Staging room\")"))
         for (label in listOf(
             "Ruleset",
             "Map shape",
@@ -229,9 +229,136 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(defaults.contains("filterNot { it.hiddenInVictoryScreen }"))
         assertTrue(editor.contains("filterNot { it.hiddenInVictoryScreen }"))
         assertTrue(editor.contains("TabbedPager.IPageExtensions"))
-        assertTrue(editor.contains("forEach(SelectBox<*>::hideList)"))
+        // The deprecated hideList overload must not come back under -Werror.
+        assertTrue(editor.contains("forEach(SelectBox<*>::hideScrollPane)"))
+        assertFalse(editor.contains("hideList"))
         assertFalse(multiplayer.contains("NewGameScreen"))
         assertFalse(lobby.contains("NewGameScreen"))
+    }
+
+    /**
+     * Owner settings reach the room without an explicit save, and every edit is
+     * still one revisioned canonical mutation rather than a lobby JSON patch.
+     */
+    @Test
+    fun ownerLobbyEditsAutoCommitAsDebouncedRevisionsInsteadOfAnApplyButton() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val editor = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeGameSetupEditor.kt",
+        ).readText()
+        val roomEditor = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeLobbyConfigurationEditor.kt",
+        ).readText()
+
+        // Every editable control raises the edit hook, and the screen coalesces.
+        assertTrue(editor.contains("control.onChange { onEdited() }"))
+        assertTrue(roomEditor.contains("control.onChange { onEdited() }"))
+        assertTrue(lobby.contains("AuthoritativeLobbyConfigurationEditor(lobby) { scheduleConfigurationCommit() }"))
+        assertTrue(lobby.contains("pendingConfigurationCommit?.cancel()"))
+        assertTrue(lobby.contains("COMMIT_DEBOUNCE_SECONDS"))
+        // A no-op edit must not burn a revision or reset everyone's readiness.
+        assertTrue(lobby.contains("if (update.matches(lobby))"))
+        // The owner's open controls must survive a live refresh.
+        assertTrue(lobby.contains("private fun refreshPanels()"))
+        assertTrue(lobby.contains("if (roleChanged) buildRoom()"))
+        assertFalse(lobby.contains("Apply lobby settings"))
+        // An unrelated action must not discard a pending owner edit: the debounce
+        // task is cleared where it fires, never in the generic action path.
+        val commitBody = lobby.substring(
+            lobby.indexOf("private fun commitConfiguration()"),
+            lobby.indexOf("private fun readOnlyGamePage()"),
+        )
+        val actionBody = lobby.substring(
+            lobby.indexOf("        action: suspend () -> ApiV3Lobby,"),
+            lobby.indexOf("private fun openStartedGame()"),
+        )
+        assertTrue(commitBody.contains("pendingConfigurationCommit = null"))
+        assertFalse(actionBody.contains("pendingConfigurationCommit = null"))
+    }
+
+    /**
+     * Nation portraits resolve their atlas and ring colours through the globally
+     * selected ruleset, so a modded room must select its own before drawing them.
+     */
+    @Test
+    fun lobbySurfacesSelectTheirOwnRulesetAtlasBeforeDrawingNationPortraits() {
+        for (name in listOf("AuthoritativeLobbyScreen", "AuthoritativeCreateLobbyScreen")) {
+            val source = sourceFile(
+                "core/src/com/unciv/ui/screens/multiplayerscreens/$name.kt",
+            ).readText()
+            assertTrue(
+                "$name draws nation portraits without selecting its ruleset atlas",
+                source.contains("ImageGetter.setNewRuleset("),
+            )
+            assertTrue(source.contains("ignoreIfModsAreEqual = true"))
+        }
+        val chrome = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyChrome.kt",
+        ).readText()
+        // Text colours come from the lobby's own ruleset, not the global atlas.
+        assertTrue(chrome.contains("ruleset.nations[civilizationId]"))
+        assertTrue(chrome.contains("nation.getInnerColor()"))
+    }
+
+    /**
+     * The pregame map is a read of the committed revision. The client never
+     * generates it, and never re-reads it on every poll.
+     */
+    @Test
+    fun lobbyMapPreviewIsAReadOnlyProjectionOfTheCommittedRevision() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val preview = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeLobbyMapPreview.kt",
+        ).readText()
+        val session = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                "AuthoritativeMultiplayerSession.kt",
+        ).readText()
+        val client = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/ApiV3Client.kt",
+        ).readText()
+
+        assertTrue(session.contains("suspend fun lobbyMapPreview(gameId: String)"))
+        assertTrue(session.contains("preview.terrain.isConsistent()"))
+        assertTrue(client.contains("api/v3/lobbies/\$gameId/map-preview"))
+        assertTrue(lobby.contains("session.lobbyMapPreview(lobby.gameId)"))
+        // Fetched once per committed revision, not once per 1.5s reconciliation.
+        assertTrue(lobby.contains("renderedPreviewRevision == lobby.lobbyRevision"))
+        // The client renders the server's terrain; it must never generate a map.
+        for (forbidden in listOf("MapGenerator", "GameInfo", "GameStarter")) {
+            assertFalse(preview.contains("import com.unciv.logic.$forbidden"))
+            assertFalse(preview.contains("import com.unciv.logic.map.mapgenerator.$forbidden"))
+            assertFalse(preview.contains("$forbidden("))
+            assertFalse(lobby.contains("$forbidden("))
+        }
+        // An unresolvable modded terrain name must degrade, not throw.
+        assertTrue(preview.contains("ruleset.terrains::containsKey"))
+        assertTrue(preview.contains("greyOutTerrainThisClientCannotName"))
+    }
+
+    /** Chat must be reachable from the staging room, not only from a started game. */
+    @Test
+    fun stagingRoomExposesRoomChatWithoutLeavingTheLobby() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val chat = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeLobbyChatPanel.kt",
+        ).readText()
+
+        assertTrue(lobby.contains("AuthoritativeLobbyChatPanel("))
+        assertTrue(lobby.contains("session.chatCoordinator()"))
+        assertTrue(chat.contains("coordinator.send(gameId, body)"))
+        assertTrue(chat.contains("coordinator.refresh(gameId)"))
+        assertFalse(chat.contains("GameInfo"))
     }
 
     @Test
@@ -624,25 +751,43 @@ class AuthoritativeProductionRoutingTests {
         assertFalse(lobby.contains("GameStarter"))
     }
 
+    /**
+     * Every multiplayer surface must build skin-bound tables and add actors, never
+     * the skin-dependent `Table.add(String)` overload, and must never read `stage`
+     * from inside a `Table.apply` block where it resolves to the actor's own
+     * (still null) stage instead of the screen's.
+     */
     @Test
-    fun lobbyHeaderAlwaysAddsAnActorInsteadOfUsingSkinDependentStringOverload() {
-        val lobby = sourceFile(
-            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
-        ).readText()
-        val header = lobby.substring(
-            lobby.indexOf("\"Host: [\${lobby.ownerUsername}]"),
-            lobby.indexOf("val leftColumn = Table"),
-        )
+    fun lobbySurfacesAreSkinSafeAndNeverReadAnAmbiguousStage() {
+        val surfaces = listOf(
+            "AuthoritativeLobbyScreen",
+            "AuthoritativeCreateLobbyScreen",
+            "AuthoritativeLobbyChatPanel",
+            "AuthoritativeLobbyChrome",
+            "AuthoritativeLobbyMapPreview",
+            "MultiplayerScreen",
+        ).associateWith {
+            sourceFile("core/src/com/unciv/ui/screens/multiplayerscreens/$it.kt").readText()
+        }
 
-        assertTrue(header.contains(").toLabel()"))
-        assertFalse(header.contains("\" human players\".toLabel()"))
-        assertFalse(lobby.contains("Table().apply"))
+        for ((name, source) in surfaces) {
+            assertFalse("$name must not build an unskinned Table", source.contains("Table()."))
+            assertFalse("$name must not build an unskinned Table", source.contains("Table())"))
+            // A Table cell is always chained; a bare list add never is.
+            assertFalse(
+                "$name must not add a raw String to a Table",
+                Regex("""add\("[^"]*"\)\s*\.""").containsMatchIn(source),
+            )
+            assertFalse(
+                "$name must not read stage width inside a Table.apply block",
+                source.contains("width(stage.width"),
+            )
+        }
+        val lobby = surfaces.getValue("AuthoritativeLobbyScreen")
         assertTrue(lobby.contains("this@AuthoritativeLobbyScreen.stage.width"))
-        assertFalse(lobby.contains("width(stage.width"))
-        val browser = sourceFile(
-            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
-        ).readText()
-        assertFalse(browser.contains("Table().apply"))
+        // The header is composed of actors, and states the host and occupancy.
+        assertTrue(lobby.contains("Host [\${lobby.ownerUsername}]"))
+        assertTrue(lobby.contains(").toLabel(LobbyChrome.muted),"))
     }
 
     @Test

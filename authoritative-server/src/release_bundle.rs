@@ -24,6 +24,7 @@ pub struct CompatibilityContract {
     pub public_protocol_version: u16,
     pub player_projection_version: u16,
     pub spectator_projection_version: u16,
+    pub lobby_terrain_projection_version: u16,
     pub worker_protocol_version: u16,
     pub latest_migration_version: i64,
     pub postgres_image: String,
@@ -79,6 +80,7 @@ pub fn compatibility_contract() -> Result<CompatibilityContract, ReleaseBundleEr
         || contract.public_protocol_version != crate::PROTOCOL_VERSION
         || contract.player_projection_version != crate::PROJECTION_VERSION
         || contract.spectator_projection_version != crate::SPECTATOR_PROJECTION_VERSION
+        || contract.lobby_terrain_projection_version != crate::LOBBY_TERRAIN_PROJECTION_VERSION
         || contract.worker_protocol_version != crate::worker::WORKER_PROTOCOL_VERSION
         || contract.latest_migration_version != 31
         || contract.postgres_image

@@ -96,7 +96,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 5;
+pub const WORKER_PROTOCOL_VERSION: u16 = 6;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]
@@ -514,6 +514,36 @@ impl EngineWorkerClient {
             return Err(WorkerClientError::Protocol);
         }
         Ok(ProjectedState { projection })
+    }
+
+    /// Reads the terrain of an already-generated pregame snapshot. It performs no
+    /// generation and takes no actor civilization: every lobby member is entitled
+    /// to the identical map.
+    pub async fn project_lobby_terrain(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        snapshot: &str,
+    ) -> Result<crate::LobbyTerrainProjection, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::ProjectLobbyTerrain { snapshot },
+            )
+            .await?;
+        let projection = response
+            .lobby_terrain_projection
+            .ok_or(WorkerClientError::Incomplete)?;
+        let projection: crate::LobbyTerrainProjection =
+            serde_json::from_value(projection).map_err(|_| WorkerClientError::Protocol)?;
+        if !projection.is_consistent() {
+            tracing::warn!(
+                "authoritative worker returned an inconsistent lobby terrain projection"
+            );
+            return Err(WorkerClientError::Protocol);
+        }
+        Ok(projection)
     }
 
     pub async fn assign_player(

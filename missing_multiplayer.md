@@ -136,6 +136,48 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 
 ## P0: required before v3 can replace legacy online play
 
+- [x] Rebuild the production multiplayer front end as a Civilization-style
+  browser, host step, and staging room on desktop and touch. `MultiplayerScreen`
+  is now a carded game browser with a live name/host/ruleset filter, occupancy
+  and access badges, and the account's own matches;
+  `AuthoritativeCreateLobbyScreen` is a short host step with a leader portrait;
+  `AuthoritativeLobbyScreen` is a staging room with nation-portrait player rows,
+  inline own-faction claiming, readiness badges, an inline room chat, a match
+  summary, and the committed-map preview. Three columns on desktop collapse to
+  stacked `ExpanderTab` sections under `isNarrowerThan4to3()`. Owner settings
+  reach the room without an Apply button: every control raises one edit hook
+  that the screen debounces into a single revisioned `lobby_reconfiguration`,
+  skips entirely when the edit resolves to the committed setup, and never races
+  an in-flight revision. The room is assembled once and refreshed panel by
+  panel, so an owner's open control keeps focus while players, readiness, chat,
+  and the map update live.
+- [x] Add the pregame committed-map preview. `GET
+  /api/v3/lobbies/{game_id}/map-preview` returns `LobbyTerrainProjection` —
+  `worldWrap`, a bounding box, a sorted terrain-name palette, row-major palette
+  indices, and unlabeled start coordinates — read by the new read-only
+  `project_lobby_terrain` worker intent from the committed revision's stored
+  snapshot. No generation happens for a preview: every committed lobby revision
+  already stores its own fully generated map. The client renders it by
+  materializing the projected coordinates into a bare `TileMap` and reusing the
+  existing WorldScreen-free minimap renderer, so it never imports `GameInfo`,
+  `GameStarter`, or `MapGenerator`; an unresolvable modded terrain name greys
+  out rather than throwing. Fresh-process parity proves the preview equals the
+  committed map and that a faction-only reconfiguration leaves the terrain
+  byte-identical. This deliberately removes pre-turn-1 map secrecy for every
+  member equally; the accepted boundary is recorded in
+  `docs/security/authoritative-multiplayer-threat-model.md`.
+- [ ] Re-run the destructive PostgreSQL disk-full and backup/restore
+  qualifications against the new migration set. Their verification halves cannot
+  run inside a plain `cargo test` pass: they depend on an out-of-band
+  destructive step between the `seed_*_qualification_fixture` test and the
+  verifying test. Confirmed pre-existing — the same three tests fail identically
+  at `f5327ceb0` on a fresh database, so this is procedure, not regression.
+- [ ] Benchmark the read-only `project_lobby_terrain` path. The worker executes
+  one operation at a time, so a terrain read serializes against gameplay
+  commands and AI turns. The client fetches it once per committed
+  `lobby_revision` rather than per reconciliation poll, which bounds the load,
+  but `docs/benchmarks/authoritative-multiplayer.md` has no measured row for
+  snapshot-load-plus-terrain-projection yet.
 - [x] Add V3-aware background turn notifications on Android. A unique,
   self-chaining WorkManager job now restores only the Android-Keystore-protected
   V3 token, pages authenticated memberships, fetches player projections, and

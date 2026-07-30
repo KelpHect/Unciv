@@ -12,6 +12,7 @@ mod projection_combat_tests;
 mod projection_delta;
 #[cfg(test)]
 mod projection_escort_tests;
+mod projection_lobby_terrain;
 #[cfg(test)]
 mod projection_policy_tests;
 mod projection_spectator;
@@ -47,11 +48,13 @@ pub use command::{
 };
 pub use hashing::state_hash;
 pub use projection_delta::*;
+pub use projection_lobby_terrain::LobbyTerrainProjection;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 4;
 pub const PROJECTION_VERSION: u16 = 60;
 pub const SPECTATOR_PROJECTION_VERSION: u16 = 2;
+pub const LOBBY_TERRAIN_PROJECTION_VERSION: u16 = 1;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(test)]

@@ -30,6 +30,8 @@ interface ApiV3Transport {
         error("Lobby discovery is unsupported by this transport")
     suspend fun lobby(gameId: String): ApiV3Lobby =
         error("Lobby details are unsupported by this transport")
+    suspend fun lobbyMapPreview(gameId: String): ApiV3LobbyMapPreview =
+        error("Lobby map previews are unsupported by this transport")
     suspend fun reconfigureLobby(
         gameId: String,
         request: ApiV3ReconfigureLobbyRequest,

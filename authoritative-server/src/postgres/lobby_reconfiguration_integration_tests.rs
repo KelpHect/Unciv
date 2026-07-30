@@ -486,3 +486,109 @@ fn setup() -> WorkerGameSetup {
         ..WorkerGameSetup::default()
     }
 }
+
+#[tokio::test]
+#[ignore = "requires an explicit UNCIV_V3_DATABASE_URL"]
+async fn lobby_map_preview_is_member_scoped_revision_bound_and_pregame_only() {
+    let fixture = seeded_lobby().await;
+    let head = head_revision(&fixture).await;
+
+    // A seated member reads the terrain of the committed head revision. The
+    // worker receives the snapshot and no actor civilization: every member is
+    // entitled to the identical map.
+    let (worker, worker_task) = one_shot_terrain_worker(terrain_projection()).await;
+    let preview = fixture
+        .repository
+        .lobby_map_preview(&worker, fixture.player, fixture.game)
+        .await
+        .unwrap();
+    worker_task.await.unwrap();
+
+    assert_eq!(preview.game_id, fixture.game);
+    assert_eq!(
+        preview.preview_version,
+        crate::LOBBY_TERRAIN_PROJECTION_VERSION
+    );
+    assert_eq!(preview.lobby_revision, 0);
+    assert_eq!(preview.canonical_state_hash, state_hash(b"created lobby"));
+    assert!(preview.terrain.is_consistent());
+    assert_eq!(preview.terrain.terrain_names, vec!["Grassland", "Ocean"]);
+    assert_eq!(preview.terrain.tiles, vec![0, 1, 1, 0]);
+    assert_eq!(head, 0);
+
+    // A non-member cannot read the map, and must not learn the lobby exists.
+    let unreachable = unreachable_worker();
+    assert!(matches!(
+        fixture
+            .repository
+            .lobby_map_preview(&unreachable, fixture.outsider, fixture.game)
+            .await,
+        Err(CommitError::NotFound),
+    ));
+
+    // A malformed projection is a protocol fault, never a rendered map.
+    let mut malformed = terrain_projection();
+    malformed.tiles = vec![0, 1, 9];
+    let (bad_worker, bad_task) = one_shot_terrain_worker(malformed).await;
+    assert!(matches!(
+        fixture
+            .repository
+            .lobby_map_preview(&bad_worker, fixture.owner, fixture.game)
+            .await,
+        Err(CommitError::WorkerRevisionMismatch),
+    ));
+    bad_task.await.unwrap();
+
+    // Once the match starts, members read the real player projection instead.
+    sqlx::query("UPDATE game_lobbies SET started_at=now() WHERE game_id=$1")
+        .bind(fixture.game)
+        .execute(&fixture.repository.pool)
+        .await
+        .unwrap();
+    assert!(matches!(
+        fixture
+            .repository
+            .lobby_map_preview(&unreachable, fixture.owner, fixture.game)
+            .await,
+        Err(CommitError::NotFound),
+    ));
+}
+
+fn terrain_projection() -> crate::LobbyTerrainProjection {
+    crate::LobbyTerrainProjection {
+        world_wrap: false,
+        min_x: -1,
+        min_y: -1,
+        width: 2,
+        height: 2,
+        terrain_names: vec!["Grassland".to_owned(), "Ocean".to_owned()],
+        tiles: vec![0, 1, 1, 0],
+        start_positions: vec![-1, -1],
+    }
+}
+
+async fn one_shot_terrain_worker(
+    projection: crate::LobbyTerrainProjection,
+) -> (EngineWorkerClient, tokio::task::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let task = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let (nonce, request) = read_authenticated_test_frame(&mut stream).await;
+        assert_eq!(request["operation"]["type"], "project_lobby_terrain");
+        assert_eq!(request["operation"]["snapshot"], "created lobby");
+        // A terrain read must not be scoped to, or leak, a civilization identity.
+        assert!(request["operation"].get("actorCivilizationId").is_none());
+        write_authenticated_test_frame(
+            &mut stream,
+            nonce,
+            json!({
+                "protocolVersion": WORKER_PROTOCOL_VERSION,
+                "serverTimeMillis": request["serverTimeMillis"],
+                "lobbyTerrainProjection": projection,
+            }),
+        )
+        .await;
+    });
+    (worker_client(address), task)
+}

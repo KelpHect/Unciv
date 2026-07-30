@@ -27,6 +27,12 @@ import com.unciv.ui.screens.basescreen.BaseScreen
 internal class AuthoritativeGameSetupEditor(
     private val ruleset: Ruleset,
     initial: ApiV3GameSetup,
+    /**
+     * Raised whenever the owner touches any control. The lobby screen debounces
+     * this into one revisioned reconfiguration so the room stays live without
+     * committing a canonical mutation per keystroke.
+     */
+    private val onEdited: () -> Unit = {},
 ) {
     private val difficulty = textSelect(ruleset.difficulties.keys, initial.difficulty)
     private val speed = textSelect(ruleset.speeds.keys, initial.speed)
@@ -141,6 +147,29 @@ internal class AuthoritativeGameSetupEditor(
         mapShape.onChange { renderCustomDimensions() }
         worldWrap.onChange { renderCustomDimensions() }
         renderCustomDimensions()
+        editableControls().forEach { control -> control.onChange { onEdited() } }
+    }
+
+    /** Every control whose value is part of the typed setup sent to the server. */
+    private fun editableControls(): List<Actor> = buildList {
+        addAll(openableLists())
+        addAll(
+            listOf(
+                majorCivilizations, cityStates, maxTurns, mapSeed,
+                customMapRadius, customMapWidth, customMapHeight,
+                tilesPerBiomeArea, maxCoastExtension, elevationExponent,
+                temperatureIntensity, temperatureShift, vegetationRichness,
+                rareFeaturesRichness, resourceRichness, waterThreshold,
+            ),
+        )
+        addAll(
+            listOf(
+                oneCityChallenge, nuclearWeaponsEnabled, espionageEnabled, noStartBias,
+                shufflePlayerOrder, noCityRazing, worldWrap, strategicBalance,
+                legendaryStart, noRuins, noNaturalWonders,
+            ),
+        )
+        addAll(victoryTypes.values)
     }
 
     fun build(ownerCivilizationId: String): ApiV3GameSetup {
@@ -211,18 +240,20 @@ internal class AuthoritativeGameSetupEditor(
     }
 
     fun closeOpenLists() {
-        listOf(
-            difficulty,
-            speed,
-            startingEra,
-            mapType,
-            mapShape,
-            mapSize,
-            mapResources,
-            barbarians,
-            mirroring,
-        ).forEach(SelectBox<*>::hideList)
+        openableLists().forEach(SelectBox<*>::hideScrollPane)
     }
+
+    private fun openableLists(): List<SelectBox<*>> = listOf(
+        difficulty,
+        speed,
+        startingEra,
+        mapType,
+        mapShape,
+        mapSize,
+        mapResources,
+        barbarians,
+        mirroring,
+    )
 
     private fun renderCustomDimensions() {
         customDimensions.clear()

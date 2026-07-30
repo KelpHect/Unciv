@@ -133,6 +133,19 @@ data class ApiV3LobbyPage(
     @SerialName("next_cursor") val nextCursor: String? = null,
 )
 
+/**
+ * Terrain of the map a lobby revision actually committed. Bound to the revision
+ * it was projected from so a stale preview can never be shown as current.
+ */
+@Serializable
+data class ApiV3LobbyMapPreview(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("preview_version") val previewVersion: Int,
+    @SerialName("lobby_revision") val lobbyRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    val terrain: LobbyTerrainProjection,
+)
+
 @Serializable
 data class ApiV3SetLobbyReadyRequest(
     @SerialName("expected_lobby_revision") val expectedLobbyRevision: Long,

@@ -10957,6 +10957,70 @@
         ]
       }
     },
+    "/api/v3/lobbies/{game_id}/map-preview": {
+      "get": {
+        "tags": [],
+        "operationId": "lobby_map_preview",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LobbyMapPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/lobbies/{game_id}/ready": {
       "put": {
         "tags": [],
@@ -12255,6 +12319,30 @@
             "format": "int32",
             "minimum": 0
           },
+          "custom_map_height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "custom_map_radius": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "custom_map_width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
           "difficulty": {
             "type": "string"
           },
@@ -12984,7 +13072,8 @@
           "small",
           "medium",
           "large",
-          "huge"
+          "huge",
+          "custom"
         ]
       },
       "GeneratedMapType": {
@@ -13182,6 +13271,39 @@
           }
         },
         "additionalProperties": false
+      },
+      "LobbyMapPreview": {
+        "type": "object",
+        "description": "Terrain of the map a pregame lobby revision committed. Bound to that\nrevision so a client can never present a stale map as current.",
+        "required": [
+          "game_id",
+          "preview_version",
+          "lobby_revision",
+          "canonical_state_hash",
+          "terrain"
+        ],
+        "properties": {
+          "canonical_state_hash": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lobby_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "preview_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "terrain": {
+            "$ref": "#/components/schemas/LobbyTerrainProjection"
+          }
+        }
       },
       "LobbyMemberSummary": {
         "type": "object",
@@ -13381,6 +13503,67 @@
             "type": "boolean"
           }
         }
+      },
+      "LobbyTerrainProjection": {
+        "type": "object",
+        "description": "Pregame terrain of a lobby's committed map.\n\nThis is the only pregame map disclosure and it is deliberately not a\ngameplay projection: no units, cities, resources, improvements, natural\nwonders, tile ownership, civilization identities, or turn state. Start\npositions are unlabeled, so which civilization holds which start stays\nprivate until the match begins.",
+        "required": [
+          "worldWrap",
+          "minX",
+          "minY",
+          "width",
+          "height",
+          "terrainNames",
+          "tiles",
+          "startPositions"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minX": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minY": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startPositions": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "Flat `x, y` pairs."
+          },
+          "terrainNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Sorted, deduplicated base terrain names that `tiles` indexes into."
+          },
+          "tiles": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "Row-major over the bounding box; `-1` marks a coordinate off the map."
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "worldWrap": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
       },
       "LoginResponse": {
         "type": "object",

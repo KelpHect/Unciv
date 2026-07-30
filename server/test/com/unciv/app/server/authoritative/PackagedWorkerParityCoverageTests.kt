@@ -112,6 +112,7 @@ class PackagedWorkerParityCoverageTests {
                 "acknowledge_research_completion",
                 "project_state",
                 "project_spectator_state",
+                "project_lobby_terrain",
             ),
             coverage.filterValues { it != ParityEvidence.InProcessOnly }.keys,
         )
@@ -211,6 +212,7 @@ class PackagedWorkerParityCoverageTests {
             "acknowledge_research_completion",
             "project_state",
             "project_spectator_state",
+            "project_lobby_terrain",
         ).associateWith { ParityEvidence.InProcessOnly } + mapOf(
             "handshake" to ParityEvidence.FreshProcessTransportParity,
             "create_game" to ParityEvidence.FreshProcessStateParity,
@@ -298,6 +300,7 @@ class PackagedWorkerParityCoverageTests {
             "acknowledge_research_completion" to ParityEvidence.FreshProcessStateParity,
             "project_state" to ParityEvidence.FreshProcessStateParity,
             "project_spectator_state" to ParityEvidence.FreshProcessStateParity,
+            "project_lobby_terrain" to ParityEvidence.FreshProcessStateParity,
         )
     }
 }

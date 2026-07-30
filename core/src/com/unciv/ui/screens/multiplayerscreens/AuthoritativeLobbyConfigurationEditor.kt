@@ -8,6 +8,7 @@ import com.unciv.logic.multiplayer.authoritative.ApiV3Lobby
 import com.unciv.logic.multiplayer.authoritative.ApiV3LobbyPasswordUpdate
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.ui.components.extensions.toLabel
+import com.unciv.ui.components.input.onChange
 import com.unciv.ui.components.widgets.TabbedPager
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.screens.basescreen.BaseScreen
@@ -25,6 +26,8 @@ internal data class AuthoritativeLobbyConfiguration(
  */
 internal class AuthoritativeLobbyConfigurationEditor(
     private val lobby: ApiV3Lobby,
+    /** Raised on any owner edit so the screen can debounce one revisioned commit. */
+    private val onEdited: () -> Unit = {},
 ) {
     private val name = UncivTextField("Match name", lobby.displayName)
     private val slots = UncivTextField("Human players", lobby.humanSlots.toString())
@@ -46,7 +49,12 @@ internal class AuthoritativeLobbyConfigurationEditor(
             lobby.baseRulesetName,
         ),
         lobby.setup,
-    )
+    ) { onEdited() }
+
+    init {
+        listOf(name, slots, password, passwordAction)
+            .forEach { control -> control.onChange { onEdited() } }
+    }
 
     val gamePage: Table =
         object : Table(BaseScreen.skin), TabbedPager.IPageExtensions {
@@ -58,7 +66,8 @@ internal class AuthoritativeLobbyConfigurationEditor(
                 addField("Password policy", passwordAction)
                 addField("Replacement password", password)
                 add(
-                    "Saving any setting is atomic and resets every player's ready state."
+                    ("Edits apply to the room automatically. Each one is a single " +
+                        "server-validated change and clears every player's ready state.")
                         .toLabel(Color.LIGHT_GRAY),
                 ).colspan(2).growX().left().row()
                 add(setupEditor.gamePage).colspan(2).growX().row()
@@ -67,7 +76,7 @@ internal class AuthoritativeLobbyConfigurationEditor(
             override fun activated(index: Int, caption: String, pager: TabbedPager) = Unit
 
             override fun deactivated(index: Int, caption: String, pager: TabbedPager) {
-                passwordAction.hideList()
+                passwordAction.hideScrollPane()
                 setupEditor.closeOpenLists()
             }
     }

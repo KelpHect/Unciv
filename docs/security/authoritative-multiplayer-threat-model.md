@@ -164,6 +164,32 @@ Current v3 controls require membership for projection access, send the full snap
 
 Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.
 
+#### Pregame terrain disclosure (accepted, bounded)
+
+The pregame lobby exposes one deliberate map disclosure:
+`GET /api/v3/lobbies/{game_id}/map-preview` returns the committed map's base
+terrain per tile plus unlabeled start coordinates, to any seated `owner`/`player`
+member, before the match starts.
+
+This is an accepted product decision, not an oversight: every member sees the
+same terrain, so it removes pre-turn-1 map secrecy as a gameplay dimension while
+granting no member an advantage over another. It is bounded by construction —
+`LobbyTerrainProjection` is a closed DTO of `worldWrap`, a bounding box, a sorted
+terrain-name palette, row-major palette indices, and flat start coordinates. It
+carries no units, cities, resources, improvements, natural wonders, tile
+ownership, civilization identities, or turn state, and no association between a
+start position and a civilization. Both the worker and the Rust control plane
+assert `is_consistent()` fail-closed, and a leak sentinel test asserts the
+encoded payload names no resource, improvement, unit, city, or civilization.
+
+Residual risk: a member who leaves before the match starts retains terrain
+knowledge for a map that may still be played. The disclosure is gated on
+`started_at IS NULL` and on current membership, so it cannot be used to read a
+running match, and the gameplay-projection gate is unchanged. Widening the DTO,
+labeling start positions by civilization, or serving the preview to non-members
+would each change this boundary and require re-review here plus a
+`lobby_terrain_projection_version` bump.
+
 ### Worker protocol and rules execution
 
 **Attacker story:** A malicious command or snapshot triggers excessive CPU, memory, recursion, or an engine crash; a local process impersonates the worker; malformed length prefixes desynchronize the stream; a compromised worker returns an invalid snapshot/hash pair; or nondeterministic engine behavior creates divergent outcomes.

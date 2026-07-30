@@ -258,8 +258,22 @@ server-owned pregame lobby; the owner configures the normal bounded game setup,
 match name, human slots, optional password, and their own faction. Every other
 human chooses one currently unclaimed faction from the private worker's
 canonical pool and controls only their own readiness. Only the owner may start,
-and only at exact capacity with every human ready. Pregame clients receive no
-gameplay projection.
+and only at exact capacity with every human ready.
+
+Pregame clients receive no gameplay projection. The single exception is the
+terrain preview: a seated `owner`/`player` member may read
+`GET /api/v3/lobbies/{game_id}/map-preview`, which returns only the committed
+map's base terrain per tile plus unlabeled start coordinates. It must never
+carry units, cities, resources, improvements, natural wonders, tile ownership,
+civilization identities, turn state, or any association between a start position
+and a civilization. It is derived in the private worker from a committed lobby
+revision's stored snapshot — never generated speculatively, never from a
+client-supplied setup — and is returned bound to that `lobby_revision` and
+`canonical_state_hash`. The route is gated on `started_at IS NULL`; the
+`lobby_started` gate on the gameplay projection path must not be weakened to
+serve it. Widening this payload changes the pregame confidentiality boundary and
+requires updating `docs/security/authoritative-multiplayer-threat-model.md`, the
+leak sentinel tests, and `lobby_terrain_projection_version` together.
 
 V3 matches have unlimited human turn time. Do not reintroduce skip-turn,
 total-play-time, recovered-time, or timed force-resignation controls into public
@@ -273,3 +287,10 @@ pregame state in the private worker from exact server-owned memberships, append
 an immutable `lobby_reconfiguration` revision, reset every ready state, and
 emit only a resynchronization hint. Preserve the resolved map seed across
 unrelated edits so a faction change cannot silently generate a different map.
+
+Owner edits may reach the room without an explicit save button, but a live
+editor must coalesce them: one debounce window is one revision, an edit that
+resolves to the current committed setup must commit nothing, and an in-flight
+revision must never be raced by the next keystroke. Never commit a canonical
+mutation per keystroke, and never let a live refresh rebuild an editor the owner
+is still typing into.

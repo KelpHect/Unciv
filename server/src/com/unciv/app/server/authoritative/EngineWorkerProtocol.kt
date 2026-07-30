@@ -10,6 +10,7 @@ import com.unciv.logic.multiplayer.authoritative.CitizenFocus
 import com.unciv.logic.multiplayer.authoritative.CityStateProtectionResponse
 import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
+import com.unciv.logic.multiplayer.authoritative.LobbyTerrainProjection
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
@@ -28,7 +29,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 5
+    const val VERSION = 6
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -676,6 +677,10 @@ sealed interface WorkerOperation {
 
     @Serializable @SerialName("project_spectator_state")
     data class ProjectSpectatorState(val snapshot: String) : WorkerOperation
+
+    /** Pregame terrain disclosure for a lobby member. Carries no gameplay state. */
+    @Serializable @SerialName("project_lobby_terrain")
+    data class ProjectLobbyTerrain(val snapshot: String) : WorkerOperation
 }
 
 @Serializable
@@ -692,6 +697,7 @@ data class WorkerResponse(
     val legacyImport: LegacyImportMetadata? = null,
     val playerProjection: PlayerProjection? = null,
     val spectatorProjection: SpectatorProjection? = null,
+    val lobbyTerrainProjection: LobbyTerrainProjection? = null,
     val error: WorkerError? = null,
 )
 
@@ -1450,6 +1456,10 @@ class AuthoritativeEngineWorker(
             is WorkerOperation.ProjectSpectatorState -> {
                 val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
                 WorkerResponse(spectatorProjection = engine.spectatorProjection(game))
+            }
+            is WorkerOperation.ProjectLobbyTerrain -> {
+                val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
+                WorkerResponse(lobbyTerrainProjection = engine.lobbyTerrainProjection(game))
             }
         }.copy(serverTimeMillis = serverTimeMillis)
     } catch (exception: Exception) {

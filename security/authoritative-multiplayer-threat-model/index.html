@@ -3058,6 +3058,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Projection confidentiality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pregame-terrain-disclosure-accepted-bounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pregame terrain disclosure (accepted, bounded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -3438,6 +3455,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Projection confidentiality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pregame-terrain-disclosure-accepted-bounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pregame terrain disclosure (accepted, bounded)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -3796,6 +3830,28 @@ unavailable ruleset civilizations fail without advancing either head.</p>
 <p><strong>Attacker story:</strong> A legitimate member requests another player's view, discovers hidden state in a nested or newly added field, correlates hashes or metadata to infer fog-of-war information, or obtains a full snapshot through diagnostics, errors, logs, or an administrative endpoint.</p>
 <p>Current v3 controls require membership for projection access, send the full snapshot only to the private worker, return an allowlisted projection DTO, and include sentinel-leak tests. Game metadata does not serve the canonical snapshot.</p>
 <p>Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.</p>
+<h4 id="pregame-terrain-disclosure-accepted-bounded">Pregame terrain disclosure (accepted, bounded)</h4>
+<p>The pregame lobby exposes one deliberate map disclosure:
+<code>GET /api/v3/lobbies/{game_id}/map-preview</code> returns the committed map's base
+terrain per tile plus unlabeled start coordinates, to any seated <code>owner</code>/<code>player</code>
+member, before the match starts.</p>
+<p>This is an accepted product decision, not an oversight: every member sees the
+same terrain, so it removes pre-turn-1 map secrecy as a gameplay dimension while
+granting no member an advantage over another. It is bounded by construction —
+<code>LobbyTerrainProjection</code> is a closed DTO of <code>worldWrap</code>, a bounding box, a sorted
+terrain-name palette, row-major palette indices, and flat start coordinates. It
+carries no units, cities, resources, improvements, natural wonders, tile
+ownership, civilization identities, or turn state, and no association between a
+start position and a civilization. Both the worker and the Rust control plane
+assert <code>is_consistent()</code> fail-closed, and a leak sentinel test asserts the
+encoded payload names no resource, improvement, unit, city, or civilization.</p>
+<p>Residual risk: a member who leaves before the match starts retains terrain
+knowledge for a map that may still be played. The disclosure is gated on
+<code>started_at IS NULL</code> and on current membership, so it cannot be used to read a
+running match, and the gameplay-projection gate is unchanged. Widening the DTO,
+labeling start positions by civilization, or serving the preview to non-members
+would each change this boundary and require re-review here plus a
+<code>lobby_terrain_projection_version</code> bump.</p>
 <h3 id="worker-protocol-and-rules-execution">Worker protocol and rules execution</h3>
 <p><strong>Attacker story:</strong> A malicious command or snapshot triggers excessive CPU, memory, recursion, or an engine crash; a local process impersonates the worker; malformed length prefixes desynchronize the stream; a compromised worker returns an invalid snapshot/hash pair; or nondeterministic engine behavior creates divergent outcomes.</p>
 <p>Current controls keep the worker protocol off the public router, use typed JSON

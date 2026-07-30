@@ -1861,6 +1861,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#civilization-style-multiplayer-front-end-and-committed-map-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Civilization-style multiplayer front end and committed-map preview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#warning-free-shared-engine-and-client-builds" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5780,6 +5791,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#civilization-style-multiplayer-front-end-and-committed-map-preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Civilization-style multiplayer front end and committed-map preview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#warning-free-shared-engine-and-client-builds" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8594,6 +8616,81 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="civilization-style-multiplayer-front-end-and-committed-map-preview">Civilization-style multiplayer front end and committed-map preview</h2>
+<p>Implemented on 2026-07-30:</p>
+<ul>
+<li>The production multiplayer front end is rebuilt as three Civilization-shaped
+  surfaces sharing one visual language (<code>AuthoritativeLobbyChrome.kt</code>):
+  <code>MultiplayerScreen</code> is a game browser (server/account header, live
+  name/host/ruleset filter, occupancy and access badges, own matches),
+  <code>AuthoritativeCreateLobbyScreen</code> is a short host step with a leader portrait,
+  and <code>AuthoritativeLobbyScreen</code> is a staging room with nation-portrait player
+  rows, inline own-faction claiming, readiness badges, inline room chat, a match
+  summary, and the committed-map preview. Desktop lays out three columns;
+  <code>isNarrowerThan4to3()</code> collapses to stacked <code>ExpanderTab</code> sections for touch
+  and portrait.</li>
+<li>Owner settings are live. Every editable control in
+  <code>AuthoritativeGameSetupEditor</code> and <code>AuthoritativeLobbyConfigurationEditor</code>
+  raises one edit hook; the staging room debounces a 0.9 s window into a single
+  revisioned <code>lobby_reconfiguration</code>, commits nothing when the edit resolves to
+  the already-committed setup, and coalesces rather than racing an in-flight
+  revision. The explicit "Apply lobby settings" button is gone. The room is
+  assembled once and refreshed panel by panel, so an owner's open control keeps
+  focus and value while players, readiness, chat, and the map update live; only
+  an actor role change rebuilds the workspace.</li>
+<li>New pregame map disclosure: <code>GET /api/v3/lobbies/{game_id}/map-preview</code>
+  returns <code>LobbyMapPreview</code> (<code>game_id</code>, <code>preview_version</code>, <code>lobby_revision</code>,
+  <code>canonical_state_hash</code>, <code>terrain</code>). <code>LobbyTerrainProjection</code> is a closed DTO of
+  <code>worldWrap</code>, a bounding box, a sorted terrain-name palette, row-major palette
+  indices, and flat unlabeled start coordinates. Nothing else: no units, cities,
+  resources, improvements, natural wonders, ownership, civilization identities,
+  or turn state, and no association between a start and a civilization.</li>
+<li>No generation happens to serve a preview. Every committed lobby revision
+  already stores its own fully generated snapshot, so the new read-only
+  <code>project_lobby_terrain</code> worker intent only loads and projects one. The route
+  requires a seated <code>owner</code>/<code>player</code> membership and <code>started_at IS NULL</code>; the
+  <code>lobby_started</code> gate on the gameplay-projection path in <code>postgres/games.rs</code> is
+  unchanged, so a running match is still unreadable through it. Both the Kotlin
+  worker and the Rust control plane assert <code>is_consistent()</code> fail-closed and
+  treat a malformed projection as a protocol fault.</li>
+<li>The client renders the projection by materializing the projected coordinates
+  verbatim into a bare <code>TileMap</code> and reusing the existing WorldScreen-free
+  minimap renderer, so the drawn grid cannot disagree with the server and the
+  client never imports <code>GameInfo</code>, <code>GameStarter</code>, or <code>MapGenerator</code>. Tile size is
+  measured from the real hex layout, so every admitted shape and custom radius or
+  rectangle fits. A terrain name this client's ruleset cannot resolve greys out
+  instead of throwing. The preview is fetched once per committed
+  <code>lobby_revision</code>, not per 1.5 s reconciliation poll.</li>
+<li>Compatibility moved together: <code>worker_protocol_version</code> 5 to 6 (Kotlin
+  <code>EngineWorkerProtocol.VERSION</code> and Rust <code>WORKER_PROTOCOL_VERSION</code>), a new
+  <code>lobby_terrain_projection_version</code> 1 in <code>release/compatibility.json</code> and
+  <code>CompatibilityContract</code>, the regenerated OpenAPI contract, and the explicit
+  route inventory in <code>api/tests.rs</code>.</li>
+<li>This changes the pregame confidentiality boundary: every lobby member now sees
+  the terrain before turn 1, which removes pre-turn-1 map secrecy as a gameplay
+  dimension. It is an accepted product decision, granted equally to all members
+  and bounded by the closed DTO above; it is recorded in AGENTS.md's V3 lobby
+  invariant and in
+  <code>docs/security/authoritative-multiplayer-threat-model.md</code>.</li>
+<li>Repairs found during this work: the previously committed lobby editors used
+  the deprecated libGDX <code>SelectBox.hideList</code>, which failed the warnings-as-errors
+  Kotlin build at <code>f5327ceb0</code>; both call sites now use <code>hideScrollPane</code> and a
+  routing test forbids the old overload returning. The staging-room chat draft
+  initially used <code>onActivation</code>, whose <code>Tap</code> equivalence would have sent the
+  message when a player merely tapped the field to type; it is now registered as
+  <code>ActivationTypes.Keystroke</code> with <code>noEquivalence = true</code>. Live panels initially
+  lost their card rules on refresh because they re-added only the caption; a
+  shared <code>LobbyChrome.resetCard</code> now rebuilds caption and rule together.</li>
+<li>Source-text routing invariants were updated rather than weakened. Every
+  authority assertion is retained (no <code>GameInfo</code>/<code>GameStarter</code>/<code>playerId</code>/
+  <code>NewGameScreen</code>, typed transport only, <code>observeLobby</code> plus the poll fallback,
+  responsive layout, victory filtering) and new ones were added for debounced
+  auto-commit, no-op edit suppression, preview read-only-ness and per-revision
+  fetching, and reachable room chat. The brittle header substring assertion was
+  replaced by a skin-safety sweep over all six multiplayer surfaces that forbids
+  unskinned <code>Table</code>, raw <code>Table.add(String)</code> cells, and reading <code>stage</code> from
+  inside a <code>Table.apply</code> block.</li>
+</ul>
 <h2 id="warning-free-shared-engine-and-client-builds">Warning-free shared engine and client builds</h2>
 <p>Implemented on 2026-07-30:</p>
 <ul>

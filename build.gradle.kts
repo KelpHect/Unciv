@@ -271,6 +271,7 @@ project(":core") {
             "implementation"(rootProject.libs.gdx.backend.headless)
             "implementation"(rootProject.libs.gdx.backend.desktop)
             "implementation"(gdxNatives("desktop"))
+            "implementation"(rootProject.libs.ktor.client.mock)
         }
     }
 }

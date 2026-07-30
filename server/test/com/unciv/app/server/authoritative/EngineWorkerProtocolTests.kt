@@ -320,6 +320,92 @@ class EngineWorkerProtocolTests {
     }
 
     @Test
+    fun createGameMaterializesBoundedCustomWorldDimensions() {
+        val capabilities = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                operation = WorkerOperation.Handshake,
+            ),
+        )
+        val baseRuleset = capabilities.installedRulesets!!.first { it.name == "Civ V - Vanilla" }
+        val response = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
+                actorId = "account-1",
+                rulesetManifest = WorkerRulesetManifest(
+                    engineBuild = requireNotNull(capabilities.engineBuild),
+                    baseRuleset = baseRuleset,
+                ),
+                operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000002",
+                    1234L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 2,
+                        cityStates = 0,
+                        mapShape = GeneratedMapShape.Rectangular,
+                        mapSize = GeneratedMapSize.Custom,
+                        customMapWidth = 32,
+                        customMapHeight = 20,
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(response.error)
+        val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
+        assertEquals("Custom", game.tileMap.mapParameters.mapSize.name)
+        assertEquals(32, game.tileMap.mapParameters.mapSize.width)
+        assertEquals(20, game.tileMap.mapParameters.mapSize.height)
+    }
+
+    @Test
+    fun createGameRejectsMissingOrUnsafeCustomWorldDimensions() {
+        val capabilities = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                operation = WorkerOperation.Handshake,
+            ),
+        )
+        val baseRuleset = capabilities.installedRulesets!!.first { it.name == "Civ V - Vanilla" }
+        val manifest = WorkerRulesetManifest(
+            engineBuild = requireNotNull(capabilities.engineBuild),
+            baseRuleset = baseRuleset,
+        )
+        val invalidSetups = listOf(
+            defaultSetup(baseRuleset.name).copy(
+                mapShape = GeneratedMapShape.Hexagonal,
+                mapSize = GeneratedMapSize.Custom,
+            ),
+            defaultSetup(baseRuleset.name).copy(
+                mapShape = GeneratedMapShape.Rectangular,
+                mapSize = GeneratedMapSize.Custom,
+                customMapWidth = 33,
+                customMapHeight = 20,
+                worldWrap = true,
+            ),
+        )
+
+        invalidSetups.forEachIndexed { index, setup ->
+            val response = AuthoritativeEngineWorker().execute(
+                WorkerRequest(
+                    protocolVersion = EngineWorkerProtocol.VERSION,
+                    serverTimeMillis = 1_700_000_000_000L,
+                    actorId = "account-1",
+                    rulesetManifest = manifest,
+                    operation = WorkerOperation.CreateGame(
+                        "00000000-0000-4000-8000-${(10 + index).toString().padStart(12, '0')}",
+                        1234L,
+                        setup,
+                    ),
+                ),
+            )
+            assertNull(response.snapshot)
+            assertEquals("engine_rejected", response.error?.code)
+        }
+    }
+
+    @Test
     fun lobbyReconfigurationRejectsForgedDuplicateAndUnavailableHumanAssignments() {
         val baseRuleset = InstalledRulesetCatalog.named("Civ V - Vanilla")
         val manifest = WorkerRulesetManifest(

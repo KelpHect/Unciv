@@ -73,6 +73,7 @@ pub enum GeneratedMapSize {
     Medium,
     Large,
     Huge,
+    Custom,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, utoipa::ToSchema)]
@@ -119,6 +120,12 @@ pub struct WorkerGameSetup {
     pub map_type: GeneratedMapType,
     pub map_shape: GeneratedMapShape,
     pub map_size: GeneratedMapSize,
+    #[serde(default)]
+    pub custom_map_radius: Option<u16>,
+    #[serde(default)]
+    pub custom_map_width: Option<u16>,
+    #[serde(default)]
+    pub custom_map_height: Option<u16>,
     pub map_resources: MapResourceDensity,
     pub barbarians: BarbarianMode,
     pub one_city_challenge: bool,
@@ -170,6 +177,9 @@ impl Default for WorkerGameSetup {
             map_type: GeneratedMapType::Pangaea,
             map_shape: GeneratedMapShape::Rectangular,
             map_size: GeneratedMapSize::Tiny,
+            custom_map_radius: None,
+            custom_map_width: None,
+            custom_map_height: None,
             map_resources: MapResourceDensity::Default,
             barbarians: BarbarianMode::Normal,
             one_city_challenge: false,
@@ -217,6 +227,9 @@ mod tests {
             map_type: GeneratedMapType::Pangaea,
             map_shape: GeneratedMapShape::Hexagonal,
             map_size: GeneratedMapSize::Medium,
+            custom_map_radius: None,
+            custom_map_width: None,
+            custom_map_height: None,
             map_resources: MapResourceDensity::Default,
             barbarians: BarbarianMode::Normal,
             one_city_challenge: false,

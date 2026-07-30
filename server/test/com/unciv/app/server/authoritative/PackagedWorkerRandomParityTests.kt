@@ -205,6 +205,18 @@ class PackagedWorkerRandomParityTests {
                                 victoryTypes = case.victories,
                                 mapShape = case.shape,
                                 mapSize = case.size,
+                                customMapRadius = 24.takeIf {
+                                    case.size == GeneratedMapSize.Custom &&
+                                        case.shape != GeneratedMapShape.Rectangular
+                                },
+                                customMapWidth = 40.takeIf {
+                                    case.size == GeneratedMapSize.Custom &&
+                                        case.shape == GeneratedMapShape.Rectangular
+                                },
+                                customMapHeight = 28.takeIf {
+                                    case.size == GeneratedMapSize.Custom &&
+                                        case.shape == GeneratedMapShape.Rectangular
+                                },
                                 mapResources = case.resources,
                                 barbarians = case.barbarians,
                                 oneCityChallenge = case.enabled,
@@ -234,6 +246,14 @@ class PackagedWorkerRandomParityTests {
             assertEquals(case.victories, game.gameParameters.victoryTypes)
             assertEquals(expectedShape(case.shape), game.tileMap.mapParameters.shape)
             assertEquals(case.size.name, game.tileMap.mapParameters.mapSize.name)
+            if (case.size == GeneratedMapSize.Custom) {
+                if (case.shape == GeneratedMapShape.Rectangular) {
+                    assertEquals(40, game.tileMap.mapParameters.mapSize.width)
+                    assertEquals(28, game.tileMap.mapParameters.mapSize.height)
+                } else {
+                    assertEquals(24, game.tileMap.mapParameters.mapSize.radius)
+                }
+            }
             assertEquals(expectedResources(case.resources), game.tileMap.mapParameters.mapResources)
             assertEquals(case.barbarians == BarbarianMode.Disabled, game.gameParameters.noBarbarians)
             assertEquals(case.barbarians == BarbarianMode.Raging, game.gameParameters.ragingBarbarians)

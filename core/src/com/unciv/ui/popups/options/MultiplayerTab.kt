@@ -29,35 +29,16 @@ internal class MultiplayerTab(
     override fun lateInitialize() {
         addAuthoritativeServer()
         addSeparator()
-
-        val curRefresh = RefreshSelectOptions(
-            mpSettings::currentGameRefreshDelay,
-            createRefreshOptions(ChronoUnit.SECONDS, 3, 5),
-            createRefreshOptions(ChronoUnit.SECONDS, 10, 20, 30, 60),
-        )
-        curRefresh.selectBox = addSelectBox(
-            "Update the open match every:",
-            curRefresh::value,
-            curRefresh.getItems(),
-        )
-        val allRefresh = RefreshSelectOptions(
-            mpSettings::allGameRefreshDelay,
-            createRefreshOptions(ChronoUnit.SECONDS, 15, 30),
-            createRefreshOptions(ChronoUnit.MINUTES, 1, 2, 5, 15),
-        )
-        allRefresh.selectBox = addSelectBox(
-            "Update the multiplayer game list every:",
-            allRefresh::value,
-            allRefresh.getItems(),
-        )
-
-        addSeparator()
         addNotificationSettings()
         super.lateInitialize()
     }
 
     private fun addAuthoritativeServer() {
         add("Authoritative multiplayer V3".toLabel()).colspan(2).row()
+        add(
+            "The server owns the lobby, game rules, AI turns, saves, and synchronization."
+                .toLabel(Color.LIGHT_GRAY),
+        ).colspan(2).growX().left().row()
         val address = UncivTextField("Server URL or IP", mpSettings.getServer())
         val error = "".toLabel(Color.RED).apply { isVisible = false }
         address.setTextFieldFilter { _, character -> character !in " \r\n\t\\" }
@@ -81,7 +62,7 @@ internal class MultiplayerTab(
             "Hostnames require HTTPS. Plain HTTP is accepted only for a literal test IP."
                 .toLabel(Color.GRAY),
         ).left().row()
-        table.add("Account, login, and match browser".toTextButton().onClick {
+        table.add("Open account and multiplayer lobbies".toTextButton().onClick {
             settings.save()
             optionsPopup.close()
             game.pushScreen(MultiplayerScreen())
@@ -90,11 +71,7 @@ internal class MultiplayerTab(
     }
 
     private fun addNotificationSettings() {
-        addCheckbox(
-            "Enable multiplayer status button in singleplayer games",
-            mpSettings::statusButtonInSinglePlayer,
-            updateWorld = true,
-        )
+        add("TURN NOTIFICATIONS".toLabel(Color.GOLD)).colspan(2).growX().left().row()
         val sounds = LabeledSounds()
         fun soundItems() = synchronized(sounds) {
             sounds.getLabeledSounds().asFlow().map {

@@ -1,18 +1,15 @@
 package com.unciv.ui.screens.multiplayerscreens
 
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.scenes.scene2d.ui.SelectBox
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.Constants
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.ApiV3Lobby
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinator
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeLobbyConfiguration
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.logic.multiplayer.authoritative.normalizeApiV3BaseUrl
-import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.disable
@@ -22,7 +19,6 @@ import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
-import com.unciv.ui.screens.newgamescreen.NewGameScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
@@ -31,7 +27,7 @@ import com.unciv.utils.launchOnGLThread
  * legacy save-upload multiplayer remains isolated for compatibility imports. */
 class MultiplayerScreen : PickerScreen() {
     private val session get() = game.onlineMultiplayer.authoritativeSession
-    private val content = Table().apply {
+    private val content = Table(skin).apply {
         top()
         defaults().pad(8f)
     }
@@ -151,7 +147,7 @@ class MultiplayerScreen : PickerScreen() {
             content.add(gameCard(summary)).colspan(4).growX().row()
     }
 
-    private fun lobbyCard(lobby: ApiV3Lobby) = Table().apply {
+    private fun lobbyCard(lobby: ApiV3Lobby) = Table(skin).apply {
         defaults().pad(6f)
         add(lobby.displayName.toLabel()).growX().left()
         add("${lobby.occupiedSlots}/${lobby.humanSlots} players".toLabel())
@@ -162,7 +158,7 @@ class MultiplayerScreen : PickerScreen() {
         }).right()
     }
 
-    private fun gameCard(summary: ApiV3GameSummary) = Table().apply {
+    private fun gameCard(summary: ApiV3GameSummary) = Table(skin).apply {
         defaults().pad(6f)
         add(summary.displayName.toLabel()).growX().left()
         add(
@@ -245,8 +241,17 @@ class MultiplayerScreen : PickerScreen() {
     private fun openServerPopup() {
         val popup = Popup(this)
         val address = UncivTextField("Server URL or IP", game.settings.multiplayer.getServer())
-        popup.addGoodSizedLabel("Authoritative server").row()
-        popup.add(address).minWidth(stage.width / 2f).row()
+        popup.addGoodSizedLabel("AUTHORITATIVE MULTIPLAYER SERVER").growX().left().row()
+        popup.add(
+            "One account works across desktop and Android when both clients use this server."
+                .toLabel(Color.LIGHT_GRAY),
+        ).growX().left().row()
+        popup.add("Server URL or test IP".toLabel()).growX().left().row()
+        popup.add(address).minWidth(stage.width.coerceAtMost(1000f) * 0.65f).growX().row()
+        popup.add(
+            "Use HTTPS for a hostname. Plain HTTP is allowed only for a literal test IP."
+                .toLabel(Color.LIGHT_GRAY),
+        ).growX().left().row()
         popup.add("Save and connect".toTextButton().onClick {
             try {
                 val normalized = normalizeApiV3BaseUrl(address.text)
@@ -285,7 +290,10 @@ class MultiplayerScreen : PickerScreen() {
                 check(manifests.isNotEmpty()) {
                     "This client does not have any ruleset installed by the server."
                 }
-                launchOnGLThread { renderCreateMatchPopup(popup, manifests) }
+                launchOnGLThread {
+                    popup.close()
+                    game.pushScreen(AuthoritativeCreateLobbyScreen(manifests, activeSession))
+                }
             } catch (exception: Exception) {
                 launchOnGLThread {
                     popup.reuseWith(
@@ -295,57 +303,6 @@ class MultiplayerScreen : PickerScreen() {
                 }
             }
         }
-    }
-
-    private fun renderCreateMatchPopup(
-        popup: Popup,
-        manifests: List<com.unciv.logic.multiplayer.authoritative.ApiV3RulesetManifestSummary>,
-    ) {
-        popup.clear()
-        val name = UncivTextField("Match name", "New multiplayer match")
-        val slots = UncivTextField("Human players", "2")
-        val password = UncivTextField("Optional password (12+ characters)", "").apply {
-            isPasswordMode = true
-        }
-        val ruleset = SelectBox<String>(skin).apply {
-            items = com.badlogic.gdx.utils.Array(
-                manifests.map { manifest ->
-                    buildString {
-                        append(manifest.baseRuleset.name)
-                        if (manifest.mods.isNotEmpty()) {
-                            append(" + ")
-                            append(manifest.mods.joinToString { it.name })
-                        }
-                    }
-                }.toTypedArray(),
-            )
-        }
-        popup.addGoodSizedLabel("Create authoritative match").row()
-        popup.addGoodSizedLabel("Match name").left().row()
-        popup.add(name).minWidth(stage.width / 2f).row()
-        popup.addGoodSizedLabel("Server ruleset").left().row()
-        popup.add(ruleset).minWidth(stage.width / 2f).row()
-        popup.addGoodSizedLabel("Human player slots").left().row()
-        popup.add(slots).row()
-        popup.addGoodSizedLabel("Private match password").left().row()
-        popup.add(password).minWidth(stage.width / 2f).row()
-        popup.add("Configure game".toTextButton().onClick {
-            try {
-                val configuration = AuthoritativeLobbyConfiguration(
-                    name.text.trim(),
-                    slots.text.toInt(),
-                    password.text.takeIf(String::isNotEmpty),
-                    manifests[ruleset.selectedIndex],
-                )
-                val setup = GameSetupInfo.fromSettings()
-                setup.gameParameters.isOnlineMultiplayer = true
-                popup.close()
-                game.pushScreen(NewGameScreen(setup, lobbyConfiguration = configuration))
-            } catch (_: Exception) {
-                ToastPopup("Use a name, 1-16 human players, and an optional 12+ character password.", this)
-            }
-        }).row()
-        popup.addCloseButton()
     }
 
 }

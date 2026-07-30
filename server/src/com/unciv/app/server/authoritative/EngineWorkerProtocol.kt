@@ -28,7 +28,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 4
+    const val VERSION = 5
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536

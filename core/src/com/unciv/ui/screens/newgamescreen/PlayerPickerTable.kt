@@ -77,7 +77,6 @@ class PlayerPickerTable(
      */
     fun update(desiredCiv: String = "") {
         playerListTable.clear()
-        normalizeAuthoritativePlayers()
         val gameBasics = previousScreen.ruleset // the mod picking changes this ruleset
 
         reassignRemovedModReferences()
@@ -190,7 +189,6 @@ class PlayerPickerTable(
         fun updatePlayerTypeButtonEnabled() {
             // This could be written much shorter with logical operators - I think this is readable
             playerTypeTextButton.isEnabled = when {
-                usesAuthoritativeCreation() -> false
                 // Can always change AI to Human
                 player.playerType == PlayerType.AI -> true
                 // we cannot change Spectator player to AI type, robots not allowed to spectate :(
@@ -203,7 +201,7 @@ class PlayerPickerTable(
         updatePlayerTypeButtonEnabled()
 
         nationTable.onClick {
-            if (locked || usesAuthoritativeCreation() && player.playerType != Human) return@onClick
+            if (locked) return@onClick
             val noRandom = noRandom ||
                     gameParameters.randomNumberOfPlayers && player.playerType == PlayerType.AI
             popupNationPicker(player, noRandom)
@@ -214,7 +212,7 @@ class PlayerPickerTable(
             update()
         }
 
-        if (!locked && !(usesAuthoritativeCreation() && player.playerType == Human)) {
+        if (!locked) {
             playerTable.add("-".toLabel(ImageGetter.CHARCOAL, 30, Align.center)
                 .surroundWithCircle(40f)
                 .onClick {
@@ -225,27 +223,6 @@ class PlayerPickerTable(
         }
 
         return playerTable
-    }
-
-    private fun usesAuthoritativeCreation() =
-        (previousScreen as? NewGameScreen)?.isAuthoritativeLobbySetup == true
-
-    private fun normalizeAuthoritativePlayers() {
-        if (!usesAuthoritativeCreation()) return
-        gameParameters.players.removeAll { it.chosenCiv == Constants.spectator }
-        if (gameParameters.players.isEmpty())
-            gameParameters.players += Player(Constants.random, PlayerType.Human)
-        val owner = gameParameters.players.firstOrNull { it.playerType == PlayerType.Human }
-            ?: gameParameters.players.first()
-        for (player in gameParameters.players) {
-            player.playerId = ""
-            if (player === owner) {
-                player.playerType = PlayerType.Human
-            } else {
-                player.playerType = PlayerType.AI
-                player.chosenCiv = Constants.random
-            }
-        }
     }
 
     /**

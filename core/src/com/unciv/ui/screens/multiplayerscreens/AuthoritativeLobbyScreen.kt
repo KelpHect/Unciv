@@ -17,10 +17,9 @@ import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.components.input.onChange
 import com.unciv.ui.components.widgets.AutoScrollPane
+import com.unciv.ui.components.widgets.TabbedPager
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.popups.ToastPopup
-import com.unciv.ui.screens.newgamescreen.AuthoritativeLobbyEditConfiguration
-import com.unciv.ui.screens.newgamescreen.NewGameScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
@@ -35,8 +34,9 @@ class AuthoritativeLobbyScreen(
     private val session: AuthoritativeMultiplayerSession,
 ) : PickerScreen() {
     private var lobby = initialLobby
+    private var configurationEditor: AuthoritativeLobbyConfigurationEditor? = null
     private var requestInFlight = false
-    private val content = Table().apply { defaults().pad(8f) }
+    private val content = Table(skin).apply { defaults().pad(8f) }
     private val notificationSubscription: AutoCloseable
     private val refreshTask = object : Timer.Task() {
         override fun run() = refresh(silent = true)
@@ -61,29 +61,30 @@ class AuthoritativeLobbyScreen(
             .growX().left().row()
         content.add(lobby.displayName.toLabel(Color.WHITE, 30)).growX().left().row()
         content.add(
-            "Host: [${lobby.ownerUsername}]   •   " +
-                "${lobby.occupiedSlots}/${lobby.humanSlots} human players".toLabel(),
+            (
+                "Host: [${lobby.ownerUsername}]   •   " +
+                    "${lobby.occupiedSlots}/${lobby.humanSlots} human players"
+            ).toLabel(),
         ).growX().left().padBottom(12f).row()
 
-        val players = panel("PLAYERS & FACTIONS")
-        renderPlayers(players)
-        val settings = panel("MATCH SETTINGS")
-        renderSettings(settings, lobby.setup)
-        val body = Table().apply {
+        val leftColumn = Table(skin).apply {
+            defaults().pad(6f)
+            add(panel("PLAYERS & FACTIONS").also(::renderPlayers)).growX().row()
+            add(panel("READY ROOM").also(::renderActions)).growX().row()
+        }
+        val settings = renderSettingsWorkspace()
+        val body = Table(skin).apply {
             defaults().pad(6f).top()
             if (isNarrowerThan4to3()) {
-                add(players).growX().row()
+                add(leftColumn).growX().row()
                 add(settings).growX().row()
             } else {
-                add(players).width(stage.width * 0.38f).growY()
-                add(settings).width(stage.width * 0.56f).growY()
+                val screenWidth = this@AuthoritativeLobbyScreen.stage.width
+                add(leftColumn).width(screenWidth * 0.34f).growY()
+                add(settings).width(screenWidth * 0.60f).growY()
             }
         }
         content.add(body).growX().row()
-
-        val actions = panel("READY ROOM")
-        renderActions(actions)
-        content.add(actions).growX().row()
     }
 
     private fun renderPlayers(target: Table) {
@@ -106,9 +107,48 @@ class AuthoritativeLobbyScreen(
         }
     }
 
-    private fun renderSettings(target: Table, setup: ApiV3GameSetup) {
+    private fun renderSettingsWorkspace(): Table {
+        val workspace = panel("MATCH CONFIGURATION")
+        val pager = TabbedPager(
+            minimumWidth = stage.width.coerceAtMost(620f),
+            maximumWidth = stage.width.coerceAtMost(920f),
+            minimumHeight = stage.height * 0.48f,
+            maximumHeight = stage.height * 0.62f,
+            separatorColor = Color.LIGHT_GRAY,
+            shortcutScreen = this,
+            capacity = 4,
+        )
+        if (lobby.actorRole == "owner") {
+            val editor = AuthoritativeLobbyConfigurationEditor(lobby)
+            configurationEditor = editor
+            pager.addPage("Game", editor.gamePage)
+            pager.addPage("World", editor.worldPage)
+            pager.addPage("Victories", editor.victoryPage)
+            pager.addPage("Advanced", editor.advancedPage)
+            pager.selectPage(0)
+            workspace.add(pager).colspan(2).grow().row()
+            workspace.add("Apply lobby settings".toTextButton().onClick {
+                saveConfiguration()
+            }).colspan(2).growX().row()
+            workspace.add(
+                "All changes are server-validated and reset player readiness."
+                    .toLabel(Color.LIGHT_GRAY),
+            ).colspan(2).growX().left().row()
+        } else {
+            configurationEditor = null
+            pager.addPage("Game", readOnlyGamePage())
+            pager.addPage("World", readOnlyWorldPage(lobby.setup))
+            pager.addPage("Victories", readOnlyVictoryPage(lobby.setup))
+            pager.addPage("Advanced", readOnlyAdvancedPage(lobby.setup))
+            pager.selectPage(0)
+            workspace.add(pager).colspan(2).grow().row()
+        }
+        return workspace
+    }
+
+    private fun readOnlyGamePage(): Table = settingsPage("GAME RULES").apply {
         setting(
-            target,
+            this,
             "Ruleset",
             buildString {
                 append(lobby.baseRulesetName.ifBlank { lobby.rulesetManifestHash.take(12) })
@@ -118,27 +158,47 @@ class AuthoritativeLobbyScreen(
                 }
             },
         )
-        setting(target, "Map", "${setup.mapType.displayName()} • ${setup.mapSize.displayName()}")
-        setting(target, "Map shape", setup.mapShape.displayName())
-        setting(target, "Map seed", setup.mapSeed?.toString() ?: "Server generated")
-        setting(target, "Mirroring", setup.mirroring.displayName())
-        setting(target, "Resources", setup.mapResources.displayName())
-        setting(target, "Difficulty", setup.difficulty)
-        setting(target, "Game speed", setup.speed)
-        setting(target, "Starting era", setup.startingEra)
-        setting(target, "Major civilizations", setup.majorCivilizations.toString())
-        setting(target, "City-states", setup.cityStates.toString())
-        setting(target, "Turn limit", setup.maxTurns.toString())
-        setting(target, "Victory conditions", setup.victoryTypes.joinToString())
+        setting(this, "Difficulty", lobby.setup.difficulty)
+        setting(this, "Game speed", lobby.setup.speed)
+        setting(this, "Starting era", lobby.setup.startingEra)
+        setting(this, "Major civilizations", lobby.setup.majorCivilizations.toString())
+        setting(this, "City-states", lobby.setup.cityStates.toString())
+        setting(this, "Turn limit", lobby.setup.maxTurns.toString())
+    }
+
+    private fun readOnlyWorldPage(setup: ApiV3GameSetup) = settingsPage("WORLD SETTINGS").apply {
+        setting(this, "Map type", setup.mapType.displayName())
+        setting(this, "Map shape", setup.mapShape.displayName())
+        setting(this, "World size", setup.worldSizeDisplayName())
+        setting(this, "Game seed", setup.mapSeed?.toString() ?: "Server generated")
+        setting(this, "Mirroring", setup.mirroring.displayName())
+        setting(this, "Resources", setup.mapResources.displayName())
+        setting(this, "Barbarians", setup.barbarianModeWireName())
+        setting(this, "World wrap", setup.worldWrap.yesNo())
+        setting(this, "Strategic balance", setup.strategicBalance.yesNo())
+        setting(this, "Legendary start", setup.legendaryStart.yesNo())
+        setting(this, "Ancient ruins", (!setup.noRuins).yesNo())
+        setting(this, "Natural wonders", (!setup.noNaturalWonders).yesNo())
+    }
+
+    private fun readOnlyVictoryPage(setup: ApiV3GameSetup) =
+        settingsPage("VICTORY CONDITIONS").apply {
+            setup.victoryTypes.forEach { victory ->
+                add("✓  $victory".toLabel(Color.GREEN)).colspan(2).growX().left().row()
+            }
+        }
+
+    private fun readOnlyAdvancedPage(setup: ApiV3GameSetup) =
+        settingsPage("ADVANCED SETTINGS").apply {
         setting(
-            target,
+            this,
             "Map generation",
             "Elevation ${setup.elevationExponent}, temperature ${setup.temperatureIntensity}, " +
                 "shift ${setup.temperatureShift}, vegetation ${setup.vegetationRichness}, " +
                 "rare features ${setup.rareFeaturesRichness}, water ${setup.waterThreshold}",
         )
         setting(
-            target,
+            this,
             "Terrain scale",
             "Biome ${setup.tilesPerBiomeArea}, coast ${setup.maxCoastExtension}, " +
                 "resources ${setup.resourceRichness}",
@@ -157,7 +217,32 @@ class AuthoritativeLobbyScreen(
             if (setup.noRuins) add("No ruins")
             if (setup.noNaturalWonders) add("No natural wonders")
         }
-        setting(target, "Advanced rules", advanced.ifEmpty { listOf("Standard") }.joinToString())
+        setting(this, "Advanced rules", advanced.ifEmpty { listOf("Standard") }.joinToString())
+    }
+
+    private fun settingsPage(title: String) = Table(skin).apply {
+        defaults().pad(8f)
+        add(title.toLabel(Color.GOLD)).colspan(2).growX().left().row()
+    }
+
+    private fun saveConfiguration() {
+        try {
+            val update = requireNotNull(configurationEditor).build()
+            runAction {
+                session.reconfigureLobby(
+                    lobby,
+                    update.displayName,
+                    update.humanSlots,
+                    update.password,
+                    update.setup,
+                )
+            }
+        } catch (exception: Exception) {
+            ToastPopup(
+                exception.message ?: "Check every labeled lobby setting.",
+                this,
+            )
+        }
     }
 
     private fun renderActions(target: Table) {
@@ -203,36 +288,6 @@ class AuthoritativeLobbyScreen(
             ).colspan(2).growX().row()
         }
         if (lobby.actorRole == "owner") {
-            target.add("Edit lobby access".toTextButton().onClick {
-                AuthoritativeLobbyAccessPopup(this, lobby) {
-                        displayName, humanSlots, password ->
-                    runAction {
-                        session.reconfigureLobby(
-                            lobby,
-                            displayName,
-                            humanSlots,
-                            password,
-                            lobby.setup,
-                        )
-                    }
-                }.open()
-            }).colspan(2).growX().row()
-            target.add("Edit map, rules & victory".toTextButton().onClick {
-                val editableSetup = lobby.setup.toGameSetupInfo()
-                val edit = AuthoritativeLobbyEditConfiguration(
-                    lobby,
-                    editableSetup.mapParameters.seed,
-                ) { updated ->
-                    lobby = updated
-                    render()
-                }
-                game.pushScreen(
-                    NewGameScreen(
-                        editableSetup,
-                        lobbyEditConfiguration = edit,
-                    ),
-                )
-            }).colspan(2).growX().row()
             val canStart =
                 lobby.occupiedSlots == lobby.humanSlots &&
                     lobby.members.all { it.ready && it.civilizationId.isNotBlank() }
@@ -293,7 +348,7 @@ class AuthoritativeLobbyScreen(
         target.add(value.toLabel()).growX().left().row()
     }
 
-    private fun panel(title: String) = Table().apply {
+    private fun panel(title: String) = Table(skin).apply {
         background = skinStrings.getUiBackground(
             "MultiplayerScreen/Section",
             tintColor = skinStrings.skinConfig.baseColor,
@@ -324,7 +379,10 @@ class AuthoritativeLobbyScreen(
                     requestInFlight = false
                     if (!silent)
                         ToastPopup(
-                            exception.message ?: "Could not refresh lobby.",
+                            authoritativeLobbyErrorMessage(
+                                exception,
+                                "Could not refresh lobby.",
+                            ),
                             this@AuthoritativeLobbyScreen,
                         )
                 }
@@ -348,7 +406,7 @@ class AuthoritativeLobbyScreen(
                 launchOnGLThread {
                     requestInFlight = false
                     ToastPopup(
-                        exception.message ?: "Lobby action failed.",
+                        authoritativeLobbyErrorMessage(exception, "Lobby action failed."),
                         this@AuthoritativeLobbyScreen,
                     )
                     refresh(silent = true)
@@ -405,3 +463,17 @@ private fun com.unciv.logic.multiplayer.authoritative.ApiV3BarbarianMode.display
     name.lowercase().replaceFirstChar(Char::uppercase)
 
 private fun ApiV3GameSetup.barbarianModeWireName() = barbarians.displayName()
+
+private fun ApiV3GameSetup.worldSizeDisplayName() = when (mapSize) {
+    com.unciv.logic.multiplayer.authoritative.ApiV3GeneratedMapSize.Custom ->
+        if (mapShape ==
+            com.unciv.logic.multiplayer.authoritative.ApiV3GeneratedMapShape.Rectangular
+        ) {
+            "${customMapWidth} × ${customMapHeight}"
+        } else {
+            "Radius $customMapRadius"
+        }
+    else -> mapSize.displayName()
+}
+
+private fun Boolean.yesNo() = if (this) "Enabled" else "Disabled"

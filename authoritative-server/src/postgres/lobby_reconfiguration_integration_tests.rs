@@ -14,6 +14,10 @@ async fn owner_configuration_is_revisioned_authorized_idempotent_and_stale_safe(
     let operation_id = Uuid::new_v4();
     let mut updated_setup = setup();
     updated_setup.max_turns = 600;
+    updated_setup.map_shape = GeneratedMapShape::Rectangular;
+    updated_setup.map_size = GeneratedMapSize::Custom;
+    updated_setup.custom_map_width = Some(40);
+    updated_setup.custom_map_height = Some(28);
     let update = LobbyConfigurationUpdate {
         display_name: "Reconfigured lobby".to_owned(),
         human_slots: 2,
@@ -52,6 +56,9 @@ async fn owner_configuration_is_revisioned_authorized_idempotent_and_stale_safe(
             .and_then(serde_json::Value::as_u64),
         Some(600),
     );
+    assert_eq!(summary.setup["mapSize"], "custom");
+    assert_eq!(summary.setup["customMapWidth"], 40);
+    assert_eq!(summary.setup["customMapHeight"], 28);
 
     let unavailable_worker = unreachable_worker();
     let duplicate = fixture

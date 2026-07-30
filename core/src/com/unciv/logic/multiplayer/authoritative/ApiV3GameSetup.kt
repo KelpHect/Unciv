@@ -54,6 +54,7 @@ enum class ApiV3GeneratedMapSize {
     @SerialName("medium") Medium,
     @SerialName("large") Large,
     @SerialName("huge") Huge,
+    @SerialName("custom") Custom,
 }
 
 @Serializable
@@ -93,6 +94,12 @@ data class ApiV3GameSetup(
     @SerialName("map_shape") val mapShape: ApiV3GeneratedMapShape,
     @JsonNames("mapSize")
     @SerialName("map_size") val mapSize: ApiV3GeneratedMapSize,
+    @JsonNames("customMapRadius")
+    @SerialName("custom_map_radius") val customMapRadius: Int? = null,
+    @JsonNames("customMapWidth")
+    @SerialName("custom_map_width") val customMapWidth: Int? = null,
+    @JsonNames("customMapHeight")
+    @SerialName("custom_map_height") val customMapHeight: Int? = null,
     @JsonNames("mapResources")
     @SerialName("map_resources") val mapResources: ApiV3MapResourceDensity,
     val barbarians: ApiV3BarbarianMode,
@@ -169,7 +176,7 @@ data class ApiV3GameSetup(
             name = ""
             type = mapType.toMapType()
             shape = mapShape.toMapShape()
-            mapSize = this@ApiV3GameSetup.mapSize.toMapSize()
+            mapSize = this@ApiV3GameSetup.toMapSize()
             mapResources = this@ApiV3GameSetup.mapResources.toMapResources()
             mirroring = this@ApiV3GameSetup.mirroring.toMirroring()
             noRuins = this@ApiV3GameSetup.noRuins
@@ -231,6 +238,15 @@ data class ApiV3GameSetup(
                 mapType = map.type.toApiV3MapType(),
                 mapShape = map.shape.toApiV3MapShape(),
                 mapSize = map.mapSize.name.toApiV3MapSize(),
+                customMapRadius = map.mapSize.radius.takeIf {
+                    map.mapSize.name == MapSize.custom && map.shape != MapShape.rectangular
+                },
+                customMapWidth = map.mapSize.width.takeIf {
+                    map.mapSize.name == MapSize.custom && map.shape == MapShape.rectangular
+                },
+                customMapHeight = map.mapSize.height.takeIf {
+                    map.mapSize.name == MapSize.custom && map.shape == MapShape.rectangular
+                },
                 mapResources = map.mapResources.toApiV3Resources(),
                 barbarians = when {
                     game.noBarbarians -> ApiV3BarbarianMode.Disabled
@@ -303,7 +319,8 @@ private fun String.toApiV3MapSize() = when (this) {
     MapSize.Predefined.Medium.name -> ApiV3GeneratedMapSize.Medium
     MapSize.Predefined.Large.name -> ApiV3GeneratedMapSize.Large
     MapSize.Predefined.Huge.name -> ApiV3GeneratedMapSize.Huge
-    else -> error("API v3 setup currently supports predefined map sizes only")
+    MapSize.custom -> ApiV3GeneratedMapSize.Custom
+    else -> error("Unsupported API v3 map size: $this")
 }
 
 private fun String.toApiV3Resources() = when (this) {
@@ -343,12 +360,21 @@ private fun ApiV3GeneratedMapShape.toMapShape() = when (this) {
     ApiV3GeneratedMapShape.FlatEarth -> MapShape.flatEarth
 }
 
-private fun ApiV3GeneratedMapSize.toMapSize() = when (this) {
+private fun ApiV3GameSetup.toMapSize() = when (mapSize) {
     ApiV3GeneratedMapSize.Tiny -> MapSize.Tiny
     ApiV3GeneratedMapSize.Small -> MapSize.Small
     ApiV3GeneratedMapSize.Medium -> MapSize.Medium
     ApiV3GeneratedMapSize.Large -> MapSize.Large
     ApiV3GeneratedMapSize.Huge -> MapSize.Huge
+    ApiV3GeneratedMapSize.Custom -> when (mapShape) {
+        ApiV3GeneratedMapShape.Hexagonal,
+        ApiV3GeneratedMapShape.FlatEarth,
+        -> MapSize(requireNotNull(customMapRadius) { "Custom map radius is required" })
+        ApiV3GeneratedMapShape.Rectangular -> MapSize(
+            requireNotNull(customMapWidth) { "Custom map width is required" },
+            requireNotNull(customMapHeight) { "Custom map height is required" },
+        )
+    }
 }
 
 private fun ApiV3MapResourceDensity.toMapResources() = when (this) {

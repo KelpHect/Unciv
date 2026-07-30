@@ -96,7 +96,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 4;
+pub const WORKER_PROTOCOL_VERSION: u16 = 5;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]

@@ -194,6 +194,7 @@ detekt/reports.html
 /buildSrc/.kotlin/sessions/*
 /.claude/
 /.codex/
+/.unciv/
 authoritative-server/target/
 
 # Local Oracle Cloud SSH credentials and host metadata

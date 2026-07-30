@@ -13,10 +13,6 @@ import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.files.MapSaver
 import com.unciv.logic.map.MapGeneratedMainType
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationMeaning
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeCreationRetryState
-import com.unciv.logic.multiplayer.authoritative.AuthoritativeLobbyConfiguration
-import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
 import com.unciv.models.metadata.BaseRuleset
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
@@ -41,7 +37,6 @@ import com.unciv.ui.popups.Popup
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
-import com.unciv.ui.screens.multiplayerscreens.AuthoritativeLobbyScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
@@ -52,36 +47,19 @@ import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 
 class NewGameScreen(
     defaultGameSetupInfo: GameSetupInfo? = null,
-    private val authoritativeCreationRetryState: AuthoritativeCreationRetryState =
-        AuthoritativeCreationRetryState(),
-    private val lobbyConfiguration: AuthoritativeLobbyConfiguration? = null,
-    private val lobbyEditConfiguration: AuthoritativeLobbyEditConfiguration? = null,
 ): IPreviousScreen, PickerScreen(), RecreateOnResize {
-    internal val isAuthoritativeLobbySetup
-        get() = lobbyConfiguration != null || lobbyEditConfiguration != null
-
     override val gameSetupInfo = defaultGameSetupInfo ?: GameSetupInfo.fromSettings()
     override val ruleset = Ruleset()  // updateRuleset will clear and add
     private val newGameOptionsTable: GameOptionsTable
     internal val playerPickerTable: PlayerPickerTable
     private val mapOptionsTable: MapOptionsTable
     private var mapOptionsTableInitialized = false
-    private val startGameButton = authoritativeActionLabel()
+    private val startGameButton = "Start game!"
         .toTextButton()
         .apply { color = Color.GREEN }
 
     init {
-        val baseRulesetName = lobbyConfiguration?.rulesetManifest?.baseRuleset?.name
-            ?: lobbyEditConfiguration?.lobby?.baseRulesetName
-        val modNames = lobbyConfiguration?.rulesetManifest?.mods?.map { it.name }
-            ?: lobbyEditConfiguration?.lobby?.modNames
-        if (baseRulesetName != null && modNames != null)
-            gameSetupInfo.gameParameters.apply {
-                isOnlineMultiplayer = true
-                baseRuleset = baseRulesetName
-                mods = modNames.toCollection(linkedSetOf())
-            }
-        else gameSetupInfo.gameParameters.isOnlineMultiplayer = false
+        gameSetupInfo.gameParameters.isOnlineMultiplayer = false
         val isPortrait = isNarrowerThan4to3()
 
         tryUpdateRuleset(updateUI = false)  // must come before playerPickerTable so mod nations from fromSettings
@@ -129,13 +107,7 @@ class NewGameScreen(
                     val gameSetupInfo = GameSetupInfo().apply {
                         gameParameters.espionageEnabled = true
                     }
-                    game.replaceCurrentScreen(
-                        NewGameScreen(
-                            gameSetupInfo,
-                            lobbyConfiguration = lobbyConfiguration,
-                            lobbyEditConfiguration = lobbyEditConfiguration,
-                        ),
-                    )
+                    game.replaceCurrentScreen(NewGameScreen(gameSetupInfo))
                 }.open(true)
             }
             horizontalGroup.addActor(resetToDefaultsButton)
@@ -185,24 +157,6 @@ class NewGameScreen(
     
     // Should be run NOT on main thread because it contacts MP server and loads maps etc
     fun getErrorMessage(): String? {
-        if (isAuthoritativeLobbySetup) {
-            if (game.onlineMultiplayer.authoritativeSession == null)
-                return authoritativeUnavailableMessage()
-            val humanSlots = lobbyConfiguration?.humanSlots
-                ?: requireNotNull(lobbyEditConfiguration).lobby.humanSlots
-            if (humanSlots > gameSetupInfo.gameParameters.players.size)
-                return "Human slots cannot exceed the number of major civilizations."
-            val humanPlayers = gameSetupInfo.gameParameters.players.count {
-                it.playerType == PlayerType.Human && it.chosenCiv != Constants.spectator
-            }
-            if (humanPlayers != 1) {
-                return "API v3 creates the authenticated owner first; other players join the lobby."
-            }
-            runCatching { ApiV3GameSetup.from(gameSetupInfo) }
-                .exceptionOrNull()
-                ?.let { return it.message ?: "This setup is not supported by API v3." }
-        }
-
         if (gameSetupInfo.gameParameters.players.none {
                 it.playerType == PlayerType.Human &&
                         // do not allow multiplayer with only spectator(s) and AI(s) - non-MP that works
@@ -263,13 +217,8 @@ class NewGameScreen(
     private fun initLandscape() {
         scrollPane.setScrollingDisabled(true,true)
 
-        if (isAuthoritativeLobbySetup)
-            topTable.add("MULTIPLAYER SETUP  •  STEP 1 OF 2".toLabel(Color.GOLD))
-                .colspan(5).growX().left().pad(12f).row()
-        topTable.add(
-            (if (isAuthoritativeLobbySetup) "Match Rules" else "Game Options")
-                .toLabel(fontSize = Constants.headingFontSize),
-        ).pad(20f, 0f)
+        topTable.add("Game Options".toLabel(fontSize = Constants.headingFontSize))
+            .pad(20f, 0f)
         topTable.addSeparatorVertical(ImageGetter.CHARCOAL, 1f)
         topTable.add("Map Options".toLabel(fontSize = Constants.headingFontSize)).pad(20f,0f)
         topTable.addSeparatorVertical(ImageGetter.CHARCOAL, 1f)
@@ -291,18 +240,13 @@ class NewGameScreen(
     private fun initPortrait() {
         scrollPane.setScrollingDisabled(false,false)
 
-        if (isAuthoritativeLobbySetup)
-            topTable.add("MULTIPLAYER SETUP  •  STEP 1 OF 2".toLabel(Color.GOLD))
-                .expandX().fillX().left().pad(12f).row()
-        topTable.add(ExpanderTab(if (isAuthoritativeLobbySetup) "Match Rules" else "Game Options") {
+        topTable.add(ExpanderTab("Game Options") {
             it.add(newGameOptionsTable).row()
         }).expandX().fillX().row()
         topTable.addSeparator(Color.DARK_GRAY, height = 1f)
 
-        if (!isAuthoritativeLobbySetup) {
-            topTable.add(newGameOptionsTable.modCheckboxes).expandX().fillX().row()
-            topTable.addSeparator(Color.DARK_GRAY, height = 1f)
-        }
+        topTable.add(newGameOptionsTable.modCheckboxes).expandX().fillX().row()
+        topTable.addSeparator(Color.DARK_GRAY, height = 1f)
 
         topTable.add(ExpanderTab("Map Options") {
             it.add(mapOptionsTable).row()
@@ -321,11 +265,6 @@ class NewGameScreen(
             popup.addGoodSizedLabel(Constants.working).row()
             popup.open()
             ImageGetter.setNewRuleset(ruleset) // To build the temp atlases
-        }
-
-        if (isAuthoritativeLobbySetup) {
-            startAuthoritativeGame(popup)
-            return@coroutineScope
         }
 
         val newGame:GameInfo
@@ -384,7 +323,7 @@ class NewGameScreen(
                 }
                 Gdx.input.inputProcessor = stage
                 startGameButton.enable()
-                startGameButton.setText(authoritativeActionLabel().tr())
+                startGameButton.setText("Start game!".tr())
             }
             return@coroutineScope
         }
@@ -393,88 +332,6 @@ class NewGameScreen(
         
         worldScreen.autoSave()
 
-    }
-
-    private fun authoritativeUnavailableMessage() =
-        when (game.onlineMultiplayer.authoritativeStatus) {
-            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.NotStarted,
-            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.Detecting,
-            -> "Checking authoritative multiplayer server capabilities. Please wait."
-            com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus.SecureStoreUnavailable ->
-                "This platform has no secure credential store for authoritative multiplayer."
-            else -> "Could not establish the authoritative multiplayer session."
-        }
-
-
-    private suspend fun startAuthoritativeGame(popup: Popup) {
-        try {
-            val session = requireNotNull(game.onlineMultiplayer.authoritativeSession) {
-                "API v3 session is not installed"
-            }
-            var setup = ApiV3GameSetup.from(gameSetupInfo)
-            lobbyEditConfiguration?.let { edit ->
-                if (
-                    edit.lobby.setup.mapSeed == null &&
-                    gameSetupInfo.mapParameters.seed == edit.initialEditorMapSeed
-                ) {
-                    setup = setup.copy(mapSeed = null)
-                }
-                val updated = session.reconfigureLobby(
-                    edit.lobby,
-                    edit.lobby.displayName,
-                    edit.lobby.humanSlots,
-                    edit.passwordUpdate,
-                    setup,
-                    edit.operationId,
-                )
-                Concurrency.runOnGLThread {
-                    popup.close()
-                    edit.onSaved(updated)
-                    game.popScreen()
-                }
-                return
-            }
-            val lobby = requireNotNull(lobbyConfiguration) {
-                "Create authoritative multiplayer matches from the multiplayer lobby browser."
-            }
-            val meaning = AuthoritativeCreationMeaning(
-                lobby.rulesetManifest.baseRuleset.name,
-                lobby.rulesetManifest.mods.mapTo(linkedSetOf()) { it.name },
-                setup,
-            )
-            val creation = session.createAuthoritativeGame(
-                meaning.baseRulesetName,
-                meaning.modNames,
-                meaning.setup,
-                authoritativeCreationRetryState.operationIdFor(meaning),
-                lobby.displayName,
-                lobby.humanSlots,
-                lobby.password,
-                ruleset.nations.values.filter { it.isMajorCiv }.map { it.name }.sorted(),
-            )
-            val createdLobby = session.lobby(creation.metadata.gameId)
-            Concurrency.runOnGLThread {
-                popup.close()
-                game.replaceCurrentScreen(AuthoritativeLobbyScreen(createdLobby, session))
-            }
-        } catch (exception: Exception) {
-            Log.error("Error while creating authoritative game", exception)
-            Concurrency.runOnGLThread {
-                popup.reuseWith(
-                    exception.message ?: "Could not create game on the authoritative server.",
-                    true,
-                )
-                startGameButton.enable()
-                startGameButton.setText(authoritativeActionLabel().tr())
-                Gdx.input.inputProcessor = stage
-            }
-        }
-    }
-
-    private fun authoritativeActionLabel() = when {
-        lobbyEditConfiguration != null -> "Save lobby settings"
-        isAuthoritativeLobbySetup -> "Create lobby"
-        else -> "Start game!"
     }
 
     /** Updates our local [ruleset] from [gameSetupInfo], guarding against exceptions.
@@ -530,11 +387,5 @@ class NewGameScreen(
         newGameOptionsTable.update()
     }
 
-    override fun recreate(): BaseScreen =
-        NewGameScreen(
-            gameSetupInfo,
-            authoritativeCreationRetryState,
-            lobbyConfiguration,
-            lobbyEditConfiguration,
-        )
+    override fun recreate(): BaseScreen = NewGameScreen(gameSetupInfo)
 }

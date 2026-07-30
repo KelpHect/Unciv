@@ -2,6 +2,8 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.Constants
 import com.unciv.logic.civilization.PlayerType
+import com.unciv.logic.map.MapShape
+import com.unciv.logic.map.MapSize
 import com.unciv.models.metadata.GameSetupInfo
 import com.unciv.models.metadata.Player
 import org.junit.Assert.assertEquals
@@ -65,6 +67,28 @@ class ApiV3GameSetupTests {
     }
 
     @Test
+    fun customWorldDimensionsRoundTripWithoutBecomingAClientSave() {
+        val rectangular = ApiV3GameSetup.from(authoritativeSetup().apply {
+            mapParameters.shape = MapShape.rectangular
+            mapParameters.mapSize = MapSize(72, 48)
+        })
+        val hexagonal = ApiV3GameSetup.from(authoritativeSetup().apply {
+            mapParameters.shape = MapShape.hexagonal
+            mapParameters.mapSize = MapSize(28)
+        })
+
+        assertEquals(ApiV3GeneratedMapSize.Custom, rectangular.mapSize)
+        assertEquals(72, rectangular.customMapWidth)
+        assertEquals(48, rectangular.customMapHeight)
+        assertEquals(null, rectangular.customMapRadius)
+        assertEquals(72, rectangular.toGameSetupInfo().mapParameters.mapSize.width)
+        assertEquals(ApiV3GeneratedMapSize.Custom, hexagonal.mapSize)
+        assertEquals(28, hexagonal.customMapRadius)
+        assertEquals(null, hexagonal.customMapWidth)
+        assertEquals(28, hexagonal.toGameSetupInfo().mapParameters.mapSize.radius)
+    }
+
+    @Test
     fun productionMapperRejectsClientOwnedIdentityAndGenerationInputs() {
         assertRejected { it.gameParameters.players[0].chosenCiv = Constants.random }
         assertRejected {
@@ -91,6 +115,9 @@ class ApiV3GameSetupTests {
             .replace("\"map_type\"", "\"mapType\"")
             .replace("\"map_shape\"", "\"mapShape\"")
             .replace("\"map_size\"", "\"mapSize\"")
+            .replace("\"custom_map_radius\"", "\"customMapRadius\"")
+            .replace("\"custom_map_width\"", "\"customMapWidth\"")
+            .replace("\"custom_map_height\"", "\"customMapHeight\"")
             .replace("\"map_resources\"", "\"mapResources\"")
             .replace("\"one_city_challenge\"", "\"oneCityChallenge\"")
             .replace("\"nuclear_weapons_enabled\"", "\"nuclearWeaponsEnabled\"")

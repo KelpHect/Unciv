@@ -7,23 +7,40 @@ import java.io.File
 
 class AuthoritativeProductionRoutingTests {
     @Test
-    fun authoritativeCreationReturnsBeforeAnyLocalGameConstruction() {
-        val source = sourceFile(
+    fun everyApiV3TransportDataClassHasASerializer() {
+        val lines = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/ApiV3Contracts.kt",
+        ).readLines()
+        val missing = lines.mapIndexedNotNull { index, line ->
+            if (!line.startsWith("data class ApiV3")) return@mapIndexedNotNull null
+            val annotation = lines.subList(0, index)
+                .asReversed()
+                .firstOrNull { it.isNotBlank() }
+            (index + 1).takeUnless { annotation == "@Serializable" }
+        }
+
+        assertTrue("API-v3 DTOs without @Serializable at lines $missing", missing.isEmpty())
+    }
+
+    @Test
+    fun singlePlayerNewGameScreenContainsNoAuthoritativeMultiplayerBranch() {
+        val singlePlayer = sourceFile(
             "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
         ).readText()
-        val start = source.substring(
-            source.indexOf("private suspend fun startNewGame()"),
-            source.indexOf("private suspend fun startAuthoritativeGame("),
-        )
-        val authoritativeBranch = start.indexOf("if (isAuthoritativeLobbySetup)")
-        val localConstruction = start.indexOf("GameStarter.startNewGame")
+        val multiplayer = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val creation = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCreateLobbyScreen.kt",
+        ).readText()
 
-        assertTrue(authoritativeBranch >= 0)
-        assertTrue(localConstruction > authoritativeBranch)
-        assertTrue(
-            start.substring(authoritativeBranch, localConstruction)
-                .contains("return@coroutineScope"),
-        )
+        assertFalse(singlePlayer.contains("authoritative", ignoreCase = true))
+        assertFalse(singlePlayer.contains("isOnlineMultiplayer = true"))
+        assertTrue(multiplayer.contains("AuthoritativeCreateLobbyScreen("))
+        assertTrue(creation.contains("session.createAuthoritativeGame("))
+        assertFalse(creation.contains("GameStarter"))
+        assertFalse(creation.contains("GameInfo"))
     }
 
     @Test
@@ -48,20 +65,17 @@ class AuthoritativeProductionRoutingTests {
 
     @Test
     fun serverCreatedGameTransitionsIntoPregameLobbyBeforeProjectionOnlyWorld() {
-        val newGame = sourceFile(
-            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        val creation = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCreateLobbyScreen.kt",
         ).readText()
-        val creation = newGame.substring(
-            newGame.indexOf("private suspend fun startAuthoritativeGame("),
-            newGame.indexOf("/** Updates our local"),
-        )
 
-        assertTrue(creation.contains("requireNotNull(lobbyConfiguration)"))
+        assertTrue(creation.contains("manifests.firstOrNull()"))
         assertTrue(creation.contains("game.replaceCurrentScreen(AuthoritativeLobbyScreen("))
         assertFalse(creation.contains("openGame("))
         assertFalse(creation.contains("AuthoritativeWorldScreen("))
-        assertTrue(creation.contains("lobby.rulesetManifest.baseRuleset.name"))
-        assertTrue(creation.contains("lobby.rulesetManifest.mods"))
+        assertTrue(creation.contains("manifest.baseRuleset.name"))
+        assertTrue(creation.contains("manifest.mods.mapTo"))
         assertTrue(creation.contains("meaning.baseRulesetName"))
         assertTrue(creation.contains("meaning.modNames"))
         assertFalse(creation.contains("GameStarter"))
@@ -167,21 +181,30 @@ class AuthoritativeProductionRoutingTests {
         val multiplayer = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
         ).readText()
-        val newGame = sourceFile(
-            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
+        val creation = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeCreateLobbyScreen.kt",
         ).readText()
         val lobby = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
         ).readText()
+        val editor = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeGameSetupEditor.kt",
+        ).readText()
+        val defaults = sourceFile(
+            "core/src/com/unciv/logic/multiplayer/authoritative/" +
+                "ApiV3SetupDefaults.kt",
+        ).readText()
 
         assertTrue(multiplayer.contains("listRulesetManifests()"))
-        assertTrue(multiplayer.contains("manifests[ruleset.selectedIndex]"))
-        assertTrue(newGame.contains("MULTIPLAYER SETUP  •  STEP 1 OF 2"))
+        assertTrue(multiplayer.contains("AuthoritativeCreateLobbyScreen(manifests, activeSession)"))
+        assertTrue(creation.contains("CREATE MULTIPLAYER LOBBY  •  STEP 1 OF 2"))
         assertTrue(lobby.contains("MULTIPLAYER LOBBY  •  STEP 2 OF 2"))
         for (label in listOf(
             "Ruleset",
             "Map shape",
-            "Map seed",
+            "Game seed",
             "Mirroring",
             "Resources",
             "Difficulty",
@@ -190,20 +213,37 @@ class AuthoritativeProductionRoutingTests {
             "Major civilizations",
             "City-states",
             "Turn limit",
-            "Victory conditions",
+            "VICTORY CONDITIONS",
             "Map generation",
             "Terrain scale",
             "Advanced rules",
-        )) assertTrue("Missing lobby setup field: $label", lobby.contains("\"$label\""))
+        )) assertTrue(
+            "Missing lobby setup field: $label",
+            lobby.contains("\"$label\"") || editor.contains("\"$label\""),
+        )
         assertTrue(lobby.contains("session.observeLobby(lobby.gameId)"))
         assertTrue(lobby.contains("Timer.schedule(refreshTask"))
         assertTrue(lobby.contains("isNarrowerThan4to3()"))
+        assertTrue(defaults.contains("ownerCivilizationId = ownerCivilizationId"))
+        assertTrue(defaults.contains("humanSlots"))
+        assertTrue(defaults.contains("filterNot { it.hiddenInVictoryScreen }"))
+        assertTrue(editor.contains("filterNot { it.hiddenInVictoryScreen }"))
+        assertTrue(editor.contains("TabbedPager.IPageExtensions"))
+        assertTrue(editor.contains("forEach(SelectBox<*>::hideList)"))
+        assertFalse(multiplayer.contains("NewGameScreen"))
+        assertFalse(lobby.contains("NewGameScreen"))
     }
 
     @Test
     fun productionMultiplayerHasNoLegacyOrTimedTurnControls() {
         val source = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val preferences = sourceFile(
+            "core/src/com/unciv/ui/popups/options/MultiplayerTab.kt",
+        ).readText()
+        val settings = sourceFile(
+            "core/src/com/unciv/models/metadata/GameSettings.kt",
         ).readText()
 
         for (removed in listOf(
@@ -214,6 +254,12 @@ class AuthoritativeProductionRoutingTests {
             "forceResignIfOpen",
             "onlineMultiplayer.legacy",
         )) assertFalse(source.contains(removed))
+        assertFalse(preferences.contains("Update the open match every:"))
+        assertFalse(preferences.contains("Update the multiplayer game list every:"))
+        assertFalse(preferences.contains("Enable multiplayer status button in singleplayer games"))
+        assertTrue(preferences.contains("Open account and multiplayer lobbies"))
+        assertTrue(settings.contains("Constants.authoritativeMultiplayerServer"))
+        assertTrue(settings.contains("server == Constants.uncivXyzServer"))
     }
 
     @Test
@@ -556,21 +602,47 @@ class AuthoritativeProductionRoutingTests {
                 "AuthoritativeLobbyScreen.kt",
         ).readText()
         val editor = sourceFile(
-            "core/src/com/unciv/ui/screens/newgamescreen/NewGameScreen.kt",
-        ).readText()
-        val access = sourceFile(
             "core/src/com/unciv/ui/screens/multiplayerscreens/" +
-                "AuthoritativeLobbyAccessPopup.kt",
+                "AuthoritativeLobbyConfigurationEditor.kt",
+        ).readText()
+        val setupEditor = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeGameSetupEditor.kt",
         ).readText()
 
         assertTrue(lobby.contains("session.selectLobbyFaction("))
         assertTrue(lobby.contains("session.reconfigureLobby("))
-        assertTrue(lobby.contains("lobby.setup.toGameSetupInfo()"))
-        assertTrue(editor.contains("lobbyEditConfiguration"))
-        assertTrue(editor.contains("session.reconfigureLobby("))
-        assertTrue(access.contains("LOBBY ACCESS & CAPACITY"))
+        assertTrue(lobby.contains("AuthoritativeLobbyConfigurationEditor(lobby)"))
+        assertTrue(lobby.contains("pager.addPage(\"World\""))
+        assertTrue(lobby.contains("pager.addPage(\"Victories\""))
+        assertTrue(lobby.contains("pager.addPage(\"Advanced\""))
+        assertTrue(editor.contains("ROOM & ACCESS"))
+        assertTrue(editor.contains("AuthoritativeGameSetupEditor("))
+        assertFalse(editor.contains("NewGameScreen"))
+        assertFalse(setupEditor.contains("import com.unciv.logic.GameInfo"))
         assertFalse(lobby.contains("GameInfo"))
         assertFalse(lobby.contains("GameStarter"))
+    }
+
+    @Test
+    fun lobbyHeaderAlwaysAddsAnActorInsteadOfUsingSkinDependentStringOverload() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val header = lobby.substring(
+            lobby.indexOf("\"Host: [\${lobby.ownerUsername}]"),
+            lobby.indexOf("val leftColumn = Table"),
+        )
+
+        assertTrue(header.contains(").toLabel()"))
+        assertFalse(header.contains("\" human players\".toLabel()"))
+        assertFalse(lobby.contains("Table().apply"))
+        assertTrue(lobby.contains("this@AuthoritativeLobbyScreen.stage.width"))
+        assertFalse(lobby.contains("width(stage.width"))
+        val browser = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        assertFalse(browser.contains("Table().apply"))
     }
 
     @Test

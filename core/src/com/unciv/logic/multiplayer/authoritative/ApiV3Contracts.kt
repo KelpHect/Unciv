@@ -1015,27 +1015,31 @@ data class ApiV3RewindCheckpoint(
     val turn: Int,
 )
 
+@Serializable
 data class ApiV3ProposeRewindRequest(
-    val requestId: String,
-    val expectedHeadRevision: Long,
-    val targetRevision: Long,
+    @SerialName("request_id") val requestId: String,
+    @SerialName("expected_head_revision") val expectedHeadRevision: Long,
+    @SerialName("target_revision") val targetRevision: Long,
 )
 
+@Serializable
 data class ApiV3VoteRewindRequest(
     val approved: Boolean,
 )
 
+@Serializable
 data class ApiV3RewindStatus(
-    val requestId: String,
-    val expectedHeadRevision: Long,
-    val targetRevision: Long,
+    @SerialName("request_id") val requestId: String,
+    @SerialName("expected_head_revision") val expectedHeadRevision: Long,
+    @SerialName("target_revision") val targetRevision: Long,
     val status: String,
     val approvals: Int,
-    val requiredApprovals: Int,
-    val actorApproved: Boolean?,
-    val appliedRevision: Long?,
+    @SerialName("required_approvals") val requiredApprovals: Int,
+    @SerialName("actor_approved") val actorApproved: Boolean?,
+    @SerialName("applied_revision") val appliedRevision: Long?,
 )
 
+@Serializable
 data class ApiV3ErrorResponse(
     val code: String,
     @SerialName("current_revision") val currentRevision: Long? = null,

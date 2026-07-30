@@ -54,6 +54,7 @@ enum class GeneratedMapSize {
     @SerialName("medium") Medium,
     @SerialName("large") Large,
     @SerialName("huge") Huge,
+    @SerialName("custom") Custom,
 }
 
 @Serializable
@@ -89,6 +90,9 @@ data class WorkerGameSetup(
     val mapType: GeneratedMapType,
     val mapShape: GeneratedMapShape,
     val mapSize: GeneratedMapSize,
+    val customMapRadius: Int? = null,
+    val customMapWidth: Int? = null,
+    val customMapHeight: Int? = null,
     val mapResources: MapResourceDensity,
     val barbarians: BarbarianMode,
     val oneCityChallenge: Boolean,
@@ -140,6 +144,7 @@ data class WorkerGameSetup(
         require(rareFeaturesRichness in 0f..0.5f)
         require(resourceRichness in 0f..0.5f)
         require(waterThreshold in -0.1f..0.1f)
+        validateCustomMapSize()
 
         val mods = manifest.mods.mapTo(linkedSetOf()) { it.name }
         val ruleset = RulesetCache.getComplexRuleset(mods, manifest.baseRuleset.name)
@@ -212,7 +217,7 @@ data class WorkerGameSetup(
             mapParameters.seed = mapSeed ?: serverSeed
             mapParameters.type = mapType.toEngine()
             mapParameters.shape = mapShape.toEngine()
-            mapParameters.mapSize = mapSize.toEngine()
+            mapParameters.mapSize = materializeMapSize()
             mapParameters.mapResources = mapResources.toEngine()
             mapParameters.mirroring = mirroring.toEngine()
             mapParameters.tilesPerBiomeArea = tilesPerBiomeArea
@@ -233,6 +238,49 @@ data class WorkerGameSetup(
             mapParameters.mods = LinkedHashSet(mods)
         }
     }
+}
+
+private fun WorkerGameSetup.validateCustomMapSize() {
+    when {
+        mapSize != GeneratedMapSize.Custom -> require(
+            customMapRadius == null && customMapWidth == null && customMapHeight == null,
+        ) { "Predefined map sizes cannot include custom dimensions" }
+        mapShape == GeneratedMapShape.Rectangular -> {
+            require(customMapRadius == null) { "Rectangular custom maps cannot include a radius" }
+            val width = requireNotNull(customMapWidth) { "Custom map width is required" }
+            val height = requireNotNull(customMapHeight) { "Custom map height is required" }
+            require(width in 3..220 && height in 3..220) {
+                "Custom rectangular map dimensions are outside server bounds"
+            }
+            require(width <= height * 16 && height <= width * 16) {
+                "Custom rectangular map aspect ratio is outside server bounds"
+            }
+            require(!worldWrap || width >= 32 && width % 2 == 0) {
+                "World wrap requires an even custom width of at least 32"
+            }
+        }
+        else -> {
+            require(customMapWidth == null && customMapHeight == null) {
+                "Custom hexagonal maps cannot include width or height"
+            }
+            require(customMapRadius in 2..100) {
+                "Custom map radius is outside server bounds"
+            }
+        }
+    }
+}
+
+private fun WorkerGameSetup.materializeMapSize() = when (mapSize) {
+    GeneratedMapSize.Custom -> when (mapShape) {
+        GeneratedMapShape.Rectangular -> MapSize(
+            requireNotNull(customMapWidth),
+            requireNotNull(customMapHeight),
+        )
+        GeneratedMapShape.Hexagonal,
+        GeneratedMapShape.FlatEarth,
+        -> MapSize(requireNotNull(customMapRadius))
+    }
+    else -> mapSize.toEngine()
 }
 
 private fun WorkerMirroringType.toEngine() = when (this) {
@@ -271,6 +319,7 @@ private fun GeneratedMapSize.toEngine() = when (this) {
     GeneratedMapSize.Medium -> MapSize.Medium
     GeneratedMapSize.Large -> MapSize.Large
     GeneratedMapSize.Huge -> MapSize.Huge
+    GeneratedMapSize.Custom -> error("Custom map sizes require explicit dimensions")
 }
 
 private fun MapResourceDensity.toEngine() = when (this) {

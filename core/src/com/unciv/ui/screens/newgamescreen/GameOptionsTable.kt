@@ -73,11 +73,6 @@ class GameOptionsTable(
 
     fun update() {
         clear()
-        if (usesAuthoritativeCreation()) {
-            gameParameters.anyoneCanSpectate = false
-            gameParameters.enableRandomNationsPool = false
-            gameParameters.randomNationsPool.clear()
-        }
 
         // Mods may have changed (e.g. custom map selection)
         modCheckboxes.updateSelection()
@@ -89,12 +84,7 @@ class GameOptionsTable(
 
         add(Table().apply {
             defaults().pad(5f)
-            if (usesAuthoritativeCreation()) {
-                add("Server ruleset".toLabel()).left()
-                add(gameParameters.baseRuleset.toLabel()).left().row()
-            } else {
-                addBaseRulesetSelectBox()
-            }
+            addBaseRulesetSelectBox()
             addDifficultySelectBox()
             addGameSpeedSelectBox()
             addEraSelectBox()
@@ -117,7 +107,7 @@ class GameOptionsTable(
 
         val checkboxTable = Table().apply { defaults().left().pad(2.5f) }
         val selectBoxTable = Table()
-        if (gameParameters.isOnlineMultiplayer && !usesAuthoritativeCreation()) {
+        if (gameParameters.isOnlineMultiplayer) {
             checkboxTable.addAnyoneCanSpectateCheckbox()
             selectBoxTable.addDurationSelectBox("Time until skip turn:", GameParameters::minutesUntilSkipTurn, 1, 0, 0)
             selectBoxTable.addDurationSelectBox("Total time to play:", GameParameters::minutesUntilForceResign, 3, 0, 0)
@@ -159,7 +149,7 @@ class GameOptionsTable(
         }
         add(expander).pad(10f).row()
 
-        if (!isPortrait && !usesAuthoritativeCreation())
+        if (!isPortrait)
             add(modCheckboxes).padTop(0f).row()
 
         pack()
@@ -197,9 +187,6 @@ class GameOptionsTable(
     private fun Table.addNuclearWeaponsCheckbox() =
             addCheckbox("Enable Nuclear Weapons", gameParameters.nuclearWeaponsEnabled)
             { gameParameters.nuclearWeaponsEnabled = it }
-
-    private fun usesAuthoritativeCreation() =
-        (previousScreen as? NewGameScreen)?.isAuthoritativeLobbySetup == true
 
     private fun Table.addAnyoneCanSpectateCheckbox() =
             addCheckbox("Allow anyone to spectate", gameParameters.anyoneCanSpectate)

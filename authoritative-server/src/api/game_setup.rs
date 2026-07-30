@@ -18,6 +18,12 @@ pub(super) struct CreateGameSetupRequest {
     map_type: GeneratedMapType,
     map_shape: GeneratedMapShape,
     map_size: GeneratedMapSize,
+    #[serde(default)]
+    custom_map_radius: Option<u16>,
+    #[serde(default)]
+    custom_map_width: Option<u16>,
+    #[serde(default)]
+    custom_map_height: Option<u16>,
     map_resources: MapResourceDensity,
     barbarians: BarbarianMode,
     one_city_challenge: bool,
@@ -74,8 +80,34 @@ impl CreateGameSetupRequest {
                 .collect::<std::collections::HashSet<_>>()
                 .len()
                 == self.victory_types.len();
+        let custom_size_is_valid = match (self.map_size, self.map_shape) {
+            (GeneratedMapSize::Custom, GeneratedMapShape::Rectangular) => {
+                matches!(
+                    (self.custom_map_radius, self.custom_map_width, self.custom_map_height),
+                    (None, Some(width), Some(height))
+                        if (3..=220).contains(&width)
+                            && (3..=220).contains(&height)
+                            && width <= height.saturating_mul(16)
+                            && height <= width.saturating_mul(16)
+                            && (!self.world_wrap || width >= 32 && width % 2 == 0)
+                )
+            }
+            (
+                GeneratedMapSize::Custom,
+                GeneratedMapShape::Hexagonal | GeneratedMapShape::FlatEarth,
+            ) => matches!(
+                (self.custom_map_radius, self.custom_map_width, self.custom_map_height),
+                (Some(radius), None, None) if (2..=100).contains(&radius)
+            ),
+            _ => {
+                self.custom_map_radius.is_none()
+                    && self.custom_map_width.is_none()
+                    && self.custom_map_height.is_none()
+            }
+        };
         if !names_are_bounded
             || !victories_are_bounded
+            || !custom_size_is_valid
             || !(2..=16).contains(&self.major_civilizations)
             || self.city_states > 64
             || !(100..=1500).contains(&self.max_turns)
@@ -104,6 +136,9 @@ impl CreateGameSetupRequest {
             map_type: self.map_type,
             map_shape: self.map_shape,
             map_size: self.map_size,
+            custom_map_radius: self.custom_map_radius,
+            custom_map_width: self.custom_map_width,
+            custom_map_height: self.custom_map_height,
             map_resources: self.map_resources,
             barbarians: self.barbarians,
             one_city_challenge: self.one_city_challenge,
@@ -199,6 +234,46 @@ mod tests {
         let mut unknown = valid_setup();
         unknown["client_snapshot"] = json!("not allowed");
         assert!(serde_json::from_value::<CreateGameSetupRequest>(unknown).is_err());
+    }
+
+    #[test]
+    fn custom_world_dimensions_are_shape_specific_and_bounded() {
+        let mut rectangular = valid_setup();
+        rectangular["map_shape"] = json!("rectangular");
+        rectangular["map_size"] = json!("custom");
+        rectangular["custom_map_width"] = json!(72);
+        rectangular["custom_map_height"] = json!(48);
+        let setup = serde_json::from_value::<CreateGameSetupRequest>(rectangular)
+            .unwrap()
+            .validate()
+            .unwrap();
+        assert_eq!(setup.map_size, GeneratedMapSize::Custom);
+        assert_eq!(setup.custom_map_width, Some(72));
+        assert_eq!(setup.custom_map_height, Some(48));
+
+        let mut wrapped = valid_setup();
+        wrapped["map_shape"] = json!("rectangular");
+        wrapped["map_size"] = json!("custom");
+        wrapped["custom_map_width"] = json!(33);
+        wrapped["custom_map_height"] = json!(24);
+        wrapped["world_wrap"] = json!(true);
+        assert!(
+            serde_json::from_value::<CreateGameSetupRequest>(wrapped)
+                .unwrap()
+                .validate()
+                .is_err()
+        );
+
+        let mut hexagonal = valid_setup();
+        hexagonal["map_shape"] = json!("hexagonal");
+        hexagonal["map_size"] = json!("custom");
+        hexagonal["custom_map_radius"] = json!(28);
+        assert!(
+            serde_json::from_value::<CreateGameSetupRequest>(hexagonal)
+                .unwrap()
+                .validate()
+                .is_ok()
+        );
     }
 
     fn valid_setup() -> Value {

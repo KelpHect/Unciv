@@ -557,7 +557,7 @@ class WorldScreen(
     private fun updateSelectedCiv() {
         setSelectedCiv(when {
             bottomUnitTable.selectedUnit != null -> bottomUnitTable.selectedUnit!!.civ
-            bottomUnitTable.selectedCity != null -> bottomUnitTable.selectedCity!!.civ
+            bottomUnitTable.selectedCity != null -> bottomUnitTable.selectedCity!!.civ().getCiv()
             else -> viewingCiv
         })
     }

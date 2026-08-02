@@ -20,6 +20,9 @@ class TileView(private val tile: Tile, private val viewer: Civilization) {
         tile.tilesInDistanceSequence(distance).map { TileView(it, viewer) }
 
     @Readonly fun isCityCenter(): Boolean = tile.isCityCenter()
+    @Readonly fun isWorked(): Boolean = tile.isWorked()
+    @Readonly fun isBlockaded(): Boolean = tile.isBlockaded()
+    @Readonly fun providesYield(): Boolean = tile.providesYield()
     @Readonly fun isLocked(): Boolean = tile.isLocked()
     @Readonly fun isImpassible(): Boolean = tile.isImpassible()
     @Readonly fun isAdjacentTo(terrainFilter: String): Boolean = tile.isAdjacentTo(terrainFilter)

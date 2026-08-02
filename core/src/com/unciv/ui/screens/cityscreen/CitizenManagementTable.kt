@@ -86,7 +86,7 @@ class CitizenManagementTable(val cityScreen: CityScreen) : Table(BaseScreen.skin
                 tintColor = if (cityView.getCityFocus() == focus) colorSelected else colorButton
             )
             // make NoFocus and Manual their own special row
-            if(focus == CityFocus.NoFocus) {
+            if (focus == CityFocus.NoFocus) {
                 defaultTable.add(cell).growX().pad(3f)
             } else if (focus == CityFocus.Manual) {
                 defaultTable.add(cell).growX().pad(3f)

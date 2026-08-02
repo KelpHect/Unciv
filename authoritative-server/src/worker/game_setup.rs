@@ -161,6 +161,24 @@ pub struct WorkerGameSetup {
     pub resource_richness: f32,
     #[serde(default)]
     pub water_threshold: f32,
+    /// Owner-authored AI roster: one entry per AI civilization. `None` keeps the
+    /// legacy count-only meaning.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_civilizations: Option<Vec<AiSlot>>,
+}
+
+/// One host-authored AI seat. Every field is optional: a blank civilization lets
+/// the engine draw the nation, a blank difficulty uses the match's AI
+/// difficulty, and a blank personality keeps the nation's own.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSlot {
+    #[serde(default)]
+    pub civilization_id: String,
+    #[serde(default)]
+    pub difficulty: String,
+    #[serde(default)]
+    pub personality: String,
 }
 
 impl Default for WorkerGameSetup {
@@ -204,6 +222,7 @@ impl Default for WorkerGameSetup {
             rare_features_richness: default_rare_features_richness(),
             resource_richness: default_resource_richness(),
             water_threshold: 0.0,
+            ai_civilizations: None,
         }
     }
 }
@@ -254,6 +273,14 @@ mod tests {
             rare_features_richness: 0.05,
             resource_richness: 0.1,
             water_threshold: 0.0,
+            ai_civilizations: Some(vec![
+                AiSlot {
+                    civilization_id: "Greece".to_owned(),
+                    difficulty: "Immortal".to_owned(),
+                    personality: "Aggressive".to_owned(),
+                },
+                AiSlot::default(),
+            ]),
         };
         let value = serde_json::to_value(WorkerOperation::CreateGame {
             game_id: "00000000-0000-4000-8000-000000000001",
@@ -267,6 +294,18 @@ mod tests {
         assert_eq!(value["serverSeed"], 42);
         assert_eq!(value["setup"]["majorCivilizations"], 4);
         assert_eq!(value["setup"]["ownerCivilizationId"], "Rome");
+        // A blank slot is the wire form of "the server picks everything here".
+        assert_eq!(
+            value["setup"]["aiCivilizations"],
+            serde_json::json!([
+                {
+                    "civilizationId": "Greece",
+                    "difficulty": "Immortal",
+                    "personality": "Aggressive"
+                },
+                { "civilizationId": "", "difficulty": "", "personality": "" }
+            ])
+        );
         assert_eq!(value["setup"]["mapType"], "pangaea");
         assert_eq!(value["setup"]["mapSeed"], 1234);
         assert!(value["setup"].get("rulesetManifestHash").is_none());

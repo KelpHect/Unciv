@@ -11442,6 +11442,22 @@
         },
         "additionalProperties": false
       },
+      "AiSlotRequest": {
+        "type": "object",
+        "description": "Wire form of one host-authored AI seat. Bounds are checked in\n[`CreateGameSetupRequest::validate`]; the worker re-checks every name against\nthe pinned ruleset.",
+        "properties": {
+          "civilization_id": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string"
+          },
+          "personality": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "AirSweepRequest": {
         "type": "object",
         "required": [
@@ -12311,6 +12327,15 @@
           "no_natural_wonders"
         ],
         "properties": {
+          "ai_civilizations": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AiSlotRequest"
+            }
+          },
           "barbarians": {
             "$ref": "#/components/schemas/BarbarianMode"
           },

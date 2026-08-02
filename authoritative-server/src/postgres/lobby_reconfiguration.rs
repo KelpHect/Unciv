@@ -36,6 +36,22 @@ struct CurrentLobby {
     creation_seed: i64,
 }
 
+/// Re-checks the pinned AI roster after a member edit is folded in, so a member
+/// faction change can never leave the room claiming a civilization the setup
+/// reserved for the AI.
+fn ai_roster_is_consistent(current: &CurrentLobby) -> bool {
+    match current.setup.ai_civilizations.as_deref() {
+        None => true,
+        Some(roster) => {
+            roster.len() + usize::from(current.human_slots)
+                == usize::from(current.setup.major_civilizations)
+                && !roster
+                    .iter()
+                    .any(|slot| slot.civilization_id == current.setup.owner_civilization_id)
+        }
+    }
+}
+
 impl PostgresGameRepository {
     pub async fn reconfigure_lobby(
         &self,
@@ -265,6 +281,7 @@ impl PostgresGameRepository {
                 .collect::<std::collections::HashSet<_>>()
                 .len()
                 != participants.len()
+            || !ai_roster_is_consistent(&current)
         {
             return Err(CommitError::InvalidCommand);
         }

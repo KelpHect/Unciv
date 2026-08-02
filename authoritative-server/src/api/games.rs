@@ -57,6 +57,11 @@ pub(super) async fn create_game(
             "human_slots_exceed_major_civilizations",
         ));
     }
+    if !super::game_setup::ai_roster_matches_human_slots(&setup, request.human_slots) {
+        return Err(ApiError::bad_request(
+            "ai_roster_does_not_match_human_slots",
+        ));
+    }
     let unique_civilizations = request
         .available_civilizations
         .iter()

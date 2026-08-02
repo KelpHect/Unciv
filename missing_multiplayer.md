@@ -166,6 +166,28 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   byte-identical. This deliberately removes pre-turn-1 map secrecy for every
   member equally; the accepted boundary is recorded in
   `docs/security/authoritative-multiplayer-threat-model.md`.
+- [x] Give the host a real AI roster instead of an integer. `ApiV3GameSetup` and
+  `WorkerGameSetup` now carry `aiCivilizations`: one entry per AI civilization,
+  either a pinned major civilization or a blank entry the server draws. `null`
+  keeps the legacy count-only meaning, so existing setups keep their exact wire
+  shape. The control plane requires `roster.len() + human_slots ==
+  major_civilizations`, rejects duplicates and the owner's own civilization, and
+  re-checks the invariant after a member faction change is folded into a
+  reconfiguration. The worker materializes pinned entries as AI players and
+  removes them from `availableCivilizationIds`, so a joining human can never
+  claim a civilization the host reserved. Worker protocol version 6 → 7.
+- [x] Let the host pin an AI's difficulty or personality per slot. Each roster
+  entry is now an `ApiV3AiSlot`/`WorkerAiSlot` of `civilizationId`, `difficulty`
+  and `personality`, each independently blank-able, so a server-drawn nation can
+  still carry a pinned personality. `Civilization.aiDifficultyOverride` and
+  `personalityOverride` are canonical state read by `getDifficulty()` and
+  `getPersonality()`, which single-player and hotseat share; `Player` carries
+  them through `GameStarter`'s random-nation resolution. The worker validates
+  both names against the pinned ruleset. Note that only `Civ V - Gods & Kings`
+  ships `Personalities.json`, so on Vanilla the personality picker offers only
+  "Nation default".
+- [ ] Surface AI *traits* in the browser and match summary. The roster is only
+  visible inside the staging room today.
 - [ ] Re-run the destructive PostgreSQL disk-full and backup/restore
   qualifications against the new migration set. Their verification halves cannot
   run inside a plain `cargo test` pass: they depend on an out-of-band

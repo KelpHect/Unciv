@@ -49,7 +49,16 @@ internal class AuthoritativeLobbyConfigurationEditor(
             lobby.baseRulesetName,
         ),
         lobby.setup,
-    ) { onEdited() }
+        onEdited = { onEdited() },
+        humanSlots = { slots.text.trim().toIntOrNull() ?: lobby.humanSlots },
+        // Anything a human already holds must stay out of the AI roster, or the
+        // server would reject the whole reconfiguration.
+        unavailableCivilizations = {
+            lobby.members
+                .mapNotNullTo(hashSetOf()) { it.civilizationId.takeIf(String::isNotBlank) }
+                .apply { add(lobby.setup.ownerCivilizationId) }
+        },
+    )
 
     init {
         listOf(name, slots, password, passwordAction)
@@ -81,6 +90,7 @@ internal class AuthoritativeLobbyConfigurationEditor(
             }
     }
 
+    val aiPage get() = setupEditor.aiPage
     val worldPage get() = setupEditor.worldPage
     val victoryPage get() = setupEditor.victoryPage
     val advancedPage get() = setupEditor.advancedPage

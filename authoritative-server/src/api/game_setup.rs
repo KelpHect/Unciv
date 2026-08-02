@@ -1,8 +1,40 @@
 use super::*;
 use unciv_authoritative_server::worker::{
-    BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
-    MirroringType, WorkerGameSetup,
+    AiSlot, BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType,
+    MapResourceDensity, MirroringType, WorkerGameSetup,
 };
+
+/// Wire form of one host-authored AI seat. Bounds are checked in
+/// [`CreateGameSetupRequest::validate`]; the worker re-checks every name against
+/// the pinned ruleset.
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AiSlotRequest {
+    #[serde(default)]
+    civilization_id: String,
+    #[serde(default)]
+    difficulty: String,
+    #[serde(default)]
+    personality: String,
+}
+
+impl AiSlotRequest {
+    fn is_bounded(&self) -> bool {
+        [&self.civilization_id, &self.difficulty, &self.personality]
+            .into_iter()
+            .all(|name| name.is_empty() || bounded_name(name))
+    }
+}
+
+impl From<AiSlotRequest> for AiSlot {
+    fn from(request: AiSlotRequest) -> Self {
+        Self {
+            civilization_id: request.civilization_id,
+            difficulty: request.difficulty,
+            personality: request.personality,
+        }
+    }
+}
 
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -59,6 +91,8 @@ pub(super) struct CreateGameSetupRequest {
     resource_richness: f32,
     #[serde(default)]
     water_threshold: f32,
+    #[serde(default)]
+    ai_civilizations: Option<Vec<AiSlotRequest>>,
 }
 
 impl CreateGameSetupRequest {
@@ -105,9 +139,32 @@ impl CreateGameSetupRequest {
                     && self.custom_map_height.is_none()
             }
         };
+        // A blank civilization is an AI seat the server draws; a named one is
+        // reserved and must never collide with the owner or another slot.
+        let ai_roster_is_bounded = match self.ai_civilizations.as_deref() {
+            None => true,
+            Some(roster) => {
+                let pinned: Vec<&String> = roster
+                    .iter()
+                    .map(|slot| &slot.civilization_id)
+                    .filter(|name| !name.is_empty())
+                    .collect();
+                roster.len() < usize::from(self.major_civilizations)
+                    && roster.iter().all(AiSlotRequest::is_bounded)
+                    && !pinned
+                        .iter()
+                        .any(|name| **name == self.owner_civilization_id)
+                    && pinned
+                        .iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        == pinned.len()
+            }
+        };
         if !names_are_bounded
             || !victories_are_bounded
             || !custom_size_is_valid
+            || !ai_roster_is_bounded
             || !(2..=16).contains(&self.major_civilizations)
             || self.city_states > 64
             || !(100..=1500).contains(&self.max_turns)
@@ -163,7 +220,22 @@ impl CreateGameSetupRequest {
             rare_features_richness: self.rare_features_richness,
             resource_richness: self.resource_richness,
             water_threshold: self.water_threshold,
+            ai_civilizations: self
+                .ai_civilizations
+                .map(|roster| roster.into_iter().map(AiSlot::from).collect()),
         })
+    }
+}
+
+/// A pinned AI roster must account for exactly the non-human major
+/// civilizations, so the room's "N AI + M human" arithmetic can never drift
+/// from what the engine will actually create.
+pub(super) fn ai_roster_matches_human_slots(setup: &WorkerGameSetup, human_slots: u8) -> bool {
+    match setup.ai_civilizations.as_deref() {
+        None => true,
+        Some(roster) => {
+            roster.len() + usize::from(human_slots) == usize::from(setup.major_civilizations)
+        }
     }
 }
 
@@ -274,6 +346,55 @@ mod tests {
                 .validate()
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn ai_roster_is_bounded_unique_and_tied_to_the_human_seats() {
+        let mut pinned = valid_setup();
+        pinned["ai_civilizations"] = json!([
+            {"civilization_id": "Greece", "difficulty": "Immortal", "personality": "Aggressive"},
+            {"personality": "Expansionist"},
+            {}
+        ]);
+        let setup = serde_json::from_value::<CreateGameSetupRequest>(pinned)
+            .unwrap()
+            .validate()
+            .unwrap();
+        let roster = setup.ai_civilizations.as_deref().unwrap();
+        assert_eq!(roster[0].civilization_id, "Greece");
+        assert_eq!(roster[0].difficulty, "Immortal");
+        // A server-drawn nation can still carry a pinned personality.
+        assert_eq!(roster[1].civilization_id, "");
+        assert_eq!(roster[1].personality, "Expansionist");
+        assert_eq!(roster[2], AiSlot::default());
+        // 3 AI + 1 human == 4 major civilizations; any other seat count drifts.
+        assert!(ai_roster_matches_human_slots(&setup, 1));
+        assert!(!ai_roster_matches_human_slots(&setup, 2));
+
+        for rejected in [
+            json!([{"civilization_id": "Greece"}, {"civilization_id": "Greece"}]),
+            json!([{"civilization_id": "Rome"}]),
+            json!([{}, {}, {}, {}]),
+            json!([{"unknown_field": "x"}]),
+        ] {
+            let mut invalid = valid_setup();
+            invalid["ai_civilizations"] = rejected;
+            // Rejected either by the strict decoder or by the bounds check.
+            assert!(
+                serde_json::from_value::<CreateGameSetupRequest>(invalid)
+                    .map_err(|_| ())
+                    .and_then(|request| request.validate().map_err(|_| ()))
+                    .is_err()
+            );
+        }
+
+        // An absent roster keeps the legacy count-only meaning.
+        let legacy = serde_json::from_value::<CreateGameSetupRequest>(valid_setup())
+            .unwrap()
+            .validate()
+            .unwrap();
+        assert!(legacy.ai_civilizations.is_none());
+        assert!(ai_roster_matches_human_slots(&legacy, 4));
     }
 
     fn valid_setup() -> Value {

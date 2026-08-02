@@ -115,6 +115,11 @@ pub(super) async fn reconfigure_lobby(
             "human_slots_exceed_major_civilizations",
         ));
     }
+    if !super::game_setup::ai_roster_matches_human_slots(&setup, request.human_slots) {
+        return Err(ApiError::bad_request(
+            "ai_roster_does_not_match_human_slots",
+        ));
+    }
     let password = match request.password {
         LobbyPasswordUpdateRequest::Keep => {
             unciv_authoritative_server::postgres::LobbyPasswordUpdate::Keep

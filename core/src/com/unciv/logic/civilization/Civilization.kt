@@ -136,6 +136,10 @@ class Civilization : IsPartOfGameInfoSerialization {
     var playerId = ""
     /** Used in online multiplayer, if a player exceed this time to complete their turn, others can force them to resign*/
     var playerMinutesBeforeForceResign = 3 * 24 * 60
+    /** Host-pinned AI difficulty for this civilization. Empty uses the match's AI difficulty. */
+    var aiDifficultyOverride = ""
+    /** Host-pinned AI personality for this civilization. Empty uses the nation's own. */
+    var personalityOverride = ""
     /** The Civ's gold reserves. Public get, private set - please use [addGold] method to modify. */
     var gold = 0
         private set
@@ -299,6 +303,8 @@ class Civilization : IsPartOfGameInfoSerialization {
         toReturn.gold = gold
         toReturn.playerType = playerType
         toReturn.playerId = playerId
+        toReturn.aiDifficultyOverride = aiDifficultyOverride
+        toReturn.personalityOverride = personalityOverride
         toReturn.playerMinutesBeforeForceResign = playerMinutesBeforeForceResign
         toReturn.civName = civName
         toReturn.civID = civID
@@ -352,6 +358,8 @@ class Civilization : IsPartOfGameInfoSerialization {
     @Readonly
     fun getDifficulty(): Difficulty {
         if (isHuman()) return gameInfo.getDifficulty()
+        // A lobby host may pin one AI harder or softer than the rest of the match.
+        gameInfo.ruleset.difficulties[aiDifficultyOverride]?.let { return it }
         if (gameInfo.ruleset.difficulties.containsKey(gameInfo.getDifficulty().aiDifficultyLevel)) {
             return gameInfo.ruleset.difficulties[gameInfo.getDifficulty().aiDifficultyLevel]!!
         }
@@ -450,8 +458,9 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun getPersonality(): Personality {
-        return if (isAIOrAutoPlaying()) gameInfo.ruleset.personalities[nation.personality] ?: Personality.neutralPersonality
-        else Personality.neutralPersonality
+        if (!isAIOrAutoPlaying()) return Personality.neutralPersonality
+        val chosen = personalityOverride.ifEmpty { nation.personality }
+        return gameInfo.ruleset.personalities[chosen] ?: Personality.neutralPersonality
     }
 
     @Transient

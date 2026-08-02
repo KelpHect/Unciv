@@ -861,6 +861,34 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(management.contains("There is no operator or client-save recovery override"))
     }
 
+    @Test
+    fun aiRosterIsOwnerAuthoredServerValidatedAndVisibleToEveryMember() {
+        val editor = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeGameSetupEditor.kt",
+        ).readText()
+        val screen = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+
+        // The roster is typed server intent, never a locally resolved nation.
+        assertTrue(editor.contains("aiCivilizations = roster"))
+        assertTrue(editor.contains("addAiSlot"))
+        assertTrue(editor.contains("removeAiSlot"))
+        assertFalse("The client must not resolve a random AI itself", editor.contains("random()"))
+        // Import and call sites only: the class doc names GameInfo to say it
+        // never touches one.
+        for (forbidden in listOf("GameInfo", "GameStarter", "MapGenerator")) {
+            assertFalse(
+                "The setup editor must not reach $forbidden",
+                editor.contains("import com.unciv.logic.$forbidden") ||
+                    editor.contains("$forbidden("),
+            )
+        }
+        // Both roles get an AI page, so a joiner sees the host's roster live.
+        assertTrue(screen.contains("pager.addPage(\"AI\", editor.aiPage)"))
+        assertTrue(screen.contains("pager.addPage(\"AI\", readOnlyAiPage(lobby.setup))"))
+    }
+
     private fun workspaceFile(path: String): File = generateSequence(
         File(System.getProperty("user.dir")).absoluteFile,
         File::getParentFile,

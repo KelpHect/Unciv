@@ -144,6 +144,40 @@ class ApiV3GameSetupTests {
         assertEquals(setup, Json.decodeFromString<ApiV3GameSetup>(storedWorkerJson))
     }
 
+    @Test
+    fun aiRosterRoundTripsAndStaysAbsentWhenNothingIsPinned() {
+        // An all-random roster keeps the legacy count-only wire shape.
+        assertEquals(null, ApiV3GameSetup.from(authoritativeSetup()).aiCivilizations)
+
+        val pinned = authoritativeSetup().apply {
+            gameParameters.players[1].chosenCiv = "Greece"
+            gameParameters.players[1].aiDifficulty = "Immortal"
+            gameParameters.players[1].personality = "Aggressive"
+            // A server-drawn nation can still carry a pinned personality.
+            gameParameters.players[2].personality = "Expansionist"
+        }
+        val mapped = ApiV3GameSetup.from(pinned)
+        val roster = requireNotNull(mapped.aiCivilizations)
+        assertEquals(pinned.gameParameters.players.size - 1, roster.size)
+        assertEquals(ApiV3AiSlot("Greece", "Immortal", "Aggressive"), roster[0])
+        assertEquals(ApiV3AiSlot(personality = "Expansionist"), roster[1])
+        assertTrue(roster.drop(2).all { it == ApiV3AiSlot() })
+
+        // Materializing it back produces the same owner, count and pinned AI.
+        val materialized = mapped.toGameSetupInfo().gameParameters
+        assertEquals(mapped.majorCivilizations, materialized.players.size)
+        assertEquals("Rome", materialized.players.first().chosenCiv)
+        assertEquals(PlayerType.Human, materialized.players.first().playerType)
+        assertEquals("Greece", materialized.players[1].chosenCiv)
+        assertEquals(PlayerType.AI, materialized.players[1].playerType)
+        assertEquals("Immortal", materialized.players[1].aiDifficulty)
+        assertEquals("Aggressive", materialized.players[1].personality)
+        assertEquals(Constants.random, materialized.players[2].chosenCiv)
+        assertEquals("Expansionist", materialized.players[2].personality)
+        assertTrue(materialized.players.drop(3).all { it.chosenCiv == Constants.random })
+        assertEquals(mapped, ApiV3GameSetup.from(mapped.toGameSetupInfo()))
+    }
+
     private fun assertRejected(change: (GameSetupInfo) -> Unit) {
         val setup = authoritativeSetup()
         change(setup)

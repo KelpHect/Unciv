@@ -29,7 +29,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 6
+    const val VERSION = 7
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -754,9 +754,7 @@ class AuthoritativeEngineWorker(
                     it.playerId == actorId
                 } ?: error("GameStarter did not assign the authenticated owner")
                 responseForGame(engine, result.game, ownerCivilization.civID).copy(
-                    availableCivilizationIds = result.game.civilizations
-                        .filter { it.isMajorCiv() }
-                        .map { it.civID },
+                    availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
                 )
             }
             is WorkerOperation.ReconfigureLobby -> {
@@ -776,9 +774,7 @@ class AuthoritativeEngineWorker(
                     } != null
                 }) { "GameStarter did not preserve the exact human assignments" }
                 responseForGame(engine, result.game, operation.setup.ownerCivilizationId).copy(
-                    availableCivilizationIds = result.game.civilizations
-                        .filter { it.isMajorCiv() }
-                        .map { it.civID },
+                    availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
                 )
             }
             is WorkerOperation.NormalizeLegacyGame -> {

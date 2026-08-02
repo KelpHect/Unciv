@@ -9,12 +9,21 @@ import com.unciv.models.ruleset.nation.Nation
 class Player(
     var chosenCiv: String = Constants.random,
     var playerType: PlayerType = PlayerType.AI,
-    var playerId: String = ""
+    var playerId: String = "",
+    /** Per-player AI difficulty override. Empty uses the match's AI difficulty. */
+    var aiDifficulty: String = "",
+    /** Per-player AI personality override. Empty uses the nation's own personality. */
+    var personality: String = ""
 ) : IsPartOfGameInfoSerialization {
     constructor() : this(Constants.random, PlayerType.AI, "")
-    constructor(chosenNation: Nation, playerType: PlayerType = PlayerType.AI, playerId: String = ""):
-        this(chosenNation.name, playerType, playerId) {
-            this.chosenNation = chosenNation 
+    constructor(
+        chosenNation: Nation,
+        playerType: PlayerType = PlayerType.AI,
+        playerId: String = "",
+        aiDifficulty: String = "",
+        personality: String = ""
+    ): this(chosenNation.name, playerType, playerId, aiDifficulty, personality) {
+            this.chosenNation = chosenNation
         }
     @Transient
     lateinit var chosenNation: Nation

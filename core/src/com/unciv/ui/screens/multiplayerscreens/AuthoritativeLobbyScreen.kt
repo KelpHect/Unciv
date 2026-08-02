@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.ui.Container
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.utils.Timer
+import com.unciv.logic.multiplayer.authoritative.ApiV3AiSlot
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
 import com.unciv.logic.multiplayer.authoritative.ApiV3GeneratedMapShape
 import com.unciv.logic.multiplayer.authoritative.ApiV3GeneratedMapSize
@@ -405,18 +406,20 @@ class AuthoritativeLobbyScreen(
             maximumHeight = stage.height * 0.52f,
             separatorColor = LobbyChrome.accent,
             shortcutScreen = this,
-            capacity = 4,
+            capacity = 5,
         )
         if (lobby.actorRole == "owner") {
             val editor = AuthoritativeLobbyConfigurationEditor(lobby) { scheduleConfigurationCommit() }
             configurationEditor = editor
             pager.addPage("Game", editor.gamePage)
+            pager.addPage("AI", editor.aiPage)
             pager.addPage("World", editor.worldPage)
             pager.addPage("Victories", editor.victoryPage)
             pager.addPage("Advanced", editor.advancedPage)
         } else {
             configurationEditor = null
             pager.addPage("Game", readOnlyGamePage())
+            pager.addPage("AI", readOnlyAiPage(lobby.setup))
             pager.addPage("World", readOnlyWorldPage(lobby.setup))
             pager.addPage("Victories", readOnlyVictoryPage(lobby.setup))
             pager.addPage("Advanced", readOnlyAdvancedPage(lobby.setup))
@@ -484,6 +487,31 @@ class AuthoritativeLobbyScreen(
         field("City-states", lobby.setup.cityStates.toString())
         field("Turn limit", lobby.setup.maxTurns.toString())
         field("Human player slots", lobby.humanSlots.toString())
+    }
+
+    /** The AI roster the host authored, as every other member sees it live. */
+    private fun readOnlyAiPage(setup: ApiV3GameSetup): Table = settingsPage("AI civilizations").apply {
+        val roster = setup.aiCivilizations
+            ?: List((setup.majorCivilizations - lobby.humanSlots).coerceAtLeast(0)) {
+                ApiV3AiSlot()
+            }
+        if (roster.isEmpty())
+            add(LobbyChrome.hint("This match has no AI civilizations.")).colspan(2).left().row()
+        roster.forEach { slot ->
+            add(LobbyChrome.nationBadge(ruleset, slot.civilizationId, 32f)).left()
+            add(
+                if (slot.civilizationId.isBlank()) LobbyChrome.hint("Chosen by the server")
+                else LobbyChrome.nationLabel(ruleset, slot.civilizationId),
+            ).growX().left().row()
+            val traits = listOfNotNull(
+                slot.difficulty.takeIf(String::isNotBlank),
+                slot.personality.takeIf(String::isNotBlank),
+            )
+            if (traits.isNotEmpty()) {
+                add()
+                add(LobbyChrome.hint(traits.joinToString("  •  "))).growX().left().row()
+            }
+        }
     }
 
     private fun readOnlyWorldPage(setup: ApiV3GameSetup): Table = settingsPage("World").apply {

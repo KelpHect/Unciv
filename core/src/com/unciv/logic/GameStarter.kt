@@ -320,9 +320,10 @@ class GameStarter private constructor(
             ).mapNotNull {
                 // Resolve random players
                 when {
-                    it.chosenCiv != Constants.random -> Player(ruleset.nations[it.chosenCiv]!!, it.playerType, it.playerId)
-                    presetRandomNationsPool.isNotEmpty() -> Player(presetRandomNationsPool.removeLast(), it.playerType, it.playerId)
-                    randomNationsPool.isNotEmpty() -> Player(randomNationsPool.removeLast(), it.playerType, it.playerId)
+                    // Resolving a nation must never drop the per-player AI overrides.
+                    it.chosenCiv != Constants.random -> Player(ruleset.nations[it.chosenCiv]!!, it.playerType, it.playerId, it.aiDifficulty, it.personality)
+                    presetRandomNationsPool.isNotEmpty() -> Player(presetRandomNationsPool.removeLast(), it.playerType, it.playerId, it.aiDifficulty, it.personality)
+                    randomNationsPool.isNotEmpty() -> Player(randomNationsPool.removeLast(), it.playerType, it.playerId, it.aiDifficulty, it.personality)
                     else -> null
                 }
             }.toMutableList()
@@ -381,6 +382,8 @@ class GameStarter private constructor(
             if (civ.isMajorCiv() || civ.isSpectator()) {
                 civ.playerType = player.playerType
                 civ.playerId = player.playerId
+                civ.aiDifficultyOverride = player.aiDifficulty
+                civ.personalityOverride = player.personality
                 civ.playerMinutesBeforeForceResign = newGameParameters.minutesUntilForceResign
             }
             else if (!civ.cityStateFunctions.initCityState(ruleset, newGameParameters.startingEra, usedMajorCivs, rng))

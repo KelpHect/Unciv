@@ -5,6 +5,7 @@ import com.unciv.logic.GameInfo
 import com.unciv.json.json
 import com.unciv.models.ruleset.RulesetCache
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -205,6 +206,109 @@ class EngineWorkerProtocolTests {
         assertEquals("engine_rejected", response.error?.code)
         assertTrue(response.error?.message?.contains("engine build") == true)
         assertNull(response.snapshot)
+    }
+
+    @Test
+    fun pinnedAiCivilizationsAreCreatedAsAiAndReservedFromJoiningHumans() {
+        val capabilities = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                operation = WorkerOperation.Handshake,
+            ),
+        )
+        val baseRuleset = capabilities.installedRulesets!!.first { it.name == "Civ V - Vanilla" }
+        val manifest = WorkerRulesetManifest(
+            engineBuild = requireNotNull(capabilities.engineBuild),
+            baseRuleset = baseRuleset,
+        )
+
+        val response = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                serverTimeMillis = 1_700_000_000_000L,
+                actorId = "account-1",
+                rulesetManifest = manifest,
+                operation = WorkerOperation.CreateGame(
+                    "00000000-0000-4000-8000-000000000001",
+                    987654321L,
+                    defaultSetup(baseRuleset.name).copy(
+                        majorCivilizations = 4,
+                        cityStates = 0,
+                        mapSize = GeneratedMapSize.Tiny,
+                        // Rome is the owner, one AI is pinned to a harder
+                        // difficulty, one is server-drawn, and the last seat is
+                        // left open for a joining human.
+                        aiCivilizations = listOf(
+                            WorkerAiSlot(civilizationId = "Greece", difficulty = "Deity"),
+                            WorkerAiSlot(),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(response.error)
+        val game = json().fromJson(GameInfo::class.java, requireNotNull(response.snapshot))
+        val greece = game.civilizations.single { it.civID == "Greece" }
+        assertTrue(greece.isAI())
+        assertTrue(greece.playerId.isEmpty())
+        // The host-pinned difficulty reaches canonical state, and only that seat.
+        assertEquals("Deity", greece.aiDifficultyOverride)
+        assertTrue(
+            game.civilizations
+                .filterNot { it.civID == "Greece" }
+                .all { it.aiDifficultyOverride.isEmpty() },
+        )
+        // The reserved AI must never be offered to a human joining the lobby.
+        val available = requireNotNull(response.availableCivilizationIds)
+        assertFalse(available.contains("Greece"))
+        assertTrue(available.contains("Rome"))
+        assertEquals(3, available.size)
+    }
+
+    @Test
+    fun pinnedAiCivilizationsCannotCollideWithAHumanOrEachOther() {
+        val capabilities = AuthoritativeEngineWorker().execute(
+            WorkerRequest(
+                protocolVersion = EngineWorkerProtocol.VERSION,
+                operation = WorkerOperation.Handshake,
+            ),
+        )
+        val baseRuleset = capabilities.installedRulesets!!.first { it.name == "Civ V - Vanilla" }
+        val manifest = WorkerRulesetManifest(
+            engineBuild = requireNotNull(capabilities.engineBuild),
+            baseRuleset = baseRuleset,
+        )
+
+        for (rejected in listOf(
+            listOf(WorkerAiSlot("Rome"), WorkerAiSlot()),
+            listOf(WorkerAiSlot("Greece"), WorkerAiSlot("Greece")),
+            listOf(WorkerAiSlot("Not A Nation"), WorkerAiSlot()),
+            listOf(WorkerAiSlot(), WorkerAiSlot(), WorkerAiSlot(), WorkerAiSlot()),
+            listOf(WorkerAiSlot("Greece", difficulty = "Not A Difficulty"), WorkerAiSlot()),
+            listOf(WorkerAiSlot("Greece", personality = "Not A Personality"), WorkerAiSlot()),
+        )) {
+            val response = AuthoritativeEngineWorker().execute(
+                WorkerRequest(
+                    protocolVersion = EngineWorkerProtocol.VERSION,
+                    serverTimeMillis = 1_700_000_000_000L,
+                    actorId = "account-1",
+                    rulesetManifest = manifest,
+                    operation = WorkerOperation.CreateGame(
+                        "00000000-0000-4000-8000-000000000001",
+                        987654321L,
+                        defaultSetup(baseRuleset.name).copy(
+                            majorCivilizations = 4,
+                            cityStates = 0,
+                            mapSize = GeneratedMapSize.Tiny,
+                            aiCivilizations = rejected,
+                        ),
+                    ),
+                ),
+            )
+            assertEquals("engine_rejected", response.error?.code)
+            assertNull(response.snapshot)
+        }
     }
 
     @Test

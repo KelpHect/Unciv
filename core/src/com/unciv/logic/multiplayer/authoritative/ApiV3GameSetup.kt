@@ -71,6 +71,21 @@ enum class ApiV3BarbarianMode {
     @SerialName("raging") Raging,
 }
 
+/**
+ * One AI seat the host authored in the staging room. Every field is optional:
+ * a blank [civilizationId] lets the server draw the nation, a blank [difficulty]
+ * uses the match's AI difficulty, and a blank [personality] uses whatever
+ * personality the chosen nation already carries.
+ */
+@Serializable
+@OptIn(ExperimentalSerializationApi::class)
+data class ApiV3AiSlot(
+    @JsonNames("civilizationId")
+    @SerialName("civilization_id") val civilizationId: String = "",
+    val difficulty: String = "",
+    val personality: String = "",
+)
+
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 data class ApiV3GameSetup(
@@ -86,6 +101,13 @@ data class ApiV3GameSetup(
     @SerialName("major_civilizations") val majorCivilizations: Int,
     @JsonNames("cityStates")
     @SerialName("city_states") val cityStates: Int,
+    /**
+     * Owner-authored AI roster: one entry per AI civilization. `null` keeps the
+     * legacy count-only meaning, where the server chooses every non-human major
+     * civilization and they all share the match's AI difficulty.
+     */
+    @JsonNames("aiCivilizations")
+    @SerialName("ai_civilizations") val aiCivilizations: List<ApiV3AiSlot>? = null,
     @JsonNames("maxTurns")
     @SerialName("max_turns") val maxTurns: Int,
     @JsonNames("mapType")
@@ -155,7 +177,18 @@ data class ApiV3GameSetup(
             victoryTypes = ArrayList(this@ApiV3GameSetup.victoryTypes)
             players = ArrayList<Player>().apply {
                 add(Player(ownerCivilizationId, PlayerType.Human))
-                repeat((majorCivilizations - 1).coerceAtLeast(0)) { add(Player()) }
+                aiCivilizations.orEmpty().forEach { slot ->
+                    add(
+                        Player(
+                            chosenCiv = slot.civilizationId.ifBlank { Constants.random },
+                            aiDifficulty = slot.difficulty,
+                            personality = slot.personality,
+                        ),
+                    )
+                }
+                repeat(
+                    (majorCivilizations - 1 - aiCivilizations.orEmpty().size).coerceAtLeast(0),
+                ) { add(Player()) }
             }
             randomNumberOfPlayers = false
             numberOfCityStates = cityStates
@@ -234,6 +267,20 @@ data class ApiV3GameSetup(
                 victoryTypes = game.victoryTypes.sorted(),
                 majorCivilizations = game.players.size,
                 cityStates = game.numberOfCityStates,
+                // Only authored rosters travel: an untouched roster stays `null` so
+                // existing count-only setups keep their exact wire meaning.
+                aiCivilizations = game.players
+                    .filter { it !== owner }
+                    .map { player ->
+                        ApiV3AiSlot(
+                            civilizationId = player.chosenCiv.takeIf {
+                                it != Constants.random
+                            }.orEmpty(),
+                            difficulty = player.aiDifficulty,
+                            personality = player.personality,
+                        )
+                    }
+                    .takeIf { roster -> roster.any { it != ApiV3AiSlot() } },
                 maxTurns = game.maxTurns,
                 mapType = map.type.toApiV3MapType(),
                 mapShape = map.shape.toApiV3MapShape(),

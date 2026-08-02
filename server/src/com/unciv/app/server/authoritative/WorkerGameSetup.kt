@@ -71,6 +71,18 @@ enum class BarbarianMode {
     @SerialName("raging") Raging,
 }
 
+/**
+ * One host-authored AI seat. A blank [civilizationId] lets the engine draw the
+ * nation, a blank [difficulty] uses the match's AI difficulty, and a blank
+ * [personality] keeps whatever personality the chosen nation carries.
+ */
+@Serializable
+data class WorkerAiSlot(
+    val civilizationId: String = "",
+    val difficulty: String = "",
+    val personality: String = "",
+)
+
 @Serializable
 data class WorkerLobbyParticipant(
     val accountId: String,
@@ -117,7 +129,31 @@ data class WorkerGameSetup(
     val rareFeaturesRichness: Float = 0.05f,
     val resourceRichness: Float = 0.1f,
     val waterThreshold: Float = 0f,
+    /**
+     * Owner-authored AI roster: one entry per AI civilization. `null` keeps the
+     * legacy meaning where the server chooses every AI civilization and they all
+     * share the match's AI difficulty.
+     */
+    val aiCivilizations: List<WorkerAiSlot>? = null,
 ) {
+    /**
+     * Pinned AI civilizations. These are reserved for the server-owned AI and
+     * must never be offered to a joining human.
+     */
+    fun reservedCivilizationIds(): List<String> =
+        aiCivilizations.orEmpty().map { it.civilizationId }.filter(String::isNotBlank)
+
+    /**
+     * Major civilizations a joining human may claim: everything the engine
+     * created except the ones this setup pinned to the AI.
+     */
+    fun claimableCivilizationIds(game: com.unciv.logic.GameInfo): List<String> {
+        val reserved = reservedCivilizationIds().toHashSet()
+        return game.civilizations
+            .filter { it.isMajorCiv() && it.civID !in reserved }
+            .map { it.civID }
+    }
+
     fun materialize(
         manifest: WorkerRulesetManifest,
         actorId: String,
@@ -183,6 +219,29 @@ data class WorkerGameSetup(
                 participant.civilizationId != Constants.spectator
         }) { "A human participant is unavailable in the pinned ruleset" }
 
+        val aiRoster = aiCivilizations.orEmpty()
+        require(aiRoster.size <= majorCivilizations - humans.size) {
+            "The AI roster does not fit the remaining major civilization slots"
+        }
+        val pinnedAi = reservedCivilizationIds()
+        require(pinnedAi.distinct().size == pinnedAi.size) {
+            "Pinned AI civilization assignments must be unique"
+        }
+        val humanCivilizations = humans.mapTo(hashSetOf()) { it.civilizationId }
+        require(pinnedAi.none { it in humanCivilizations }) {
+            "A pinned AI civilization is already assigned to a human participant"
+        }
+        require(pinnedAi.all { civilization ->
+            ruleset.nations[civilization]?.isMajorCiv == true &&
+                civilization != Constants.spectator
+        }) { "A pinned AI civilization is unavailable in the pinned ruleset" }
+        require(aiRoster.all { it.difficulty.isEmpty() || it.difficulty in ruleset.difficulties }) {
+            "A pinned AI difficulty is unavailable in the pinned ruleset"
+        }
+        require(aiRoster.all { it.personality.isEmpty() || it.personality in ruleset.personalities }) {
+            "A pinned AI personality is unavailable in the pinned ruleset"
+        }
+
         return GameSetupInfo().apply {
             gameParameters.difficulty = difficulty
             gameParameters.speed = speed
@@ -192,7 +251,16 @@ data class WorkerGameSetup(
                 humans.forEach { participant ->
                     add(Player(participant.civilizationId, PlayerType.Human, participant.accountId))
                 }
-                repeat(majorCivilizations - humans.size) { add(Player()) }
+                aiRoster.forEach { slot ->
+                    add(
+                        Player(
+                            chosenCiv = slot.civilizationId.ifBlank { Constants.random },
+                            aiDifficulty = slot.difficulty,
+                            personality = slot.personality,
+                        ),
+                    )
+                }
+                repeat(majorCivilizations - humans.size - aiRoster.size) { add(Player()) }
             }
             gameParameters.numberOfCityStates = cityStates
             gameParameters.maxTurns = maxTurns

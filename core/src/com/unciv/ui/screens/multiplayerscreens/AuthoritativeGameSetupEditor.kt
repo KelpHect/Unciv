@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox
 import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.unciv.logic.multiplayer.authoritative.ApiV3AiSlot
 import com.unciv.logic.multiplayer.authoritative.ApiV3BarbarianMode
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSetup
 import com.unciv.logic.multiplayer.authoritative.ApiV3GeneratedMapShape
@@ -15,6 +16,8 @@ import com.unciv.logic.multiplayer.authoritative.ApiV3MirroringType
 import com.unciv.models.ruleset.Ruleset
 import com.unciv.ui.components.extensions.toCheckBox
 import com.unciv.ui.components.extensions.toLabel
+import com.unciv.ui.components.extensions.toTextButton
+import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.components.input.onChange
 import com.unciv.ui.components.widgets.TabbedPager
 import com.unciv.ui.components.widgets.UncivTextField
@@ -33,6 +36,10 @@ internal class AuthoritativeGameSetupEditor(
      * committing a canonical mutation per keystroke.
      */
     private val onEdited: () -> Unit = {},
+    /** Current human seat count, so the AI roster always fills the rest. */
+    private val humanSlots: () -> Int = { 1 },
+    /** Civilizations already spoken for by the owner or a joined member. */
+    private val unavailableCivilizations: () -> Set<String> = { emptySet() },
 ) {
     private val difficulty = textSelect(ruleset.difficulties.keys, initial.difficulty)
     private val speed = textSelect(ruleset.speeds.keys, initial.speed)
@@ -84,6 +91,18 @@ internal class AuthoritativeGameSetupEditor(
             victory.name to checkBox(victory.name, victory.name in initial.victoryTypes)
         }
 
+    /**
+     * One entry per AI civilization: a pinned major civilization name, or blank
+     * for "let the server draw it". Length always tracks
+     * `majorCivilizations - humanSlots`, which is what the server validates.
+     */
+    private val aiSlots = ArrayList(initial.aiCivilizations.orEmpty())
+    private val aiRoster = Table(BaseScreen.skin)
+    private val playableCivilizations = ruleset.nations.values
+        .filter { it.isMajorCiv }
+        .map { it.name }
+        .sorted()
+
     val gamePage = page("GAME RULES").apply {
         addField("Difficulty", difficulty)
         addField("Game speed", speed)
@@ -91,6 +110,14 @@ internal class AuthoritativeGameSetupEditor(
         addField("Major civilizations", majorCivilizations)
         addField("City-states", cityStates)
         addField("Turn limit", maxTurns)
+    }
+
+    val aiPage = page("AI CIVILIZATIONS").apply {
+        add(aiRoster).colspan(2).growX().left().row()
+        add(
+            ("Every AI slot the server has not been told to pin is drawn randomly " +
+                "from the civilizations nobody claimed.").toLabel(Color.LIGHT_GRAY),
+        ).colspan(2).growX().left().row()
     }
 
     val worldPage = page("WORLD SETTINGS").apply {
@@ -147,7 +174,98 @@ internal class AuthoritativeGameSetupEditor(
         mapShape.onChange { renderCustomDimensions() }
         worldWrap.onChange { renderCustomDimensions() }
         renderCustomDimensions()
+        majorCivilizations.onChange { renderAiRoster() }
+        renderAiRoster()
         editableControls().forEach { control -> control.onChange { onEdited() } }
+    }
+
+    /** AI seats are whatever the major civilization count leaves over. */
+    private fun aiSlotCount(): Int =
+        ((majorCivilizations.text.trim().toIntOrNull() ?: 0) - humanSlots())
+            .coerceIn(0, MAX_AI_SLOTS)
+
+    private fun renderAiRoster() {
+        val count = aiSlotCount()
+        while (aiSlots.size < count) aiSlots.add(ApiV3AiSlot())
+        while (aiSlots.size > count) aiSlots.removeAt(aiSlots.size - 1)
+
+        aiRoster.clear()
+        aiRoster.defaults().pad(4f)
+        val taken = unavailableCivilizations()
+        aiSlots.forEachIndexed { index, slot ->
+            val choices = playableCivilizations
+                .filterNot { it in taken }
+                .filterNot { civilization ->
+                    civilization != slot.civilizationId &&
+                        aiSlots.any { it.civilizationId == civilization }
+                }
+            val civilization = slotSelect(
+                listOf(RANDOM_CIVILIZATION) + choices,
+                slot.civilizationId,
+                RANDOM_CIVILIZATION,
+            ) { chosen -> aiSlots[index] = aiSlots[index].copy(civilizationId = chosen) }
+            val difficulty = slotSelect(
+                listOf(MATCH_DEFAULT) + ruleset.difficulties.keys,
+                slot.difficulty,
+                MATCH_DEFAULT,
+            ) { chosen -> aiSlots[index] = aiSlots[index].copy(difficulty = chosen) }
+            val personality = slotSelect(
+                listOf(NATION_DEFAULT) + ruleset.personalities.keys,
+                slot.personality,
+                NATION_DEFAULT,
+            ) { chosen -> aiSlots[index] = aiSlots[index].copy(personality = chosen) }
+            val remove = "Remove".toTextButton()
+            remove.onActivation { removeAiSlot(index) }
+            aiRoster.add(LobbyChrome.nationBadge(ruleset, slot.civilizationId, 32f)).left()
+            aiRoster.add(civilization).minWidth(190f).growX().left()
+            aiRoster.add(difficulty).minWidth(140f).left()
+            aiRoster.add(personality).minWidth(150f).left()
+            aiRoster.add(remove).right().row()
+        }
+        val add = "Add AI".toTextButton()
+        add.onActivation { addAiSlot() }
+        aiRoster.add(
+            "${aiSlots.size} AI  +  ${humanSlots()} human".toLabel(Color.LIGHT_GRAY),
+        ).left().colspan(4)
+        aiRoster.add(add).right().row()
+    }
+
+    /**
+     * One roster dropdown. [neutral] is the "let the server decide" entry, which
+     * is stored as a blank so the server keeps its own default.
+     */
+    private fun slotSelect(
+        choices: Collection<String>,
+        selectedValue: String,
+        neutral: String,
+        onPicked: (String) -> Unit,
+    ): SelectBox<String> {
+        val select = SelectBox<String>(BaseScreen.skin).apply {
+            items = com.badlogic.gdx.utils.Array(choices.toTypedArray())
+            selected = selectedValue.ifBlank { neutral }
+        }
+        select.onChange {
+            onPicked(select.selected.takeIf { it != neutral }.orEmpty())
+            renderAiRoster()
+            onEdited()
+        }
+        return select
+    }
+
+    private fun addAiSlot() {
+        if (aiSlots.size >= MAX_AI_SLOTS) return
+        setMajorCivilizations(aiSlots.size + 1 + humanSlots())
+    }
+
+    private fun removeAiSlot(index: Int) {
+        aiSlots.removeAt(index)
+        setMajorCivilizations(aiSlots.size + humanSlots())
+    }
+
+    private fun setMajorCivilizations(value: Int) {
+        majorCivilizations.text = value.coerceIn(2, 16).toString()
+        renderAiRoster()
+        onEdited()
     }
 
     /** Every control whose value is part of the typed setup sent to the server. */
@@ -172,6 +290,13 @@ internal class AuthoritativeGameSetupEditor(
         addAll(victoryTypes.values)
     }
 
+    private companion object {
+        const val RANDOM_CIVILIZATION = "Random"
+        const val MATCH_DEFAULT = "Match difficulty"
+        const val NATION_DEFAULT = "Nation default"
+        const val MAX_AI_SLOTS = 15
+    }
+
     fun build(ownerCivilizationId: String): ApiV3GameSetup {
         val victories = victoryTypes.filterValues(CheckBox::isChecked).keys.toList()
         require(victories.isNotEmpty()) { "Select at least one victory condition." }
@@ -194,13 +319,29 @@ internal class AuthoritativeGameSetupEditor(
                 "World wrap requires an even custom width of at least 32."
             }
         }
+        val majors = majorCivilizations.intValue("Major civilizations", 2..16)
+        val humans = humanSlots()
+        require(humans in 1..majors) {
+            "Human player slots must fit the major civilizations."
+        }
+        // The roster is resized here as well as on render, so a stale control can
+        // never submit a roster the server would reject as inconsistent.
+        val roster = List(majors - humans) { aiSlots.getOrElse(it) { ApiV3AiSlot() } }
+        val pinned = roster.map { it.civilizationId }.filter(String::isNotEmpty)
+        require(pinned.distinct().size == pinned.size) {
+            "Each pinned AI civilization can only be used once."
+        }
+        require(ownerCivilizationId !in pinned) {
+            "Your own civilization cannot also be pinned to an AI."
+        }
         return ApiV3GameSetup(
             ownerCivilizationId = ownerCivilizationId,
+            aiCivilizations = roster,
             difficulty = difficulty.selected,
             speed = speed.selected,
             startingEra = startingEra.selected,
             victoryTypes = victories,
-            majorCivilizations = majorCivilizations.intValue("Major civilizations", 2..16),
+            majorCivilizations = majors,
             cityStates = cityStates.intValue("City-states", 0..64),
             maxTurns = maxTurns.intValue("Turn limit", 100..1500),
             mapType = mapType.selected,

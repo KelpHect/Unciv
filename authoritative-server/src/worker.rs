@@ -57,8 +57,9 @@ pub use city_state::{
 };
 pub use deadlines::{WorkerDeadlineConfigError, WorkerDeadlines};
 pub use game_setup::{
-    BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType, MapResourceDensity,
-    MirroringType, WorkerGameSetup, WorkerLobbyParticipant, WorkerLobbyReconfiguration,
+    AiSlot, BarbarianMode, GeneratedMapShape, GeneratedMapSize, GeneratedMapType,
+    MapResourceDensity, MirroringType, WorkerGameSetup, WorkerLobbyParticipant,
+    WorkerLobbyReconfiguration,
 };
 pub use intents::{
     AcknowledgeResearchCompletionIntent, AddUnitToCapitalProjectIntent, AdoptPolicyIntent,
@@ -96,7 +97,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 6;
+pub const WORKER_PROTOCOL_VERSION: u16 = 7;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]

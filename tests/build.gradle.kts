@@ -45,6 +45,9 @@ tasks {
         // Mockito's explicit agent disables class-data sharing, so turn it off deliberately
         // instead of making every test JVM print the bootstrap-classpath warning.
         jvmArgs.add("-Xshare:off")
+
+        // Forward latency-test save file path to the test JVM
+        System.getProperty("unciv.nextTurnSaveFile")?.let { systemProperty("unciv.nextTurnSaveFile", it) }
     }
 }
 

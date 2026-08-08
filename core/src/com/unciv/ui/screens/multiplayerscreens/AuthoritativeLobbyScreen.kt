@@ -314,6 +314,23 @@ class AuthoritativeLobbyScreen(
         summaryCard.field("City-states", setup.cityStates.toString())
         summaryCard.field("Turn limit", setup.maxTurns.toString())
         summaryCard.field("Victories", setup.victoryTypes.joinToString().ifBlank { "None" })
+        val aiRoster = setup.aiCivilizations.orEmpty()
+        if (aiRoster.isNotEmpty()) {
+            for ((index, slot) in aiRoster.withIndex()) {
+                val label = slot.civilizationId.ifBlank { "Server-chosen" }
+                val traits = buildString {
+                    if (slot.difficulty.isNotBlank()) append(slot.difficulty)
+                    if (slot.personality.isNotBlank()) {
+                        if (isNotEmpty()) append(", ")
+                        append(slot.personality)
+                    }
+                }
+                summaryCard.field(
+                    "AI ${index + 1}",
+                    label + if (traits.isNotBlank()) "  ($traits)" else "",
+                )
+            }
+        }
         summaryCard.add(LobbyChrome.hint("Turn time is unlimited in server-hosted matches."))
             .colspan(2).growX().left().row()
     }

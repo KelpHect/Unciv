@@ -5,6 +5,8 @@ use std::{env, time::Duration};
 mod account_security;
 #[path = "administration_integration_tests.rs"]
 mod administration;
+#[path = "archive_integration_tests.rs"]
+mod archive;
 #[path = "backup_restore_integration_tests.rs"]
 mod backup_restore;
 #[path = "disk_full_integration_tests.rs"]

@@ -96,6 +96,7 @@ pub enum GameCommand {
         civilization_id: String,
     },
     EndTurn {},
+    AdvanceAiTurn {},
     Resign {},
     ForceResign {},
     KickMember {},

@@ -12,6 +12,8 @@ import com.unciv.logic.multiplayer.authoritative.ConstructionQueueAction
 import com.unciv.logic.multiplayer.authoritative.HeadlessGameEngine
 import com.unciv.logic.multiplayer.authoritative.LobbyTerrainProjection
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.logic.multiplayer.authoritative.ReplayProjection
+import com.unciv.logic.multiplayer.authoritative.ReplayProjectionBuilder
 import com.unciv.logic.multiplayer.authoritative.SpectatorProjection
 import com.unciv.logic.multiplayer.authoritative.ProjectedTrade
 import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
@@ -29,7 +31,7 @@ import java.util.UUID
 /** Private length-prefixed JSON protocol. Bind only to loopback in development;
  * production launches this process behind a Unix-domain socket. */
 object EngineWorkerProtocol {
-    const val VERSION = 7
+    const val VERSION = 8
     const val maxFrameBytes = 16 * 1024 * 1024
     private const val maxJsonDepth = 64
     private const val maxJsonCollectionItems = 65_536
@@ -163,6 +165,9 @@ sealed interface WorkerOperation {
         val snapshot: String,
         val actorCivilizationId: String,
     ) : WorkerOperation
+
+    @Serializable @SerialName("advance_ai_turn")
+    data class AdvanceAiTurn(val snapshot: String) : WorkerOperation
 
     @Serializable @SerialName("resign")
     data class Resign(val snapshot: String, val actorCivilizationId: String) : WorkerOperation
@@ -681,6 +686,9 @@ sealed interface WorkerOperation {
     /** Pregame terrain disclosure for a lobby member. Carries no gameplay state. */
     @Serializable @SerialName("project_lobby_terrain")
     data class ProjectLobbyTerrain(val snapshot: String) : WorkerOperation
+    /** Full no-fog-of-war projection for match replay viewing. */
+    @Serializable @SerialName("project_replay_state")
+    data class ProjectReplayState(val snapshot: String) : WorkerOperation
 }
 
 @Serializable
@@ -698,6 +706,7 @@ data class WorkerResponse(
     val playerProjection: PlayerProjection? = null,
     val spectatorProjection: SpectatorProjection? = null,
     val lobbyTerrainProjection: LobbyTerrainProjection? = null,
+    val replayProjection: ReplayProjection? = null,
     val error: WorkerError? = null,
 )
 
@@ -752,10 +761,17 @@ class AuthoritativeEngineWorker(
                 val result = engine.createGame(setup)
                 val ownerCivilization = result.game.civilizations.singleOrNull {
                     it.playerId == actorId
-                } ?: error("GameStarter did not assign the authenticated owner")
-                responseForGame(engine, result.game, ownerCivilization.civID).copy(
-                    availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
-                )
+                }
+                if (ownerCivilization != null) {
+                    responseForGame(engine, result.game, ownerCivilization.civID).copy(
+                        availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
+                    )
+                } else {
+                    // All-AI match: no human owner civilization, return spectator-like response
+                    responseForGame(engine, result.game, "").copy(
+                        availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
+                    )
+                }
             }
             is WorkerOperation.ReconfigureLobby -> {
                 require(UUID.fromString(operation.gameId).toString() == operation.gameId.lowercase()) {
@@ -773,7 +789,9 @@ class AuthoritativeEngineWorker(
                         it.civID == participant.civilizationId && it.playerId == participant.accountId
                     } != null
                 }) { "GameStarter did not preserve the exact human assignments" }
-                responseForGame(engine, result.game, operation.setup.ownerCivilizationId).copy(
+                val actorCiv = if (operation.setup.ownerCivilizationId.isNotEmpty())
+                    operation.setup.ownerCivilizationId else null
+                responseForGame(engine, result.game, actorCiv).copy(
                     availableCivilizationIds = operation.setup.claimableCivilizationIds(result.game),
                 )
             }
@@ -790,6 +808,11 @@ class AuthoritativeEngineWorker(
             is WorkerOperation.EndTurn -> {
                 val game = engine.loadSnapshot(operation.snapshot)
                 val result = engine.endTurn(game, operation.actorCivilizationId)
+                responseForGame(engine, result.game)
+            }
+            is WorkerOperation.AdvanceAiTurn -> {
+                val game = engine.loadSnapshot(operation.snapshot)
+                val result = engine.advanceAiTurn(game)
                 responseForGame(engine, result.game)
             }
             is WorkerOperation.Resign -> {
@@ -1457,8 +1480,14 @@ class AuthoritativeEngineWorker(
                 val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
                 WorkerResponse(lobbyTerrainProjection = engine.lobbyTerrainProjection(game))
             }
+            is WorkerOperation.ProjectReplayState -> {
+                val game = engine.loadSnapshot(operation.snapshot, allowTerminal = true)
+                WorkerResponse(replayProjection = ReplayProjectionBuilder.build(game))
+            }
         }.copy(serverTimeMillis = serverTimeMillis)
     } catch (exception: Exception) {
+        System.err.println("[WORKER DEBUG] engine_rejected: ${exception::class.simpleName}: ${exception.message}")
+        exception.printStackTrace()
         WorkerResponse(error = WorkerError("engine_rejected", exception.message ?: "Engine execution failed"))
     }
 

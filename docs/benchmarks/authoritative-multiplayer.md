@@ -152,3 +152,245 @@ Operators must re-run it with representative late-game saves, enabled mods,
 network latency, retention, and target hardware before choosing production
 concurrency or latency objectives. The raw JSON, container samples, signed
 archive, digest, SBOM, and attestations are retained by run `30393852174`.
+
+## Lobby terrain projection preview
+
+Measured on 2026-08-06 on the same Windows/JDK host with the schema-v3
+benchmark and freshly packaged worker `4.21.4 (Build 1239)`. Each iteration
+creates a fresh tiny Pangaea game, then projects the lobby terrain from the
+resulting snapshot. The worker serializes this read against gameplay commands
+and AI turns; the client fetches it once per committed `lobby_revision` rather
+than per reconciliation poll.
+
+Run with:
+
+```text
+set UNCIV_ENGINE_WORKER_ADDR=127.0.0.1:43170
+set UNCIV_ENGINE_WORKER_SECRET=<64 lowercase hexadecimal characters>
+set UNCIV_WORKER_BENCH_TERRAIN_PREVIEWS=10
+cargo run --release --bin unciv-v3-worker-benchmark
+```
+
+| Operation | Samples | mean | p50 | p95 | p99 | min | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Lobby terrain projection (tiny map) | 10 | 10.73 ms | 8.28 ms | 24.28 ms | 24.28 ms | 6.80 ms | 24.28 ms |
+
+The projection loads the committed snapshot, parses it through the shared
+Kotlin engine, and extracts only base terrain plus unlabeled start coordinates.
+No generation happens for a preview. The p50 of 8.28 ms is well under the
+1.5-second reconciliation poll interval, so a terrain preview never blocks
+lobby reconciliation. Late-game or large-map previews will be slower; the
+client fetches the preview only once per committed `lobby_revision`, which
+bounds the load.
+
+## Full AI match benchmark with per-turn timing and history
+
+Measured on 2026-08-06 on the same Windows/JDK host with worker build
+`4.21.4 (Build 1239)`. Two complete matches were played from lobby creation
+through Domination victory, with every turn benchmarked and the full revision
+history verified for playback.
+
+### 2-player match (1 human + 1 AI, tiny Pangaea, Quick, Domination only)
+
+The human (Rome) ended turn immediately each round; the server AI (Egypt,
+Chieftain) executed its full turn through the private Kotlin worker. The match
+reached a Domination victory for Egypt on turn 263.
+
+| Metric | Value |
+| --- | --- |
+| Total turns to victory | 263 |
+| Total revisions committed | 264 (0–263) |
+| Total commands | 263 (one EndTurn per turn) |
+| Retained rewind checkpoints | 20 (most recent accepted EndTurn results) |
+| Match wall-clock duration | 40.5 s |
+
+Per-turn EndTurn+AI latency (ms):
+
+| Operation | Samples | mean | p50 | p95 | p99 | min | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| EndTurn + 1 AI turn | 262 | 76.2 | 75 | 106 | 158 | 45 | 158 |
+
+Snapshot growth (zstd-compressed, stored as immutable revisions):
+
+| Metric | Value |
+| --- | --- |
+| Revision 0 snapshot | 3,499 bytes compressed / 26,619 uncompressed |
+| Revision 263 snapshot | 16,048 bytes compressed / 105,741 uncompressed |
+| Average snapshot | 9,572 bytes compressed / 63,344 uncompressed |
+| Total history storage | 2,467 KB compressed (264 snapshots) |
+
+Post-victory behavior was verified: the projection correctly reports
+`winningCivilizationId`, `victoryType`, and `victoryTurn`; `isCurrentTurn` is
+false; `pendingTurnActions` is empty; and a post-victory `end_turn` command is
+rejected with HTTP 422 `invalid_command`.
+
+### 4-player match (1 human + 3 AI, small Pangaea, Quick, Domination only)
+
+The human (Rome) ended turn immediately; three server AI civilizations (Egypt,
+Greece, Persia, all Chieftain) each executed their full turn through the
+private Kotlin worker before control returned. 30 turns were benchmarked.
+
+Per-turn EndTurn+3AI latency (ms):
+
+| Operation | Samples | mean | p50 | p95 | p99 | min | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| EndTurn + 3 AI turns | 30 | 59.4 | 55 | 93 | 94 | 45 | 94 |
+
+Snapshot growth over 31 revisions: 6,003–8,985 bytes compressed (avg 7,672),
+total 232 KB. The match was not played to completion; the 30-turn sample
+demonstrates that three AI civilizations add negligible per-turn overhead
+beyond the 2-player baseline on a small map.
+
+### History and playback verification
+
+Both matches produced a complete, immutable revision chain in PostgreSQL:
+
+- Every `EndTurn` command produced exactly one new revision, one snapshot, one
+  command journal entry, and one outbox notification event.
+- The rewind checkpoint list exposes the most recent accepted `EndTurn`
+  start-of-turn snapshots, enabling consensual whole-game rewind to any
+  retained checkpoint.
+- The full revision chain (0 to final) is preserved as immutable snapshots with
+  content-addressed hashes, enabling complete game playback from any point.
+- Snapshot compression (zstd) keeps total history storage small: a complete
+  263-turn match occupies 2.4 MB compressed across 264 revisions.
+
+## 10-random-AI Huge Continents benchmark with six city-states
+
+Measured on 2026-08-08 on the same Windows/JDK host (Intel Core i7-13700KF,
+32 GB, Temurin JDK 21.0.11) with worker build `4.21.4 (Build 1239)` and a
+release-mode authoritative server in unpackaged dev mode. PostgreSQL 19 Beta 2
+ran in Docker (2.4 GB container, dedicated `unciv_authoritative_bench`
+database migrated to schema 33). The match was driven entirely through the
+public API: one authenticated spectator account created the zero-human lobby,
+started it, then issued one `advance-ai-turn` command per AI civilization per
+round until victory.
+
+Config: 10 major civilizations, all AI with random nations (blank
+`civilization_id` seats), 6 city-states, Huge Continents map
+(`small_continents`), Quick speed, Chieftain, Ancient era, all non-hidden
+victory types (Domination, Scientific, Cultural, Diplomatic), barbarians
+disabled, no ruins or natural wonders, max turns 1500.
+
+Outcome: **Rome won a Scientific victory on turn 279**. Aztecs were the only
+elimination (turn 216); the other nine majors were alive at the end. The full
+match ran 4,474 `advance-ai-turn` commands, one per AI move, each producing
+exactly one committed revision (4,475 revisions total, 0-4474).
+
+Per-round and per-AI latency (n=448 full 10-AI rounds):
+
+| Metric | samples | min | p50 | p90 | p99 | max | mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Round (10 AI moves), ms | 448 | 481 | 1,153 | 2,139 | 2,700 | 2,935 | 1,286 |
+| One AI move (advance-ai-turn), ms | 448 | 48 | 115 | 214 | 275 | 2,025 | 133 |
+
+The slowest AI in a round averaged 176 ms against 102 ms for the fastest. The
+match wall-clock was about 11.5 minutes of gameplay from the first accepted
+AI move to victory. One transient 502 `worker_rejected` occurred at turn 220
+and the next retry committed normally (1 failure in 4,474 commands).
+
+Storage for the complete 279-turn match:
+
+| Metric | Value |
+| --- | --- |
+| Revisions | 4,475 |
+| Commands | 4,474 (all `advance_ai_turn`) |
+| Compressed history | 391.8 MB |
+| Uncompressed history | 3.4 GB |
+| Average snapshot | 91.8 KB compressed / 763 KB uncompressed |
+
+A huge-map all-AI match therefore produces roughly 1.4 MB of compressed
+revision history per turn — two orders of magnitude more than the tiny-map
+baseline above — which is the expected cost of full-map immutable snapshots
+and is directly relevant to retention policy sizing. Raw per-round evidence is
+retained in `authoritative-server/tests/results/benchmark-10random-huge-continents-20260808-151953.csv`
+(game `92db598b-eadf-46c9-92f9-9d2abc600808`).
+
+This run also exercised the all-AI `advance-ai-turn` commit path end-to-end
+for the first time and found a real defect: the generic commit path rejected
+the spectator owner of a zero-human lobby (`CommitError::Unauthorized`) even
+after the advance-ai-turn authorization gate passed. The fix permits the
+spectator role only for `AdvanceAiTurn` commands and records the journal
+identity as the engine's spectator civilization; all 4,474 commands above
+committed through the fixed path. The lib suite (196 tests) and
+`cargo clippy --all-targets --all-features -- -D warnings` pass after the fix.
+
+## Snapshot storage reduction (measured 2026-08-08)
+
+Real snapshots from the 279-turn match above were decompressed and re-compressed
+under several schemes to quantify how much storage can be saved without breaking
+compatibility. Encode timing is the zstd CLI on the 1.17 MB late-game snapshot;
+the server encodes every revision on commit, so hot-path CPU matters.
+
+| Scheme | Late-game snapshot | Encode time | Projected for the 392 MB match |
+| --- | ---: | ---: | ---: |
+| zstd level 3 (historical default) | 143.7 KB | 81 ms | 392 MB |
+| zstd level 9 | 108.7 KB | 81 ms | ~296 MB (-24%) |
+| zstd level 15 | 102.5 KB | 139 ms | ~280 MB (-29%) |
+| zstd level 19 | 92.6 KB | 425 ms | ~253 MB (-36%) |
+| level 9 + shared dictionary | 85.1 KB (21-snapshot avg) | ~level-9 cost | ~235 MB (-40%) |
+| level 19 + shared dictionary | 71.2 KB (21-snapshot avg) | ~level-19 cost | ~197 MB (-50%) |
+| delta chain vs previous revision | 444 B | sub-ms | ~15 MB (-96%) |
+
+Key facts:
+
+- Consecutive snapshots are content-identical except for one small localized
+  change (e.g. rev3999 -> rev4000 differs by ~123 inserted bytes near the start,
+  shifting everything after it), so a `zstd --patch-from` delta against the
+  previous revision compresses to 444 B (round-trip verified). A 1,000-revision
+  checkpoint gap patches to 48 KB, still smaller than a level-3 full snapshot.
+- A shared zstd dictionary (128 KB, trained on 21 snapshots spread across the
+  match) adds ~15-20% on top of the level bump while keeping every snapshot
+  independently decodable (random access preserved).
+- A delta chain gives the biggest win but breaks random-access replay: the
+  replay endpoint currently fetches one snapshot per revision directly, so
+  deltas would require decoding from the nearest checkpoint (schema change:
+  add a delta-base revision per blob).
+
+Implemented safely so far: the snapshot codec now reads
+`UNCIV_V3_SNAPSHOT_ZSTD_LEVEL` (default 9, clamp 1..=22). Decoding is
+level-agnostic (the level is embedded in each zstd frame), so old and new rows
+interoperate and no migration is required. `snapshot_codec` tests and clippy
+`-D warnings` pass.
+
+## Snapshot format benchmark and Lockwell archival qualification (2026-08-08)
+
+The reproducible binary `unciv-v3-snapshot-benchmark` was run against 101
+consecutive snapshots from the existing match fixture (35,860,040 bytes
+uncompressed). Every selected delta and dictionary result was round-trip
+verified.
+
+| Strategy | Total bytes | Encode time | Notes |
+| --- | ---: | ---: | --- |
+| zstd level 3 | 3,194,567 | 81 ms | historical baseline |
+| zstd level 9 | 2,395,711 | 601 ms | 25.0% below level 3; hot-path default |
+| zstd level 15 | 2,297,908 | 3,824 ms | 28.1% below level 3; too expensive per commit |
+| zstd level 19 | 1,990,705 | 16,214 ms | 37.7% below level 3; cold rewrite only |
+| zstd level 9 + 128 KiB dictionary | 1,809,352 | 610 ms | 1,678,280 payload + 131,072 dictionary; 43.4% below level 3 |
+| zstd level 19 + 128 KiB dictionary | 1,373,685 | 10,540 ms | 1,242,613 payload + 131,072 dictionary; 57.0% below level 3; cold rewrite only |
+| previous-revision delta | 437,730 | 1,154 ms | 100/100 deltas; no random-access checkpoint |
+| checkpoint interval 10 | 892,855 | 1,150 ms | bounded random access |
+| checkpoint interval 64 | 1,539,658 | 1,330 ms | lower checkpoint overhead, longer reconstruction path |
+| checkpoint interval 100 | 2,072,882 | 1,433 ms | weaker size result on this fixture |
+
+The previous-revision chain is not used directly because replay would require
+an unbounded dependency chain. The implemented archive format uses a bounded
+checkpoint base, stores the delta payload independently in Lockwell, records
+base revision/hash in PostgreSQL, and verifies the reconstructed target hash
+before exposing it to the worker or client. Historical delta bases are accepted
+only through a 64-link reconstruction bound; normal retention policies keep
+long-term checkpoint revisions full.
+
+Lockwell was qualified against the local native API at `http://127.0.0.1:9000`
+using its required bearer token, `If-None-Match: *`, `Idempotency-Key`, and
+base64 `X-Lockwell-Checksum-SHA256` header. The opt-in PostgreSQL integration
+fixture archived 9 cold revisions from a 12-revision game, removed only those
+PostgreSQL blobs, retained checkpoints/recent revisions, selected and verified
+checkpoint-relative deltas, passed canonical-head validation, and produced no
+reconciliation findings. The fixture is ignored by default and requires
+explicit PostgreSQL and Lockwell credentials.
+
+Production archival is intentionally not automatic in the commit hot path:
+run the dry-run `unciv-v3-archive` CLI, inspect candidate/byte counts, then use
+`--apply`. This avoids coupling a human command's availability to object-store
+latency while keeping every cold read fail-closed and retry-safe.

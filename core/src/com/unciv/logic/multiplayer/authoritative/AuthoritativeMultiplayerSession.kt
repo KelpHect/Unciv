@@ -363,6 +363,26 @@ class AuthoritativeMultiplayerSession(
         requireAuthenticated()
         return transport.spectatorProjection(gameId)
     }
+    suspend fun advanceAiTurn(
+        gameId: String,
+        request: ApiV3AdvanceAiTurnRequest,
+    ): ApiV3CommandAccepted {
+        requireAuthenticated()
+        return transport.advanceAiTurn(gameId, request)
+    }
+
+    suspend fun getRevisions(gameId: String): ApiV3RevisionList {
+        requireAuthenticated()
+        return transport.getRevisions(gameId)
+    }
+    suspend fun getReplayProjection(gameId: String, revision: Long): ApiV3ReplayGameProjection {
+        requireAuthenticated()
+        return transport.getReplayProjection(gameId, revision)
+    }
+    suspend fun listPublicMatches(limit: Int = 50, offset: Int = 0): List<ApiV3PublicMatchSummary> {
+        requireAuthenticated()
+        return transport.listPublicMatches(limit, offset)
+    }
 
     suspend fun rewindCheckpoints(gameId: String): List<ApiV3RewindCheckpoint> {
         requireAuthenticated()

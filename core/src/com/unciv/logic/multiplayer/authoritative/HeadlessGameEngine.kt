@@ -170,9 +170,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot disband a unit outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(unit.hasMovement()) { "Unit has no movement available to disband" }
@@ -195,9 +193,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot pillage outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(UnitPillage.pillage(unit)) {
@@ -216,9 +212,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot found a city outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val foundingLocation = unit.currentTile.position
@@ -242,9 +236,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot paradrop outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val destination = game.tileMap.getIfTileExistsOrNull(destinationX, destinationY)
@@ -267,9 +259,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot attack outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
@@ -292,9 +282,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot bombard outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val city = actorCivilization.cities.singleOrNull { it.id == cityId }
             ?: error("City is not controlled by the authenticated actor")
         require(city.canBombard()) { "City cannot currently bombard" }
@@ -321,9 +309,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot launch a nuclear strike outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
@@ -346,9 +332,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot air sweep outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val target = game.tileMap.getIfTileExistsOrNull(targetX, targetY)
@@ -371,9 +355,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot upgrade units outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(unitIds.isNotEmpty() && unitIds.size <= 100) {
             "Upgrade batch must contain between 1 and 100 units"
         }
@@ -421,9 +403,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot promote a unit outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(promotionNames.isNotEmpty() && promotionNames.size <= 10) {
             "Promotion path must contain between 1 and 10 promotions"
         }
@@ -473,9 +453,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change city preferences outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(baseUnitName.isNotBlank() && baseUnitName.length <= 200) {
             "Base unit name is invalid"
         }
@@ -499,9 +477,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot rename a unit outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(instanceName == null ||
             (instanceName.isNotBlank() && instanceName.length <= 100 && instanceName.none { it.isISOControl() })) {
             "Unit name must be null or 1-100 printable characters"
@@ -524,9 +500,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change improvement orders outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         val tile = unit.currentTile
@@ -635,9 +609,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change road orders outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
 
@@ -691,15 +663,58 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot end another civilization's turn"
+
+        if (game.gameParameters.simultaneousHumanTurns) {
+            // Simultaneous turns: mark this human as done, advance only when all active humans are done
+            require(game.playersWhoEndedTurn.contains(actorCivilization.civID).not()) {
+                "Authenticated actor has already ended their turn"
+            }
+            val pendingActions = AuthoritativeTurnReadiness.pendingActions(actorCivilization)
+            require(pendingActions.isEmpty()) {
+                "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
+            }
+            AuthoritativeAutomatedOrderExecutor.executePending(actorCivilization)
+            game.playersWhoEndedTurn.add(actorCivilization.civID)
+
+            val activeHumans = game.civilizations.filter {
+                it.isHuman() && it.isAlive() && !it.isSpectator()
+            }
+            val allHumansDone = activeHumans.all { it.civID in game.playersWhoEndedTurn }
+            if (allHumansDone) {
+                game.playersWhoEndedTurn.clear()
+                game.nextTurn(executionContext = executionContext)
+            }
+        } else {
+            // Sequential turns: the current player ends and the turn advances immediately
+            requireCanIssueTurnCommands(game, actorCivilization)
+            val pendingActions = AuthoritativeTurnReadiness.pendingActions(actorCivilization)
+            require(pendingActions.isEmpty()) {
+                "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
+            }
+            AuthoritativeAutomatedOrderExecutor.executePending(actorCivilization)
+            game.nextTurn(executionContext = executionContext)
         }
-        val pendingActions = AuthoritativeTurnReadiness.pendingActions(actorCivilization)
-        require(pendingActions.isEmpty()) {
-            "Resolve mandatory turn actions: ${pendingActions.joinToString { it.wireName }}"
+        return result(game)
+    }
+
+    /** Advances exactly one AI player for an all-AI match. The authenticated
+     * actor is a server-authorized spectator, never a game civilization. */
+    fun advanceAiTurn(game: GameInfo): EngineResult {
+        require(game.gameParameters.isOnlineMultiplayer) {
+            "AI-only advancement is available only for online matches"
         }
-        AuthoritativeAutomatedOrderExecutor.executePending(actorCivilization)
-        game.nextTurn(executionContext = executionContext)
+        require(game.victoryData == null) { "The match has already ended" }
+        require(game.civilizations.none { it.isHuman() && !it.isSpectator() }) {
+            "AI-only advancement requires a match with no human players"
+        }
+        require(game.currentPlayerCiv.isAI()) {
+            "The current player is not an AI civilization"
+        }
+        game.nextTurn(
+            executionContext = executionContext,
+            maxAiTurns = 1,
+            startNextPlayer = false,
+        )
         return result(game)
     }
 
@@ -762,9 +777,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot move a unit outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(destination in game.tileMap) { "Destination is outside the canonical map" }
@@ -809,9 +822,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot order a unit outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(destination in game.tileMap) { "Destination is outside the canonical map" }
@@ -840,9 +851,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot cancel a unit order outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(unit.isMoving() || actorCivilization.units.getCivUnits().any {
@@ -863,9 +872,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change unit exploration outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(!unit.baseUnit.movesLikeAirUnits) { "Air units cannot explore" }
@@ -891,9 +898,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change unit automation outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         if (enabled) {
@@ -920,9 +925,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change a unit posture outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(posture in UnitControlProjection.availablePostures(unit)) {
@@ -960,9 +963,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot swap units outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val unit = actorCivilization.units.getUnitById(unitId)
             ?: error("Unit is not controlled by the authenticated actor")
         require(destination in game.tileMap) { "Destination is outside the canonical map" }
@@ -999,9 +1000,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change production outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         val city = actorCivilization.cities.firstOrNull { it.id == cityId }
             ?: error("City is not controlled by the authenticated actor")
         require(!city.isPuppet) { "Puppet-city production cannot be selected manually" }
@@ -1784,6 +1783,24 @@ class HeadlessGameEngine(
         return result(game)
     }
 
+    /** Checks whether the actor can issue turn commands. In sequential mode,
+     *  the actor must be the single current player. In simultaneous mode, the
+     *  actor must be an active human who has not yet ended their turn. */
+    private fun requireCanIssueTurnCommands(game: GameInfo, actorCivilization: com.unciv.logic.civilization.Civilization) {
+        if (game.gameParameters.simultaneousHumanTurns) {
+            require(actorCivilization.isHuman() && actorCivilization.isAlive() && !actorCivilization.isSpectator()) {
+                "Authenticated actor cannot issue commands outside their turn"
+            }
+            require(actorCivilization.civID !in game.playersWhoEndedTurn) {
+                "Authenticated actor has already ended their turn"
+            }
+        } else {
+            require(game.currentPlayer == actorCivilization.civID) {
+                "Authenticated actor cannot issue commands outside their turn"
+            }
+        }
+    }
+
     private fun requireOwnedCurrentTurnCity(
         game: GameInfo,
         actorCivilizationId: String,
@@ -1792,11 +1809,10 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot change production outside their turn"
-        }
-        return actorCivilization.cities.firstOrNull { it.id == cityId }
+        requireCanIssueTurnCommands(game, actorCivilization)
+        val city = actorCivilization.cities.firstOrNull { it.id == cityId }
             ?: error("City is not controlled by the authenticated actor")
+        return city
     }
 
     /** Selects a destination technology. The client cannot author a research
@@ -1810,9 +1826,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot select research outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(technologyName.isNotBlank() && technologyName.length <= 128) {
             "Technology name is invalid"
         }
@@ -1845,9 +1859,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot manage research outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(technologyName.isNotBlank() && technologyName.length <= 128) {
             "Technology name is invalid"
         }
@@ -1867,9 +1879,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot adopt a policy outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(policyName.isNotBlank() && policyName.length <= 128) { "Policy name is invalid" }
         val policy = game.ruleset.policies[policyName]
             ?: error("Policy is unavailable in the pinned ruleset")
@@ -1891,9 +1901,7 @@ class HeadlessGameEngine(
         val actorCivilization = game.civilizations.singleOrNull {
             it.civID == actorCivilizationId && it.playerId == executionContext.actorId
         } ?: error("Authenticated actor is not assigned to this civilization")
-        require(game.currentPlayer == actorCivilization.civID) {
-            "Authenticated actor cannot choose a free technology outside their turn"
-        }
+        requireCanIssueTurnCommands(game, actorCivilization)
         require(technologyName.isNotBlank() && technologyName.length <= 128) {
             "Technology name is invalid"
         }

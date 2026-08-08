@@ -1952,6 +1952,111 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/commands/advance-ai-turn": {
+      "post": {
+        "tags": [],
+        "summary": "Advances exactly one AI civilization in a zero-human match. The authenticated\nowner is a spectator; no client civilization or AI outcome crosses the API.",
+        "operationId": "advance_ai_turn",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvanceAiTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/commands/air-sweep": {
       "post": {
         "tags": [],
@@ -9995,6 +10100,154 @@
         ]
       }
     },
+    "/api/v3/games/{game_id}/revisions": {
+      "get": {
+        "tags": [],
+        "operationId": "list_revisions",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/games/{game_id}/revisions/{revision}/replay": {
+      "get": {
+        "tags": [],
+        "operationId": "replay_projection",
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayGameProjection"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/games/{game_id}/rewind-checkpoints": {
       "get": {
         "tags": [],
@@ -11204,6 +11457,64 @@
         ]
       }
     },
+    "/api/v3/public-matches": {
+      "get": {
+        "tags": [],
+        "operationId": "list_public_matches",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicMatchSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    },
     "/api/v3/ruleset-manifests": {
       "get": {
         "tags": [],
@@ -11438,6 +11749,31 @@
           },
           "policy_name": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdvanceAiTurnRequest": {
+        "type": "object",
+        "required": [
+          "command_id",
+          "expected_revision"
+        ],
+        "properties": {
+          "client_observed_state_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -12301,7 +12637,6 @@
       "CreateGameSetupRequest": {
         "type": "object",
         "required": [
-          "owner_civilization_id",
           "difficulty",
           "speed",
           "starting_era",
@@ -12437,7 +12772,10 @@
             "type": "boolean"
           },
           "owner_civilization_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rare_features_richness": {
             "type": "number",
@@ -12448,6 +12786,9 @@
             "format": "float"
           },
           "shuffle_player_order": {
+            "type": "boolean"
+          },
+          "simultaneous_human_turns": {
             "type": "boolean"
           },
           "speed": {
@@ -13047,9 +13388,16 @@
           "canonical_state_hash",
           "role",
           "available",
-          "lifecycle_status"
+          "lifecycle_status",
+          "ai_count"
         ],
         "properties": {
+          "ai_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of AI civilizations in this match. Derived from the lobby setup's\n`major_civilizations` minus `human_slots`; zero when no lobby exists.",
+            "minimum": 0
+          },
           "available": {
             "type": "boolean"
           },
@@ -14061,6 +14409,12 @@
           "wonderEvents"
         ],
         "properties": {
+          "activePlayerCivilizationIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "cityStatePartners": {
             "type": "array",
             "items": {
@@ -16253,6 +16607,36 @@
         },
         "additionalProperties": false
       },
+      "PublicMatchSummary": {
+        "type": "object",
+        "required": [
+          "gameId",
+          "displayName",
+          "lifecycleStatus",
+          "headRevision",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "headRevision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "lifecycleStatus": {
+            "type": "string"
+          }
+        }
+      },
       "PublicRulesetIdentity": {
         "type": "object",
         "required": [
@@ -16640,6 +17024,280 @@
         },
         "additionalProperties": false
       },
+      "ReplayCivilization": {
+        "type": "object",
+        "description": "Per-civilization summary for replay, with stats visible to all.",
+        "required": [
+          "civilizationId",
+          "displayName",
+          "humanControlled",
+          "defeated",
+          "gold",
+          "cityCount",
+          "unitCount",
+          "population",
+          "technologiesResearched",
+          "policiesAdopted",
+          "statsHistory"
+        ],
+        "properties": {
+          "cityCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "civilizationId": {
+            "type": "string"
+          },
+          "defeated": {
+            "type": "boolean"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "gold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "humanControlled": {
+            "type": "boolean"
+          },
+          "policiesAdopted": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "population": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "statsHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplayStatsEntry"
+            }
+          },
+          "technologiesResearched": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "unitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplayGameProjection": {
+        "type": "object",
+        "required": [
+          "gameId",
+          "projectionVersion",
+          "committedRevision",
+          "canonicalStateHash",
+          "projectionHash",
+          "projection"
+        ],
+        "properties": {
+          "canonicalStateHash": {
+            "type": "string"
+          },
+          "committedRevision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "gameId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/ReplayProjection"
+          },
+          "projectionHash": {
+            "type": "string"
+          },
+          "projectionVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "ReplayMap": {
+        "type": "object",
+        "description": "Minimal map data for replay rendering.",
+        "required": [
+          "worldWrap",
+          "tiles"
+        ],
+        "properties": {
+          "tiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplayTile"
+            }
+          },
+          "worldWrap": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplayProjection": {
+        "type": "object",
+        "description": "Full no-fog-of-war projection of the entire game state for match replay.\nAll civilizations' data is visible — no fog-of-war filtering.",
+        "required": [
+          "protocolVersion",
+          "turn",
+          "currentPlayerCivilizationId",
+          "majorCivilizations",
+          "map"
+        ],
+        "properties": {
+          "currentPlayerCivilizationId": {
+            "type": "string"
+          },
+          "majorCivilizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReplayCivilization"
+            }
+          },
+          "map": {
+            "$ref": "#/components/schemas/ReplayMap"
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "turn": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "victory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedVictory"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplayStatsEntry": {
+        "type": "object",
+        "description": "One turn's stats for a civilization in the replay.",
+        "required": [
+          "turn",
+          "score",
+          "population",
+          "growth",
+          "production",
+          "gold",
+          "territory",
+          "force",
+          "happiness",
+          "technologies",
+          "culture"
+        ],
+        "properties": {
+          "culture": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "force": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "growth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "happiness": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "population": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "production": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "technologies": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "territory": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "turn": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplayTile": {
+        "type": "object",
+        "description": "A tile in the replay map, with terrain and optional owner.",
+        "required": [
+          "x",
+          "y",
+          "baseTerrain",
+          "terrainFeatures"
+        ],
+        "properties": {
+          "baseTerrain": {
+            "type": "string"
+          },
+          "naturalWonderName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownerCivilizationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "terrainFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ResearchQueueAction": {
         "type": "string",
         "enum": [
@@ -16799,6 +17457,20 @@
         },
         "additionalProperties": false
       },
+      "RevisionList": {
+        "type": "object",
+        "required": [
+          "revisions"
+        ],
+        "properties": {
+          "revisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevisionSummary"
+            }
+          }
+        }
+      },
       "RevisionNotification": {
         "type": "object",
         "required": [
@@ -16827,6 +17499,27 @@
             "minimum": 0
           },
           "type": {
+            "type": "string"
+          }
+        }
+      },
+      "RevisionSummary": {
+        "type": "object",
+        "required": [
+          "revision",
+          "revisionKind",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "revisionKind": {
             "type": "string"
           }
         }
@@ -17679,6 +18372,12 @@
           "majorCivilizations"
         ],
         "properties": {
+          "activePlayerCivilizationIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "currentPlayerCivilizationId": {
             "type": "string"
           },

@@ -8,6 +8,7 @@ use crate::{
 
 pub use crate::projection_city_economy::*;
 pub use crate::projection_combat::*;
+pub use crate::projection_replay::*;
 pub use crate::projection_spectator::*;
 pub use crate::projection_tiles::*;
 pub use crate::projection_wonder_events::*;
@@ -22,6 +23,8 @@ pub struct PlayerProjection {
     pub civilization_id: String,
     pub turn: i32,
     pub current_player_civilization_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub active_player_civilization_ids: Vec<String>,
     pub is_current_turn: bool,
     pub victory: Option<ProjectedVictory>,
     pub pending_turn_actions: Vec<PendingEndTurnAction>,

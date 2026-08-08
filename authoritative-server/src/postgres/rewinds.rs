@@ -54,7 +54,7 @@ impl PostgresGameRepository {
                   AND gm.role IN ('owner','player')
              JOIN game_revisions r ON r.game_id=g.id AND r.revision < g.head_revision
              JOIN game_snapshots s ON s.game_id=r.game_id AND s.revision=r.snapshot_revision
-             JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
+             LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
              JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash
              LEFT JOIN game_commands c ON c.game_id=r.game_id AND c.command_id=r.command_id
              WHERE g.id=$1 AND g.lifecycle_status='active'
@@ -142,8 +142,11 @@ impl PostgresGameRepository {
             "SELECT EXISTS(
                SELECT 1 FROM game_revisions r
                LEFT JOIN game_commands c ON c.game_id=r.game_id AND c.command_id=r.command_id
-               JOIN game_snapshot_blobs b ON b.game_id=r.game_id AND b.revision=r.snapshot_revision
+               JOIN game_snapshots s ON s.game_id=r.game_id AND s.revision=r.snapshot_revision
+               LEFT JOIN game_snapshot_blobs b ON b.game_id=r.game_id AND b.revision=r.snapshot_revision
+               LEFT JOIN game_snapshot_archives a ON a.game_id=r.game_id AND a.revision=r.snapshot_revision
                WHERE r.game_id=$1 AND r.revision=$2
+                 AND (b.game_id IS NOT NULL OR a.game_id IS NOT NULL)
                  AND (r.revision=0 OR c.payload->'command'->>'type'='end_turn'))",
         )
         .bind(game_id)
@@ -410,7 +413,7 @@ impl PostgresGameRepository {
              JOIN games g ON g.id=q.game_id
              JOIN game_revisions r ON r.game_id=q.game_id AND r.revision=q.target_revision
              JOIN game_snapshots s ON s.game_id=r.game_id AND s.revision=r.snapshot_revision
-             JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
+             LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
              JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash
              WHERE q.game_id=$1 AND q.request_id=$2 AND q.status='pending'",
         )

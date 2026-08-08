@@ -57,6 +57,10 @@ class GameParameters : IsPartOfGameInfoSerialization { // Default values are the
     var isOnlineMultiplayer = false
     var multiplayerServerUrl: String? = null
     var anyoneCanSpectate = true
+    /** When true in online multiplayer, all human players act on the same turn
+     *  simultaneously (Civ VI style) instead of sequentially. AI turns remain
+     *  sequential after all humans have ended their turn. */
+    var simultaneousHumanTurns = false
     /** After this amount of minutes, anyone can choose to 'skip turn' of the current player to keep the game going */
     var minutesUntilSkipTurn = 60 * 24
     /** Initial players' timer to play before they can be forced to resign permanently*/
@@ -104,6 +108,7 @@ class GameParameters : IsPartOfGameInfoSerialization { // Default values are the
         parameters.isOnlineMultiplayer = isOnlineMultiplayer
         parameters.multiplayerServerUrl = multiplayerServerUrl
         parameters.anyoneCanSpectate = anyoneCanSpectate
+        parameters.simultaneousHumanTurns = simultaneousHumanTurns
         parameters.baseRuleset = baseRuleset
         parameters.mods = LinkedHashSet(mods)
         parameters.maxTurns = maxTurns

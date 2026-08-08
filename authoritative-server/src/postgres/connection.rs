@@ -152,6 +152,8 @@ impl PostgresGameRepository {
     ) -> Result<Self, sqlx::Error> {
         let statement_timeout = format!("{}ms", config.statement_timeout_ms);
         let lock_timeout = format!("{}ms", config.lock_timeout_ms);
+        let object_store = LockwellObjectStore::from_env()
+            .map_err(|error| sqlx::Error::Configuration(Box::new(error)))?;
         let pool = PgPoolOptions::new()
             .max_connections(config.max_connections)
             .min_connections(config.min_connections)
@@ -174,7 +176,7 @@ impl PostgresGameRepository {
             })
             .connect(database_url)
             .await?;
-        Ok(Self { pool })
+        Ok(Self { pool, object_store })
     }
 
     pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {

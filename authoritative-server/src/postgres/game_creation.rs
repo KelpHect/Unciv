@@ -14,12 +14,22 @@ impl PostgresGameRepository {
         setup: crate::worker::WorkerGameSetup,
         lobby: LobbyCreateConfiguration,
     ) -> Result<Uuid, CommitError> {
+        // The host UI uses the password as the explicit access-policy control:
+        // password-protected rooms are private; password-free rooms are public
+        // replay candidates. Bind that derived policy into the idempotency
+        // meaning so a retry cannot silently change visibility.
+        let visibility = if lobby.password_hash.is_some() {
+            "private"
+        } else {
+            "public"
+        };
         let request = json!({
             "ruleset_manifest_hash": ruleset_manifest_hash,
             "setup": &setup,
             "display_name": &lobby.display_name,
             "human_slots": lobby.human_slots,
             "password_identity": &lobby.password_identity,
+            "visibility": visibility,
             "available_civilizations": &lobby.available_civilizations,
         });
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
@@ -98,11 +108,13 @@ impl PostgresGameRepository {
             return Err(CommitError::InvalidSnapshotHash);
         }
 
-        if created.available_civilization_ids.len() < usize::from(lobby.human_slots)
-            || created.owner_civilization_id != canonical_setup.owner_civilization_id
-            || !created
-                .available_civilization_ids
-                .contains(&created.owner_civilization_id)
+        let human_slots = lobby.human_slots;
+        if created.available_civilization_ids.len() < usize::from(human_slots)
+            || (human_slots > 0
+                && (created.owner_civilization_id != canonical_setup.owner_civilization_id
+                    || !created
+                        .available_civilization_ids
+                        .contains(&created.owner_civilization_id)))
         {
             return Err(CommitError::WorkerRevisionMismatch);
         }

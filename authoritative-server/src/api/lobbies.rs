@@ -105,7 +105,7 @@ pub(super) async fn reconfigure_lobby(
         || request.display_name.trim().is_empty()
         || request.display_name.len() > 80
         || request.display_name.chars().any(char::is_control)
-        || !(1..=16).contains(&request.human_slots)
+        || !(0..=16).contains(&request.human_slots)
     {
         return Err(ApiError::bad_request("invalid_lobby_configuration"));
     }

@@ -10,6 +10,7 @@ pub enum ReconciliationKind {
     InvalidHead,
     MissingSnapshot,
     MissingSnapshotPayload,
+    MissingSnapshotArchive,
     OrphanSnapshot,
     BrokenRevisionChain,
     MissingRevisionCommand,
@@ -32,6 +33,7 @@ impl ReconciliationKind {
             "invalid_head" => Self::InvalidHead,
             "missing_snapshot" => Self::MissingSnapshot,
             "missing_snapshot_payload" => Self::MissingSnapshotPayload,
+            "missing_snapshot_archive" => Self::MissingSnapshotArchive,
             "orphan_snapshot" => Self::OrphanSnapshot,
             "broken_revision_chain" => Self::BrokenRevisionChain,
             "missing_revision_command" => Self::MissingRevisionCommand,
@@ -45,6 +47,7 @@ impl ReconciliationKind {
             "duplicate_civilization_membership" => Self::DuplicateCivilizationMembership,
             "invalid_owner_count" => Self::InvalidOwnerCount,
             "quarantined_game" => Self::QuarantinedGame,
+            "invalid_snapshot_payload" => Self::InvalidSnapshotPayload,
             _ => unreachable!("reconciliation SQL emits a closed finding set"),
         }
     }
@@ -105,7 +108,10 @@ impl PostgresGameRepository {
             LEFT JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
             LEFT JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.snapshot_revision
             LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision
-            WHERE r.game_id IS NULL OR s.game_id IS NULL OR b.game_id IS NULL
+            LEFT JOIN game_snapshot_archives a ON a.game_id=s.game_id AND a.revision=s.revision
+            WHERE r.game_id IS NULL OR s.game_id IS NULL
+               OR (s.payload_retention_status='retained' AND b.game_id IS NULL)
+               OR (s.payload_retention_status='compacted' AND s.codec='zstd_delta' AND a.game_id IS NULL)
                OR r.snapshot_revision<>g.head_revision
             UNION ALL
             SELECT 'missing_snapshot', r.game_id, r.revision, 'revision references no snapshot'
@@ -118,6 +124,13 @@ impl PostgresGameRepository {
             FROM game_snapshots s LEFT JOIN game_snapshot_blobs b
               ON b.game_id=s.game_id AND b.revision=s.revision
             WHERE s.payload_retention_status='retained' AND b.game_id IS NULL
+            UNION ALL
+            SELECT 'missing_snapshot_archive', s.game_id, s.revision,
+                   'compacted snapshot metadata has no verified cold archive'
+            FROM game_snapshots s LEFT JOIN game_snapshot_archives a
+              ON a.game_id=s.game_id AND a.revision=s.revision
+            WHERE s.payload_retention_status='compacted'
+              AND s.codec='zstd_delta' AND a.game_id IS NULL
             UNION ALL
             SELECT 'orphan_snapshot', s.game_id, s.revision, 'snapshot has no matching revision'
             FROM game_snapshots s LEFT JOIN game_revisions r

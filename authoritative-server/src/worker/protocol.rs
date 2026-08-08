@@ -55,6 +55,9 @@ pub(super) enum WorkerOperation<'a> {
         #[serde(rename = "actorCivilizationId")]
         actor_civilization_id: &'a str,
     },
+    AdvanceAiTurn {
+        snapshot: &'a str,
+    },
     Resign {
         snapshot: &'a str,
         #[serde(rename = "actorCivilizationId")]
@@ -750,6 +753,9 @@ pub(super) enum WorkerOperation<'a> {
         snapshot: &'a str,
     },
     ProjectLobbyTerrain {
+        snapshot: &'a str,
+    },
+    ProjectReplayState {
         snapshot: &'a str,
     },
 }

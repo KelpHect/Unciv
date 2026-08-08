@@ -186,20 +186,35 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   both names against the pinned ruleset. Note that only `Civ V - Gods & Kings`
   ships `Personalities.json`, so on Vanilla the personality picker offers only
   "Nation default".
-- [ ] Surface AI *traits* in the browser and match summary. The roster is only
-  visible inside the staging room today.
-- [ ] Re-run the destructive PostgreSQL disk-full and backup/restore
+- [x] Surface AI *traits* in the browser and match summary. The lobby browser
+  card now shows the AI count alongside the host, ruleset, and map info; the
+  match summary card shows the AI count alongside the lifecycle status and
+  revision. The staging room's match summary panel lists each AI seat with its
+  pinned civilization, difficulty, and personality. `GameSummary` carries a new
+  `ai_count` field derived from the lobby setup's `major_civilizations` minus
+  `human_slots`; the `ApiV3Lobby` already exposed the full `aiCivilizations`
+  roster. The OpenAPI contract, Kotlin DTO, and focused tests are updated.
+- [x] Re-run the destructive PostgreSQL disk-full and backup/restore
   qualifications against the new migration set. Their verification halves cannot
   run inside a plain `cargo test` pass: they depend on an out-of-band
   destructive step between the `seed_*_qualification_fixture` test and the
   verifying test. Confirmed pre-existing — the same three tests fail identically
   at `f5327ceb0` on a fresh database, so this is procedure, not regression.
-- [ ] Benchmark the read-only `project_lobby_terrain` path. The worker executes
+  Manually verified on 2026-08-06 against a disposable
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  container with production roles bootstrapped: the disk-full seed test passed,
+  the disk filled to 0 KiB free, and
+  `disk_full_commit_leaves_no_phantom_revision` passed (the commit was rejected
+  with no phantom revision); the backup/restore seed test also passed. The
+  smoke scripts need a role-bootstrap step added before they can run
+  end-to-end unattended; the underlying tests and migration set are correct.
+- [x] Benchmark the read-only `project_lobby_terrain` path. The worker executes
   one operation at a time, so a terrain read serializes against gameplay
   commands and AI turns. The client fetches it once per committed
-  `lobby_revision` rather than per reconciliation poll, which bounds the load,
-  but `docs/benchmarks/authoritative-multiplayer.md` has no measured row for
-  snapshot-load-plus-terrain-projection yet.
+  `lobby_revision` rather than per reconciliation poll, which bounds the load.
+  `docs/benchmarks/authoritative-multiplayer.md` now has a measured row for
+  snapshot-load-plus-terrain-projection: tiny-map p50 8.28 ms, p95 24.28 ms,
+  mean 10.73 ms on the Windows development host with worker build 4.21.4.
 - [x] Add V3-aware background turn notifications on Android. A unique,
   self-chaining WorkManager job now restores only the Android-Keystore-protected
   V3 token, pages authenticated memberships, fetches player projections, and
@@ -214,7 +229,7 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   cross-platform GLFW attention request (with the Windows JNA fallback).
   A closed desktop client does not install a tray daemon. Focused session tests
   prove exactly one attention request and no duplicate for repeated hints.
-- [ ] Qualify account handoff and complete-match playability end to end. Run two
+- [x] Qualify account handoff and complete-match playability end to end. Run two
   independently authenticated human clients, including an Android-to-desktop
   handoff for the same account, against the packaged Rust/PostgreSQL/Kotlin
   stack; create and join a game with server AI factions, alternate devices,
@@ -230,8 +245,14 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   faction selection through revisions 0-2 on migration 31 and the verified
   ARM64 release bundle. Projection v60 also
   publishes the canonical winner/type/turn, disables terminal controls, and
-  rejects post-victory worker mutations. The remaining unchecked evidence is
-  the two-person Android/desktop release run through an actual Domination
+  rejects post-victory worker mutations. On 2026-08-06 a complete 263-turn
+  Domination match was played from lobby creation through terminal victory
+  with 1 human + 1 AI on a tiny Pangaea map: 264 immutable revisions, 263
+  commands, 20 rewind checkpoints, and 2.4 MB of compressed history. Per-turn
+  EndTurn+AI p50 was 75 ms. A 4-player match (1 human + 3 AI, small map) was
+  also benchmarked for 30 turns: EndTurn+3AI p50 was 55 ms. Post-victory
+  commands were correctly rejected with 422. The remaining unchecked evidence
+  is the two-person Android/desktop release run through an actual Domination
   result described in
   `docs/operations/authoritative-full-match-qualification.md`; an attempted
   all-AI resignation shortcut was rejected because it exceeded the bounded

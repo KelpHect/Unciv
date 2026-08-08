@@ -224,8 +224,11 @@ impl PostgresGameRepository {
                 })
             })
             .collect::<Result<Vec<_>, CommitError>>()?;
-        if participants.is_empty()
-            || participants[0].account_id != current.owner_account_id.to_string()
+        if participants.is_empty() && current.human_slots > 0 {
+            return Err(CommitError::InvalidCommand);
+        }
+        if !participants.is_empty()
+            && participants[0].account_id != current.owner_account_id.to_string()
         {
             return Err(CommitError::InvalidCommand);
         }
@@ -249,7 +252,9 @@ impl PostgresGameRepository {
                         current.password_identity = Some(identity);
                     }
                 }
-                participants[0].civilization_id = current.setup.owner_civilization_id.clone();
+                if !participants.is_empty() {
+                    participants[0].civilization_id = current.setup.owner_civilization_id.clone();
+                }
             }
             ReconfigurationIntent::MemberFaction(civilization_id) => {
                 if civilization_id.is_empty()
@@ -272,7 +277,7 @@ impl PostgresGameRepository {
         if current.display_name.trim().is_empty()
             || current.display_name.len() > 80
             || current.display_name.chars().any(char::is_control)
-            || !(1..=16).contains(&current.human_slots)
+            || !(0..=16).contains(&current.human_slots)
             || current.human_slots < u8::try_from(participants.len()).unwrap_or(u8::MAX)
             || current.human_slots > current.setup.major_civilizations
             || participants
@@ -390,14 +395,20 @@ impl PostgresGameRepository {
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;
+        let visibility = if current.password_hash.is_some() {
+            "private"
+        } else {
+            "public"
+        };
         let updated = sqlx::query(
-            "UPDATE games SET head_revision=$2, display_name=$3
+            "UPDATE games SET head_revision=$2, display_name=$3, visibility=$5
              WHERE id=$1 AND head_revision=$4",
         )
         .bind(game_id)
         .bind(revision_i64)
         .bind(&current.display_name)
         .bind(head_i64)
+        .bind(visibility)
         .execute(&mut *tx)
         .await
         .map_err(CommitError::storage)?;

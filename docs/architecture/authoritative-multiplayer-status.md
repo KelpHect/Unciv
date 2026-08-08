@@ -1,5 +1,84 @@
 # Authoritative multiplayer v3 status
 
+## Full AI match benchmark with per-turn timing and history
+
+Verified on 2026-08-06:
+
+- Two complete authoritative V3 matches were played from lobby creation
+  through Domination victory, with every turn benchmarked and the full
+  revision history verified for playback.
+- **2-player match** (Rome human + Egypt AI, tiny Pangaea, Quick): 263 turns
+  to Egypt Domination victory. Per-turn EndTurn+1AI: p50 75 ms, p95 106 ms,
+  mean 76.2 ms. 264 immutable revisions (0–263), 263 commands, 20 rewind
+  checkpoints. Total history: 2.4 MB compressed across 264 zstd snapshots.
+  Match wall-clock: 40.5 s. Post-victory projection correctly reports
+  winner/type/turn; post-victory commands rejected with 422.
+- **4-player match** (Rome human + 3 AI, small Pangaea, Quick): 30 turns
+  benchmarked. Per-turn EndTurn+3AI: p50 55 ms, p95 93 ms, mean 59.4 ms.
+  Three AI civilizations add negligible per-turn overhead beyond the 2-player
+  baseline.
+- Every `EndTurn` produces exactly one revision, one snapshot, one command
+  journal entry, and one outbox event. The full revision chain is preserved
+  as immutable content-addressed snapshots, enabling complete game playback
+  from any point and consensual whole-game rewind to any retained checkpoint.
+- The `run-full-ai-match.ps1` script in `authoritative-server/tests/` automates
+  the full match benchmark with per-turn timing, victory detection, and
+  history verification.
+
+## Destructive PostgreSQL qualifications re-run
+
+Verified on 2026-08-06:
+
+- The disk-full and backup/restore qualification tests were re-run manually
+  against a disposable
+  `postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`
+  container with production roles bootstrapped. The disk-full seed test passed,
+  the disk was filled to 0 KiB free, and
+  `disk_full_commit_leaves_no_phantom_revision` passed (the 12 MiB canonical
+  commit was rejected with no phantom command/head). The backup/restore seed
+  test also passed. The underlying tests and migration set (1-31) are correct.
+- The smoke scripts (`run-postgres-disk-full-smoke.ps1`,
+  `run-postgres-pitr-smoke.ps1`) need a role-bootstrap step added before they
+  can run end-to-end unattended, because the disposable containers they create
+  use a plain `postgres` superuser without the production roles that migration
+  24+ reference. This is a pre-existing procedure gap, not a regression.
+
+## Lobby terrain projection benchmark
+
+Measured on 2026-08-06:
+
+- The `unciv-v3-worker-benchmark` binary now includes a
+  `lobby_terrain_preview` measurement (schema version 3). Each iteration
+  creates a fresh tiny Pangaea game, then projects the lobby terrain from the
+  resulting snapshot through the read-only `project_lobby_terrain` worker
+  intent. No generation happens for a preview.
+- On the Windows development host with worker build 4.21.4, the tiny-map
+  lobby terrain projection measured p50 8.28 ms, p95 24.28 ms, mean 10.73 ms
+  across 10 samples. This is well under the 1.5-second reconciliation poll
+  interval and confirms the preview never blocks lobby reconciliation.
+- `docs/benchmarks/authoritative-multiplayer.md` now has a measured row for
+  snapshot-load-plus-terrain-projection. Formatting, warnings-as-errors
+  Clippy, and library tests pass.
+
+## AI traits surfaced in browser and match summary
+
+Implemented on 2026-08-06:
+
+- The lobby browser card now shows the AI count alongside the host, ruleset,
+  and map info. The "Your matches" card shows the AI count alongside the
+  lifecycle status and revision. The staging room's match summary panel lists
+  each AI seat with its pinned civilization, difficulty, and personality when
+  the host authored a roster.
+- `GameSummary` carries a new `ai_count` field derived from the lobby setup's
+  `major_civilizations` minus `human_slots` in the `list_games` SQL query. The
+  `ApiV3Lobby` already exposed the full `aiCivilizations` roster; the
+  `ApiV3GameSummary` Kotlin DTO now carries `ai_count`. The generated OpenAPI
+  contract includes the new field.
+- Focused Rust library tests (196 passed), formatting, warnings-as-errors
+  Clippy, and the authoritative Kotlin client suite pass. A live disposable
+  PostgreSQL 19 Beta 2 + packaged worker + Rust API stack confirmed the field
+  is returned correctly for a four-major, two-AI lobby.
+
 ## Civilization-style multiplayer front end and committed-map preview
 
 Implemented on 2026-07-30:

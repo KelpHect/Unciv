@@ -7,6 +7,8 @@ pub struct SpectatorProjection {
     pub protocol_version: u16,
     pub turn: i32,
     pub current_player_civilization_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub active_player_civilization_ids: Vec<String>,
     pub victory: Option<crate::projection::ProjectedVictory>,
     pub major_civilizations: Vec<SpectatorCivilization>,
 }

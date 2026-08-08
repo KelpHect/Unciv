@@ -6,6 +6,12 @@ fn generated_openapi_matches_checked_in_contract() {
         "{}\n",
         serde_json::to_string_pretty(&ApiDoc::openapi()).unwrap()
     );
+    if std::env::var("UNCIV_V3_REGENERATE_OPENAPI").is_ok() {
+        std::fs::write("openapi/api-v3.json", &generated)
+            .expect("failed to write openapi/api-v3.json");
+        eprintln!("Regenerated openapi/api-v3.json");
+        return;
+    }
     assert_eq!(generated, include_str!("../../openapi/api-v3.json"));
 }
 
@@ -171,8 +177,12 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "/api/v3/games/{game_id}/spectator-projection",
         "/api/v3/games/{game_id}/spectators",
         "/api/v3/games/{game_id}/spectator-revocations",
+        "/api/v3/games/{game_id}/revisions",
+        "/api/v3/games/{game_id}/revisions/{revision}/replay",
+        "/api/v3/public-matches",
         "/api/v3/games/{game_id}/join",
         "/api/v3/games/{game_id}/commands/end-turn",
+        "/api/v3/games/{game_id}/commands/advance-ai-turn",
         "/api/v3/games/{game_id}/commands/resign",
         "/api/v3/games/{game_id}/commands/force-resign",
         "/api/v3/games/{game_id}/commands/kick-member",
@@ -288,6 +298,7 @@ fn openapi_covers_routes_security_and_closed_command_shapes() {
         "VoteRewindRequest",
         "AddSpectatorRequest",
         "EndTurnRequest",
+        "AdvanceAiTurnRequest",
         "ResignRequest",
         "ForceResignRequest",
         "KickMemberRequest",

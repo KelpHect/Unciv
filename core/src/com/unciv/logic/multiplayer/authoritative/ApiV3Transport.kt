@@ -193,9 +193,19 @@ interface ApiV3Transport {
     suspend fun chooseFreeTechnology(gameId: String, request: ApiV3ChooseFreeTechnologyRequest): ApiV3CommandAccepted
     suspend fun acknowledgeResearchCompletion(gameId: String, request: ApiV3AcknowledgeResearchCompletionRequest): ApiV3CommandAccepted
     suspend fun endTurn(gameId: String, request: ApiV3EndTurnRequest): ApiV3CommandAccepted
+    suspend fun advanceAiTurn(
+        gameId: String,
+        request: ApiV3AdvanceAiTurnRequest,
+    ): ApiV3CommandAccepted = error("All-AI advancement is unsupported by this transport")
     suspend fun resign(gameId: String, request: ApiV3ResignRequest): ApiV3CommandAccepted
     suspend fun forceResign(gameId: String, request: ApiV3ForceResignRequest): ApiV3CommandAccepted
     suspend fun kickMember(gameId: String, request: ApiV3KickMemberRequest): ApiV3CommandAccepted
+    suspend fun getRevisions(gameId: String): ApiV3RevisionList =
+        error("Replay revisions are unsupported by this transport")
+    suspend fun getReplayProjection(gameId: String, revision: Long): ApiV3ReplayGameProjection =
+        error("Replay projection is unsupported by this transport")
+    suspend fun listPublicMatches(limit: Int = 50, offset: Int = 0): List<ApiV3PublicMatchSummary> =
+        error("Public match listing is unsupported by this transport")
     fun notifications(): Flow<ApiV3RevisionNotification>
 }
 

@@ -38,6 +38,7 @@ mod manifest;
 mod protocol;
 mod queue;
 mod religion;
+mod replay;
 mod research;
 mod response;
 mod spectators;
@@ -97,7 +98,7 @@ pub use trade::{CounterTradeIntent, OfferTradeIntent, TradePartnerIntent, TradeR
 #[cfg(test)]
 pub(crate) use transport::{read_authenticated_test_frame, write_authenticated_test_frame};
 
-pub const WORKER_PROTOCOL_VERSION: u16 = 7;
+pub const WORKER_PROTOCOL_VERSION: u16 = 8;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone)]
@@ -591,6 +592,23 @@ impl EngineWorkerClient {
                     snapshot,
                     actor_civilization_id,
                 },
+            )
+            .await?;
+        commit_proposal(previous_revision, response)
+    }
+
+    pub async fn advance_ai_turn(
+        &self,
+        actor_id: &str,
+        manifest: &WorkerManifest,
+        previous_revision: u64,
+        snapshot: &str,
+    ) -> Result<CommitProposal, WorkerClientError> {
+        let response = self
+            .execute(
+                actor_id,
+                manifest,
+                WorkerOperation::AdvanceAiTurn { snapshot },
             )
             .await?;
         commit_proposal(previous_revision, response)

@@ -32,6 +32,7 @@ class PackagedWorkerParityCoverageTests {
                 "normalize_legacy_game",
                 "assign_player",
                 "end_turn",
+                "advance_ai_turn",
                 "resign",
                 "force_resign",
                 "kick_player",
@@ -113,6 +114,7 @@ class PackagedWorkerParityCoverageTests {
                 "project_state",
                 "project_spectator_state",
                 "project_lobby_terrain",
+                "project_replay_state",
             ),
             coverage.filterValues { it != ParityEvidence.InProcessOnly }.keys,
         )
@@ -220,6 +222,7 @@ class PackagedWorkerParityCoverageTests {
             "normalize_legacy_game" to ParityEvidence.FreshProcessStateParity,
             "assign_player" to ParityEvidence.FreshProcessStateParity,
             "end_turn" to ParityEvidence.FreshProcessStateParity,
+            "advance_ai_turn" to ParityEvidence.FreshProcessStateParity,
             "resign" to ParityEvidence.FreshProcessStateParity,
             "force_resign" to ParityEvidence.FreshProcessStateParity,
             "kick_player" to ParityEvidence.FreshProcessStateParity,
@@ -301,6 +304,7 @@ class PackagedWorkerParityCoverageTests {
             "project_state" to ParityEvidence.FreshProcessStateParity,
             "project_spectator_state" to ParityEvidence.FreshProcessStateParity,
             "project_lobby_terrain" to ParityEvidence.FreshProcessStateParity,
+            "project_replay_state" to ParityEvidence.FreshProcessStateParity,
         )
     }
 }

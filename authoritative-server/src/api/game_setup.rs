@@ -39,7 +39,8 @@ impl From<AiSlotRequest> for AiSlot {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CreateGameSetupRequest {
-    owner_civilization_id: String,
+    #[serde(default)]
+    owner_civilization_id: Option<String>,
     difficulty: String,
     speed: String,
     starting_era: String,
@@ -70,6 +71,8 @@ pub(super) struct CreateGameSetupRequest {
     no_ruins: bool,
     no_natural_wonders: bool,
     #[serde(default)]
+    simultaneous_human_turns: bool,
+    #[serde(default)]
     map_seed: Option<i64>,
     #[serde(default)]
     mirroring: MirroringType,
@@ -97,14 +100,15 @@ pub(super) struct CreateGameSetupRequest {
 
 impl CreateGameSetupRequest {
     pub(super) fn validate(mut self) -> Result<WorkerGameSetup, ApiError> {
+        let owner_civ = self.owner_civilization_id.unwrap_or_default();
         let names_are_bounded = [
-            &self.owner_civilization_id,
+            &owner_civ,
             &self.difficulty,
             &self.speed,
             &self.starting_era,
         ]
         .into_iter()
-        .all(|name| bounded_name(name));
+        .all(|name| name.is_empty() || bounded_name(name));
         let victories_are_bounded = !self.victory_types.is_empty()
             && self.victory_types.len() <= 16
             && self.victory_types.iter().all(|name| bounded_name(name))
@@ -149,11 +153,14 @@ impl CreateGameSetupRequest {
                     .map(|slot| &slot.civilization_id)
                     .filter(|name| !name.is_empty())
                     .collect();
-                roster.len() < usize::from(self.major_civilizations)
+                let max_ai_slots = if owner_civ.is_empty() {
+                    usize::from(self.major_civilizations)
+                } else {
+                    usize::from(self.major_civilizations) - 1
+                };
+                roster.len() <= max_ai_slots
                     && roster.iter().all(AiSlotRequest::is_bounded)
-                    && !pinned
-                        .iter()
-                        .any(|name| **name == self.owner_civilization_id)
+                    && !pinned.iter().any(|name| **name == owner_civ)
                     && pinned
                         .iter()
                         .collect::<std::collections::HashSet<_>>()
@@ -182,7 +189,7 @@ impl CreateGameSetupRequest {
         }
         self.victory_types.sort();
         Ok(WorkerGameSetup {
-            owner_civilization_id: self.owner_civilization_id,
+            owner_civilization_id: owner_civ,
             difficulty: self.difficulty,
             speed: self.speed,
             starting_era: self.starting_era,
@@ -209,6 +216,7 @@ impl CreateGameSetupRequest {
             legendary_start: self.legendary_start,
             no_ruins: self.no_ruins,
             no_natural_wonders: self.no_natural_wonders,
+            simultaneous_human_turns: self.simultaneous_human_turns,
             map_seed: self.map_seed,
             mirroring: self.mirroring,
             tiles_per_biome_area: self.tiles_per_biome_area,

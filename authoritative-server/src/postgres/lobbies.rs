@@ -18,9 +18,18 @@ impl PostgresGameRepository {
         setup: &crate::worker::WorkerGameSetup,
         configuration: &LobbyCreateConfiguration,
     ) -> Result<(), CommitError> {
-        sqlx::query("UPDATE games SET display_name=$2 WHERE id=$1")
+        // A blank lobby password is the existing UI's public-room choice. Keep
+        // the visibility decision in the canonical transaction so replay access
+        // cannot drift from the room's access policy.
+        let visibility = if configuration.password_hash.is_some() {
+            "private"
+        } else {
+            "public"
+        };
+        sqlx::query("UPDATE games SET display_name=$2, visibility=$3 WHERE id=$1")
             .bind(game_id)
             .bind(&configuration.display_name)
+            .bind(visibility)
             .execute(&mut **tx)
             .await
             .map_err(CommitError::storage)?;
@@ -40,15 +49,17 @@ impl PostgresGameRepository {
         .execute(&mut **tx)
         .await
         .map_err(CommitError::storage)?;
-        sqlx::query(
-            "INSERT INTO game_lobby_readiness (game_id, account_id, ready)
-             VALUES ($1, $2, FALSE)",
-        )
-        .bind(game_id)
-        .bind(owner_account_id)
-        .execute(&mut **tx)
-        .await
-        .map_err(CommitError::storage)?;
+        if configuration.human_slots > 0 {
+            sqlx::query(
+                "INSERT INTO game_lobby_readiness (game_id, account_id, ready)
+                 VALUES ($1, $2, FALSE)",
+            )
+            .bind(game_id)
+            .bind(owner_account_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(CommitError::storage)?;
+        }
         Ok(())
     }
 

@@ -34,8 +34,8 @@ pub(super) async fn create_game(
     if request.display_name.trim().is_empty()
         || request.display_name.len() > 80
         || request.display_name.chars().any(char::is_control)
-        || !(1..=16).contains(&request.human_slots)
-        || request.available_civilizations.is_empty()
+        || !(0..=16).contains(&request.human_slots)
+        || (request.human_slots > 0 && request.available_civilizations.is_empty())
         || request.available_civilizations.len() > 64
         || request
             .available_civilizations
@@ -68,7 +68,7 @@ pub(super) async fn create_game(
         .collect::<std::collections::HashSet<_>>();
     if unique_civilizations.len() != request.available_civilizations.len()
         || request.available_civilizations.len() < usize::from(request.human_slots)
-        || !unique_civilizations.contains(&setup.owner_civilization_id)
+        || (request.human_slots > 0 && !unique_civilizations.contains(&setup.owner_civilization_id))
     {
         return Err(ApiError::bad_request("invalid_available_civilizations"));
     }

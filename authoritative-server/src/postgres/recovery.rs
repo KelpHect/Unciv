@@ -61,16 +61,12 @@ impl PostgresGameRepository {
             .map_err(|_| CommitError::RecoveryEvidenceMissing)?;
 
         let candidates = sqlx::query(
-            "SELECT s.revision, b.payload, s.codec, s.compressed_size,
-                    s.uncompressed_size, s.protocol_version, s.validation_status,
-                    s.payload_hash, s.canonical_state_hash,
-                    r.canonical_state_hash AS revision_state_hash
+            "SELECT s.revision
              FROM game_snapshots s
-             JOIN game_snapshot_blobs b
-               ON b.game_id=s.game_id AND b.revision=s.revision
              JOIN game_revisions r
                ON r.game_id=s.game_id AND r.revision=s.revision
              WHERE s.game_id=$1 AND s.revision<$2
+               AND s.codec <> 'zstd_delta'
              ORDER BY s.revision DESC",
         )
         .bind(game_id)
@@ -81,29 +77,21 @@ impl PostgresGameRepository {
 
         let mut source = None;
         for candidate in candidates {
-            let payload: Vec<u8> = candidate.get("payload");
-            let decoded = decode_snapshot(
-                candidate.get("codec"),
-                &payload,
-                candidate.get("compressed_size"),
-                candidate.get("uncompressed_size"),
-            );
-            let Ok(snapshot) = decoded else {
+            let candidate_revision: i64 = candidate.get("revision");
+            let Ok(snapshot) = self
+                .canonical_snapshot_at_revision(game_id, candidate_revision)
+                .await
+            else {
                 continue;
             };
-            let hash = state_hash(&snapshot);
-            let valid = candidate.get::<i32, _>("protocol_version") == i32::from(PROTOCOL_VERSION)
-                && candidate.get::<String, _>("validation_status") == "valid"
-                && candidate.get::<String, _>("payload_hash") == state_hash(&payload)
-                && candidate.get::<String, _>("canonical_state_hash") == hash
-                && candidate.get::<String, _>("revision_state_hash") == hash
-                && std::str::from_utf8(&snapshot).is_ok();
-            if valid {
-                let revision = u64::try_from(candidate.get::<i64, _>("revision"))
-                    .map_err(|_| CommitError::RecoveryEvidenceMissing)?;
-                source = Some((revision, snapshot, hash));
-                break;
+            if std::str::from_utf8(&snapshot).is_err() {
+                continue;
             }
+            let hash = state_hash(&snapshot);
+            let revision = u64::try_from(candidate_revision)
+                .map_err(|_| CommitError::RecoveryEvidenceMissing)?;
+            source = Some((revision, snapshot, hash));
+            break;
         }
         let (source_revision, mut snapshot, mut canonical_state_hash) =
             source.ok_or(CommitError::RecoveryEvidenceMissing)?;

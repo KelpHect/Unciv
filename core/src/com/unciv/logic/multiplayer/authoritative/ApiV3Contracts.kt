@@ -88,6 +88,7 @@ data class ApiV3GameSummary(
     val available: Boolean,
     @SerialName("lifecycle_status") val lifecycleStatus: String = "active",
     @SerialName("display_name") val displayName: String = "Multiplayer match",
+    @SerialName("ai_count") val aiCount: Int = 0,
 )
 
 @Serializable
@@ -1001,6 +1002,13 @@ data class ApiV3EndTurnRequest(
 )
 
 @Serializable
+data class ApiV3AdvanceAiTurnRequest(
+    @SerialName("command_id") val commandId: String,
+    @SerialName("expected_revision") val expectedRevision: Long,
+    @SerialName("client_observed_state_hash") val clientObservedStateHash: String,
+)
+
+@Serializable
 data class ApiV3ResignRequest(
     @SerialName("command_id") val commandId: String,
     @SerialName("expected_revision") val expectedRevision: Long,
@@ -1071,3 +1079,34 @@ class ApiV3Exception(
     val httpStatus: Int,
     val error: ApiV3ErrorResponse,
 ) : Exception(error.code)
+
+@Serializable
+data class ApiV3RevisionSummary(
+    val revision: Long,
+    @SerialName("revision_kind") val revisionKind: String,
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+data class ApiV3RevisionList(
+    val revisions: List<ApiV3RevisionSummary>,
+)
+
+@Serializable
+data class ApiV3ReplayGameProjection(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("projection_version") val projectionVersion: Int,
+    @SerialName("committed_revision") val committedRevision: Long,
+    @SerialName("canonical_state_hash") val canonicalStateHash: String,
+    @SerialName("projection_hash") val projectionHash: String,
+    val projection: ReplayProjection,
+)
+
+@Serializable
+data class ApiV3PublicMatchSummary(
+    @SerialName("game_id") val gameId: String,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("lifecycle_status") val lifecycleStatus: String,
+    @SerialName("head_revision") val headRevision: Long,
+    @SerialName("created_at") val createdAt: String,
+)

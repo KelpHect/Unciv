@@ -79,7 +79,11 @@ impl PostgresGameRepository {
                         g.unavailable_at IS NULL
                         AND g.lifecycle_status <> 'archived'
                         AND (l.game_id IS NULL OR l.started_at IS NOT NULL)
-                    ) AS available
+                    ) AS available,
+                    COALESCE(
+                        (l.setup->>'majorCivilizations')::int,
+                        0
+                    ) - COALESCE(l.human_slots, 0) AS ai_count
              FROM game_members gm
              JOIN games g ON g.id=gm.game_id
              JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision
@@ -108,6 +112,7 @@ impl PostgresGameRepository {
                 civilization_id: row.get("civilization_id"),
                 available: row.get("available"),
                 lifecycle_status: row.get("lifecycle_status"),
+                ai_count: u8::try_from(row.get::<i32, _>("ai_count")).unwrap_or(0),
             })
             .collect::<Vec<_>>();
         let next_cursor = has_more.then(|| games.last().expect("non-empty limited page").game_id);
@@ -124,7 +129,7 @@ impl PostgresGameRepository {
         game_id: Uuid,
     ) -> Result<GameProjection, CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, g.head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .bind(actor_account_id)
@@ -206,7 +211,7 @@ impl PostgresGameRepository {
         let revision =
             i64::try_from(revision).map_err(|_| CommitError::ProjectionDeltaUnavailable)?;
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.revision AS head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=$3 JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.revision AS head_revision, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest, gm.role, gm.civilization_id FROM games g JOIN game_members gm ON gm.game_id=g.id AND gm.account_id=$2 JOIN game_revisions r ON r.game_id=g.id AND r.revision=$3 JOIN game_snapshots s ON s.game_id=g.id AND s.revision=r.revision LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .bind(actor_account_id)
@@ -217,6 +222,7 @@ impl PostgresGameRepository {
         .ok_or(CommitError::ProjectionDeltaUnavailable)?;
         self.project_row(worker, actor_account_id, game_id, row)
             .await
+            .map_err(|_| CommitError::ProjectionDeltaUnavailable)
     }
 
     async fn project_row(

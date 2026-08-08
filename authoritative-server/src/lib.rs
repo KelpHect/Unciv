@@ -15,6 +15,7 @@ mod projection_escort_tests;
 mod projection_lobby_terrain;
 #[cfg(test)]
 mod projection_policy_tests;
+mod projection_replay;
 mod projection_spectator;
 #[cfg(test)]
 mod projection_spectator_tests;
@@ -30,9 +31,11 @@ mod projection_wonder_events;
 #[cfg(test)]
 mod projection_wonder_events_tests;
 mod repository;
+pub mod snapshot_delta;
 
 pub mod auth;
 pub mod notifications;
+pub mod object_store;
 pub mod operations;
 pub mod postgres;
 pub mod projection;
@@ -52,8 +55,8 @@ pub use projection_lobby_terrain::LobbyTerrainProjection;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 4;
-pub const PROJECTION_VERSION: u16 = 60;
-pub const SPECTATOR_PROJECTION_VERSION: u16 = 2;
+pub const PROJECTION_VERSION: u16 = 61;
+pub const SPECTATOR_PROJECTION_VERSION: u16 = 3;
 pub const LOBBY_TERRAIN_PROJECTION_VERSION: u16 = 1;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;
 

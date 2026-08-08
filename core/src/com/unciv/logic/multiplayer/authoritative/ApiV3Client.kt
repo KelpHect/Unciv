@@ -993,6 +993,15 @@ class ApiV3Client(
         setBody(request)
     })
 
+    override suspend fun advanceAiTurn(
+        gameId: String,
+        request: ApiV3AdvanceAiTurnRequest,
+    ): ApiV3CommandAccepted = decode(client.post("api/v3/games/$gameId/commands/advance-ai-turn") {
+        authenticate()
+        contentType(ContentType.Application.Json)
+        setBody(request)
+    })
+
     override suspend fun resign(
         gameId: String,
         request: ApiV3ResignRequest,
@@ -1019,6 +1028,16 @@ class ApiV3Client(
         contentType(ContentType.Application.Json)
         setBody(request)
     })
+
+    override suspend fun getRevisions(gameId: String): ApiV3RevisionList =
+        decode(client.get("api/v3/games/$gameId/revisions") { authenticate() })
+    override suspend fun getReplayProjection(gameId: String, revision: Long): ApiV3ReplayGameProjection =
+        decode(client.get("api/v3/games/$gameId/revisions/$revision/replay") { authenticate() })
+    override suspend fun listPublicMatches(limit: Int, offset: Int): List<ApiV3PublicMatchSummary> =
+        decode(client.get("api/v3/public-matches") {
+            authenticate()
+            url { parameters.append("limit", limit.toString()); parameters.append("offset", offset.toString()) }
+        })
 
     override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
         val reconnectBackoff = NotificationReconnectBackoff()

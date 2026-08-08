@@ -7,6 +7,7 @@ import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.ApiV3Lobby
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeAdministrationCoordinator
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeSessionStatus
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.logic.multiplayer.authoritative.normalizeApiV3BaseUrl
@@ -123,6 +124,11 @@ class MultiplayerScreen : PickerScreen() {
         )
         if (isNarrowerThan4to3()) row()
         add("Create new match".toTextButton().onActivation(::openCreateMatchPopup))
+        add(
+            "Watch public matches".toTextButton(SmallButtonStyle()).onActivation {
+                session?.let { openPublicMatches(it) }
+            },
+        )
         add("Refresh".toTextButton(SmallButtonStyle()).onActivation(::refresh))
     }
 
@@ -163,13 +169,16 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun lobbyRow(lobby: ApiV3Lobby) = LobbyChrome.row().apply {
         val full = lobby.occupiedSlots >= lobby.humanSlots
+        val aiCount = lobby.setup.aiCivilizations?.size
+            ?: (lobby.setup.majorCivilizations - 1 - lobby.humanSlots).coerceAtLeast(0)
         add(
             Table(skin).apply {
                 add(lobby.displayName.toLabel(hideIcons = true)).left().row()
                 add(
                     LobbyChrome.hint(
                         "Host [${lobby.ownerUsername}]  •  ${rulesetLabel(lobby)}  •  " +
-                            "${lobby.setup.mapType.name} ${lobby.setup.mapSize.name}",
+                            "${lobby.setup.mapType.name} ${lobby.setup.mapSize.name}" +
+                            if (aiCount > 0) "  •  $aiCount AI" else "",
                     ),
                 ).left().row()
             },
@@ -219,7 +228,8 @@ class MultiplayerScreen : PickerScreen() {
                 add(summary.displayName.toLabel(hideIcons = true)).left().row()
                 add(
                     LobbyChrome.hint(
-                        "${summary.lifecycleStatus}  •  revision [${summary.committedRevision}]",
+                        "${summary.lifecycleStatus}  •  revision [${summary.committedRevision}]" +
+                            if (summary.aiCount > 0) "  •  ${summary.aiCount} AI" else "",
                     ),
                 ).left().row()
             },
@@ -271,6 +281,25 @@ class MultiplayerScreen : PickerScreen() {
 
     private fun refresh() {
         game.replaceCurrentScreen(MultiplayerScreen())
+    }
+    private fun openPublicMatches(session: AuthoritativeMultiplayerSession) {
+        Concurrency.run("loadPublicMatches") {
+            try {
+                val matches = session.listPublicMatches()
+                launchOnGLThread {
+                    if (matches.isEmpty()) {
+                        ToastPopup("No public matches available.", this@MultiplayerScreen)
+                    } else {
+                        AuthoritativePublicMatchesPopup(this@MultiplayerScreen, matches, session)
+                            .open()
+                    }
+                }
+            } catch (e: Exception) {
+                launchOnGLThread {
+                    ToastPopup("Error loading public matches: ${e.message}", this@MultiplayerScreen)
+                }
+            }
+        }
     }
 
     private fun restoreSession() {

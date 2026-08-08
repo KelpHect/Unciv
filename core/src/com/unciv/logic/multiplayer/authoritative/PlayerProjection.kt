@@ -17,6 +17,7 @@ data class PlayerProjection(
     val civilizationId: String,
     val turn: Int,
     val currentPlayerCivilizationId: String,
+    val activePlayerCivilizationIds: List<String> = emptyList(),
     val isCurrentTurn: Boolean,
     val victory: ProjectedVictory? = null,
     val pendingTurnActions: List<PendingEndTurnAction>,
@@ -42,7 +43,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 60
+        const val CURRENT_PROJECTION_VERSION = 61
     }
 }
 
@@ -342,10 +343,25 @@ data class ProjectedTileVisibility(
     )
 }
 
+private fun activePlayerCivilizationIds(game: GameInfo): List<String> =
+    if (game.gameParameters.simultaneousHumanTurns) {
+        game.civilizations.asSequence()
+            .filter { it.isHuman() && it.isAlive() && !it.isSpectator() }
+            .filter { it.civID !in game.playersWhoEndedTurn }
+            .map { it.civID }
+            .sorted()
+            .toList()
+    } else listOf(game.currentPlayer)
+
 object PlayerProjectionBuilder {
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
         val canIssueTurnCommands =
-            game.victoryData == null && game.currentPlayer == actor.civID
+            if (game.gameParameters.simultaneousHumanTurns) {
+                game.victoryData == null && actor.isHuman() && actor.isAlive() && !actor.isSpectator()
+                    && actor.civID !in game.playersWhoEndedTurn
+            } else {
+                game.victoryData == null && game.currentPlayer == actor.civID
+            }
         val ownUnits = actor.units.getCivUnits()
             .map { unitProjection(it, includePrivateOrders = true, canIssueTurnCommands) }
             .sortedBy { it.id }
@@ -362,6 +378,7 @@ object PlayerProjectionBuilder {
             civilizationId = actor.civID,
             turn = game.turns,
             currentPlayerCivilizationId = game.currentPlayer,
+            activePlayerCivilizationIds = activePlayerCivilizationIds(game),
             isCurrentTurn = canIssueTurnCommands,
             victory = game.victoryData?.let {
                 ProjectedVictory(it.winningCiv, it.victoryType, it.victoryTurn)

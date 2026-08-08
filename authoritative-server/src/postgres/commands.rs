@@ -25,7 +25,7 @@ impl PostgresGameRepository {
 
     async fn worker_state(&self, game_id: Uuid) -> Result<WorkerCommandState, CommitError> {
         let row = sqlx::query(
-            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
+            "SELECT g.unavailable_at IS NOT NULL AS is_unavailable, g.lifecycle_status, r.canonical_state_hash AS revision_state_hash, s.revision AS snapshot_revision, b.payload, s.codec, s.compressed_size, s.uncompressed_size, s.protocol_version AS snapshot_protocol_version, s.validation_status, s.payload_hash, s.canonical_state_hash AS snapshot_state_hash, m.manifest FROM games g JOIN game_revisions r ON r.game_id=g.id AND r.revision=g.head_revision JOIN game_snapshots s ON s.game_id=g.id AND s.revision=g.head_revision LEFT JOIN game_snapshot_blobs b ON b.game_id=s.game_id AND b.revision=s.revision JOIN ruleset_manifests m ON m.hash=g.ruleset_manifest_hash WHERE g.id=$1",
         )
         .bind(game_id)
         .fetch_optional(&self.pool)
@@ -83,6 +83,57 @@ impl PostgresGameRepository {
                 envelope.expected_revision,
                 &worker_state.snapshot,
                 &actor_civilization_id,
+            )
+            .await
+            .map_err(|error| match error {
+                crate::worker::WorkerClientError::Rejected(reason) => {
+                    CommitError::WorkerRejected(reason)
+                }
+                _ => CommitError::WorkerRevisionMismatch,
+            })?;
+        self.commit(actor_account_id, envelope, proposal).await
+    }
+
+    pub async fn execute_advance_ai_turn(
+        &self,
+        worker: &EngineWorkerClient,
+        actor_account_id: Uuid,
+        envelope: CommandEnvelope,
+    ) -> Result<CommandAccepted, CommitError> {
+        if !matches!(&envelope.command, crate::GameCommand::AdvanceAiTurn {}) {
+            return Err(CommitError::InvalidCommand);
+        }
+        if let Some(accepted) = self.committed_command(&envelope, actor_account_id).await? {
+            return Ok(accepted);
+        }
+        let all_ai: bool = sqlx::query_scalar(
+            "SELECT EXISTS(
+                SELECT 1
+                FROM game_lobbies l
+                JOIN game_members m ON m.game_id=l.game_id
+                WHERE l.game_id=$1
+                  AND l.human_slots=0
+                  AND l.started_at IS NOT NULL
+                  AND l.closed_at IS NULL
+                  AND m.account_id=$2
+                  AND m.role='spectator'
+            )",
+        )
+        .bind(envelope.game_id)
+        .bind(actor_account_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(CommitError::storage)?;
+        if !all_ai {
+            return Err(CommitError::Unauthorized);
+        }
+        let worker_state = self.worker_command_state(envelope.game_id).await?;
+        let proposal = worker
+            .advance_ai_turn(
+                &actor_account_id.to_string(),
+                &worker_state.manifest,
+                envelope.expected_revision,
+                &worker_state.snapshot,
             )
             .await
             .map_err(|error| match error {

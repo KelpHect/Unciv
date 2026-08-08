@@ -10,11 +10,12 @@ data class SpectatorProjection(
     val protocolVersion: Int = CommandEnvelope.CURRENT_PROTOCOL_VERSION,
     val turn: Int,
     val currentPlayerCivilizationId: String,
+    val activePlayerCivilizationIds: List<String> = emptyList(),
     val victory: ProjectedVictory? = null,
     val majorCivilizations: List<SpectatorCivilization>,
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 2
+        const val CURRENT_PROJECTION_VERSION = 3
     }
 }
 
@@ -30,6 +31,14 @@ object SpectatorProjectionBuilder {
     fun build(game: GameInfo) = SpectatorProjection(
         turn = game.turns,
         currentPlayerCivilizationId = game.currentPlayer,
+        activePlayerCivilizationIds = if (game.gameParameters.simultaneousHumanTurns) {
+            game.civilizations.asSequence()
+                .filter { it.isHuman() && it.isAlive() && !it.isSpectator() }
+                .filter { it.civID !in game.playersWhoEndedTurn }
+                .map { it.civID }
+                .sorted()
+                .toList()
+        } else listOf(game.currentPlayer),
         victory = game.victoryData?.let {
             ProjectedVictory(it.winningCiv, it.victoryType, it.victoryTurn)
         },

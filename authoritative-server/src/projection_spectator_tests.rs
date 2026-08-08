@@ -7,6 +7,7 @@ fn spectator_projection_is_a_closed_public_summary() {
         protocol_version: 3,
         turn: 7,
         current_player_civilization_id: "Rome".to_owned(),
+        active_player_civilization_ids: vec!["Rome".to_owned()],
         victory: None,
         major_civilizations: vec![SpectatorCivilization {
             civilization_id: "Rome".to_owned(),

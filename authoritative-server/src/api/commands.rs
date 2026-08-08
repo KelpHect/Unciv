@@ -91,6 +91,50 @@ pub(super) async fn end_turn(
     Ok(Json(accepted))
 }
 
+/// Advances exactly one AI civilization in a zero-human match. The authenticated
+/// owner is a spectator; no client civilization or AI outcome crosses the API.
+#[utoipa::path(
+    post,
+    path = "/api/v3/games/{game_id}/commands/advance-ai-turn",
+    params(("game_id" = uuid::Uuid, Path)),
+    security(("bearer_auth" = [])),
+    request_body = AdvanceAiTurnRequest,
+    responses(
+        (status = 200, body = unciv_authoritative_server::CommandAccepted),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 409, body = ErrorResponse),
+        (status = 422, body = ErrorResponse),
+        (status = 503, body = ErrorResponse)
+    )
+)]
+pub(super) async fn advance_ai_turn(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(game_id): Path<uuid::Uuid>,
+    Json(request): Json<AdvanceAiTurnRequest>,
+) -> Result<Json<unciv_authoritative_server::CommandAccepted>, ApiError> {
+    let actor = authenticated_account(&state, &headers).await?;
+    let accepted = state
+        .repository
+        .execute_advance_ai_turn(
+            &state.worker,
+            actor.id,
+            CommandEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                game_id,
+                command_id: request.command_id,
+                expected_revision: request.expected_revision,
+                client_observed_state_hash: request.client_observed_state_hash,
+                command: GameCommand::AdvanceAiTurn {},
+            },
+        )
+        .await
+        .map_err(game_error)?;
+    Ok(Json(accepted))
+}
+
 #[utoipa::path(
     post,
     path = "/api/v3/games/{game_id}/commands/queue-construction",

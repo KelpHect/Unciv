@@ -82,7 +82,7 @@ pub fn compatibility_contract() -> Result<CompatibilityContract, ReleaseBundleEr
         || contract.spectator_projection_version != crate::SPECTATOR_PROJECTION_VERSION
         || contract.lobby_terrain_projection_version != crate::LOBBY_TERRAIN_PROJECTION_VERSION
         || contract.worker_protocol_version != crate::worker::WORKER_PROTOCOL_VERSION
-        || contract.latest_migration_version != 31
+        || contract.latest_migration_version != 35
         || contract.postgres_image
             != "postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5"
     {

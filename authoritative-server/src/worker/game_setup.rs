@@ -140,6 +140,8 @@ pub struct WorkerGameSetup {
     pub no_ruins: bool,
     pub no_natural_wonders: bool,
     #[serde(default)]
+    pub simultaneous_human_turns: bool,
+    #[serde(default)]
     pub map_seed: Option<i64>,
     #[serde(default)]
     pub mirroring: MirroringType,
@@ -211,6 +213,7 @@ impl Default for WorkerGameSetup {
             legendary_start: false,
             no_ruins: false,
             no_natural_wonders: false,
+            simultaneous_human_turns: false,
             map_seed: None,
             mirroring: MirroringType::None,
             tiles_per_biome_area: default_tiles_per_biome_area(),
@@ -262,6 +265,7 @@ mod tests {
             legendary_start: false,
             no_ruins: false,
             no_natural_wonders: false,
+            simultaneous_human_turns: false,
             map_seed: Some(1234),
             mirroring: MirroringType::None,
             tiles_per_biome_area: 6,

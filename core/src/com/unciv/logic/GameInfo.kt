@@ -113,6 +113,10 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
     var turns = 0
     var oneMoreTurnMode = false
     var currentPlayer = ""
+    /** In simultaneous-turns mode, tracks which human civilizations have
+     *  ended their turn. The global turn advances only when all active
+     *  humans are in this set. Cleared at the start of each new turn. */
+    var playersWhoEndedTurn = mutableSetOf<String>()
     var currentTurnStartTime = System.currentTimeMillis()
     var gameId = randomGameId()
     var checksum = ""
@@ -369,13 +373,22 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
     /**
      *  Advance a turn, running automation for AI players, stopping for human players
      *  @param progressBar Optional reference to UI widget either provided by [WorldScreen.nextTurn][com.unciv.ui.screens.worldscreen.WorldScreen.nextTurn] or `null` when simulating
-     *  @param shouldGainTime on a multiplayer game, if true, makes the player whose turn is ended recover time to play before risking getting forced to resign, 'false' by default 
+     *  @param shouldGainTime on a multiplayer game, if true, makes the player whose turn is ended recover time to play before risking getting forced to resign, 'false' by default
+     *  @param maxAiTurns bounds automatic AI processing for server spectator
+     *      advancement; the normal gameplay default preserves the existing
+     *      run-until-human behavior.
+     *  @param startNextPlayer starts the next player immediately; bounded
+     *      server-side AI stepping defers that start until its next step.
      */
     fun nextTurn(
         progressBar: NextTurnProgress? = null,
         shouldGainTime: Boolean = false,
         executionContext: GameExecutionContext = GameExecutionContext.client(),
+        maxAiTurns: Int = Int.MAX_VALUE,
+        startNextPlayer: Boolean = true,
     ): Unit = timeThis("GameInfo.nextTurn") {
+        require(maxAiTurns > 0) { "maxAiTurns must be positive" }
+        var automatedPlayers = 0
         var player = currentPlayerCiv
         var playerIndex = civilizations.indexOf(player)
 
@@ -452,6 +465,8 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
 
             // To the next player
             setNextPlayer()
+            automatedPlayers++
+            if (automatedPlayers >= maxAiTurns) break
         }
 
         if (turns == DebugUtils.SIMULATE_UNTIL_TURN)
@@ -462,8 +477,9 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
         currentPlayer = player.civID
         currentPlayerCiv = player
 
-        // Starting their turn
-        if (victoryData == null)
+        // Starting their turn. Bounded server-side AI stepping leaves this
+        // preparation for the next step so one AI turn equals one revision.
+        if (startNextPlayer && victoryData == null)
             TurnManager(player).startTurn(progressBar)
 
         // No popups for spectators
@@ -771,7 +787,8 @@ class GameInfo : IsPartOfGameInfoSerialization, HasGameInfoSerializationVersion 
 
         if (currentPlayer == "") {
             currentPlayerCiv =
-                if (gameParameters.isOnlineMultiplayer) civilizations.first { it.isHuman() && !it.isSpectator() } // For MP, spectator doesn't get a 'turn'
+                if (gameParameters.isOnlineMultiplayer) civilizations.firstOrNull { it.isHuman() && !it.isSpectator() }
+                    ?: civilizations.first { it.isAI() && it.isMajorCiv() } // All-AI match: first AI becomes current player
                 else civilizations.first { it.isHuman() } // for non-MP games, you can be a spectator of an AI-only match, and you *do* get a turn, sort of
             currentPlayer = currentPlayerCiv.civID
         } else currentPlayerCiv = getCivilization(currentPlayer)

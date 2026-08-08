@@ -118,6 +118,7 @@ data class WorkerGameSetup(
     val legendaryStart: Boolean,
     val noRuins: Boolean,
     val noNaturalWonders: Boolean,
+    val simultaneousHumanTurns: Boolean = false,
     val mapSeed: Long? = null,
     val mirroring: WorkerMirroringType = WorkerMirroringType.None,
     val tilesPerBiomeArea: Int = 6,
@@ -196,16 +197,22 @@ data class WorkerGameSetup(
         require(cityStates <= ruleset.nations.values.count { it.isCityState }) {
             "The pinned ruleset has too few city-states"
         }
-        val ownerNation = ruleset.nations[ownerCivilizationId]
-        require(ownerNation?.isMajorCiv == true && ownerCivilizationId != Constants.spectator) {
-            "The selected owner civilization is unavailable in the pinned ruleset"
+        if (ownerCivilizationId.isNotEmpty()) {
+            val ownerNation = ruleset.nations[ownerCivilizationId]
+            require(ownerNation?.isMajorCiv == true && ownerCivilizationId != Constants.spectator) {
+                "The selected owner civilization is unavailable in the pinned ruleset"
+            }
         }
-        val humans = participants ?: listOf(WorkerLobbyParticipant(actorId, ownerCivilizationId))
-        require(humans.isNotEmpty() && humans.size <= majorCivilizations) {
+        val humans = participants
+            ?: if (ownerCivilizationId.isNotEmpty()) listOf(WorkerLobbyParticipant(actorId, ownerCivilizationId))
+            else emptyList()
+        require(humans.size <= majorCivilizations) {
             "Human participant count is outside setup bounds"
         }
-        require(humans.first() == WorkerLobbyParticipant(actorId, ownerCivilizationId)) {
-            "The authenticated owner must be the first exact participant"
+        if (humans.isNotEmpty()) {
+            require(humans.first() == WorkerLobbyParticipant(actorId, ownerCivilizationId)) {
+                "The authenticated owner must be the first exact participant"
+            }
         }
         require(humans.map { it.accountId }.distinct().size == humans.size) {
             "Human account assignments must be unique"
@@ -272,6 +279,7 @@ data class WorkerGameSetup(
             gameParameters.noStartBias = noStartBias
             gameParameters.shufflePlayerOrder = shufflePlayerOrder
             gameParameters.noCityRazing = noCityRazing
+            gameParameters.simultaneousHumanTurns = simultaneousHumanTurns
             // V3 matches have no skip, force-resign, or total-play clock.
             gameParameters.minutesUntilSkipTurn = Int.MAX_VALUE
             gameParameters.minutesUntilForceResign = Int.MAX_VALUE

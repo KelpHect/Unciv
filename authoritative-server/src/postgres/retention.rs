@@ -39,13 +39,15 @@ impl PostgresGameRepository {
             return Err(CommitError::InvalidCommand);
         }
         let mut tx = self.pool.begin().await.map_err(CommitError::storage)?;
-        let head_i64: i64 =
-            sqlx::query_scalar("SELECT head_revision FROM games WHERE id=$1 FOR UPDATE")
+        let game_row =
+            sqlx::query("SELECT head_revision, visibility FROM games WHERE id=$1 FOR UPDATE")
                 .bind(game_id)
                 .fetch_optional(&mut *tx)
                 .await
                 .map_err(CommitError::storage)?
                 .ok_or(CommitError::NotFound)?;
+        let head_i64: i64 = game_row.get("head_revision");
+        let is_public = game_row.get::<String, _>("visibility") == "public";
         let head_revision =
             u64::try_from(head_i64).map_err(|_| CommitError::RecoveryEvidenceMissing)?;
         let rows = sqlx::query(
@@ -76,13 +78,15 @@ impl PostgresGameRepository {
                 u64::try_from(revision_i64).map_err(|_| CommitError::RecoveryEvidenceMissing)?;
             let revision_kind: String = row.get("revision_kind");
             let command_type: Option<String> = row.get("command_type");
-            if should_retain(
-                revision,
-                head_revision,
-                &revision_kind,
-                command_type.as_deref(),
-                policy,
-            ) {
+            if is_public
+                || should_retain(
+                    revision,
+                    head_revision,
+                    &revision_kind,
+                    command_type.as_deref(),
+                    policy,
+                )
+            {
                 retained_payloads += 1;
             } else {
                 compact.push(revision_i64);
@@ -132,7 +136,7 @@ impl PostgresGameRepository {
     }
 }
 
-fn should_retain(
+pub(super) fn should_retain(
     revision: u64,
     head_revision: u64,
     revision_kind: &str,

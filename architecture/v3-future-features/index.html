@@ -1,0 +1,4877 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://yairm210.github.io/Unciv/architecture/v3-future-features/">
+      
+      
+        <link rel="prev" href="../current-multiplayer-flow/">
+      
+      
+        <link rel="next" href="../adr/0001-authoritative-multiplayer-v3/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Authoritative multiplayer v3 — future features and optimization notes - Unciv</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#authoritative-multiplayer-v3-future-features-and-optimization-notes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Unciv" class="md-header__button md-logo" aria-label="Unciv" data-md-component="logo">
+      
+  <img src="../../assets/Icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Unciv
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Authoritative multiplayer v3 — future features and optimization notes
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/yairm210/unciv" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    yairm210/unciv
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Unciv" class="md-nav__button md-logo" aria-label="Unciv" data-md-component="logo">
+      
+  <img src="../../assets/Icon.png" alt="logo">
+
+    </a>
+    Unciv
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/yairm210/unciv" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    yairm210/unciv
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome to Unciv!
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Guiding-Principles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guiding Principles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translating
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Translating
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translating - for translators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translation-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation generation - for developers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Translating/Translation-mods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translation generation - for modders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modders
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction to Mods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Making-a-new-Civilization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    'My first mod' - Making a new Civilization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Images-and-Audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images and Audio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod file structure
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mod file structure
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/1-Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mod file structure Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/2-Civilization-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Civilization-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/3-Map-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/4-Unit-related-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unit-related JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Mod-file-structure/5-Miscellaneous-JSON-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Miscellaneous JSON files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Special Mods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Special Mods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Creating-a-custom-tileset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating a custom tileset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Creating-a-UI-skin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating a UI skin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Unique-parameters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/uniques/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uniques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Type-checking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Type Checking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Scenarios/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenarios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Modders/Autoupdates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Autoupdates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Building-Locally/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building Locally
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Coding-standards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coding standards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/From-code-to-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From code to deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Game-Making-Tips/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Game Making Tips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Map-rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Map rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Project-structure-and-major-classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Saved-games-and-transients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Saved games and transients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Testing-Android-Builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building for and testing on Android
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Translations%2C-mods%2C-and-modding-freedom-in-Open-Source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Translations, mods, and modding freedom in Open Source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/UI-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Unique-replacement-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique replacement process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Developers/Uniques/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uniques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Other
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Force-rating-calculation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Force rating calculation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Installing-on-macOS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installing on MacOS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Intentional-departures-from-Civ-V/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Intentional departures from Civ V
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Multiplayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multiplayer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Regions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Other/Simulations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Privacy-Policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Privacy Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Credits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Credits_trailer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trailer Audio Credits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multiplayer-command-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer command coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authoritative-multiplayer-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer v3 status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../current-multiplayer-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Current multiplayer flow (verified 2026-07-18)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer v3 — future features and optimization notes
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer v3 — future features and optimization notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-all-ai-matches-zero-human-players" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. All-AI matches (zero human players)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. All-AI matches (zero human players)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-blocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current blocker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minimal-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal implementation plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-simultaneous-human-turns-civ-vi-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Simultaneous human turns (Civ VI style)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Simultaneous human turns (Civ VI style)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-match-replay-viewing-with-graphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Match replay viewing with graphs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Match replay viewing with graphs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-step-by-step-not-turn-by-turn-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why step-by-step (not turn-by-turn) works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-approach_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-victory-detection-and-end-of-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Victory detection and end-of-match
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Victory detection and end-of-match">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-needs-to-happen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What needs to happen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-alive-civs-tracking-and-elimination-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Alive civs tracking and elimination detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Alive civs tracking and elimination detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-issue-diagnosed-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current issue — diagnosed 2026-08-07
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Current issue — diagnosed 2026-08-07">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evidence-from-the-500-turn-huge-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence from the 500-turn Huge match
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-causes-of-the-benchmark-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root causes of the benchmark failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-completed-in-match-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation (completed in match script)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-benchmark-match-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Benchmark match results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Benchmark match results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2-player-tiny-pangaea-match-1-human-1-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2-player tiny Pangaea match (1 human + 1 AI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-player-small-map-match-1-human-3-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4-player small map match (1 human + 3 AI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-civ-huge-map-match-v1-1-passive-human-6-ai-broken-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7-civ Huge map match v1 (1 passive human + 6 AI) — BROKEN BENCHMARK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-civ-huge-map-match-v2-1-passive-human-6-ai-fixed-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7-civ Huge map match v2 (1 passive human + 6 AI) — FIXED BENCHMARK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmark-improvements-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark improvements needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-priority-order-for-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Priority order for implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-notes-on-current-architecture-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Notes on current architecture constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-status-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation status (2026-08-07)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Implementation status (2026-08-07)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#all-ai-matches-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All-AI matches — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simultaneous-human-turns-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simultaneous human turns — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#match-replay-system-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match replay system — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remaining-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remaining work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-snapshot-storage-architecture-and-lockwell-cold-archival-2026-08-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Snapshot storage architecture and Lockwell cold archival (2026-08-08)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Snapshot storage architecture and Lockwell cold archival (2026-08-08)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-and-client-load-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery and client-load guarantees
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_4" id="__nav_11_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adr
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Adr
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-authoritative-multiplayer-v3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR 0001: Rust control plane with a private Kotlin authoritative engine worker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Benchmarks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/authoritative-multiplayer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legal/authoritative-multiplayer-licensing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer licensing boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-account-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative account recovery and session policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-api-systemd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative Rust API and database migration systemd deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-full-match-qualification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative V3 full-match qualification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-http-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative API HTTP security boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-incident-response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer incident response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-outbox-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative outbox operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-postgresql-19/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative PostgreSQL 19 operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-reconciliation-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative reconciliation repair
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-release-bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 release bundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-ruleset-acquisition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative ruleset acquisition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-schema-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative schema and capacity policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-security-audit-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit export and custody
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-snapshot-retention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative snapshot retention
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-supply-chain-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 supply-chain security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-tls-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative API TLS and trusted-proxy deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-vps-compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative v3 single-VPS Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-websocket-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative WebSocket runtime policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-worker-identity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Private worker service identity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/authoritative-worker-systemd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative worker systemd deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-game-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy game import
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-multiplayer-retirement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy multiplayer retirement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/legacy-v3-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy and authoritative multiplayer isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        
+          
+          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/authoritative-multiplayer-threat-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative Multiplayer Threat Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/projection-disclosure-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Projection disclosure policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-all-ai-matches-zero-human-players" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. All-AI matches (zero human players)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. All-AI matches (zero human players)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-blocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current blocker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minimal-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal implementation plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-simultaneous-human-turns-civ-vi-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Simultaneous human turns (Civ VI style)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Simultaneous human turns (Civ VI style)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-match-replay-viewing-with-graphs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Match replay viewing with graphs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Match replay viewing with graphs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-step-by-step-not-turn-by-turn-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why step-by-step (not turn-by-turn) works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-approach_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-victory-detection-and-end-of-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Victory detection and end-of-match
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Victory detection and end-of-match">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigation-findings-2026-08-07_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Investigation findings (2026-08-07)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-needs-to-happen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What needs to happen
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-alive-civs-tracking-and-elimination-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Alive civs tracking and elimination detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Alive civs tracking and elimination detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirement_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#current-issue-diagnosed-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current issue — diagnosed 2026-08-07
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Current issue — diagnosed 2026-08-07">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evidence-from-the-500-turn-huge-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence from the 500-turn Huge match
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-causes-of-the-benchmark-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root causes of the benchmark failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-completed-in-match-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation (completed in match script)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-benchmark-match-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Benchmark match results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Benchmark match results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2-player-tiny-pangaea-match-1-human-1-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2-player tiny Pangaea match (1 human + 1 AI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-player-small-map-match-1-human-3-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4-player small map match (1 human + 3 AI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-civ-huge-map-match-v1-1-passive-human-6-ai-broken-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7-civ Huge map match v1 (1 passive human + 6 AI) — BROKEN BENCHMARK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-civ-huge-map-match-v2-1-passive-human-6-ai-fixed-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7-civ Huge map match v2 (1 passive human + 6 AI) — FIXED BENCHMARK
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmark-improvements-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmark improvements needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-priority-order-for-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Priority order for implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-notes-on-current-architecture-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Notes on current architecture constraints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-status-2026-08-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation status (2026-08-07)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Implementation status (2026-08-07)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#all-ai-matches-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All-AI matches — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simultaneous-human-turns-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simultaneous human turns — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#match-replay-system-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match replay system — COMPLETE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remaining-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remaining work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-snapshot-storage-architecture-and-lockwell-cold-archival-2026-08-08" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Snapshot storage architecture and Lockwell cold archival (2026-08-08)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Snapshot storage architecture and Lockwell cold archival (2026-08-08)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery-and-client-load-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery and client-load guarantees
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safety-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="authoritative-multiplayer-v3-future-features-and-optimization-notes">Authoritative multiplayer v3 — future features and optimization notes</h1>
+<p>This file captures user requirements, investigation findings, and implementation
+plans for the next phase of authoritative multiplayer v3 work. It is a living
+document: update it as features are implemented or requirements evolve.</p>
+<p>Last updated: 2026-08-07</p>
+<hr />
+<h2 id="1-all-ai-matches-zero-human-players">1. All-AI matches (zero human players)</h2>
+<h3 id="requirement">Requirement</h3>
+<p>The system must support matches with zero human players — all civilizations
+controlled by AI, no human participation required. The owner creates the match
+as a spectator/observer and watches it play out. This is essential for:</p>
+<ul>
+<li>Benchmarking full matches without human interaction</li>
+<li>Spectator-only viewing of AI-vs-AI games</li>
+<li>Automated testing and qualification of match-to-completion behavior</li>
+</ul>
+<h3 id="current-blocker">Current blocker</h3>
+<p><code>human_slots</code> has a CHECK constraint <code>BETWEEN 1 AND 16</code> in migration 0030.
+The entire lobby/create/start pipeline assumes at least one human (the owner)
+who claims a civilization, marks ready, and calls end_turn.</p>
+<h3 id="investigation-findings-2026-08-07">Investigation findings (2026-08-07)</h3>
+<p><strong>Schema (1 new migration):</strong>
+- <code>0030_v3_match_lobbies.sql</code> line 25: change <code>human_slots BETWEEN 1 AND 16</code> to
+  <code>BETWEEN 0 AND 16</code>
+- <code>owner_account_id</code> stays NOT NULL — the creator account is still required for
+  authorization, but would be a spectator instead of a player</p>
+<p><strong>Rust API (4 files):</strong>
+- <code>api/games.rs</code>: allow <code>human_slots == 0</code>, allow empty <code>available_civilizations</code>
+  when <code>human_slots == 0</code>, skip <code>owner_civilization_id</code> containment check
+- <code>api/lobbies.rs</code>: allow <code>human_slots == 0</code> in reconfigure
+- <code>api/game_setup.rs</code>: make <code>owner_civilization_id</code> optional or allow empty when
+  <code>human_slots == 0</code>
+- <code>postgres/game_creation.rs</code>: skip <code>owner_civilization_id</code> checks when
+  <code>human_slots == 0</code></p>
+<p><strong>Rust Postgres (3 files):</strong>
+- <code>postgres/lobbies.rs</code> <code>insert_lobby</code>: skip readiness row insert when
+  <code>human_slots == 0</code>
+- <code>postgres.rs</code> <code>create_game_in_transaction</code>: insert owner as <code>'spectator'</code> with
+  NULL <code>civilization_id</code> when <code>human_slots == 0</code>
+- <code>postgres/lobby_reconfiguration.rs</code>: allow <code>human_slots == 0</code>, handle
+  owner-as-spectator in participants list</p>
+<p><strong>Kotlin Worker (2 files):</strong>
+- <code>WorkerGameSetup.kt</code>: allow empty <code>humans</code> list; skip owner-first check
+- <code>EngineWorkerProtocol.kt</code>: skip <code>ownerCivilization</code> lookup when no human is
+  assigned; return spectator/observer response</p>
+<p><strong>Turn advancement (the key challenge):</strong>
+- <code>HeadlessGameEngine.endTurn()</code> requires an authenticated human actor — cannot
+  be called with 0 humans
+- <code>GameInfo.nextTurn()</code> while loop processes ALL AI players to completion in one
+  call when there are no humans (the <code>player.isAI()</code> condition is always true,
+  so the loop never stops until <code>victoryData != null</code>)
+- Need a new <code>AdvanceAiTurn</code> worker operation that the owner/spectator triggers
+- Two approaches:
+  1. <strong>Run to completion in one worker call</strong> — simplest but could take minutes
+     for large maps; the worker would block until the entire game finishes
+  2. <strong>Single-AI-turn advancement</strong> — add a <code>maxAiTurns</code> parameter to
+     <code>nextTurn()</code> (default <code>Int.MAX_VALUE</code> for backward compatibility), pass
+     <code>maxAiTurns = 1</code> for all-AI matches so each <code>AdvanceAiTurn</code> call processes
+     exactly one AI player's turn and returns
+- Approach 2 is preferred: it gives per-turn benchmarking, spectator viewing,
+  and bounded worker execution time</p>
+<h3 id="minimal-implementation-plan">Minimal implementation plan</h3>
+<ol>
+<li>New migration: <code>human_slots BETWEEN 0 AND 16</code></li>
+<li>API: allow <code>human_slots == 0</code>, make <code>owner_civilization_id</code> optional</li>
+<li>Postgres: insert owner as spectator, skip readiness row</li>
+<li>Worker setup: allow empty participants</li>
+<li>Game start: owner calls <code>start_lobby</code> — passes immediately (0 ready == 0
+   required)</li>
+<li>Turn advancement: new <code>AdvanceAiTurn</code> API endpoint + worker operation +
+   <code>HeadlessGameEngine.advanceAiTurn()</code> method using <code>maxAiTurns = 1</code></li>
+<li>Victory: when <code>victoryData != null</code>, game ends normally; spectator reads
+   projection to see winner</li>
+</ol>
+<hr />
+<h2 id="2-simultaneous-human-turns-civ-vi-style">2. Simultaneous human turns (Civ VI style)</h2>
+<h3 id="requirement_1">Requirement</h3>
+<p>Implement simultaneous (parallel) human turns like Civilization VI, where
+multiple human players act on the same turn simultaneously instead of
+sequentially. This should be a server-side toggle — AI turns remain sequential
+within each round. When the toggle is off, the current sequential behavior is
+preserved.</p>
+<h3 id="investigation-findings-2026-08-07_1">Investigation findings (2026-08-07)</h3>
+<p><strong>Current model:</strong> Strictly sequential. One <code>currentPlayer</code> (a single civID
+string) is active at a time. <code>nextTurn()</code> advances through players one at a
+time. All 37 command handlers in <code>HeadlessGameEngine.kt</code> guard on
+<code>require(game.currentPlayer == actorCivilization.civID)</code>.</p>
+<p><strong>Projection:</strong> <code>is_current_turn</code> is a boolean (not a list).
+<code>current_player_civilization_id</code> is a single string. All command-enabling
+projection fields are gated on <code>canIssueTurnCommands</code>.</p>
+<p><strong>Conflict resolution:</strong> The existing CAS optimistic concurrency model naturally
+serializes concurrent commands. The first command commits; the second gets a
+stale revision, re-projects, and re-issues. "Simultaneous" in this architecture
+is really "concurrent submission with sequential execution."</p>
+<p><strong>Scope of changes:</strong> 37+ files across the engine, projection, API, worker, and
+validation layers. Key files:
+- <code>GameInfo.kt</code>: replace single <code>currentPlayer</code> with a set of active players or
+  add <code>playersWhoEndedTurn: Set&lt;String&gt;</code>
+- <code>HeadlessGameEngine.kt</code>: change <code>endTurn()</code> from "advance the whole turn" to
+  "mark this civ as done, advance only when all humans are done"; change all 37
+  turn guards
+- <code>PlayerProjection.kt</code>: <code>isCurrentTurn</code> becomes true for all active humans
+- <code>projection.rs</code> / <code>projection_spectator.rs</code>: <code>current_player_civilization_id</code>
+  becomes a list or supplemented with <code>active_player_civilization_ids</code>
+- <code>projection_validation.rs</code>: update all <code>is_current_turn</code> validation rules
+- <code>WorkerGameSetup</code>: add <code>simultaneous_human_turns: bool</code> toggle
+- <code>GameParameters.kt</code>: add <code>simultaneousHumanTurns</code> field</p>
+<p><strong>AGENTS.md constraints:</strong>
+- Must preserve unlimited human turn time (no skip-turn or timers)
+- Must preserve consensual whole-game rewind (checkpoint semantics change from
+  "one player ended" to "all players ended and the turn advanced")
+- AI still runs in the private Kotlin worker under server-owned execution</p>
+<p><strong>Conflict scenarios:</strong>
+- Combat: two players attack the same tile — CAS serializes, second gets stale
+  revision
+- Unit movement: two players move into the same empty tile — CAS serializes
+- Trade/diplomacy: one accepts while other retracts — CAS serializes
+- City founding: competing for tiles — CAS serializes</p>
+<h3 id="implementation-approach">Implementation approach</h3>
+<p>The toggle would be a <code>simultaneous_human_turns: bool</code> field in
+<code>WorkerGameSetup</code> / <code>GameParameters</code>. When enabled:
+1. All human players are "active" at the start of each turn
+2. Each human's <code>end_turn</code> marks them as done (not advances the global turn)
+3. The global turn advances (AI batch runs, next turn starts) only when ALL
+   active humans have ended
+4. The 37 <code>require(game.currentPlayer == ...)</code> guards become
+   <code>require(actor is among active players for this turn)</code></p>
+<p>This is a large change (37+ files) but the CAS model provides natural conflict
+resolution. Recommended as a later phase after all-AI match support.</p>
+<hr />
+<h2 id="3-match-replay-viewing-with-graphs">3. Match replay viewing with graphs</h2>
+<h3 id="requirement_2">Requirement</h3>
+<p>Implement a public match replay/viewing system where anyone can watch any
+completed (or live) match like a YouTube video:</p>
+<ul>
+<li><strong>Public access</strong> — no invitation needed. Anyone can browse and replay any
+  public match. The current "owner-invited spectators only" model is too
+  restrictive for replay. Completed public matches should be viewable by all.</li>
+<li><strong>Video-like playback UI</strong> — a play bar at the bottom like YouTube:</li>
+<li>Play/pause with auto-advance at configurable speed</li>
+<li>Scrub/drag to any point in the match</li>
+<li>Step forward/back through individual actions (revisions), not just turns</li>
+<li>Go back and replay from any point</li>
+<li><strong>Step-by-step granularity</strong> — each revision in the database is a single
+  command (one unit move, one attack, one construction pick, one end_turn).
+  The replay should advance through individual revisions, not just turns. A
+  real human match has dozens of revisions per turn; the replay should show
+  each action as it happened.</li>
+<li><strong>No fog of war</strong> — all civilizations' units, cities, territory, and stats
+  visible to the replay viewer</li>
+<li><strong>Live graphs</strong> — gold growth, army size, population, territory, technologies,
+  culture, score, etc. over the course of the match, updating as you scrub
+  through the replay</li>
+<li><strong>Full map view</strong> — territory changes, unit positions, city growth visible
+  at every step</li>
+</ul>
+<h3 id="why-step-by-step-not-turn-by-turn-works">Why step-by-step (not turn-by-turn) works</h3>
+<p>Each revision stores a full compressed <code>GameInfo</code> snapshot. In the current
+benchmark match, 298 revisions covered 296 turns because Rome only issued
+end_turn. But in a real human match, each turn has many revisions (move unit,
+attack, queue construction, end turn). The revision chain already provides
+step-by-step granularity — the replay just needs to advance through revisions,
+showing the full game state at each one. The existing snapshot storage is
+sufficient; no new storage format is needed.</p>
+<h3 id="investigation-findings-2026-08-07_2">Investigation findings (2026-08-07)</h3>
+<p><strong>What already exists:</strong>
+- Every revision stores a full compressed <code>GameInfo</code> snapshot in
+  <code>game_snapshot_blobs</code> — the complete game state including all civilizations,
+  their <code>statsHistory</code>, cities, units, tile map, diplomacy, etc.
+- <code>CivRankingHistory</code> (a <code>HashMap&lt;Int, Map&lt;RankingType, Int&gt;&gt;</code>) is already
+  serialized in every snapshot, recording per-turn stats for all 10 ranking
+  types: Score, Population, Growth, Production, Gold, Territory, Force,
+  Happiness, Technologies, Culture
+- Single-player already has <code>VictoryScreenCharts.kt</code> (line charts from
+  <code>statsHistory</code>), <code>VictoryScreenReplay.kt</code> (map replay with play/pause/slider),
+  and <code>LineChart.kt</code> (chart rendering component)
+- The rewind checkpoint system demonstrates loading historical snapshots and
+  projecting them
+- The <code>game_revisions</code> table has <code>revision</code>, <code>parent_revision</code>,
+  <code>revision_kind</code> (<code>'genesis'</code>, <code>'command'</code>, <code>'recovery'</code>, <code>'rewind'</code>,
+  <code>'lobby_reconfiguration'</code>), and <code>created_at</code> — sufficient for a replay
+  timeline</p>
+<p><strong>What's missing:</strong>
+- <strong>Spectator projection is too minimal</strong>: only has civ ID, name, human/defeated
+  flags. Needs a new <code>ReplayProjection</code> with all civs' full data (gold, cities,
+  units, territory, stats history) and no fog-of-war filtering
+- <strong>No replay API endpoints</strong>: need <code>GET /games/{id}/revisions</code> (list all
+  revisions with turn numbers and timestamps) and
+  <code>GET /games/{id}/revisions/{rev}/replay</code> (full no-fog-of-war projection at
+  that revision)
+- <strong>No replay worker operation</strong>: need <code>ProjectReplayState { snapshot }</code> that
+  builds a no-fog-of-war projection of ALL civilizations
+- <strong>No public replay access</strong>: the current spectator projection requires
+  <code>role='spectator'</code> membership. Replays need a new public access model where
+  anyone can view completed (or live) public matches without being added as a
+  spectator
+- <strong>No replay UI</strong>: need a new client screen with a YouTube-style play bar,
+  step controls, map rendering from the replay projection, and live-updating
+  graphs. The existing <code>VictoryScreenReplay.kt</code> and <code>VictoryScreenCharts.kt</code>
+  can be adapted but need to work from server projections instead of in-memory
+  <code>GameInfo</code>
+- <strong>Snapshot retention</strong>: migration 0017 allows <code>payload_retention_status=
+  'compacted'</code> — old snapshot blobs could be deleted. A replay system needs to
+  ensure snapshots are retained for completed/public matches</p>
+<p><strong>Access control design:</strong>
+- The current model: owner invites spectators by username, spectator must be a
+  <code>game_members</code> row with <code>role='spectator'</code>
+- The replay model: public matches have a visibility setting (public/private).
+  Anyone can fetch the replay projection for a public match without
+  authentication (or with just an account, no membership). Live public matches
+  can be spectated in real-time; completed matches can be replayed from
+  revision history.
+- This requires a new <code>game_visibility</code> field on the <code>games</code> table (or a
+  separate <code>public_matches</code> directory), new API routes that don't require
+  membership, and updated threat model documentation</p>
+<p><strong>Key files for implementation:</strong>
+- <code>authoritative-server/migrations/00NN_replay_visibility.sql</code> (new): add
+  <code>game_visibility</code> column (public/private), add public replay access
+- <code>authoritative-server/src/worker/protocol.rs</code>: add <code>ProjectReplayState</code>
+  operation
+- <code>authoritative-server/src/projection_replay.rs</code> (new): <code>ReplayProjection</code>
+  struct with all civs' stats, cities, units, territory, statsHistory, full map
+- <code>authoritative-server/src/api/replay.rs</code> (new): public replay API endpoints
+  (list revisions, get replay projection at revision, no membership required for
+  public matches)
+- <code>core/src/com/unciv/logic/multiplayer/authoritative/ReplayProjection.kt</code>
+  (new): Kotlin builder for no-fog-of-war projection
+- <code>core/src/com/unciv/ui/screens/multiplayerscreens/ReplayScreen.kt</code> (new):
+  YouTube-style replay screen with play bar, step controls, map, and live graphs
+- <code>docs/security/authoritative-multiplayer-threat-model.md</code>: update for public
+  replay access (no fog of war on completed/public matches)</p>
+<h3 id="implementation-approach_1">Implementation approach</h3>
+<ol>
+<li><strong>Schema</strong>: Add <code>game_visibility</code> column to <code>games</code> table (public/private,
+   default private). Add index for listing public matches.</li>
+<li><strong>Worker operation</strong>: <code>ProjectReplayState { snapshot }</code> builds a full
+   no-fog-of-war projection of ALL civilizations from any stored snapshot.
+   Returns map terrain, all cities, all units, all territory, all civs' gold,
+   stats history, diplomacy state, and wonder events.</li>
+<li><strong>API endpoints</strong>:</li>
+<li><code>GET /api/v3/public-matches</code> — list public completed/live matches</li>
+<li><code>GET /api/v3/games/{id}/revisions</code> — list all revisions with turn numbers,
+     timestamps, and revision kind (no membership required for public matches)</li>
+<li><code>GET /api/v3/games/{id}/revisions/{rev}/replay</code> — full no-fog projection at
+     that revision (no membership required for public matches)</li>
+<li><strong>Access control</strong>: Public matches allow unauthenticated (or
+   account-only-no-membership) access to replay endpoints. Private matches
+   still require spectator membership. Live public matches can be spectated
+   in real-time via the same projection.</li>
+<li><strong>Client UI</strong>: New <code>ReplayScreen</code> with:</li>
+<li>YouTube-style play bar at the bottom showing revision timeline</li>
+<li>Play/pause button with speed control (0.5x, 1x, 2x, 5x)</li>
+<li>Step forward/back buttons (one revision at a time)</li>
+<li>Scrub/drag to any point in the match</li>
+<li>Full map view showing all civs' units, cities, territory (no fog of war)</li>
+<li>Stats graphs (gold, army size, population, territory, etc.) that update
+     as you scrub through the replay</li>
+<li>Civ selector to highlight/focus on a specific civilization</li>
+<li><strong>Snapshot retention</strong>: Ensure completed public match snapshots are not
+   compacted/deleted. Add a <code>retention_hold</code> flag or change compaction policy
+   for public matches.</li>
+<li><strong>Performance</strong>: Loading a snapshot and projecting it takes ~10-100ms
+   (based on benchmark data). For smooth playback, consider caching the
+   replay projection for the current revision and pre-fetching adjacent
+   revisions. Alternatively, consider projecting only the delta between
+   adjacent revisions for faster step-through.</li>
+</ol>
+<hr />
+<h2 id="4-victory-detection-and-end-of-match">4. Victory detection and end-of-match</h2>
+<h3 id="requirement_3">Requirement</h3>
+<p>Ensure proper end-of-match detection for all victory types, especially
+Domination, in all-AI matches. The benchmark match should run to completion
+with no turn limit.</p>
+<h3 id="investigation-findings-2026-08-07_3">Investigation findings (2026-08-07)</h3>
+<p><strong>Victory types (vanilla):</strong>
+- <strong>Domination</strong>: capture all capitals (NOT last civ standing). A living civ
+  that lost its capital still counts — the attacker must capture it from
+  whoever holds it
+- <strong>Scientific</strong>: build Apollo Program + all spaceship parts in capital
+- <strong>Cultural</strong>: complete 5 policy branches + build Utopia Project
+- <strong>Diplomatic</strong>: anyone builds United Nations + win diplomatic vote
+- <strong>Time</strong>: highest score after <code>maxTurns</code> (default 500)</p>
+<p><strong>Victory detection flow:</strong>
+- <code>GameInfo.checkForVictory()</code> iterates all civs, calls
+  <code>TurnManager(civ).updateWinningCiv()</code>
+- <code>TurnManager.endTurn()</code> calls <code>updateWinningCiv()</code> after each AI player's turn
+- The <code>nextTurn()</code> while loop exits when <code>victoryData != null</code>
+- Victory is correctly checked during AI turn processing inside <code>endTurn()</code></p>
+<p><strong>Turn limit behavior:</strong>
+- <code>GameParameters.maxTurns</code> defaults to 500
+- If Time victory is enabled, the civ with highest score wins at <code>maxTurns</code>
+- If Time victory is NOT enabled (as in our Domination-only match), the game
+  does NOT end at <code>maxTurns</code> — there is no automatic draw or score mechanism
+- This is why our 7-civ Huge match hit 500 turns without ending: we set
+  <code>victory_types: ["Domination"]</code> only, with no Time victory, so no one won by
+  score at turn 500, and no one achieved Domination (capturing all 7 capitals on
+  a Huge map is very hard for Chieftain-difficulty AI within 500 turns)</p>
+<p><strong>Elimination handling:</strong>
+- <code>Civilization.isDefeated()</code>: civ with capital history is defeated when it
+  loses all cities; civ without capital history is defeated when it has no units
+- Defeated AI civs are still in the <code>civilizations</code> list and get their turn
+  processed as no-ops
+- Turn rotation correctly skips through defeated AI civs
+- <strong>Defeated HUMAN civs in online multiplayer are NOT auto-processed</strong> —
+  <code>shouldAutoProcessOnlinePlayer()</code> only auto-processes spectators and defeated
+  players in hotseat, not defeated human players in online games. This means a
+  defeated human player continues to receive turns and must call <code>end_turn</code> to
+  advance. This is arguably correct (a defeated human should still be able to
+  watch the game), but it means a benchmark script driving a passive human will
+  keep working even after the human's civ is eliminated.</p>
+<p><strong>Issues found:</strong>
+1. <strong>No-victory stalemate</strong>: If no victory type is enabled that can trigger
+   (e.g., Domination-only on a large map where AI can't capture all capitals),
+   the game runs forever with no natural stopping point. The Time victory
+   would be the ideal fallback, but it is hidden and rejected by the worker
+   (see issue 4 below).
+2. <strong>Benchmark match fix</strong>: The match script should either:
+   - Enable all non-hidden victory types (Domination, Scientific, Cultural,
+     Diplomatic) so the AI has multiple paths to win, OR
+   - Set <code>max_turns</code> to 1500 (the API maximum) and hope a victory triggers
+3. <strong>All-AI match turn advancement</strong>: In an all-AI match, <code>nextTurn()</code> runs all
+   AI to completion in one call. To get per-turn benchmarking and spectator
+   viewing, the <code>AdvanceAiTurn</code> operation (from the all-AI match feature) is
+   needed.
+4. <strong>Time victory is hidden and rejected by the worker</strong>: The vanilla <code>Time</code>
+   victory type has <code>"hiddenInVictoryScreen": true</code> in <code>VictoryTypes.json</code>. The
+   worker validates <code>ruleset.victories[it]?.hiddenInVictoryScreen == false</code> and
+   rejects hidden victory types. This means Time victory cannot be used in
+   match setup. All four non-hidden victory types (Domination, Scientific,
+   Cultural, Diplomatic) should be enabled to give the AI multiple paths to
+   victory. The <code>max_turns</code> API constraint is 100-1500.</p>
+<h3 id="what-needs-to-happen">What needs to happen</h3>
+<ol>
+<li><strong>Fix the benchmark match script</strong>: Enable all non-hidden victory types
+   (Domination, Scientific, Cultural, Diplomatic) and set <code>max_turns</code> to 1500</li>
+<li><strong>Remove the 500-turn limit</strong>: User wants no turn limit on the benchmark —
+   set <code>max_turns</code> to a very high value or add Time victory as a fallback</li>
+<li><strong>Verify Domination victory works</strong>: Run a smaller map (e.g., small or
+   standard) where AI can realistically capture all capitals within a
+   reasonable turn count</li>
+<li><strong>Track alive civs properly</strong>: The current benchmark script counts
+   <code>knownCivilizations</code> which is from the human's perspective (fog-of-war
+   limited). Need to use the spectator projection or a dedicated alive-civs
+   field to track actual eliminations</li>
+</ol>
+<hr />
+<h2 id="5-alive-civs-tracking-and-elimination-detection">5. Alive civs tracking and elimination detection</h2>
+<h3 id="requirement_4">Requirement</h3>
+<p>The benchmark match output must properly track how many civilizations are
+actually alive (not defeated) at each turn, and detect when eliminations occur.
+The current implementation counts <code>knownCivilizations</code> from the player
+projection, which is fog-of-war limited and doesn't reflect actual eliminations.</p>
+<h3 id="current-issue-diagnosed-2026-08-07">Current issue — diagnosed 2026-08-07</h3>
+<p>The match script uses <code>$proj.projection.knownCivilizations.Count</code> for the
+"Alive Civs" column. This is the count of civilizations the human player (Rome)
+has <strong>discovered</strong> (met through exploration), not the total number of alive
+civilizations. Rome may not have met all 6 AI civs, so this number starts low
+and changes as Rome discovers more civs — it is not an elimination indicator at
+all. It is a <strong>fog-of-war-limited discovery counter</strong>.</p>
+<h4 id="evidence-from-the-500-turn-huge-match">Evidence from the 500-turn Huge match</h4>
+<p>After the match completed, the player projection for Rome at turn 501 revealed:</p>
+<ul>
+<li><strong>Rome was eliminated</strong>: 0 cities, 0 units, 0 gold, only 50 explored tiles
+  (the starting area). Rome's capital was captured at some point during the
+  500 turns. The engine kept giving turns to the defeated human player because
+  <code>shouldAutoProcessOnlinePlayer()</code> does not auto-process defeated <em>human</em> players
+  in online multiplayer — it only auto-processes AI, spectators, and defeated
+  hotseat players. So the match script kept calling <code>end_turn</code> for a dead Rome
+  and the game never ended.</li>
+<li><strong>Rome only met 2 of 6 AI civs</strong> (Arabia and Greece) before being eliminated.
+  The "Alive Civs" column showed 4 then 3 because Rome discovered Arabia and
+  Greece through contact, not because eliminations occurred. Egypt, Persia,
+  Aztecs, and Mongolia were never encountered by Rome.</li>
+<li><strong>The AI was extremely active</strong>: From the trade offer data visible in Rome's
+  projection at turn 501:</li>
+<li><strong>Arabia</strong>: 127,807 gold, 2,336 gold/turn, ~49 cities, 158 coal, 84 iron,
+    20 horses, 9 oil, 3 uranium. Adopted 6 policy branches (Autocracy, Commerce,
+    Honor, Liberty, Patronage, Piety).</li>
+<li><strong>Greece</strong>: 2,864 gold, 2,199 gold/turn, ~56 cities, 89 coal, 72 iron,
+    12 horses. Adopted 6 policy branches (Autocracy, Commerce, Honor, Liberty,
+    Rationalism, Tradition).</li>
+<li><strong>Arabia and Greece are at war</strong> with each other (both offer WarDeclaration
+    as a trade item).</li>
+<li><strong>29 world wonders were built</strong> across the match: Egypt built 13 (Temple of
+    Artemis turn 57, Great Library turn 67, Chichen Itza turn 94, Hagia Sophia
+    turn 108, Stonehenge turn 114, Pyramids turn 117, Himeji Castle turn 125,
+    Notre Dame turn 140, Forbidden Palace turn 147, Sistine Chapel turn 159,
+    Porcelain Tower turn 167, The Louvre turn 198, Cristo Redentor turn 245),
+    Greece built 4 (Colossus turn 109, Oracle turn 122, Eiffel Tower turn 242,
+    Sydney Opera House turn 252), Persia built 2 (Mausoleum turn 130, Statue of
+    Zeus turn 147), Aztecs built 2 (Angkor Wat turn 123, Great Lighthouse turn
+    134), Arabia built 2 (Big Ben turn 172, Kremlin turn 183).</li>
+<li><strong>Egypt, Persia, and Aztecs all sent friendship diplomacy prompts</strong> to Rome,
+    proving they were alive and active in diplomacy.</li>
+<li><strong>No Domination victory was achieved</strong> because no single civ captured all 7
+  capitals. With 7 civs on a Huge Pangaea map at Chieftain difficulty, the AI
+  expands and fights but capturing all 7 capitals within 500 turns is
+  extremely unlikely. The match needed Time victory as a fallback.</li>
+<li><strong>We have zero visibility into 4 of the 7 civs</strong> (Egypt, Persia, Aztecs,
+  Mongolia) from Rome's player projection. We only know they existed from wonder
+  events and diplomacy prompts. We don't know if they were eliminated or still
+  alive at turn 501. Only the spectator projection or direct snapshot inspection
+  could tell us.</li>
+</ul>
+<h4 id="root-causes-of-the-benchmark-failure">Root causes of the benchmark failure</h4>
+<ol>
+<li><strong>Fog-of-war</strong>: The player projection only shows civs the player has met.
+   Using <code>knownCivilizations.Count</code> as "Alive Civs" was fundamentally wrong.</li>
+<li><strong>Defeated human players still get turns</strong>: The engine does not auto-process
+   defeated human players in online multiplayer, so the match script kept
+   calling <code>end_turn</code> for a dead Rome. This is arguably correct game behavior
+   (a defeated human should still be able to watch), but it means our benchmark
+   loop never detected Rome's elimination.</li>
+<li><strong>No spectator projection in the benchmark</strong>: The spectator projection has
+   <code>major_civilizations</code> with <code>defeated</code> flags for all civs, which is the
+   correct data source for alive-civs tracking. But the benchmark script never
+   called it.</li>
+<li><strong>No Time victory fallback</strong>: With only Domination enabled and no Time
+   victory, the game had no way to end if no one captured all capitals.</li>
+</ol>
+<h3 id="whats-needed">What's needed</h3>
+<ol>
+<li><strong>Use the spectator projection</strong> for alive-civs tracking. The spectator
+   projection has <code>major_civilizations</code> with a <code>defeated</code> boolean for each civ.
+   Counting <code>!defeated</code> gives the true alive count. The benchmark script should
+   call <code>GET /api/v3/games/{game_id}/spectator-projection</code> each turn (or at
+   least periodically) to get the real alive-civs count.</li>
+<li><strong>Add elimination events to the benchmark output</strong>: when a civ transitions
+   from alive to defeated between turns, log it with the turn number and the
+   civ name. Track all 7 civs' defeated status from turn 1.</li>
+<li><strong>For all-AI matches</strong>: the spectator projection is the only source of
+   alive-civs data since there's no human player projection.</li>
+<li><strong>Detect when the human player is eliminated</strong>: the benchmark script should
+   detect when Rome is defeated and either continue via spectator projection or
+   report the elimination as an event.</li>
+<li><strong>Include Time victory as a fallback</strong>: ensure the match can end by score at
+   <code>max_turns</code> even if no Domination victory is achieved.</li>
+<li><strong>Direct database inspection</strong>: for replay and debugging, we should be able
+   to decompress and inspect any stored snapshot to see the full game state of
+   all civs. This is also needed for the replay viewing feature.</li>
+<li><strong>Spectator projection access control</strong>: the spectator projection endpoint
+   requires <code>role='spectator'</code> in <code>game_members</code>. The owner (role='owner')
+   cannot access it. The benchmark script now creates a second account and
+   adds it as a spectator to access the spectator projection. For all-AI
+   matches where the owner is a spectator by design, this won't be an issue.
+   But for regular matches, consider whether the owner should also be able to
+   see the spectator projection (currently they cannot).</li>
+</ol>
+<h3 id="implementation-completed-in-match-script">Implementation (completed in match script)</h3>
+<ul>
+<li>The benchmark script now creates a second account and adds it as a spectator
+  to the game so it can access <code>GET /api/v3/games/{game_id}/spectator-projection</code></li>
+<li>Each turn, the script fetches the spectator projection to track all civs'
+  <code>defeated</code> status and count alive civs</li>
+<li>Elimination events are logged in real time when a civ transitions from alive
+  to defeated</li>
+<li>Time victory is included in <code>victory_types</code> so the match ends by score at
+  <code>max_turns</code> if no Domination occurs</li>
+<li><code>max_turns</code> default raised from 500 to 5000 (effectively no turn limit)</li>
+<li>Victory is checked from both the player projection and the spectator
+  projection (spectator works even if the human is eliminated)</li>
+</ul>
+<hr />
+<h2 id="6-benchmark-match-results">6. Benchmark match results</h2>
+<h3 id="2-player-tiny-pangaea-match-1-human-1-ai">2-player tiny Pangaea match (1 human + 1 AI)</h3>
+<ul>
+<li><strong>Result</strong>: Egypt won by Domination on turn 263</li>
+<li><strong>Map</strong>: Tiny Pangaea, Quick speed, Domination only</li>
+<li><strong>Per-turn</strong>: p50 75ms, p95 (not recorded)</li>
+<li><strong>History</strong>: 264 revisions, 263 commands, 20 rewind checkpoints, 2.4MB
+  compressed</li>
+<li><strong>Post-victory</strong>: commands correctly rejected with 422</li>
+</ul>
+<h3 id="4-player-small-map-match-1-human-3-ai">4-player small map match (1 human + 3 AI)</h3>
+<ul>
+<li><strong>Result</strong>: Played 30 turns (truncated)</li>
+<li><strong>Map</strong>: Small Pangaea, Quick speed, Domination only</li>
+<li><strong>Per-turn</strong>: p50 55ms, p95 93ms</li>
+</ul>
+<h3 id="7-civ-huge-map-match-v1-1-passive-human-6-ai-broken-benchmark">7-civ Huge map match v1 (1 passive human + 6 AI) — BROKEN BENCHMARK</h3>
+<ul>
+<li><strong>Result</strong>: No victory — hit 500-turn limit</li>
+<li><strong>Map</strong>: Huge Pangaea, Quick speed, Domination only, no Time victory</li>
+<li><strong>Per-turn</strong>: min 109ms, p50 431ms, p95 3754ms, p99 4959ms, max 5698ms,
+  mean 985ms</li>
+<li><strong>Early game (1-50)</strong>: mean 141ms</li>
+<li><strong>Mid game (50-150)</strong>: mean 196ms</li>
+<li><strong>Late game (150+)</strong>: mean 1330ms</li>
+<li><strong>Total AI processing</strong>: 493.5s</li>
+<li><strong>History</strong>: 502 revisions, 20 rewind checkpoints</li>
+<li><strong>Issue</strong>: No Time victory enabled, so game didn't end at turn 500. AI at
+  Chieftain difficulty couldn't capture all 7 capitals on a Huge map within 500
+  turns.</li>
+<li><strong>Benchmark was broken</strong>: "Alive Civs" counted <code>knownCivilizations</code> (fog-of-war
+  limited discovery counter), not actual alive civs. Rome was eliminated during
+  the match but the benchmark never detected it. The AI was extremely active
+  (Arabia had 127K gold and 49 cities, Greece had 56 cities, 29 wonders built)
+  but the benchmark output showed none of this.</li>
+</ul>
+<h3 id="7-civ-huge-map-match-v2-1-passive-human-6-ai-fixed-benchmark">7-civ Huge map match v2 (1 passive human + 6 AI) — FIXED BENCHMARK</h3>
+<ul>
+<li><strong>Result</strong>: Egypt won by Scientific victory on turn 296</li>
+<li><strong>Map</strong>: Huge Pangaea, Quick speed, all non-hidden victory types
+  (Domination, Scientific, Cultural, Diplomatic)</li>
+<li><strong>Per-turn</strong>: min 83ms, p50 242ms, p95 696ms, p99 797ms, max 822ms,
+  mean 308ms</li>
+<li><strong>Early game (1-50)</strong>: mean 104ms</li>
+<li><strong>Mid game (50-150)</strong>: mean 179ms</li>
+<li><strong>Late game (150+)</strong>: mean 465ms</li>
+<li><strong>Total AI processing</strong>: 91.5s</li>
+<li><strong>Match duration</strong>: 149.3s (2.5 min)</li>
+<li><strong>History</strong>: 298 revisions, 20 rewind checkpoints</li>
+<li><strong>Eliminations</strong>: Mongolia eliminated on turn 262</li>
+<li><strong>Final status</strong>: Egypt (winner), Arabia, Aztecs, Greece, Persia, Rome — ALIVE;
+  Mongolia — DEFEATED</li>
+<li><strong>Spectator projection</strong>: Used a second account as spectator to track all 7
+  civs' defeated status via the spectator projection (not fog-of-war limited)</li>
+<li><strong>Key fix</strong>: All non-hidden victory types enabled, so Egypt achieved Scientific
+  victory (spaceship) instead of needing Domination (all capitals). The Time
+  victory type is hidden in the vanilla ruleset and rejected by the worker, so
+  it cannot be used as a fallback.</li>
+</ul>
+<h3 id="optimization-observations">Optimization observations</h3>
+<ol>
+<li><strong>Late-game slowdown</strong>: turns go from ~140ms (early) to ~1330ms (late) — a
+   10x slowdown. Likely causes: more units, more cities, longer AI decision
+   trees, larger snapshot serialization/deserialization.</li>
+<li><strong>p95 spikes</strong>: p95 is 3754ms (8.7x the p50), suggesting some turns trigger
+   expensive operations (combat resolution, city conquest, diplomacy updates).</li>
+<li><strong>Snapshot growth</strong>: 2.4MB compressed for 263 turns (tiny map). Huge map
+   500 turns would be significantly larger. Snapshot compression and storage
+   are not currently a bottleneck but could become one for very long matches.</li>
+<li><strong>Worker execution</strong>: all AI turns run synchronously in one <code>end_turn</code> call.
+   For 6 AI on a Huge map, this means each <code>end_turn</code> call processes 6 full AI
+   turns plus the human's turn end. This is the primary latency contributor.</li>
+</ol>
+<h3 id="benchmark-improvements-needed">Benchmark improvements needed</h3>
+<ul>
+<li>~~Remove the 500-turn limit~~ — DONE: default is now 1500 (API max)</li>
+<li>~~Include Time victory or set very high max_turns~~ — DONE: all non-hidden
+  victory types enabled (Time is hidden and rejected by worker)</li>
+<li>~~Track alive civs via spectator projection~~ — DONE: spectator account added
+  to each match, alive-civs tracked from <code>major_civilizations.defeated</code></li>
+<li>~~Log elimination events~~ — DONE: eliminations detected and logged in
+  real time</li>
+<li>Record per-turn snapshot size for storage growth analysis</li>
+<li>Add memory/heap tracking for the worker process</li>
+<li>Benchmark on Linux production target (current benchmarks are Windows dev host)</li>
+</ul>
+<hr />
+<h2 id="7-priority-order-for-implementation">7. Priority order for implementation</h2>
+<ol>
+<li><strong>All-AI match support</strong> (Section 1) — enables automated full-match
+   benchmarking without human interaction</li>
+<li><strong>Alive civs tracking</strong> (Section 5) — needed for meaningful match output</li>
+<li><strong>Fix benchmark match script</strong> (Section 4) — DONE: all non-hidden victory
+   types enabled, spectator projection for alive-civs tracking, elimination
+   logging, max_turns=1500. Verified with Egypt Scientific victory on turn 296.</li>
+<li><strong>Match replay viewing</strong> (Section 3) — public, YouTube-style replay with
+   step-by-step granularity, no fog of war, and live graphs. This is the
+   highest-impact user-facing feature: it makes every public match watchable
+   by anyone, like an e-sports replay.</li>
+<li><strong>Simultaneous human turns</strong> (Section 2) — largest scope (37+ files),
+   recommended as a later phase</li>
+</ol>
+<hr />
+<h2 id="8-notes-on-current-architecture-constraints">8. Notes on current architecture constraints</h2>
+<ul>
+<li><strong>PostgreSQL 19 Beta 2</strong> is the sole production and test database target</li>
+<li><strong>Worker is sequential</strong>: one operation at a time, so terrain reads serialize
+  against gameplay commands and AI turns</li>
+<li><strong>CAS optimistic concurrency</strong>: commands are serialized; stale revisions force
+  re-projection and re-issue. This is the natural conflict resolution for
+  simultaneous turns.</li>
+<li><strong>AGENTS.md rewind invariant</strong>: checkpoints are at <code>EndTurn</code> start-of-turn.
+  Simultaneous turns would change checkpoint semantics.</li>
+<li><strong>Snapshot retention</strong>: migration 0017 allows compaction. Replay system must
+  ensure completed-game snapshots are retained.</li>
+<li><strong>No client RNG or local rules fallback</strong>: all gameplay mutations happen in
+  the private Kotlin worker under server-owned execution context.</li>
+<li><strong>Player projection is fog-of-war limited</strong>: a human player only sees civs
+  they have discovered, units in their viewable tiles, and resources on
+  explored tiles. This is correct for gameplay but useless for benchmarking
+  and debugging. The spectator projection is the correct data source for
+  observing the full match state.</li>
+<li><strong>Spectator projection requires role='spectator'</strong>: the owner (role='owner')
+  cannot access the spectator projection. To observe a match as a spectator,
+  a separate account must be added with role='spectator'. For all-AI matches
+  (Section 1), the owner would be a spectator by design, solving this.</li>
+<li><strong>Defeated human players still receive turns</strong>: the engine does not
+  auto-process defeated human players in online multiplayer. A defeated human
+  must still call <code>end_turn</code> to advance the game. This is correct for player
+  experience but means a benchmark script driving a passive human will keep
+  working even after the human's civ is eliminated.</li>
+<li><strong>Full snapshots are stored in PostgreSQL</strong>: every revision has a full
+  compressed <code>GameInfo</code> snapshot in <code>game_snapshot_blobs</code>. These can be
+  decompressed and inspected directly for debugging and replay. The snapshot
+  contains ALL civilizations' data (cities, units, stats, diplomacy) with no
+  fog-of-war filtering — this is the canonical source of truth for match
+  replay. A <code>ProjectReplayState</code> worker operation would project this data
+  through the existing projection infrastructure without fog-of-war.</li>
+</ul>
+<hr />
+<h2 id="9-implementation-status-2026-08-07">9. Implementation status (2026-08-07)</h2>
+<h3 id="all-ai-matches-complete">All-AI matches — COMPLETE</h3>
+<ul>
+<li>Migration 0032: <code>human_slots BETWEEN 0 AND 16</code></li>
+<li>Rust API: <code>owner_civilization_id</code> is <code>Option&lt;String&gt;</code>, empty humans allowed</li>
+<li>Postgres: owner inserted as <code>role='spectator'</code> with NULL civ when no humans</li>
+<li>Kotlin worker: <code>WorkerGameSetup.materialize()</code> handles empty humans, null owner civ</li>
+<li><code>EngineWorkerProtocol</code>: handles null owner civ in <code>CreateGame</code> and <code>ReconfigureLobby</code></li>
+<li>Verified: 192 Rust tests pass, Kotlin compiles, all 312 authoritative tests pass</li>
+</ul>
+<h3 id="simultaneous-human-turns-complete">Simultaneous human turns — COMPLETE</h3>
+<ul>
+<li><code>GameParameters.simultaneousHumanTurns: Boolean = false</code> (with clone)</li>
+<li><code>GameInfo.playersWhoEndedTurn: MutableSet&lt;String&gt;</code> field</li>
+<li><code>HeadlessGameEngine.endTurn()</code> dual-mode:</li>
+<li>Sequential: advances turn immediately (existing behavior)</li>
+<li>Simultaneous: marks player done in <code>playersWhoEndedTurn</code>, advances only
+    when all active humans have ended</li>
+<li><code>requireCanIssueTurnCommands()</code> helper replaces all 28 turn guards:</li>
+<li>Sequential: <code>require(game.currentPlayer == actorCivilization.civID)</code></li>
+<li>Simultaneous: checks human + alive + not spectator + not in <code>playersWhoEndedTurn</code></li>
+<li><code>PlayerProjection.canIssueTurnCommands</code> updated for simultaneous mode</li>
+<li><code>WorkerGameSetup.simultaneous_human_turns</code> field (Rust + Kotlin)</li>
+<li>Fixed infinite recursion in <code>requireCanIssueTurnCommands</code> else-branch</li>
+<li>Verified: all 312 authoritative tests pass, full Kotlin test suite passes</li>
+</ul>
+<h3 id="match-replay-system-complete">Match replay system — COMPLETE</h3>
+<ul>
+<li>Migration 0033: <code>game_visibility</code> column (<code>private</code>/<code>public</code>) + index</li>
+<li><code>ProjectReplayState</code> worker operation (Rust protocol + Kotlin handler)</li>
+<li><code>ReplayProjection</code> structs (Rust + Kotlin): full no-fog-of-war projection with
+  all civs' stats, territory, victory info, stats history</li>
+<li><code>ReplayProjectionBuilder</code> (Kotlin): builds from <code>GameInfo</code> with all civ data</li>
+<li><code>worker/replay.rs</code>: client method for <code>project_replay_state</code></li>
+<li><code>postgres/replay.rs</code>: <code>list_revisions</code>, <code>replay_projection</code>, <code>is_public_game</code>,
+  <code>list_public_matches</code> methods</li>
+<li><code>api/replay.rs</code>: 3 endpoints</li>
+<li><code>GET /api/v3/games/{game_id}/revisions</code> — list all revisions</li>
+<li><code>GET /api/v3/games/{game_id}/revisions/{revision}/replay</code> — no-fog projection</li>
+<li><code>GET /api/v3/public-matches</code> — directory of public matches</li>
+<li>Access control: public games accessible without membership; private games
+  require membership check</li>
+<li>Kotlin client: <code>ApiV3Transport</code> interface methods (with default <code>error</code> impls),
+  <code>ApiV3Client</code> HTTP implementations, <code>AuthoritativeMultiplayerSession</code> methods</li>
+<li>Kotlin DTOs: <code>ApiV3RevisionList</code>, <code>ApiV3ReplayGameProjection</code>,
+  <code>ApiV3PublicMatchSummary</code>, <code>ApiV3RevisionSummary</code></li>
+<li><code>AuthoritativeReplayScreen.kt</code>: YouTube-style replay screen with:</li>
+<li>Play/pause toggle with adjustable speed (0.5x, 1x, 2x, 5x)</li>
+<li>Step forward/backward through revisions</li>
+<li>Revision slider for scrubbing</li>
+<li>Civ stats table (gold, cities, units, population, tech, status)</li>
+<li>Stats history display (score per civ per turn)</li>
+<li>Victory display</li>
+<li><code>AuthoritativePublicMatchesPopup.kt</code>: popup listing public matches, click to
+  open replay screen</li>
+<li>"Watch public matches" button added to <code>MultiplayerScreen</code></li>
+<li>Verified: Rust compiles, clippy clean, 192 tests pass; Kotlin compiles, all
+  tests pass</li>
+</ul>
+<h3 id="remaining-work">Remaining work</h3>
+<ul>
+<li>Run migrations 0032 and 0033 against the database</li>
+<li>Regenerate <code>openapi/api-v3.json</code> contract with new replay endpoints</li>
+<li>Rust projection validation rules for simultaneous turns (<code>is_current_turn</code>
+  semantics)</li>
+<li><code>SpectatorProjection</code> for simultaneous mode (multiple active players visible)</li>
+<li><code>AdvanceAiTurn</code> worker operation for all-AI matches (currently <code>nextTurn()</code>
+  runs all AI to completion in one call)</li>
+<li>End-to-end replay test with the completed benchmark match</li>
+</ul>
+<hr />
+<h2 id="10-snapshot-storage-architecture-and-lockwell-cold-archival-2026-08-08">10. Snapshot storage architecture and Lockwell cold archival (2026-08-08)</h2>
+<h3 id="decision">Decision</h3>
+<p>PostgreSQL remains the authoritative metadata and transaction store, but it is
+no longer required to retain every historical payload. The canonical revision
+chain, state hashes, command journal, replay identity, and retention decisions
+remain in PostgreSQL. Cold payload bytes can be moved to the Lockwell native
+object API only after an upload, checksum validation, conditional-write result,
+and byte-for-byte download verification.</p>
+<p>The rollout is explicit and fail-closed:</p>
+<ol>
+<li>Set <code>UNCIV_V3_SNAPSHOT_ZSTD_LEVEL=9</code> for new hot snapshots. Existing zstd
+   rows decode unchanged; no codec migration is needed.</li>
+<li>Apply migrations 0034 and 0035, which add verified archive metadata and the
+   bounded <code>zstd_delta</code> archive codec.</li>
+<li>Configure <code>UNCIV_LOCKWELL_ENDPOINT</code>, <code>UNCIV_LOCKWELL_BUCKET</code>,
+   <code>UNCIV_LOCKWELL_ACCESS_KEY_ID</code>, and <code>UNCIV_LOCKWELL_SECRET_KEY</code>. The bucket
+   must be provisioned by an operator; the server never creates buckets or
+   broadens access-key scope.</li>
+<li>Run <code>unciv-v3-reencode &lt;game-uuid&gt;</code> as a dry run to measure historical
+   level-9 savings; use <code>--apply</code> only after inspecting the report.</li>
+<li>Run <code>unciv-v3-archive &lt;game-uuid&gt; --recent 64 --long-term-interval 100</code>
+   for a dry run, then repeat with <code>--apply</code>; add <code>--delta</code> only after the
+   object-store/replay qualification passes.</li>
+</ol>
+<p><code>--delta</code> keeps full checkpoints at revision 0 and every configured long-term
+interval, retains the recent window and end-turn/recovery milestones, and stores
+older snapshots as independently verified checkpoint-relative deltas when the
+bounded delta is smaller than the original full payload. Normal runs therefore
+use a full checkpoint as the delta base; the reader also permits a legacy or
+operator-selected delta base but caps reconstruction at 64 links and fails
+closed on cycles or excessive depth. If Lockwell is unavailable, the object is
+missing, the checksum/size/hash differs, or the database transaction fails,
+reads return a recovery error and the game is not silently reconstructed from
+client state.</p>
+<h3 id="recovery-and-client-load-guarantees">Recovery and client-load guarantees</h3>
+<p>A human join still downloads only metadata followed by one player-scoped
+projection. The server may fetch/decompress one current full checkpoint or one
+Lockwell full/delta object plus its retained base, then sends the worker-derived
+fog-of-war projection. Notifications remain hints; projection deltas are still
+bounded to 64 revisions. Replay requests are also point reads: they fetch the
+requested revision and its checkpoint if that revision is archived as a delta,
+not the complete history. PostgreSQL is therefore removed from the hot payload
+path for cold history without changing the client protocol.</p>
+<h3 id="safety-boundaries">Safety boundaries</h3>
+<p>The old PostgreSQL-only compactor remains available for private/local history
+and intentionally leaves public matches alone. The Lockwell archival command is
+separate and opt-in, so public replay retention is a conscious operator action.
+The reconciliation scan treats retained blobs as local evidence, requires a
+Lockwell archive for <code>zstd_delta</code> rows, and permits intentionally compacted full
+rows produced by the legacy compactor. Archive object keys are UUID/revision
+paths only; access-key scope and Lockwell tenant isolation remain enforced by
+Lockwell.</p>
+<p>Production archival is intentionally not automatic in the commit hot path:
+run the dry-run <code>unciv-v3-reencode</code> and <code>unciv-v3-archive</code> CLIs, inspect their
+candidate/byte counts, then use <code>--apply</code>. This avoids coupling a human
+command's availability to object-store latency while keeping every cold read
+fail-closed and retry-safe.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1861,6 +1861,50 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#full-ai-match-benchmark-with-per-turn-timing-and-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full AI match benchmark with per-turn timing and history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destructive-postgresql-qualifications-re-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destructive PostgreSQL qualifications re-run
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lobby-terrain-projection-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lobby terrain projection benchmark
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-traits-surfaced-in-browser-and-match-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI traits surfaced in browser and match summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#civilization-style-multiplayer-front-end-and-committed-map-preview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4708,6 +4752,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../v3-future-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authoritative multiplayer v3 — future features and optimization notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -4717,10 +4789,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_4" >
         
           
-          <label class="md-nav__link" for="__nav_11_3" id="__nav_11_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11_4" id="__nav_11_4_label" tabindex="0">
             
   
   
@@ -4738,8 +4810,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11_3">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5789,6 +5861,50 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#full-ai-match-benchmark-with-per-turn-timing-and-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full AI match benchmark with per-turn timing and history
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destructive-postgresql-qualifications-re-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destructive PostgreSQL qualifications re-run
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lobby-terrain-projection-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lobby terrain projection benchmark
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-traits-surfaced-in-browser-and-match-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI traits surfaced in browser and match summary
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#civilization-style-multiplayer-front-end-and-committed-map-preview" class="md-nav__link">
@@ -8616,6 +8732,81 @@
 
 
 <h1 id="authoritative-multiplayer-v3-status">Authoritative multiplayer v3 status</h1>
+<h2 id="full-ai-match-benchmark-with-per-turn-timing-and-history">Full AI match benchmark with per-turn timing and history</h2>
+<p>Verified on 2026-08-06:</p>
+<ul>
+<li>Two complete authoritative V3 matches were played from lobby creation
+  through Domination victory, with every turn benchmarked and the full
+  revision history verified for playback.</li>
+<li><strong>2-player match</strong> (Rome human + Egypt AI, tiny Pangaea, Quick): 263 turns
+  to Egypt Domination victory. Per-turn EndTurn+1AI: p50 75 ms, p95 106 ms,
+  mean 76.2 ms. 264 immutable revisions (0–263), 263 commands, 20 rewind
+  checkpoints. Total history: 2.4 MB compressed across 264 zstd snapshots.
+  Match wall-clock: 40.5 s. Post-victory projection correctly reports
+  winner/type/turn; post-victory commands rejected with 422.</li>
+<li><strong>4-player match</strong> (Rome human + 3 AI, small Pangaea, Quick): 30 turns
+  benchmarked. Per-turn EndTurn+3AI: p50 55 ms, p95 93 ms, mean 59.4 ms.
+  Three AI civilizations add negligible per-turn overhead beyond the 2-player
+  baseline.</li>
+<li>Every <code>EndTurn</code> produces exactly one revision, one snapshot, one command
+  journal entry, and one outbox event. The full revision chain is preserved
+  as immutable content-addressed snapshots, enabling complete game playback
+  from any point and consensual whole-game rewind to any retained checkpoint.</li>
+<li>The <code>run-full-ai-match.ps1</code> script in <code>authoritative-server/tests/</code> automates
+  the full match benchmark with per-turn timing, victory detection, and
+  history verification.</li>
+</ul>
+<h2 id="destructive-postgresql-qualifications-re-run">Destructive PostgreSQL qualifications re-run</h2>
+<p>Verified on 2026-08-06:</p>
+<ul>
+<li>The disk-full and backup/restore qualification tests were re-run manually
+  against a disposable
+  <code>postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5</code>
+  container with production roles bootstrapped. The disk-full seed test passed,
+  the disk was filled to 0 KiB free, and
+  <code>disk_full_commit_leaves_no_phantom_revision</code> passed (the 12 MiB canonical
+  commit was rejected with no phantom command/head). The backup/restore seed
+  test also passed. The underlying tests and migration set (1-31) are correct.</li>
+<li>The smoke scripts (<code>run-postgres-disk-full-smoke.ps1</code>,
+  <code>run-postgres-pitr-smoke.ps1</code>) need a role-bootstrap step added before they
+  can run end-to-end unattended, because the disposable containers they create
+  use a plain <code>postgres</code> superuser without the production roles that migration
+  24+ reference. This is a pre-existing procedure gap, not a regression.</li>
+</ul>
+<h2 id="lobby-terrain-projection-benchmark">Lobby terrain projection benchmark</h2>
+<p>Measured on 2026-08-06:</p>
+<ul>
+<li>The <code>unciv-v3-worker-benchmark</code> binary now includes a
+  <code>lobby_terrain_preview</code> measurement (schema version 3). Each iteration
+  creates a fresh tiny Pangaea game, then projects the lobby terrain from the
+  resulting snapshot through the read-only <code>project_lobby_terrain</code> worker
+  intent. No generation happens for a preview.</li>
+<li>On the Windows development host with worker build 4.21.4, the tiny-map
+  lobby terrain projection measured p50 8.28 ms, p95 24.28 ms, mean 10.73 ms
+  across 10 samples. This is well under the 1.5-second reconciliation poll
+  interval and confirms the preview never blocks lobby reconciliation.</li>
+<li><code>docs/benchmarks/authoritative-multiplayer.md</code> now has a measured row for
+  snapshot-load-plus-terrain-projection. Formatting, warnings-as-errors
+  Clippy, and library tests pass.</li>
+</ul>
+<h2 id="ai-traits-surfaced-in-browser-and-match-summary">AI traits surfaced in browser and match summary</h2>
+<p>Implemented on 2026-08-06:</p>
+<ul>
+<li>The lobby browser card now shows the AI count alongside the host, ruleset,
+  and map info. The "Your matches" card shows the AI count alongside the
+  lifecycle status and revision. The staging room's match summary panel lists
+  each AI seat with its pinned civilization, difficulty, and personality when
+  the host authored a roster.</li>
+<li><code>GameSummary</code> carries a new <code>ai_count</code> field derived from the lobby setup's
+  <code>major_civilizations</code> minus <code>human_slots</code> in the <code>list_games</code> SQL query. The
+  <code>ApiV3Lobby</code> already exposed the full <code>aiCivilizations</code> roster; the
+  <code>ApiV3GameSummary</code> Kotlin DTO now carries <code>ai_count</code>. The generated OpenAPI
+  contract includes the new field.</li>
+<li>Focused Rust library tests (196 passed), formatting, warnings-as-errors
+  Clippy, and the authoritative Kotlin client suite pass. A live disposable
+  PostgreSQL 19 Beta 2 + packaged worker + Rust API stack confirmed the field
+  is returned correctly for a four-major, two-AI lobby.</li>
+</ul>
 <h2 id="civilization-style-multiplayer-front-end-and-committed-map-preview">Civilization-style multiplayer front end and committed-map preview</h2>
 <p>Implemented on 2026-07-30:</p>
 <ul>

@@ -3,6 +3,7 @@
   "civilizationId": "Rome",
   "turn": 12,
   "currentPlayerCivilizationId": "Rome",
+  "activePlayerCivilizationIds": ["Rome"],
   "isCurrentTurn": true,
   "victory": null,
   "pendingTurnActions": ["pick_policy", "cast_diplomatic_vote", "pick_great_person"],

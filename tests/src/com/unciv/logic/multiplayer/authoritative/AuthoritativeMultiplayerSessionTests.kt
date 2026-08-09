@@ -51,6 +51,28 @@ class AuthoritativeMultiplayerSessionTests {
     }
 
     @Test
+    fun lobbyDirectoryLoadsEveryBoundedPage() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            lobbyPages[null] = ApiV3LobbyPage(
+                listOf(lobbyFixture().copy(gameId = "lobby-a")),
+                "lobby-page-2",
+            )
+            lobbyPages["lobby-page-2"] = ApiV3LobbyPage(
+                listOf(lobbyFixture().copy(gameId = "lobby-b")),
+            )
+        }
+        val session = session(transport)
+        assertTrue(session.restore())
+
+        val lobbies = session.listAllOpenLobbies(pageSize = 1, maximumLobbies = 3)
+
+        assertEquals(listOf("lobby-a", "lobby-b"), lobbies.map { it.gameId })
+        assertEquals(listOf(null, "lobby-page-2"), transport.lobbyListCalls)
+        session.close()
+    }
+
+    @Test
     fun lobbyCommandsPreserveServerRevisionsFactionChoiceAndPassword() = runBlocking {
         val transport = FakeTransport().apply { restored = true }
         val session = session(transport)
@@ -193,6 +215,36 @@ class AuthoritativeMultiplayerSessionTests {
         assertEquals(GAME_ID, page.games.single().gameId)
         assertEquals(NEXT_GAME_ID, page.nextCursor)
         session.close()
+    }
+
+    @Test
+    fun publicMatchDirectoryLoadsEveryPageAndRejectsTruncation() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            publicMatchPages[0] = listOf(publicMatch("public-a"), publicMatch("public-b"))
+            publicMatchPages[2] = listOf(publicMatch("public-c"))
+        }
+        val session = session(transport)
+        assertTrue(session.restore())
+
+        val matches = session.listAllPublicMatches(pageSize = 2, maximumMatches = 5)
+
+        assertEquals(listOf("public-a", "public-b", "public-c"), matches.map { it.gameId })
+        assertEquals(listOf(0 to 2, 2 to 2), transport.publicMatchCalls)
+        session.close()
+
+        val truncatedTransport = FakeTransport().apply {
+            restored = true
+            publicMatchPages[0] = listOf(publicMatch("public-a"), publicMatch("public-b"))
+            publicMatchPages[2] = listOf(publicMatch("public-c"))
+        }
+        val truncatedSession = session(truncatedTransport)
+        assertTrue(truncatedSession.restore())
+        assertThrows<IllegalArgumentException> {
+            truncatedSession.listAllPublicMatches(pageSize = 2, maximumMatches = 2)
+        }
+        assertEquals(listOf(0 to 2, 2 to 1), truncatedTransport.publicMatchCalls)
+        truncatedSession.close()
     }
 
     @Test
@@ -1574,6 +1626,14 @@ class AuthoritativeMultiplayerSessionTests {
         )),
     )
 
+    private fun publicMatch(gameId: String) = ApiV3PublicMatchSummary(
+        gameId = gameId,
+        displayName = "Match $gameId",
+        lifecycleStatus = "closed",
+        headRevision = 12,
+        createdAt = "2026-08-09T00:00:00Z",
+    )
+
     private fun manifest(hash: String, base: String, mods: List<String>) =
         ApiV3RulesetManifestSummary(
             hash.repeat(64),
@@ -1652,6 +1712,10 @@ class AuthoritativeMultiplayerSessionTests {
         val listCalls = mutableListOf<Pair<String?, Int>>()
         val manifestListCalls = mutableListOf<String?>()
         val manifestPages = mutableMapOf<String?, ApiV3RulesetManifestPage>()
+        val lobbyListCalls = mutableListOf<String?>()
+        val lobbyPages = mutableMapOf<String?, ApiV3LobbyPage>()
+        val publicMatchPages = mutableMapOf<Int, List<ApiV3PublicMatchSummary>>()
+        val publicMatchCalls = mutableListOf<Pair<Int, Int>>()
         val createdGames = mutableListOf<Triple<String, String, ApiV3GameSetup>>()
         val passwordChanges = mutableListOf<Pair<String, String>>()
         val recoveryCodeRequests = mutableListOf<String>()
@@ -1709,8 +1773,14 @@ class AuthoritativeMultiplayerSessionTests {
                 NEXT_GAME_ID,
             )
         }
-        override suspend fun listLobbies(after: String?, limit: Int) =
-            ApiV3LobbyPage(listOf(lobbyFixture()))
+        override suspend fun listPublicMatches(limit: Int, offset: Int): List<ApiV3PublicMatchSummary> {
+            publicMatchCalls += offset to limit
+            return publicMatchPages[offset].orEmpty().take(limit)
+        }
+        override suspend fun listLobbies(after: String?, limit: Int): ApiV3LobbyPage {
+            lobbyListCalls += after
+            return lobbyPages[after] ?: ApiV3LobbyPage(listOf(lobbyFixture()))
+        }
         override suspend fun lobby(gameId: String) = lobbyFixture()
         override suspend fun setLobbyReady(
             gameId: String,

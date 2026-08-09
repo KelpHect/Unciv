@@ -219,6 +219,50 @@ class AuthoritativeMultiplayerSession(
         return transport.listLobbies()
     }
 
+    /** Loads the complete bounded lobby directory instead of silently showing
+     * only the first server page in the multiplayer browser. */
+    suspend fun listAllOpenLobbies(
+        pageSize: Int = DEFAULT_DIRECTORY_PAGE_SIZE,
+        maximumLobbies: Int = DEFAULT_MAXIMUM_LOBBIES,
+    ): List<ApiV3Lobby> {
+        require(pageSize in 1..MAXIMUM_DIRECTORY_PAGE_SIZE) {
+            "Authoritative lobby page size must be between 1 and $MAXIMUM_DIRECTORY_PAGE_SIZE"
+        }
+        require(maximumLobbies in 1..MAXIMUM_LOBBY_LIMIT) {
+            "Authoritative lobby limit must be between 1 and $MAXIMUM_LOBBY_LIMIT"
+        }
+        val lobbiesById = linkedMapOf<String, ApiV3Lobby>()
+        val seenCursors = mutableSetOf<String>()
+        var cursor: String? = null
+        do {
+            val page = transport.listLobbies(cursor, minOf(pageSize, maximumLobbies - lobbiesById.size))
+            require(page.lobbies.size <= pageSize) {
+                "Authoritative lobby page exceeded the requested size"
+            }
+            for (lobby in page.lobbies) {
+                require(lobbiesById.putIfAbsent(lobby.gameId, lobby) == null) {
+                    "Authoritative lobby directory repeated game ${lobby.gameId}"
+                }
+                require(lobbiesById.size <= maximumLobbies) {
+                    "Authoritative lobby directory exceeded the configured limit"
+                }
+            }
+            cursor = page.nextCursor
+            if (cursor != null) {
+                require(cursor.isNotBlank()) {
+                    "Authoritative lobby directory returned a blank cursor"
+                }
+                require(seenCursors.add(cursor)) {
+                    "Authoritative lobby directory repeated a cursor"
+                }
+                require(lobbiesById.size < maximumLobbies) {
+                    "Authoritative lobby directory has more than $maximumLobbies lobbies"
+                }
+            }
+        } while (cursor != null)
+        return lobbiesById.values.toList()
+    }
+
     suspend fun lobby(gameId: String): ApiV3Lobby {
         requireAuthenticated()
         return transport.lobby(gameId)
@@ -324,6 +368,12 @@ class AuthoritativeMultiplayerSession(
         )
     }
 
+    suspend fun gameMetadata(gameId: String): ApiV3GameMetadata {
+        requireAuthenticated()
+        requireUuid(gameId, "Game ID")
+        return transport.gameMetadata(gameId)
+    }
+
     suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> {
         requireAuthenticated()
         return transport.listPlayerInvitations()
@@ -382,6 +432,52 @@ class AuthoritativeMultiplayerSession(
     suspend fun listPublicMatches(limit: Int = 50, offset: Int = 0): List<ApiV3PublicMatchSummary> {
         requireAuthenticated()
         return transport.listPublicMatches(limit, offset)
+    }
+
+    /** Loads the complete bounded public-match directory over the offset-based
+     * endpoint. The server intentionally returns a plain list, so a full page
+     * is followed by a one-item probe to distinguish an exact boundary from
+     * silently truncated results. */
+    suspend fun listAllPublicMatches(
+        pageSize: Int = DEFAULT_PUBLIC_MATCH_PAGE_SIZE,
+        maximumMatches: Int = DEFAULT_MAXIMUM_PUBLIC_MATCHES,
+    ): List<ApiV3PublicMatchSummary> {
+        requireAuthenticated()
+        require(pageSize in 1..MAXIMUM_PUBLIC_MATCH_PAGE_SIZE) {
+            "Public match page size must be between 1 and $MAXIMUM_PUBLIC_MATCH_PAGE_SIZE"
+        }
+        require(maximumMatches in 1..MAXIMUM_PUBLIC_MATCH_LIMIT) {
+            "Public match limit must be between 1 and $MAXIMUM_PUBLIC_MATCH_LIMIT"
+        }
+
+        val matches = ArrayList<ApiV3PublicMatchSummary>(minOf(pageSize, maximumMatches))
+        val seenGameIds = mutableSetOf<String>()
+        var offset = 0
+        while (true) {
+            val page = transport.listPublicMatches(
+                minOf(pageSize, maximumMatches - matches.size),
+                offset,
+            )
+            for (match in page) {
+                require(seenGameIds.add(match.gameId)) {
+                    "Public match directory repeated game ${match.gameId}"
+                }
+                matches += match
+                require(matches.size <= maximumMatches) {
+                    "Public match directory exceeded the configured limit"
+                }
+            }
+            if (page.size < pageSize) return matches
+
+            offset += page.size
+            if (matches.size == maximumMatches) {
+                val extra = transport.listPublicMatches(1, offset)
+                require(extra.isEmpty()) {
+                    "Public match directory has more than $maximumMatches matches"
+                }
+                return matches
+            }
+        }
     }
 
     suspend fun rewindCheckpoints(gameId: String): List<ApiV3RewindCheckpoint> {
@@ -1988,6 +2084,12 @@ class AuthoritativeMultiplayerSession(
         }
     }
 
+    private fun requireUuid(value: String, label: String) {
+        require(runCatching { UUID.fromString(value) }.isSuccess) {
+            "$label must be a UUID"
+        }
+    }
+
     private fun requireAuthenticated() {
         check(authenticated) { "Authenticate before opening an authoritative game" }
     }
@@ -2028,6 +2130,15 @@ class AuthoritativeMultiplayerSession(
     }
 
     companion object {
+        private const val DEFAULT_DIRECTORY_PAGE_SIZE = 50
+        private const val DEFAULT_MAXIMUM_LOBBIES = 1_000
+        private const val MAXIMUM_DIRECTORY_PAGE_SIZE = 100
+        private const val MAXIMUM_LOBBY_LIMIT = 5_000
+        private const val DEFAULT_PUBLIC_MATCH_PAGE_SIZE = 50
+        private const val MAXIMUM_PUBLIC_MATCH_PAGE_SIZE = 200
+        private const val DEFAULT_MAXIMUM_PUBLIC_MATCHES = 1_000
+        private const val MAXIMUM_PUBLIC_MATCH_LIMIT = 5_000
+
         fun create(
             transport: ApiV3Transport,
             scope: CoroutineScope = CoroutineScope(SupervisorJob()),

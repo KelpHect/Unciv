@@ -26,6 +26,8 @@ interface ApiV3Transport {
         limit: Int = 50,
     ): ApiV3RulesetManifestPage = error("Ruleset manifest discovery is unsupported by this transport")
     suspend fun listGames(after: String? = null, limit: Int = 50): ApiV3GamePage
+    suspend fun gameMetadata(gameId: String): ApiV3GameMetadata =
+        error("Game metadata is unsupported by this transport")
     suspend fun listLobbies(after: String? = null, limit: Int = 50): ApiV3LobbyPage =
         error("Lobby discovery is unsupported by this transport")
     suspend fun lobby(gameId: String): ApiV3Lobby =

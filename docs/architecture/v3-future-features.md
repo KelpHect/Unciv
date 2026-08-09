@@ -4,7 +4,7 @@ This file captures user requirements, investigation findings, and implementation
 plans for the next phase of authoritative multiplayer v3 work. It is a living
 document: update it as features are implemented or requirements evolve.
 
-Last updated: 2026-08-07
+Last updated: 2026-08-09
 
 ---
 
@@ -745,8 +745,8 @@ The rollout is explicit and fail-closed:
 
 1. Set `UNCIV_V3_SNAPSHOT_ZSTD_LEVEL=9` for new hot snapshots. Existing zstd
    rows decode unchanged; no codec migration is needed.
-2. Apply migrations 0034 and 0035, which add verified archive metadata and the
-   bounded `zstd_delta` archive codec.
+2. Apply migrations 0034 through 0036, which add verified archive metadata,
+   refresh-token rotation, and the bounded `zstd_delta` archive codec.
 3. Configure `UNCIV_LOCKWELL_ENDPOINT`, `UNCIV_LOCKWELL_BUCKET`,
    `UNCIV_LOCKWELL_ACCESS_KEY_ID`, and `UNCIV_LOCKWELL_SECRET_KEY`. The bucket
    must be provisioned by an operator; the server never creates buckets or
@@ -795,3 +795,49 @@ run the dry-run `unciv-v3-reencode` and `unciv-v3-archive` CLIs, inspect their
 candidate/byte counts, then use `--apply`. This avoids coupling a human
 command's availability to object-store latency while keeping every cold read
 fail-closed and retry-safe.
+
+## 11. Client resilience and replay-directory pagination (2026-08-09)
+
+The client now installs Ktor's bearer authentication provider for the default
+HTTP transport. It loads the opaque token from the platform credential store,
+attaches it only to protected API paths, and refreshes it once after a 401 via
+`POST /api/v3/auth/refresh`; concurrent failed requests share Ktor's single
+refresh operation. The rotated token is validated and persisted before the
+original request is retried. Active sessions also use a bounded sliding
+30-day inactivity window, so a match that continues making authenticated
+requests does not expire in the middle of play. Login, recovery, logout, and
+explicit refresh all update the same in-memory token state, while token caching
+is disabled so a new login cannot reuse a stale provider cache. Injected test transports remain
+unchanged and still receive explicit bearer headers from the client. The
+session facade also exposes the previously unwrapped `GET /api/v3/games/{id}`
+metadata endpoint for reconnect and deep-link flows.
+
+Public replay discovery uses the existing offset-based API without downloading
+replay snapshots. The session follows bounded pages, rejects duplicate game IDs,
+and probes one item beyond the configured maximum so a UI cannot silently show
+an apparently complete but truncated directory. The multiplayer screen uses
+this complete bounded directory before opening the scrollable replay list; the
+replay itself remains point-read by revision and does not download the full
+history.
+
+These client changes add no gameplay state or protocol fields. The server still
+owns authentication rotation, membership checks, replay projection, and
+snapshot retention; the client only retries an authenticated request after a
+successful server-issued token rotation. Rotation is intentionally one-time:
+a revoked session cannot be refreshed, so logout and logout-all remain
+fail-closed rather than silently recovering a revoked credential.
+
+Live verification is reproducible with the dedicated test database and a local
+Java 21 worker (Java 25 remains untouched):
+
+```text
+pwsh -File authoritative-server/tests/run-auth-refresh-e2e-test.ps1 -BaseUrl http://127.0.0.1:13000
+pwsh -File authoritative-server/tests/run-replay-e2e-test.ps1 -BaseUrl http://127.0.0.1:13000
+```
+
+The auth smoke verifies two rotations, stale-token rejection, acceptance of the
+successor, and logout invalidation. The replay smoke creates a passive-human
+match with two AI civilizations, advances five turns, reads both endpoint
+revisions, projects the first and last snapshots through the worker, and checks
+public-match discovery. Both scripts now fail non-zero on any verification
+error instead of merely printing a warning.

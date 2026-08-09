@@ -139,12 +139,13 @@ impl PostgresGameRepository {
         .map_err(|_| AuthError::Storage)?;
         sqlx::query(
             "INSERT INTO sessions
-             (id, account_id, token_digest, expires_at)
-             VALUES ($1, $2, $3, now() + interval '30 days')",
+             (id, account_id, token_digest, refresh_token_digest, expires_at, refresh_expires_at)
+             VALUES ($1, $2, $3, $4, now() + interval '30 days', now() + interval '90 days')",
         )
         .bind(Uuid::new_v4())
         .bind(account.id)
         .bind(&replacement.digest)
+        .bind(&replacement.refresh_digest)
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;

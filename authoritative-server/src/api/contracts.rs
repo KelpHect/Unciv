@@ -41,11 +41,19 @@ pub(super) struct AccountResponse {
 pub(super) struct LoginResponse {
     pub(super) account: AccountResponse,
     pub(super) session_token: String,
+    pub(super) refresh_token: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RefreshSessionRequest {
+    pub(super) refresh_token: String,
 }
 
 #[derive(Serialize, ToSchema)]
 pub(super) struct SessionResponse {
     pub(super) session_token: String,
+    pub(super) refresh_token: String,
 }
 
 #[derive(Deserialize, ToSchema)]

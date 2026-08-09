@@ -80,6 +80,24 @@ class AuthoritativeGameDirectoryTests {
     }
 
     @Test
+    fun incompatibleSpectatorProjectionFailsClosed() = runBlocking {
+        val directory = AuthoritativeGameDirectory(
+            listPage = { _, _ -> ApiV3GamePage(emptyList()) },
+            openPlayerProjection = { error("Unexpected player open") },
+            openSpectatorGame = {
+                spectatorProjection(it).copy(
+                    projectionVersion = SpectatorProjection.CURRENT_PROJECTION_VERSION - 1,
+                )
+            },
+        )
+
+        assertThrows<IllegalArgumentException> {
+            directory.open(summary("game-spectator", "spectator"))
+        }
+        Unit
+    }
+
+    @Test
     fun playerMembershipOpensOnlyThePlayerProjection() = runBlocking {
         var openedPlayerGameId: String? = null
         var spectatorOpenCalls = 0

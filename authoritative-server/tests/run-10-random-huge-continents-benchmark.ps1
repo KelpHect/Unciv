@@ -22,8 +22,8 @@ param(
     # API maximum), but with Domination-only victory types the Time-victory
     # milestone is never enabled, so the engine keeps playing past turn 1500
     # until a real victory. A high value here means "no practical turn limit".
-    [int]$MaxTurns = 1500,
-    [string[]]$VictoryTypes = @("Domination", "Scientific", "Cultural", "Diplomatic")
+    [int]$MaxTurns = 100000,
+    [string[]]$VictoryTypes = @("Domination")
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,7 +66,7 @@ function Invoke-Api {
 Write-Host "=== 10-Random Huge Continents All-AI Benchmark ===" -ForegroundColor Cyan
 Write-Host "Map: Huge Continents | 10 random AI civs | 0 humans | 6 city-states | Quick"
 Write-Host "Victory types: $($VictoryTypes -join ', ')"
-Write-Host "Driver loop max turns: $MaxTurns (game max_turns is 1500; ignored when Time victory is not enabled)"
+Write-Host "Driver loop max turns: $MaxTurns (no practical limit; game max_turns is 1500 and is ignored when Time victory is not enabled)"
 Write-Host ""
 
 # 1. Register / login owner (spectator)
@@ -171,6 +171,7 @@ while ($turn -lt $MaxTurns -and -not $victory) {
             $advMs = [int]((Get-Date) - $advStart).TotalMilliseconds
             $advanceTimes += $advMs
             $roundRev = $resp.committed_revision
+            $roundHash = $resp.canonical_state_hash
         } catch {
             $advMs = [int]((Get-Date) - $advStart).TotalMilliseconds
             $advanceTimes += $advMs

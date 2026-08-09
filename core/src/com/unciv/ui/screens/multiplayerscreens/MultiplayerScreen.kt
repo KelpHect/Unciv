@@ -285,7 +285,7 @@ class MultiplayerScreen : PickerScreen() {
     private fun openPublicMatches(session: AuthoritativeMultiplayerSession) {
         Concurrency.run("loadPublicMatches") {
             try {
-                val matches = session.listPublicMatches()
+                val matches = session.listAllPublicMatches()
                 launchOnGLThread {
                     if (matches.isEmpty()) {
                         ToastPopup("No public matches available.", this@MultiplayerScreen)
@@ -316,8 +316,8 @@ class MultiplayerScreen : PickerScreen() {
         val activeSession = session ?: return
         Concurrency.runOnNonDaemonThreadPool("Load V3 lobby directory") {
             try {
-                val openLobbies = activeSession.listOpenLobbies().lobbies
-                val ownGames = activeSession.listGames().games
+                val openLobbies = activeSession.listAllOpenLobbies()
+                val ownGames = AuthoritativeGameDirectory(activeSession).refresh()
                 launchOnGLThread {
                     lobbies = openLobbies
                     games = ownGames
@@ -357,8 +357,16 @@ class MultiplayerScreen : PickerScreen() {
                                 ),
                             )
                         }
-                        is OpenedAuthoritativeGame.Spectator ->
-                            popup.reuseWith("This account is a spectator.", true)
+                        is OpenedAuthoritativeGame.Spectator -> {
+                            popup.close()
+                            game.pushScreen(
+                                AuthoritativeSpectatorScreen(
+                                    summary,
+                                    opened.projection,
+                                    activeSession,
+                                ),
+                            )
+                        }
                     }
                 }
             } catch (ex: Exception) {

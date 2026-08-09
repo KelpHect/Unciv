@@ -152,6 +152,7 @@ pub(super) async fn login(
     Ok(Json(LoginResponse {
         account: account_response(account),
         session_token: credential.token,
+        refresh_token: credential.refresh_token,
     }))
 }
 
@@ -288,21 +289,21 @@ pub(super) async fn logout_all_sessions(
 #[utoipa::path(
     post,
     path = "/api/v3/auth/refresh",
-    security(("bearer_auth" = [])),
-    responses((status = 200, body = SessionResponse), (status = 401, body = ErrorResponse), (status = 500, body = ErrorResponse))
+    request_body = RefreshSessionRequest,
+    responses((status = 200, body = SessionResponse), (status = 400, body = ErrorResponse), (status = 401, body = ErrorResponse), (status = 500, body = ErrorResponse))
 )]
 pub(super) async fn refresh_session(
     State(state): State<AppState>,
-    headers: HeaderMap,
+    Json(request): Json<RefreshSessionRequest>,
 ) -> Result<Json<SessionResponse>, ApiError> {
-    let bearer_token = bearer_token(&headers).ok_or_else(ApiError::unauthorized)?;
     let credential = state
         .repository
-        .rotate_session(bearer_token)
+        .rotate_refresh_session(&request.refresh_token)
         .await
         .map_err(login_error)?;
     Ok(Json(SessionResponse {
         session_token: credential.token,
+        refresh_token: credential.refresh_token,
     }))
 }
 
@@ -449,6 +450,7 @@ pub(super) async fn recover_account(
     Ok(Json(LoginResponse {
         account: account_response(account),
         session_token: credential.token,
+        refresh_token: credential.refresh_token,
     }))
 }
 
@@ -502,6 +504,7 @@ pub(super) async fn change_password(
     .await;
     Ok(Json(SessionResponse {
         session_token: credential.token,
+        refresh_token: credential.refresh_token,
     }))
 }
 

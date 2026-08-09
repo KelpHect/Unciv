@@ -642,14 +642,23 @@ async fn accounts_and_revocable_sessions_are_persisted_without_raw_tokens() {
         .unwrap();
     assert_eq!(authenticated, account);
     let session = repository.issue_session(account.id).await.unwrap();
-    let stored_digest: String =
-        sqlx::query_scalar("SELECT token_digest FROM sessions WHERE account_id = $1")
-            .bind(account.id)
+    let stored_digest: String = sqlx::query_scalar(
+        "SELECT token_digest FROM sessions WHERE account_id = $1 ORDER BY created_at LIMIT 1",
+    )
+    .bind(account.id)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    let stored_refresh_digest: String =
+        sqlx::query_scalar("SELECT refresh_token_digest FROM sessions WHERE token_digest = $1")
+            .bind(&session.digest)
             .fetch_one(&repository.pool)
             .await
             .unwrap();
     assert_eq!(stored_digest, session.digest);
+    assert_eq!(stored_refresh_digest, session.refresh_digest);
     assert_ne!(stored_digest, session.token);
+    assert_ne!(stored_refresh_digest, session.refresh_token);
     assert_eq!(
         repository
             .authenticate_session(&session.token)
@@ -657,10 +666,42 @@ async fn accounts_and_revocable_sessions_are_persisted_without_raw_tokens() {
             .unwrap(),
         account
     );
+    let sliding_window_extended: bool = sqlx::query_scalar(
+        "SELECT expires_at > now() + interval '29 days' FROM sessions WHERE token_digest = $1",
+    )
+    .bind(&session.digest)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert!(sliding_window_extended);
 
-    let rotated = repository.rotate_session(&session.token).await.unwrap();
+    let refreshed = repository
+        .rotate_refresh_session(&session.refresh_token)
+        .await
+        .unwrap();
+    assert_ne!(refreshed.token, session.token);
+    assert_ne!(refreshed.refresh_token, session.refresh_token);
+    assert!(matches!(
+        repository
+            .rotate_refresh_session(&session.refresh_token)
+            .await,
+        Err(AuthError::InvalidCredentials)
+    ));
+    assert_eq!(
+        repository
+            .authenticate_session(&refreshed.token)
+            .await
+            .unwrap(),
+        account
+    );
+
+    let rotated = repository.rotate_session(&refreshed.token).await.unwrap();
     assert!(matches!(
         repository.authenticate_session(&session.token).await,
+        Err(AuthError::InvalidCredentials)
+    ));
+    assert!(matches!(
+        repository.authenticate_session(&refreshed.token).await,
         Err(AuthError::InvalidCredentials)
     ));
     assert_eq!(

@@ -78,6 +78,9 @@ class AuthoritativeGameDirectory(
         }
         return if (summary.role == SPECTATOR_ROLE) {
             val projection = openSpectatorGame(summary.gameId)
+            require(projection.projectionVersion == SpectatorProjection.CURRENT_PROJECTION_VERSION) {
+                "Authoritative spectator projection uses an incompatible version"
+            }
             validateOpenedProjection(
                 summary,
                 projection.gameId,

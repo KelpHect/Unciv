@@ -110,10 +110,11 @@ impl PostgresGameRepository {
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;
-        sqlx::query("INSERT INTO sessions (id, account_id, token_digest, expires_at) VALUES ($1, $2, $3, now() + interval '30 days')")
+        sqlx::query("INSERT INTO sessions (id, account_id, token_digest, refresh_token_digest, expires_at, refresh_expires_at) VALUES ($1, $2, $3, $4, now() + interval '30 days', now() + interval '90 days')")
             .bind(Uuid::new_v4())
             .bind(account_id)
             .bind(&credential.digest)
+            .bind(&credential.refresh_digest)
             .execute(&mut *tx)
             .await
             .map_err(|_| AuthError::Storage)?;
@@ -121,9 +122,9 @@ impl PostgresGameRepository {
         Ok(credential)
     }
 
-    /// Resolves a non-revoked, non-expired bearer session and refreshes only
-    /// its server-side activity timestamp. Authentication never trusts an ID
-    /// supplied alongside the token.
+    /// Resolves a non-revoked, non-expired bearer session and extends its
+    /// inactivity window while it is used. Authentication never trusts an ID
+    /// supplied alongside the token; revoked sessions remain permanently dead.
     pub async fn authenticate_session(&self, bearer_token: &str) -> Result<Account, AuthError> {
         let digest = token_digest(bearer_token);
         let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
@@ -133,7 +134,7 @@ impl PostgresGameRepository {
             .await
             .map_err(|_| AuthError::Storage)?
             .ok_or(AuthError::InvalidCredentials)?;
-        sqlx::query("UPDATE sessions SET last_used_at = now() WHERE token_digest = $1")
+        sqlx::query("UPDATE sessions SET last_used_at = now(), expires_at = GREATEST(expires_at, now() + interval '30 days') WHERE token_digest = $1")
             .bind(token_digest(bearer_token))
             .execute(&mut *tx)
             .await
@@ -186,11 +187,12 @@ impl PostgresGameRepository {
         .ok_or(AuthError::InvalidCredentials)?;
         let credential = SessionCredential::generate();
         sqlx::query(
-            "INSERT INTO sessions (id, account_id, token_digest, parent_session_id, expires_at) SELECT $1, $2, $3, id, now() + interval '30 days' FROM sessions WHERE token_digest = $4",
+            "INSERT INTO sessions (id, account_id, token_digest, refresh_token_digest, parent_session_id, expires_at, refresh_expires_at) SELECT $1, $2, $3, $4, id, now() + interval '30 days', now() + interval '90 days' FROM sessions WHERE token_digest = $5",
         )
         .bind(Uuid::new_v4())
         .bind(account_id)
         .bind(&credential.digest)
+        .bind(&credential.refresh_digest)
         .bind(&digest)
         .execute(&mut *tx)
         .await
@@ -199,6 +201,56 @@ impl PostgresGameRepository {
             "UPDATE sessions SET revoked_at=now(), revoked_reason='rotation' WHERE token_digest=$1",
         )
         .bind(&digest)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        tx.commit().await.map_err(|_| AuthError::Storage)?;
+        Ok(credential)
+    }
+
+    /// Consumes a separate refresh credential exactly once and issues a new
+    /// access/refresh pair. An access-token revocation can never mint a new
+    /// session because only the refresh digest is accepted here.
+    pub async fn rotate_refresh_session(
+        &self,
+        refresh_token: &str,
+    ) -> Result<SessionCredential, AuthError> {
+        let refresh_digest = token_digest(refresh_token);
+        let mut tx = self.pool.begin().await.map_err(|_| AuthError::Storage)?;
+        let row = sqlx::query(
+            "SELECT id, account_id FROM sessions
+             WHERE refresh_token_digest=$1 AND revoked_at IS NULL
+               AND refresh_used_at IS NULL AND refresh_expires_at>now()
+             FOR UPDATE",
+        )
+        .bind(&refresh_digest)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?
+        .ok_or(AuthError::InvalidCredentials)?;
+        let session_id: Uuid = row.get("id");
+        let account_id: Uuid = row.get("account_id");
+        let credential = SessionCredential::generate();
+        sqlx::query(
+            "INSERT INTO sessions
+             (id, account_id, token_digest, refresh_token_digest, parent_session_id,
+              expires_at, refresh_expires_at)
+             VALUES ($1,$2,$3,$4,$5,now()+interval '30 days',now()+interval '90 days')",
+        )
+        .bind(Uuid::new_v4())
+        .bind(account_id)
+        .bind(&credential.digest)
+        .bind(&credential.refresh_digest)
+        .bind(session_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AuthError::Storage)?;
+        sqlx::query(
+            "UPDATE sessions
+             SET revoked_at=now(), revoked_reason='rotation', refresh_used_at=now()
+             WHERE id=$1",
+        )
+        .bind(session_id)
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;
@@ -252,10 +304,11 @@ impl PostgresGameRepository {
         .execute(&mut *tx)
         .await
         .map_err(|_| AuthError::Storage)?;
-        sqlx::query("INSERT INTO sessions (id, account_id, token_digest, expires_at) VALUES ($1, $2, $3, now() + interval '30 days')")
+        sqlx::query("INSERT INTO sessions (id, account_id, token_digest, refresh_token_digest, expires_at, refresh_expires_at) VALUES ($1, $2, $3, $4, now() + interval '30 days', now() + interval '90 days')")
             .bind(Uuid::new_v4())
             .bind(account_id)
             .bind(&replacement.digest)
+            .bind(&replacement.refresh_digest)
             .execute(&mut *tx)
             .await
             .map_err(|_| AuthError::Storage)?;

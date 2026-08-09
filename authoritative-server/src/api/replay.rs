@@ -98,7 +98,7 @@ pub(super) async fn list_public_matches(
     Query(params): Query<PublicMatchesQuery>,
 ) -> Result<Json<Vec<unciv_authoritative_server::postgres::PublicMatchSummary>>, ApiError> {
     let _actor = authenticated_account(&state, &headers).await?;
-    let limit = params.limit.unwrap_or(50).min(200);
+    let limit = public_match_page_limit(params.limit)?;
     let offset = params.offset.unwrap_or(0);
     let matches = state
         .repository
@@ -106,6 +106,15 @@ pub(super) async fn list_public_matches(
         .await
         .map_err(game_error)?;
     Ok(Json(matches))
+}
+
+pub(super) fn public_match_page_limit(requested: Option<u32>) -> Result<u32, ApiError> {
+    let limit = requested.unwrap_or(50);
+    if (1..=200).contains(&limit) {
+        Ok(limit)
+    } else {
+        Err(ApiError::bad_request("invalid_page_limit"))
+    }
 }
 
 #[derive(Deserialize)]

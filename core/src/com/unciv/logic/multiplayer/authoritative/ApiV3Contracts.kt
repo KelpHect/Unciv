@@ -14,7 +14,9 @@ data class ApiV3Capabilities(
     @SerialName("projection_deltas") val projectionDeltas: Boolean = false,
 ) {
     fun supportsCurrentClient() =
-        protocolVersion == CommandEnvelope.CURRENT_PROTOCOL_VERSION && !wholeStateUpload
+        protocolVersion == CommandEnvelope.CURRENT_PROTOCOL_VERSION &&
+            projectionVersion == PlayerProjection.CURRENT_PROJECTION_VERSION &&
+            !wholeStateUpload
 }
 
 @Serializable
@@ -30,10 +32,19 @@ data class ApiV3Account(
 data class ApiV3Login(
     val account: ApiV3Account,
     @SerialName("session_token") val sessionToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
 )
 
 @Serializable
-data class ApiV3Session(@SerialName("session_token") val sessionToken: String)
+data class ApiV3Session(
+    @SerialName("session_token") val sessionToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+)
+
+@Serializable
+data class ApiV3RefreshSessionRequest(
+    @SerialName("refresh_token") val refreshToken: String,
+)
 
 @Serializable
 data class ApiV3ChangePasswordRequest(

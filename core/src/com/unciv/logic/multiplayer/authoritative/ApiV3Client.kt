@@ -3,6 +3,9 @@ package com.unciv.logic.multiplayer.authoritative
 import com.unciv.UncivGame
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -38,19 +41,18 @@ import java.util.UUID
 class ApiV3Client(
     baseUrl: String,
     private val tokenStore: ApiV3SessionTokenStore,
-    private val client: HttpClient = defaultClient(baseUrl),
+    client: HttpClient? = null,
 ) : ApiV3Transport, AutoCloseable {
+    private val authState = ApiV3AuthState(tokenStore)
+    private val client = client ?: defaultClient(baseUrl, authState)
+
     init {
         normalizeApiV3BaseUrl(baseUrl)
     }
 
-    private var sessionToken: String? = null
     private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
-    override suspend fun restoreSession(): Boolean {
-        sessionToken = tokenStore.load()
-        return sessionToken != null
-    }
+    override suspend fun restoreSession(): Boolean = authState.restore()
 
     override suspend fun capabilities(): ApiV3Capabilities =
         decode(client.get("api/v3/capabilities"))
@@ -66,29 +68,30 @@ class ApiV3Client(
             contentType(ContentType.Application.Json)
             setBody(ApiV3Credentials(username, password))
         })
-        sessionToken = response.sessionToken
-        tokenStore.save(response.sessionToken)
+        authState.replace(response.sessionToken, response.refreshToken)
         return response.account
     }
 
     override suspend fun refreshSession() {
-        val response: ApiV3Session = decode(client.post("api/v3/auth/refresh") { authenticate() })
-        sessionToken = response.sessionToken
-        tokenStore.save(response.sessionToken)
+        val refreshToken = authState.refreshToken
+            ?: error("API v3 refresh credential is not available")
+        val response: ApiV3Session = decode(client.post("api/v3/auth/refresh") {
+            contentType(ContentType.Application.Json)
+            setBody(ApiV3RefreshSessionRequest(refreshToken))
+        })
+        authState.replace(response.sessionToken, response.refreshToken)
     }
 
     override suspend fun logout() {
         val response = client.post("api/v3/auth/logout") { authenticate() }
         if (!response.status.isSuccess()) throw response.toApiException()
-        sessionToken = null
-        tokenStore.clear()
+        authState.clear()
     }
 
     override suspend fun logoutAll() {
         val response = client.delete("api/v3/account/sessions") { authenticate() }
         if (!response.status.isSuccess()) throw response.toApiException()
-        sessionToken = null
-        tokenStore.clear()
+        authState.clear()
     }
 
     override suspend fun changePassword(currentPassword: String, newPassword: String) {
@@ -97,8 +100,7 @@ class ApiV3Client(
             contentType(ContentType.Application.Json)
             setBody(ApiV3ChangePasswordRequest(currentPassword, newPassword))
         })
-        sessionToken = response.sessionToken
-        tokenStore.save(response.sessionToken)
+        authState.replace(response.sessionToken, response.refreshToken)
     }
 
     override suspend fun replaceRecoveryCodes(password: String): ApiV3RecoveryCodes =
@@ -117,8 +119,7 @@ class ApiV3Client(
             contentType(ContentType.Application.Json)
             setBody(ApiV3RecoverAccountRequest(username, recoveryCode, newPassword))
         })
-        sessionToken = response.sessionToken
-        tokenStore.save(response.sessionToken)
+        authState.replace(response.sessionToken, response.refreshToken)
         return response.account
     }
 
@@ -129,8 +130,7 @@ class ApiV3Client(
             setBody(ApiV3ConfirmPasswordRequest(password))
         }
         if (!response.status.isSuccess()) throw response.toApiException()
-        sessionToken = null
-        tokenStore.clear()
+        authState.clear()
     }
 
     override suspend fun deleteAccount(password: String) {
@@ -140,8 +140,7 @@ class ApiV3Client(
             setBody(ApiV3ConfirmPasswordRequest(password))
         }
         if (!response.status.isSuccess()) throw response.toApiException()
-        sessionToken = null
-        tokenStore.clear()
+        authState.clear()
     }
 
     override suspend fun listGames(after: String?, limit: Int): ApiV3GamePage {
@@ -154,6 +153,11 @@ class ApiV3Client(
             parameter("limit", limit)
             after?.let { parameter("after", it) }
         })
+    }
+
+    override suspend fun gameMetadata(gameId: String): ApiV3GameMetadata {
+        requireUuid(gameId, "Game ID")
+        return decode(client.get("api/v3/games/$gameId") { authenticate() })
     }
 
     override suspend fun listPlayerInvitations(): List<ApiV3PlayerInvitation> =
@@ -241,6 +245,8 @@ class ApiV3Client(
     }
 
     override suspend fun invitePlayer(gameId: String, request: ApiV3InvitePlayerRequest) {
+        requireUuid(gameId, "Game ID")
+        requireUuid(request.invitationId, "Invitation ID")
         val response = client.put("api/v3/games/$gameId/player-invitations") {
             authenticate()
             contentType(ContentType.Application.Json)
@@ -274,12 +280,17 @@ class ApiV3Client(
             )
         })
 
-    override suspend fun listLobbies(after: String?, limit: Int): ApiV3LobbyPage =
-        decode(client.get("api/v3/lobbies") {
+    override suspend fun listLobbies(after: String?, limit: Int): ApiV3LobbyPage {
+        require(limit in 1..100) { "API v3 lobby page limit must be between 1 and 100" }
+        require(after == null || runCatching { UUID.fromString(after) }.isSuccess) {
+            "API v3 lobby page cursor must be a UUID"
+        }
+        return decode(client.get("api/v3/lobbies") {
             authenticate()
             parameter("limit", limit)
             after?.let { parameter("after", it) }
         })
+    }
 
     override suspend fun lobby(gameId: String): ApiV3Lobby =
         decode(client.get("api/v3/lobbies/$gameId") { authenticate() })
@@ -1033,11 +1044,14 @@ class ApiV3Client(
         decode(client.get("api/v3/games/$gameId/revisions") { authenticate() })
     override suspend fun getReplayProjection(gameId: String, revision: Long): ApiV3ReplayGameProjection =
         decode(client.get("api/v3/games/$gameId/revisions/$revision/replay") { authenticate() })
-    override suspend fun listPublicMatches(limit: Int, offset: Int): List<ApiV3PublicMatchSummary> =
-        decode(client.get("api/v3/public-matches") {
+    override suspend fun listPublicMatches(limit: Int, offset: Int): List<ApiV3PublicMatchSummary> {
+        require(limit in 1..200) { "API v3 public match limit must be between 1 and 200" }
+        require(offset >= 0) { "API v3 public match offset must not be negative" }
+        return decode(client.get("api/v3/public-matches") {
             authenticate()
             url { parameters.append("limit", limit.toString()); parameters.append("offset", offset.toString()) }
         })
+    }
 
     override fun notifications(): Flow<ApiV3RevisionNotification> = flow {
         val reconnectBackoff = NotificationReconnectBackoff()
@@ -1073,7 +1087,7 @@ class ApiV3Client(
     }
 
     private fun io.ktor.client.request.HttpRequestBuilder.authenticate() {
-        bearerAuth(sessionToken ?: error("API v3 session is not available"))
+        bearerAuth(authState.token ?: error("API v3 session is not available"))
     }
 
     private suspend inline fun <reified T> decode(response: HttpResponse): T {
@@ -1100,11 +1114,36 @@ class ApiV3Client(
     override fun close() = client.close()
 
     companion object {
-        private fun defaultClient(baseUrl: String): HttpClient {
+        private fun defaultClient(baseUrl: String, authState: ApiV3AuthState): HttpClient {
             val normalizedBaseUrl = normalizeApiV3BaseUrl(baseUrl)
             return HttpClient(CIO) {
                 install(ContentNegotiation) {
                     json(Json { ignoreUnknownKeys = false; encodeDefaults = true })
+                }
+                install(Auth) {
+                    bearer {
+                        cacheTokens = false
+                        loadTokens { authState.tokens() }
+                        refreshTokens {
+                            val response = client.post("api/v3/auth/refresh") {
+                                markAsRefreshTokenRequest()
+                                contentType(ContentType.Application.Json)
+                                oldTokens?.refreshToken?.let {
+                                    setBody(ApiV3RefreshSessionRequest(it))
+                                }
+                            }
+                            if (!response.status.isSuccess()) {
+                                null
+                            } else {
+                                val session: ApiV3Session = response.body()
+                                authState.replace(session.sessionToken, session.refreshToken)
+                                BearerTokens(session.sessionToken, session.refreshToken)
+                            }
+                        }
+                        sendWithoutRequest { request ->
+                            authState.token != null && request.url.pathSegments.joinToString("/", prefix = "/") !in AUTHENTICATION_PATHS
+                        }
+                    }
                 }
                 install(WebSockets)
                 install(HttpTimeout) {
@@ -1119,3 +1158,67 @@ class ApiV3Client(
         }
     }
 }
+
+private class ApiV3AuthState(
+    private val tokenStore: ApiV3SessionTokenStore,
+) {
+    @Volatile
+    var token: String? = null
+        private set
+
+    @Volatile
+    var refreshToken: String? = null
+        private set
+
+    suspend fun restore(): Boolean {
+        val persisted = tokenStore.load() ?: return false
+        val parts = persisted.split(PERSISTED_SEPARATOR, limit = 3)
+        if (parts.size == 3 && parts[0] == PERSISTED_PREFIX) {
+            requireValidApiV3SessionToken(parts[1])
+            requireValidApiV3SessionToken(parts[2])
+            token = parts[1]
+            refreshToken = parts[2]
+        } else {
+            requireValidApiV3SessionToken(persisted)
+            token = persisted
+            refreshToken = null
+        }
+        return true
+    }
+
+    suspend fun replace(newToken: String, newRefreshToken: String? = null) {
+        requireValidApiV3SessionToken(newToken)
+        newRefreshToken?.let(::requireValidApiV3SessionToken)
+        token = newToken
+        refreshToken = newRefreshToken
+        val persisted = if (newRefreshToken == null) {
+            newToken
+        } else {
+            "$PERSISTED_PREFIX$PERSISTED_SEPARATOR$newToken$PERSISTED_SEPARATOR$newRefreshToken"
+        }
+        tokenStore.save(persisted)
+    }
+
+    fun tokens(): BearerTokens? = token?.let { access ->
+        BearerTokens(access, refreshToken.orEmpty())
+    }
+
+    suspend fun clear() {
+        token = null
+        refreshToken = null
+        tokenStore.clear()
+    }
+
+    private companion object {
+        const val PERSISTED_PREFIX = "unciv-v3-session"
+        const val PERSISTED_SEPARATOR = ":"
+    }
+}
+
+
+private val AUTHENTICATION_PATHS = setOf(
+    "/api/v3/auth/register",
+    "/api/v3/auth/login",
+    "/api/v3/auth/recover",
+    "/api/v3/auth/refresh",
+)

@@ -64,6 +64,7 @@ gdx-backend-headless = { group = "com.badlogicgames.gdx", name = "gdx-backend-he
 discord = { group = "com.github.MinnDevelopment", name = "java-discord-rpc", version.ref = "discord" }
 
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktor" }
 ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktor-client-websockets = { group = "io.ktor", name = "ktor-client-websockets", version.ref = "ktor" }
 ktor-client-encoding = { group = "io.ktor", name = "ktor-client-encoding", version.ref = "ktor" }
@@ -98,7 +99,7 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 [bundles]
 jna = ["jna", "jna-platform"]
 ktor-client = [
-    "ktor-client-core", "ktor-client-cio",
+    "ktor-client-core", "ktor-client-auth", "ktor-client-cio",
     "ktor-client-websockets", "ktor-client-encoding", "ktor-client-contentnegotiation",
     "ktor-serialization"
 ]

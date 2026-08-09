@@ -103,6 +103,11 @@ class AuthoritativeSessionLifecycleTests {
             ).supportsCurrentClient(),
         )
         assertFalse(current.copy(wholeStateUpload = true).supportsCurrentClient())
+        assertFalse(
+            current.copy(
+                projectionVersion = PlayerProjection.CURRENT_PROJECTION_VERSION - 1,
+            ).supportsCurrentClient(),
+        )
     }
 
     @Test

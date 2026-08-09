@@ -512,6 +512,17 @@ fn game_discovery_page_limits_are_bounded_and_stable() {
 }
 
 #[test]
+fn public_match_page_limits_are_bounded_and_stable() {
+    assert_eq!(public_match_page_limit(None).unwrap(), 50);
+    assert_eq!(public_match_page_limit(Some(200)).unwrap(), 200);
+    for invalid in [0, 201, u32::MAX] {
+        let error = public_match_page_limit(Some(invalid)).unwrap_err();
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(error.code, "invalid_page_limit");
+    }
+}
+
+#[test]
 fn public_openapi_contains_no_canonical_or_worker_private_fields() {
     let document = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let mut property_names = std::collections::BTreeSet::new();

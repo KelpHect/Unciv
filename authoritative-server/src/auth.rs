@@ -97,6 +97,8 @@ impl PasswordService {
 pub struct SessionCredential {
     pub token: String,
     pub digest: String,
+    pub refresh_token: String,
+    pub refresh_digest: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -163,11 +165,22 @@ impl RecoveryCodeBatch {
 
 impl SessionCredential {
     pub fn generate() -> Self {
-        let mut bytes = [0_u8; 32];
-        OsRng.fill_bytes(&mut bytes);
-        let token = hex_encode(&bytes);
+        let mut access_bytes = [0_u8; 32];
+        let mut refresh_bytes = [0_u8; 32];
+        OsRng.fill_bytes(&mut access_bytes);
+        OsRng.fill_bytes(&mut refresh_bytes);
+        let token = hex_encode(&access_bytes);
+        let refresh_token = hex_encode(&refresh_bytes);
         let digest = token_digest(&token);
-        Self { token, digest }
+        let refresh_digest = token_digest(&refresh_token);
+        access_bytes.fill(0);
+        refresh_bytes.fill(0);
+        Self {
+            token,
+            digest,
+            refresh_token,
+            refresh_digest,
+        }
     }
 }
 
@@ -248,8 +261,12 @@ mod tests {
 
         assert_eq!(first.token.len(), 64);
         assert_eq!(first.digest.len(), 64);
+        assert_eq!(first.refresh_token.len(), 64);
+        assert_eq!(first.refresh_digest.len(), 64);
         assert_eq!(first.digest, token_digest(&first.token));
+        assert_eq!(first.refresh_digest, token_digest(&first.refresh_token));
         assert_ne!(first.token, second.token);
+        assert_ne!(first.refresh_token, second.refresh_token);
         assert_ne!(first.digest, second.digest);
     }
 

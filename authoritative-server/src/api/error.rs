@@ -80,6 +80,11 @@ impl IntoResponse for ApiError {
             }),
         )
             .into_response();
+        if self.status == StatusCode::UNAUTHORIZED {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
+        }
         if let Some(seconds) = self.retry_after_seconds {
             response.headers_mut().insert(
                 header::RETRY_AFTER,

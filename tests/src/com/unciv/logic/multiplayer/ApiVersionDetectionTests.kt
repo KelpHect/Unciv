@@ -2,6 +2,7 @@ package com.unciv.logic.multiplayer
 
 import com.sun.net.httpserver.HttpServer
 import com.unciv.logic.multiplayer.authoritative.CommandEnvelope
+import com.unciv.logic.multiplayer.authoritative.PlayerProjection
 import java.net.InetSocketAddress
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -40,7 +41,7 @@ class ApiVersionDetectionTests {
                 """
                 {
                   "protocol_version": $protocolVersion,
-                  "projection_version": 60,
+                  "projection_version": ${PlayerProjection.CURRENT_PROJECTION_VERSION},
                   "commands": [],
                   "whole_state_upload": $wholeStateUpload,
                   "websocket_notifications": true,

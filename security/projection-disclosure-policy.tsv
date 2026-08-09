@@ -14,6 +14,7 @@ player	player.cityStatePartners[].improvementGifts[].y	legally_known	Disclosed o
 player	player.cityStatePartners[].tributeGoldAmount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.currentPlayerCivilizationId	public	Public protocol or turn metadata required to synchronize the player presentation.
+player	player.activePlayerCivilizationIds[]	public	Public simultaneous-turn metadata required to show which human turns remain active.
 player	player.diplomacyPartners[].adoptedPolicyBranches[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].availableDemands[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].canDeclareWar	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
@@ -381,6 +382,7 @@ player	player.wonderEvents[].wonderName	legally_known	Disclosed only when canoni
 player	player.wonderEvents[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.wonderEvents[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 spectator	spectator.currentPlayerCivilizationId	public	Explicit public spectator summary; canonical private state is intentionally absent.
+spectator	spectator.activePlayerCivilizationIds[]	public	Explicit public simultaneous-turn metadata; canonical private state is intentionally absent.
 spectator	spectator.majorCivilizations[].civilizationId	public	Explicit public spectator summary; canonical private state is intentionally absent.
 spectator	spectator.majorCivilizations[].defeated	public	Explicit public spectator summary; canonical private state is intentionally absent.
 spectator	spectator.majorCivilizations[].displayName	public	Explicit public spectator summary; canonical private state is intentionally absent.

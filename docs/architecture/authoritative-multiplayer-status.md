@@ -38,10 +38,11 @@ Verified on 2026-08-06:
   commit was rejected with no phantom command/head). The backup/restore seed
   test also passed. The underlying tests and migration set (1-31) are correct.
 - The smoke scripts (`run-postgres-disk-full-smoke.ps1`,
-  `run-postgres-pitr-smoke.ps1`) need a role-bootstrap step added before they
-  can run end-to-end unattended, because the disposable containers they create
-  use a plain `postgres` superuser without the production roles that migration
-  24+ reference. This is a pre-existing procedure gap, not a regression.
+  `run-postgres-pitr-smoke.ps1`) now create the four production ACL target roles
+  before migrations in their disposable fixtures. Both scripts run end-to-end
+  unattended against the pinned PostgreSQL 19 Beta 2 image; the repaired
+  procedure is fixture-local and does not change production schema or runtime
+  code.
 
 ## Lobby terrain projection benchmark
 
@@ -11190,3 +11191,63 @@ Verification on 2026-07-26:
 - Rust entry façades remain nearly logic-free (`main.rs` 6 lines and `lib.rs`
   47 lines). The largest Rust source is 788 lines, below the 800-line
   guardrail.
+
+## Restarted full-stack verification on 2026-08-11
+
+The pinned local qualification stack was restarted after the prior workspace
+restart. PostgreSQL ran as
+`postgres:19beta2-alpine@sha256:bc62313e826eb44d5f608425b7665962b72820e686da017799e906604bfeb8a5`.
+A disposable Lockwell 0.2.1 service ran on loopback with the archive bucket,
+and the packaged Kotlin worker ran with command-local Java 21; the machine's
+Java 25 configuration was not changed.
+
+- The PostgreSQL migration set reached exactly version 36. The serialized
+  PostgreSQL integration lane ran 52 ignored tests: 49 passed initially. The
+  three initial failures were the intentionally ordered restore/disk-full
+  qualification tests when invoked as one unordered aggregate: restore and
+  disk-full consumers ran before their seed fixtures. Re-running each ordered
+  seed/consumer pair passed; the destructive disk-full smoke then passed with a
+  160 MiB tmpfs, 1 MiB constrained free space, no phantom revision, one
+  idempotent retry, and clean reconciliation.
+- The first PITR smoke and first disk-full smoke exposed the same bounded test
+  harness defect: disposable PostgreSQL clusters did not create the ACL target
+  roles before migrations. The smallest repair was to create the four migration
+  grant target roles in each disposable fixture before the migrator runs. The
+  final PITR smoke passed `pg_verifybackup`, WAL recovery to the named restore
+  point, the included/excluded marker assertion, restored invariants, and clean
+  reconciliation. The PostgreSQL security smoke passed TLS 1.3 enforcement,
+  least-privilege runtime/audit roles, credential rotation, replication backup,
+  and non-TLS denial.
+- API readiness, auth refresh/logout invalidation, replay pagination/projection,
+  and the packaged Android-to-desktop handoff all passed against the live API,
+  PostgreSQL, Lockwell, and Kotlin worker. Packaged worker death during game
+  creation and outbox acknowledgement process death both passed crash/retry
+  recovery tests.
+- Android instrumentation ran on the `unciv-api23` emulator: both Android
+  Keystore credential-store tests passed, the debug APK launched, and the
+  process remained alive. Desktop `:desktop:dist`, Android debug packaging,
+  `:tests:test`, and `:server:test` passed. Rust format, check, and
+  warnings-as-errors Clippy passed.
+- The benchmark driver initially failed because its registration retry only
+  recognized the JSON `rate_limited` code while the PowerShell error exposed
+  HTTP 429. The bounded repair widened that match to include HTTP 429. A fresh
+  detached run is active with 10 random AI factions, Huge Continents, 6
+  city-states, Domination-only victory, and a 100,000-turn practical driver
+  ceiling. At the latest observation it had reached turn 674, revision 10,790,
+  with five civilizations alive and no winner yet; the process remains healthy
+  and the crash-safe CSV remains disposable benchmark output, not a release
+  artifact.
+
+
+Failure repair
+1. Failed check: `pwsh -NoLogo -NoProfile -NonInteractive -File authoritative-server/tests/run-postgres-pitr-smoke.ps1`; PostgreSQL 19 Beta 2 disposable source cluster; exit 1; migration failed with `role "unciv_runtime" does not exist`.
+2. Minimal reproduction: run the same PITR smoke against a fresh disposable cluster before role bootstrap.
+3. Causal diagnosis: the migration set contains ACL statements naming production roles, while the PITR fixture created only the default `postgres` role; production bootstrap already creates those roles, so the failure was fixture setup rather than schema logic.
+4. Bounded repair owner: `authoritative-server/tests/run-postgres-pitr-smoke.ps1`; create `unciv_runtime`, `unciv_migrate`, `unciv_restore`, and `unciv_audit` before the seed test.
+5. Final state: the same current worktree after the repair edit; the final identity is recorded in the handoff below.
+6. Final rerun: the same PITR smoke passed with `pg_verifybackup`, WAL recovery, restored fixture invariants, and `total_findings: 0`.
+
+The disk-full smoke exposed the same cause independently and received the same
+bounded fixture-local repair in
+`authoritative-server/tests/run-postgres-disk-full-smoke.ps1`; its exact final
+rerun passed all three disk-full tests and clean reconciliation.

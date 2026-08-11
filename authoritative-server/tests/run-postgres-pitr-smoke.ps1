@@ -107,6 +107,21 @@ try {
     ) | Out-Null
     $createdContainers.Add($source)
     Wait-Postgres -Container $source
+    # The production bootstrap creates these ACL target roles before migrations.
+    # This disposable PITR fixture must do the same or migrations fail before
+    # the backup/recovery path is exercised.
+    Invoke-Docker -Arguments @(
+        'exec', $source,
+        'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres',
+        '-c', (
+            "DO `$`$ BEGIN " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_runtime') THEN CREATE ROLE unciv_runtime; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_migrate') THEN CREATE ROLE unciv_migrate; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_restore') THEN CREATE ROLE unciv_restore; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_audit') THEN CREATE ROLE unciv_audit; END IF; " +
+            "END `$`$;"
+        )
+    ) | Out-Null
 
     $sourcePort = Get-PublishedPort -Container $source
     Start-Sleep -Seconds 1

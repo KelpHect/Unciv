@@ -72,6 +72,20 @@ try {
     ) | Out-Null
     $containerCreated = $true
     Wait-Postgres
+    # Match the production bootstrap's ACL target roles before the migrator
+    # applies grants in this disposable qualification cluster.
+    Invoke-Docker -Arguments @(
+        'exec', $container,
+        'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres',
+        '-c', (
+            "DO `$`$ BEGIN " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_runtime') THEN CREATE ROLE unciv_runtime; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_migrate') THEN CREATE ROLE unciv_migrate; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_restore') THEN CREATE ROLE unciv_restore; END IF; " +
+            "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='unciv_audit') THEN CREATE ROLE unciv_audit; END IF; " +
+            "END `$`$;"
+        )
+    ) | Out-Null
     $port = Get-PublishedPort
     $databaseUrl = (
         "postgresql://postgres:$password@127.0.0.1:" +

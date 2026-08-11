@@ -78,7 +78,7 @@ for ($attempt = 0; $attempt -lt 6 -and -not $registered; $attempt++) {
         Invoke-Api -Method POST -Path "/api/v3/auth/register" -Body $regBody | Out-Null
         $registered = $true
     } catch {
-        if ($_.Exception.Message -match "rate_limited") {
+        if ($_.Exception.Message -match "rate_limited|HTTP 429|-> 429") {
             Write-Host "Rate limited on registration, waiting 10s..."
             Start-Sleep -Seconds 10
         } else { throw }

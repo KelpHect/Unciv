@@ -1,5 +1,6 @@
 package com.unciv.ui.screens.pickerscreens
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.math.Vector2
@@ -77,6 +78,8 @@ class TechPickerScreen(
         ruleset.technologies.values.associateBy({ it.name }, { civTech.turnsToTech(it.name) })
 
     init {
+        Gdx.input.inputProcessor = null // Avoid ANRs while building the tech screen
+        
         setDefaultCloseAction()
         scrollPane.setOverscroll(false, false)
 
@@ -114,6 +117,7 @@ class TechPickerScreen(
             if (firstAvailableTech != null)
                 centerOnTechnology(firstAvailableTech)
         }
+        Gdx.input.inputProcessor = stage // Return input 
     }
 
     override fun getCivilopediaRuleset() = ruleset

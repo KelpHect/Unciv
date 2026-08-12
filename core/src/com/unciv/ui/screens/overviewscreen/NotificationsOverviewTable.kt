@@ -27,6 +27,7 @@ import com.unciv.view.CivView
 import com.unciv.utils.launchOnGLThread
 import com.unciv.utils.toGdxArray
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 class NotificationsOverviewTable(
     viewingPlayer: CivView,
@@ -79,6 +80,8 @@ class NotificationsOverviewTable(
         selectBox = getSelectBox()
 
         add().row()
+
+        addNotificationLogTurnsAsync(notificationLog.asReversed().iterator())
     }
 
     override fun activated(index: Int, caption: String, pager: TabbedPager) {
@@ -91,7 +94,7 @@ class NotificationsOverviewTable(
         overviewScreen.stage.addActor(selectBox)
         // `activated` can be called too soon, and `selectBox` ends up at the bottom of z-order
         Concurrency.run {
-            delay(10)
+            delay(10.milliseconds)
             launchOnGLThread {
                 selectBox.zIndex = Int.MAX_VALUE
                 selectBox.addAction(Actions.fadeIn(0.2f))
@@ -109,10 +112,30 @@ class NotificationsOverviewTable(
     private fun generateNotificationTable() {
         if (viewingPlayer.getCiv().notifications.isNotEmpty())
             add(oneTurnTable(gameInfo.turns, viewingPlayer.getCiv().notifications, doHighlight = true)).row()
+    }
 
-        for (turnNotifications in notificationLog.asReversed()) {
+
+    /** Adds one past-turn table per call, each scheduled only once the previous one is done -
+     *  building all of them up front on the same frame caused ANRs.
+     *  If we still see ANRs from notifications overview we may need to do a category at a time
+     *  which will be annoying :( */
+    private fun addNotificationLogTurnsAsync(iterator: Iterator<Civilization.NotificationsLog>) {
+        if (!iterator.hasNext()) return
+        val turnNotifications = iterator.next()
+        Concurrency.runOnGLThread {
             add(oneTurnTable(turnNotifications.turn, turnNotifications.notifications, doHighlight = false)).row()
+            refreshSelectBoxItems()
+            // Lwjgl3Application loop() shows that adding runnables from within a runnable,
+            // causes it to run on the next loop - e.g. after render and handling input
+            // And if inputs are handled, no ANR :)
+            addNotificationLogTurnsAsync(iterator) 
         }
+    }
+
+    private fun refreshSelectBoxItems() {
+        selectBox.items = selectItems.toGdxArray()
+        val bgWidth = skin[SelectBox.SelectBoxStyle::class.java].background.run { leftWidth + rightWidth }
+        selectBox.width = selectWidth + bgWidth + 10f
     }
 
     private fun oneTurnTable(turn: Int, notifications: List<Notification>, doHighlight: Boolean): Table {

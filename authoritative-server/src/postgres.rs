@@ -37,7 +37,10 @@ use crate::{
 pub use archive::SnapshotArchiveReport;
 pub use lobby_reconfiguration::{LobbyConfigurationUpdate, LobbyPasswordUpdate};
 pub use repair::RepairReport;
-pub use retention::{SnapshotCompactionReport, SnapshotRetentionPolicy};
+pub use retention::{
+    SnapshotCompactionReport, SnapshotMaintenanceConfig, SnapshotMaintenanceReport,
+    SnapshotRetentionPolicy,
+};
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
 
 const ARCHIVE_OBJECT_MAGIC: &[u8; 8] = b"UCVARCH1";

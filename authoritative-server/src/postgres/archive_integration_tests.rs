@@ -148,4 +148,25 @@ async fn lockwell_archival_verifies_objects_and_removes_only_cold_blobs() {
             .iter()
             .any(|finding| finding.game_id == game)
     );
+
+    let archive_bytes = archived
+        .iter()
+        .map(|(_, _, size)| u64::try_from(*size).unwrap())
+        .sum();
+    let quota_report = repository
+        .run_snapshot_maintenance_once(SnapshotMaintenanceConfig {
+            enabled: true,
+            interval: std::time::Duration::from_secs(60),
+            policy,
+            use_deltas: true,
+            max_games_per_tick: 1,
+            max_revisions_per_game: 128,
+            postgres_budget_bytes: None,
+            archive_budget_bytes: Some(archive_bytes),
+            game_storage_budget_bytes: None,
+        })
+        .await
+        .unwrap();
+    assert!(quota_report.archive_quota_exceeded);
+    assert_eq!(quota_report.archive_bytes, archive_bytes);
 }

@@ -54,6 +54,17 @@ pub(crate) async fn run() {
         .verify_schema_compatibility()
         .await
         .expect("authoritative database schema must exactly match this release; run unciv-v3-migrate with migration credentials");
+    let snapshot_maintenance =
+        unciv_authoritative_server::postgres::SnapshotMaintenanceConfig::from_environment(
+            repository.snapshot_archival_configured(),
+        )
+        .expect("authoritative snapshot archival configuration must be valid");
+    if snapshot_maintenance.enabled {
+        unciv_authoritative_server::snapshot_maintenance::start(
+            repository.clone(),
+            snapshot_maintenance,
+        );
+    }
     let worker_address = std::env::var("UNCIV_ENGINE_WORKER_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:43170".to_owned())
         .parse::<SocketAddr>()

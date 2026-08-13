@@ -157,6 +157,40 @@ fn describe_metrics() {
         "unciv_v3_security_audit_write_failures_total",
         "Durable security audit writes that failed closed."
     );
+    describe_gauge!(
+        "unciv_v3_snapshot_postgres_bytes",
+        Unit::Bytes,
+        "Retained PostgreSQL snapshot payload bytes observed by maintenance."
+    );
+    describe_gauge!(
+        "unciv_v3_snapshot_budget_exceeded",
+        "Whether retained PostgreSQL snapshot bytes exceed the configured budget."
+    );
+    describe_counter!(
+        "unciv_v3_snapshot_archive_runs_total",
+        "Completed bounded snapshot maintenance passes."
+    );
+    describe_counter!(
+        "unciv_v3_snapshot_archive_failures_total",
+        "Snapshot archival passes or per-game archival operations that failed closed."
+    );
+    describe_counter!(
+        "unciv_v3_snapshot_budget_exceeded_total",
+        "Maintenance passes that remained above the configured PostgreSQL snapshot budget."
+    );
+    describe_gauge!(
+        "unciv_v3_snapshot_archive_bytes",
+        Unit::Bytes,
+        "Verified Lockwell archive object bytes recorded by maintenance."
+    );
+    describe_gauge!(
+        "unciv_v3_snapshot_archive_quota_exceeded",
+        "Whether the aggregate Lockwell archive quota has paused archival."
+    );
+    describe_counter!(
+        "unciv_v3_snapshot_archive_quota_exceeded_total",
+        "Maintenance passes that reached the aggregate Lockwell archive quota."
+    );
 }
 
 /// Closed route classes prevent game IDs and other path parameters from

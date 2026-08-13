@@ -76,6 +76,8 @@ object MapPathing {
      * It takes a MapUnit, a 'from' Tile, and a 'to' Tile, returning a Float value representing the heuristic cost estimate.
      * @return A list of tiles representing the path from the startTile to the endTile. Returns null if no valid path is found.
      */
+    private val logFailedSearches = System.getProperty("unciv.pathing.failureLogs") == "true"
+
     @Readonly
     private fun getPath(unit: MapUnit,
                 startTile: Tile,
@@ -89,8 +91,11 @@ object MapPathing {
             { from, to -> heuristic(unit, from, to) })
         while (true) {
             if (astar.hasEnded()) {
-                // We failed to find a path
-                Log.debug("getPath failed at AStar search size ${astar.size()}")
+                // An unreachable target is a normal AI decision outcome. Keep
+                // diagnostics opt-in so a Huge-map match does not spend most of
+                // its time formatting tens of thousands of expected messages.
+                if (logFailedSearches)
+                    Log.debug("getPath failed at AStar search size ${astar.size()}")
                 return null
             }
             if (!astar.hasReachedTile(endTile)) {
@@ -114,8 +119,19 @@ object MapPathing {
         endTile: Tile,
         predicate: (Civilization, Tile) -> Boolean,
         cost: (Civilization, Tile, Tile) -> Float = { _, _, _ -> 1f },
-        heuristic: (Civilization, Tile, Tile) -> Float = { _, from, to -> from.aerialDistanceTo(to).toFloat() }
+        heuristic: (Civilization, Tile, Tile) -> Float = { _, _, to ->
+            // All current connection costs are at least 0.5, so this remains
+            // admissible while directing the queue toward the requested tile.
+            to.aerialDistanceTo(endTile).toFloat() * 0.5f
+        }
     ): List<Tile>? {
+        if (startTile == endTile) return listOf(startTile)
+        // AStar only evaluates predicates for neighbors. Rejecting an
+        // impossible destination before allocating the search avoids scanning
+        // an entire disconnected continent for a target that could never be
+        // returned.
+        if (!predicate(civ, endTile)) return null
+
         val astar = AStar(
                 startTile,
                 predicate = { tile -> predicate(civ, tile) },
@@ -124,8 +140,11 @@ object MapPathing {
         )
         while (true) {
             if (astar.hasEnded()) {
-                // We failed to find a path
-                Log.debug("getConnection failed at AStar search size ${astar.size()}")
+                // Unreachable attack/road targets are expected on multi-continent
+                // maps. Detailed search-size diagnostics remain available when
+                // explicitly enabled with -Dunciv.pathing.failureLogs=true.
+                if (logFailedSearches)
+                    Log.debug("getConnection failed at AStar search size ${astar.size()}")
                 return null
             }
             if (!astar.hasReachedTile(endTile)) {

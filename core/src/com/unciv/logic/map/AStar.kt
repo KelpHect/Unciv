@@ -5,7 +5,7 @@ import yairm210.purity.annotations.InternalState
 import java.util.PriorityQueue
 
 
-data class TilePriority(val tile: Tile, val priority: Float)
+data class TilePriority(val tile: Tile, val priority: Float, val cumulativeCost: Float)
 
 /**
  * AStar is an implementation of the A* search algorithm, commonly used for finding the shortest path
@@ -91,7 +91,11 @@ class AStar(
     private val cumulativeTileCost = HashMap<Tile, Float>()
 
     init {
-        tilesToCheck.add(TilePriority(startingPoint, 0f))
+        // A search cannot reach more distinct nodes than the map contains. Keeping
+        // the bound explicit also makes malformed or cyclic neighbor graphs fail
+        // closed instead of growing without limit.
+        maxSize = startingPoint.tileMap.tileList.size.coerceAtLeast(1)
+        tilesToCheck.add(TilePriority(startingPoint, 0f, 0f))
         tilesReached[startingPoint] = startingPoint
         cumulativeTileCost[startingPoint] = 0f
     }
@@ -124,16 +128,29 @@ class AStar(
      */
     fun nextStep() {
         if (tilesReached.size >= maxSize) { tilesToCheck.clear(); return }
-        val currentTile = tilesToCheck.poll()?.tile ?: return
+
+        // A cheaper route can leave an older queue entry for the same tile. Do
+        // not expand those stale entries: on a Huge map they otherwise repeat
+        // neighbor scans and dominate unreachable-target searches.
+        var currentEntry: TilePriority?
+        while (true) {
+            currentEntry = tilesToCheck.poll() ?: return
+            val bestCost = cumulativeTileCost[currentEntry.tile]
+            if (bestCost == null || currentEntry.cumulativeCost == bestCost) break
+        }
+        val currentTile = currentEntry.tile
         for (neighbor in currentTile.neighbors) {
+            // Reject blocked neighbors before evaluating movement cost. Cost
+            // callbacks can inspect rules, roads, and diplomacy; avoiding them
+            // for impassable neighbors is material on disconnected Huge maps.
+            if (!predicate(neighbor)) continue
             val newCost: Float = cumulativeTileCost[currentTile]!! + getCost(currentTile, neighbor)
-            if (predicate(neighbor) &&
-                (!cumulativeTileCost.containsKey(neighbor)
-                || newCost < (cumulativeTileCost[neighbor] ?: Float.MAX_VALUE))
+            if (!cumulativeTileCost.containsKey(neighbor)
+                || newCost < (cumulativeTileCost[neighbor] ?: Float.MAX_VALUE)
             ){
                 cumulativeTileCost[neighbor] = newCost
                 val priority: Float = newCost + heuristic(currentTile, neighbor)
-                tilesToCheck.add(TilePriority(neighbor, priority))
+                tilesToCheck.add(TilePriority(neighbor, priority, newCost))
                 tilesReached[neighbor] = currentTile
             }
         }

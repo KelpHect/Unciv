@@ -177,6 +177,29 @@ class PathfindingTests(
     }
 
     @Test
+    fun genericAStarSearchIsBoundedByTheMapTileCount() {
+        val search = AStar(
+            originTile,
+            predicate = { true },
+            cost = { _, _ -> 1f },
+            heuristic = { _, _ -> 0f },
+        )
+        assertEquals(testGame.tileMap.tileList.size, search.maxSize)
+    }
+
+    @Test
+    fun connectionRejectsAnImpossibleDestinationWithoutSearching() {
+        val destination = testGame.tileMap[3, 3]
+        val path = MapPathing.getConnection(
+            civInfo,
+            originTile,
+            destination,
+            predicate = { _, tile -> tile != destination },
+        )
+        assertEquals(null, path)
+    }
+
+    @Test
     fun canPauseBeforeMountainsToCrossWithoutDamage() {
         assumeThat(pathfindingAlgorithm, equalTo(AStarPathfinding)) // Classic pathfinding can't handle this case correctly
         

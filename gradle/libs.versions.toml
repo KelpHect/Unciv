@@ -1,12 +1,12 @@
 [versions]
 #must stay in sync with kotlin and gradle major.minor versions:
 #noinspection AndroidGradlePluginVersion
-agp = "8.13.2"
+agp = "9.2.0"
 
 kotlin = "2.3.0"
 coroutines = "1.10.2"
 
-gdx = "1.14.0"
+gdx = "1.14.2"
 discord = "v2.0.1"
 
 jna = "5.17.0"
@@ -18,7 +18,9 @@ clikt = "5.0.3"
 # Security floors for transitive Android/Gradle build tooling. Keep these until
 # the Android Gradle Plugin's own dependency graph reaches the same versions.
 bouncyCastle = "1.84"
-commonsCompress = "1.26.0"
+# AGP 9.2.0 already ships commons-compress 1.27.1; keep the floor at least at
+# AGP's own version so the buildscript force never downgrades it.
+commonsCompress = "1.27.1"
 commonsLang3 = "3.18.0"
 jdom = "2.0.6.1"
 jose4j = "0.9.6"

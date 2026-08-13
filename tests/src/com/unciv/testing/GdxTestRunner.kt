@@ -162,6 +162,9 @@ class GdxTestRunner(
         return createTest()
     }
 
+    override fun getName(): String =
+        super.getName() + if (testConfig == null) "" else testConfig.name
+
     override fun testName(method: FrameworkMethod): String {
         return super.testName(method) + if (testConfig == null) "" else testConfig.parameters.toString()
     }

@@ -6,7 +6,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
 }
 
 android {
@@ -15,7 +14,9 @@ android {
         getByName("main").apply {
             manifest.srcFile("AndroidManifest.xml")
             java.srcDirs("src")
+            kotlin.srcDirs("src")
             aidl.srcDirs("src")
+            renderscript.srcDirs("src")
             res.srcDirs("res")
             assets.srcDirs("assets")
             jniLibs.srcDirs("libs")
@@ -33,7 +34,7 @@ android {
         namespace = BuildConfig.identifier
         applicationId = BuildConfig.identifier
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
         versionCode = BuildConfig.appCodeNumber
         versionName = BuildConfig.appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -68,7 +69,7 @@ android {
         release {
             // If you make this true you get a version of the game that just flat-out doesn't run
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isDebuggable = false
         }
     }

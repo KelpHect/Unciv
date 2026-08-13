@@ -19,6 +19,8 @@ mod projection_replay;
 mod projection_spectator;
 #[cfg(test)]
 mod projection_spectator_tests;
+#[cfg(test)]
+mod projection_tests;
 mod projection_tiles;
 #[cfg(test)]
 mod projection_turn_readiness_tests;

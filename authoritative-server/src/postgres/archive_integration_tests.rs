@@ -169,4 +169,31 @@ async fn lockwell_archival_verifies_objects_and_removes_only_cold_blobs() {
         .unwrap();
     assert!(quota_report.archive_quota_exceeded);
     assert_eq!(quota_report.archive_bytes, archive_bytes);
+
+    // The operator listing reports the same retained-plus-archive breakdown
+    // the maintenance guard uses, heaviest first.
+    let storage = repository.list_game_storage(10).await.unwrap();
+    let listed = storage
+        .iter()
+        .find(|entry| entry.game_id == game)
+        .expect("archived game must appear in the storage listing");
+    let retained_bytes: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(octet_length(b.payload)::bigint), 0)::bigint
+         FROM game_snapshot_blobs b
+         JOIN game_snapshots s ON s.game_id=b.game_id AND s.revision=b.revision
+         WHERE b.game_id=$1 AND s.payload_retention_status='retained'",
+    )
+    .bind(game)
+    .fetch_one(&repository.pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        listed.postgres_bytes,
+        u64::try_from(retained_bytes).unwrap()
+    );
+    assert_eq!(listed.archive_bytes, archive_bytes);
+    assert_eq!(
+        listed.total_bytes,
+        listed.postgres_bytes + listed.archive_bytes
+    );
 }

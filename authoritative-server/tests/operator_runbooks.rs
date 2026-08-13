@@ -117,6 +117,7 @@ fn operator_tools_are_absent_from_the_public_router() {
         "unciv-v3-reconcile",
         "unciv-v3-outbox",
         "unciv-v3-export-security-audit",
+        "unciv-v3-storage",
         "/api/v3/operator",
     ] {
         assert!(

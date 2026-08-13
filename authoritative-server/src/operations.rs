@@ -7,6 +7,7 @@ mod recovery_cli;
 mod reencode_cli;
 mod repair_cli;
 mod security_audit_export_cli;
+mod storage_cli;
 
 pub use archive_cli::run_archive_cli;
 pub use compaction_cli::run_compaction_cli;
@@ -17,3 +18,4 @@ pub use recovery_cli::run_recovery_cli;
 pub use reencode_cli::run_reencode_cli;
 pub use repair_cli::run_repair_cli;
 pub use security_audit_export_cli::run_security_audit_export_cli;
+pub use storage_cli::run_storage_cli;

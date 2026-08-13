@@ -115,6 +115,17 @@ pub struct SnapshotCompactionReport {
     pub dry_run: bool,
 }
 
+/// One game's storage footprint: retained PostgreSQL payload bytes plus its
+/// verified Lockwell archive objects. Used by the operator listing tool to
+/// surface which matches approach or exceed the per-match storage ceiling.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct GameStorageBreakdown {
+    pub game_id: Uuid,
+    pub postgres_bytes: u64,
+    pub archive_bytes: u64,
+    pub total_bytes: u64,
+}
+
 impl PostgresGameRepository {
     pub fn snapshot_archival_configured(&self) -> bool {
         self.object_store.is_some()
@@ -171,9 +182,8 @@ impl PostgresGameRepository {
                 report.archive_quota_exceeded = true;
                 break;
             }
-            let game_bytes = self.snapshot_blob_bytes(Some(game_id)).await?;
-            let game_archive_bytes = self.game_archive_object_bytes(game_id).await?;
-            let game_total_bytes = game_bytes.saturating_add(game_archive_bytes);
+            let (game_bytes, game_archive_bytes, game_total_bytes) =
+                self.game_storage_bytes(game_id).await?;
             if game_storage_budget_exceeded(game_total_bytes, config.game_storage_budget_bytes) {
                 report.games_over_storage_budget += 1;
                 tracing::warn!(
@@ -212,6 +222,23 @@ impl PostgresGameRepository {
                     report.delta_payloads += archived.delta_payloads;
                     report.bytes_archived += archived.bytes_archived;
                     report.archive_bytes += archived.bytes_archived;
+                    // Re-read the game's true retained-plus-archive bytes after
+                    // the write so one large archive object cannot silently
+                    // cross the per-match ceiling the pre-check just passed.
+                    let (post_bytes, post_archive_bytes, post_total_bytes) =
+                        self.game_storage_bytes(game_id).await?;
+                    if game_storage_budget_exceeded(
+                        post_total_bytes,
+                        config.game_storage_budget_bytes,
+                    ) {
+                        report.games_over_storage_budget += 1;
+                        tracing::warn!(
+                            postgres_bytes = post_bytes,
+                            archive_bytes = post_archive_bytes,
+                            total_bytes = post_total_bytes,
+                            "game storage budget exceeded after archival write; further archival paused for this game"
+                        );
+                    }
                     if archive_quota_would_pause(
                         remaining_archive_bytes,
                         archived.bytes_archived,
@@ -321,6 +348,75 @@ impl PostgresGameRepository {
             .map_err(CommitError::storage)?,
         };
         u64::try_from(bytes).map_err(|_| CommitError::Storage)
+    }
+
+    /// A game's total stored bytes: retained PostgreSQL payloads plus its
+    /// verified Lockwell archive objects. Returned as `(postgres, archive,
+    /// total)` so callers can both warn on the components and compare the sum
+    /// against the per-match storage ceiling.
+    async fn game_storage_bytes(&self, game_id: Uuid) -> Result<(u64, u64, u64), CommitError> {
+        let postgres_bytes = self.snapshot_blob_bytes(Some(game_id)).await?;
+        let archive_bytes = self.game_archive_object_bytes(game_id).await?;
+        Ok((
+            postgres_bytes,
+            archive_bytes,
+            postgres_bytes.saturating_add(archive_bytes),
+        ))
+    }
+
+    /// Lists every game with retained or archived storage bytes, heaviest
+    /// first, capped at `limit`. Read-only: it never mutates canonical state.
+    pub async fn list_game_storage(
+        &self,
+        limit: u64,
+    ) -> Result<Vec<GameStorageBreakdown>, CommitError> {
+        let rows = sqlx::query(
+            "SELECT game_id, postgres_bytes, archive_bytes, total_bytes
+             FROM (
+                 SELECT g.id AS game_id,
+                        COALESCE(pg.bytes, 0)::bigint AS postgres_bytes,
+                        COALESCE(ar.bytes, 0)::bigint AS archive_bytes,
+                        (COALESCE(pg.bytes, 0) + COALESCE(ar.bytes, 0))::bigint AS total_bytes
+                 FROM games g
+                 LEFT JOIN (
+                     SELECT b.game_id, SUM(octet_length(b.payload)::bigint) AS bytes
+                     FROM game_snapshot_blobs b
+                     JOIN game_snapshots s
+                       ON s.game_id = b.game_id AND s.revision = b.revision
+                     WHERE s.payload_retention_status = 'retained'
+                     GROUP BY b.game_id
+                 ) pg ON pg.game_id = g.id
+                 LEFT JOIN (
+                     SELECT game_id, SUM(object_size)::bigint AS bytes
+                     FROM game_snapshot_archives
+                     GROUP BY game_id
+                 ) ar ON ar.game_id = g.id
+             ) storage
+             WHERE total_bytes > 0
+             ORDER BY total_bytes DESC, game_id
+             LIMIT $1",
+        )
+        .bind(i64::try_from(limit).map_err(|_| CommitError::Storage)?)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(CommitError::storage)?;
+
+        rows.into_iter()
+            .map(|row| {
+                let game_id: Uuid = row.get("game_id");
+                let postgres_bytes: i64 = row.get("postgres_bytes");
+                let archive_bytes: i64 = row.get("archive_bytes");
+                let total_bytes: i64 = row.get("total_bytes");
+                Ok(GameStorageBreakdown {
+                    game_id,
+                    postgres_bytes: u64::try_from(postgres_bytes)
+                        .map_err(|_| CommitError::Storage)?,
+                    archive_bytes: u64::try_from(archive_bytes)
+                        .map_err(|_| CommitError::Storage)?,
+                    total_bytes: u64::try_from(total_bytes).map_err(|_| CommitError::Storage)?,
+                })
+            })
+            .collect()
     }
 
     /// Removes only payload bytes selected by the retention policy. Revision,

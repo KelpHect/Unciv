@@ -38,8 +38,8 @@ pub use archive::SnapshotArchiveReport;
 pub use lobby_reconfiguration::{LobbyConfigurationUpdate, LobbyPasswordUpdate};
 pub use repair::RepairReport;
 pub use retention::{
-    SnapshotCompactionReport, SnapshotMaintenanceConfig, SnapshotMaintenanceReport,
-    SnapshotRetentionPolicy,
+    GameStorageBreakdown, SnapshotCompactionReport, SnapshotMaintenanceConfig,
+    SnapshotMaintenanceReport, SnapshotRetentionPolicy,
 };
 use snapshot_codec::{SnapshotCodecError, StoredSnapshot, decode_snapshot, encode_snapshot};
 

@@ -162,6 +162,15 @@ unavailable ruleset civilizations fail without advancing either head.
 
 Current v3 controls require membership for projection access, send the full snapshot only to the private worker, return an allowlisted projection DTO, and include sentinel-leak tests. Game metadata does not serve the canonical snapshot.
 
+The 2026-08-13 projection bump (61 → 62) widens the player's own view with
+city-state quests and influence: `ProjectedCityStatePartner` now carries
+`influence`, `influenceLevel`, and a bounded `quests` list. This discloses only
+data the viewing civilization already knows in single-player (its own active
+quests and standing with a known city-state), so it is a visibility-parity
+widening rather than a confidentiality reduction. Every new leaf is classified
+`legally_known` in `projection-disclosure-policy.tsv` and is guarded by the
+`ProjectionDisclosurePolicyTests` fail-closed enumeration.
+
 Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.
 
 #### Pregame terrain disclosure (accepted, bounded)

@@ -162,6 +162,34 @@ class ProjectionLeakSentinelTests {
         return PrivateSubsystemFixture(testGame, actor, foreign)
     }
 
+    @Test
+    fun cityStatePartnerExposesInfluenceAndRelationshipLevelWithoutLeakingActions() {
+        val testGame = TestGame()
+        testGame.makeHexagonalMap(4)
+        val actor = testGame.addCiv(isPlayer = true)
+        val cityState = testGame.addCiv(cityStateType = "Cultured")
+        testGame.addCity(actor, testGame.getTile(HexCoord(0, 0)))
+        testGame.addCity(cityState, testGame.getTile(HexCoord(0, -1)))
+        actor.diplomacyFunctions.makeCivilizationsMeet(cityState)
+        val diplomacy = cityState.getDiplomacyManager(actor)!!
+
+        var partner = CityStateCommandExecutor.partners(actor).single()
+        assertEquals(0, partner.influence)
+        assertEquals(ProjectedCityStateInfluenceLevel.Neutral, partner.influenceLevel)
+        assertTrue(partner.quests.isEmpty())
+
+        diplomacy.addInfluence(30f)
+        partner = CityStateCommandExecutor.partners(actor).single()
+        assertEquals(30, partner.influence)
+        assertEquals(ProjectedCityStateInfluenceLevel.Friend, partner.influenceLevel)
+
+        diplomacy.addInfluence(35f)
+        cityState.cityStateFunctions.updateAllyCivForCityState()
+        partner = CityStateCommandExecutor.partners(actor).single()
+        assertEquals(65, partner.influence)
+        assertEquals(ProjectedCityStateInfluenceLevel.Ally, partner.influenceLevel)
+    }
+
     private fun encode(projection: PlayerProjection): String =
         json.encodeToString(PlayerProjection.serializer(), projection)
 

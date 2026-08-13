@@ -6,6 +6,7 @@ import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
+import com.unciv.logic.civilization.diplomacy.RelationshipLevel
 import com.unciv.logic.trade.TradeLogic
 import com.unciv.logic.trade.TradeOffer
 import com.unciv.logic.trade.TradeOfferType
@@ -23,6 +24,7 @@ object CityStateCommandExecutor {
         .map { cityState ->
             val functions = cityState.cityStateFunctions
             val peaceful = !actor.isAtWarWith(cityState)
+            val diplomacy = cityState.getDiplomacyManager(actor)!!
             ProjectedCityStatePartner(
                 civilizationId = cityState.civID,
                 availableGoldGifts = if (peaceful) goldGiftAmounts.filter { actor.gold >= it } else emptyList(),
@@ -38,6 +40,9 @@ object CityStateCommandExecutor {
                 canDeclareWar = !actor.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange) &&
                     actor.getDiplomacyManager(cityState)!!.canDeclareWar(),
                 diplomaticMarriageCost = functions.getDiplomaticMarriageCost().takeIf { functions.canBeMarriedBy(actor) },
+                influence = diplomacy.getInfluence().toInt(),
+                influenceLevel = influenceLevel(diplomacy),
+                quests = activeQuests(cityState, actor),
             )
         }
         .sortedBy { it.civilizationId }
@@ -144,6 +149,32 @@ object CityStateCommandExecutor {
             .sortedWith(compareBy<ProjectedCityStateImprovementGift> { it.x }.thenBy { it.y }.thenBy { it.improvementName })
             .toList()
     }
+
+    private fun influenceLevel(
+        diplomacy: com.unciv.logic.civilization.diplomacy.DiplomacyManager,
+    ): ProjectedCityStateInfluenceLevel = when (diplomacy.relationshipIgnoreAfraid()) {
+        RelationshipLevel.Unforgivable -> ProjectedCityStateInfluenceLevel.Unforgivable
+        RelationshipLevel.Enemy -> ProjectedCityStateInfluenceLevel.Enemy
+        RelationshipLevel.Ally -> ProjectedCityStateInfluenceLevel.Ally
+        RelationshipLevel.Friend -> ProjectedCityStateInfluenceLevel.Friend
+        else -> ProjectedCityStateInfluenceLevel.Neutral
+    }
+
+    private fun activeQuests(
+        cityState: Civilization,
+        actor: Civilization,
+    ): List<ProjectedCityStateQuest> = cityState.questManager.getAssignedQuestsFor(actor)
+        .map { quest ->
+            ProjectedCityStateQuest(
+                questName = quest.questName,
+                data1 = quest.data1.takeIf { it.isNotEmpty() },
+                data2 = quest.data2.takeIf { it.isNotEmpty() },
+                influence = quest.getInfluence().toInt(),
+                remainingTurns = if (quest.doesExpire()) quest.getRemainingTurns() else null,
+                isGlobal = quest.isGlobal(),
+            )
+        }
+        .toList()
 
     private fun canNegotiatePeace(actor: Civilization, cityState: Civilization): Boolean {
         if (!actor.isAtWarWith(cityState)) return false

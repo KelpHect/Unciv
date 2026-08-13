@@ -11,6 +11,14 @@ player	player.cityStatePartners[].improvementGifts[].goldCost	legally_known	Disc
 player	player.cityStatePartners[].improvementGifts[].improvementName	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.cityStatePartners[].improvementGifts[].x	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.cityStatePartners[].improvementGifts[].y	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.cityStatePartners[].influence	legally_known	Current city-state influence toward the viewing civ; already shown on the single-player city-state screen and only when the city-state is known.
+player	player.cityStatePartners[].influenceLevel	legally_known	Derived influence band (ally/friend/neutral/enemy/unforgivable) disclosed only for known city-states.
+player	player.cityStatePartners[].quests[].data1	legally_known	Opaque quest target data for a quest assigned to the viewing civ by a known city-state.
+player	player.cityStatePartners[].quests[].data2	legally_known	Opaque quest target data for a quest assigned to the viewing civ by a known city-state.
+player	player.cityStatePartners[].quests[].influence	legally_known	Influence reward for a quest assigned to the viewing civ; mirrors the single-player quest display.
+player	player.cityStatePartners[].quests[].isGlobal	legally_known	Quest scope flag for a quest assigned to the viewing civ by a known city-state.
+player	player.cityStatePartners[].quests[].questName	legally_known	Ruleset quest name for a quest assigned to the viewing civ by a known city-state.
+player	player.cityStatePartners[].quests[].remainingTurns	legally_known	Optional quest deadline for a quest assigned to the viewing civ by a known city-state.
 player	player.cityStatePartners[].tributeGoldAmount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.currentPlayerCivilizationId	public	Public protocol or turn metadata required to synchronize the player presentation.

@@ -117,6 +117,37 @@ pub struct ProjectedCityStatePartner {
     pub can_negotiate_peace: bool,
     pub can_declare_war: bool,
     pub diplomatic_marriage_cost: Option<u32>,
+    #[serde(default)]
+    pub influence: i32,
+    #[serde(default)]
+    pub influence_level: ProjectedCityStateInfluenceLevel,
+    #[serde(default)]
+    pub quests: Vec<ProjectedCityStateQuest>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectedCityStateInfluenceLevel {
+    Unforgivable,
+    Enemy,
+    #[default]
+    Neutral,
+    Friend,
+    Ally,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityStateQuest {
+    pub quest_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data1: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data2: Option<String>,
+    pub influence: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining_turns: Option<i32>,
+    pub is_global: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

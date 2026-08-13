@@ -486,6 +486,16 @@
       "post": {
         "tags": [],
         "operationId": "refresh_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "",
@@ -493,6 +503,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -517,12 +537,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "bearer_auth": []
-          }
-        ]
+        }
       }
     },
     "/api/v3/auth/register": {
@@ -13942,11 +13957,15 @@
         "type": "object",
         "required": [
           "account",
-          "session_token"
+          "session_token",
+          "refresh_token"
         ],
         "properties": {
           "account": {
             "$ref": "#/components/schemas/AccountResponse"
+          },
+          "refresh_token": {
+            "type": "string"
           },
           "session_token": {
             "type": "string"
@@ -14894,6 +14913,16 @@
         },
         "additionalProperties": false
       },
+      "ProjectedCityStateInfluenceLevel": {
+        "type": "string",
+        "enum": [
+          "unforgivable",
+          "enemy",
+          "neutral",
+          "friend",
+          "ally"
+        ]
+      },
       "ProjectedCityStatePartner": {
         "type": "object",
         "required": [
@@ -14947,6 +14976,19 @@
               "$ref": "#/components/schemas/ProjectedCityStateImprovementGift"
             }
           },
+          "influence": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "influenceLevel": {
+            "$ref": "#/components/schemas/ProjectedCityStateInfluenceLevel"
+          },
+          "quests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedCityStateQuest"
+            }
+          },
           "tributeGoldAmount": {
             "type": [
               "integer",
@@ -14954,6 +14996,46 @@
             ],
             "format": "int32",
             "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityStateQuest": {
+        "type": "object",
+        "required": [
+          "questName",
+          "influence",
+          "isGlobal"
+        ],
+        "properties": {
+          "data1": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data2": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "influence": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isGlobal": {
+            "type": "boolean"
+          },
+          "questName": {
+            "type": "string"
+          },
+          "remainingTurns": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -16930,6 +17012,18 @@
           }
         }
       },
+      "RefreshSessionRequest": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ReligiousBeliefType": {
         "type": "string",
         "enum": [
@@ -17718,9 +17812,13 @@
       "SessionResponse": {
         "type": "object",
         "required": [
-          "session_token"
+          "session_token",
+          "refresh_token"
         ],
         "properties": {
+          "refresh_token": {
+            "type": "string"
+          },
           "session_token": {
             "type": "string"
           }

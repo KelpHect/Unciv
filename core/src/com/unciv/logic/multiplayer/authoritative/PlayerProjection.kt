@@ -43,7 +43,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 61
+        const val CURRENT_PROJECTION_VERSION = 62
     }
 }
 
@@ -105,6 +105,28 @@ data class ProjectedCityStatePartner(
     val canNegotiatePeace: Boolean,
     val canDeclareWar: Boolean,
     val diplomaticMarriageCost: Int?,
+    val influence: Int = 0,
+    val influenceLevel: ProjectedCityStateInfluenceLevel = ProjectedCityStateInfluenceLevel.Neutral,
+    val quests: List<ProjectedCityStateQuest> = emptyList(),
+)
+
+@Serializable
+enum class ProjectedCityStateInfluenceLevel {
+    @SerialName("unforgivable") Unforgivable,
+    @SerialName("enemy") Enemy,
+    @SerialName("neutral") Neutral,
+    @SerialName("friend") Friend,
+    @SerialName("ally") Ally,
+}
+
+@Serializable
+data class ProjectedCityStateQuest(
+    val questName: String,
+    val data1: String? = null,
+    val data2: String? = null,
+    val influence: Int,
+    val remainingTurns: Int?,
+    val isGlobal: Boolean,
 )
 
 @Serializable

@@ -460,7 +460,10 @@
       "improvementGifts": [],
       "canNegotiatePeace": false,
       "canDeclareWar": true,
-      "diplomaticMarriageCost": 500
+      "diplomaticMarriageCost": 500,
+      "influence": 37,
+      "influenceLevel": "friend",
+      "quests": []
     }
   ],
   "spies": [],

@@ -3857,6 +3857,14 @@ unavailable ruleset civilizations fail without advancing either head.</p>
 <h3 id="projection-confidentiality">Projection confidentiality</h3>
 <p><strong>Attacker story:</strong> A legitimate member requests another player's view, discovers hidden state in a nested or newly added field, correlates hashes or metadata to infer fog-of-war information, or obtains a full snapshot through diagnostics, errors, logs, or an administrative endpoint.</p>
 <p>Current v3 controls require membership for projection access, send the full snapshot only to the private worker, return an allowlisted projection DTO, and include sentinel-leak tests. Game metadata does not serve the canonical snapshot.</p>
+<p>The 2026-08-13 projection bump (61 → 62) widens the player's own view with
+city-state quests and influence: <code>ProjectedCityStatePartner</code> now carries
+<code>influence</code>, <code>influenceLevel</code>, and a bounded <code>quests</code> list. This discloses only
+data the viewing civilization already knows in single-player (its own active
+quests and standing with a known city-state), so it is a visibility-parity
+widening rather than a confidentiality reduction. Every new leaf is classified
+<code>legally_known</code> in <code>projection-disclosure-policy.tsv</code> and is guarded by the
+<code>ProjectionDisclosurePolicyTests</code> fail-closed enumeration.</p>
 <p>Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.</p>
 <h4 id="pregame-terrain-disclosure-accepted-bounded">Pregame terrain disclosure (accepted, bounded)</h4>
 <p>The pregame lobby exposes one deliberate map disclosure:

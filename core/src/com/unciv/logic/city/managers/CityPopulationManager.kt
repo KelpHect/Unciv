@@ -153,13 +153,9 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
     }
 
     /** Only assigns free population */
-<<<<<<< HEAD
     // Required for compatibility with rulesets that still use the legacy specialist-food unique.
     @Suppress("DEPRECATION")
     internal fun autoAssignPopulation(): Unit = timeThis("CityPopulationManager.autoAssignPopulation") {
-=======
-    internal fun autoAssignPopulation(): Unit = timeThis("CityPopulationManager.autoAssignPopulation") {
->>>>>>> 68ffab0a6 (Linting around CityFocus (#15318))
         city.cityStats.update()  // calculate current stats with current assignments
         val freePopulation = getFreePopulation()
         if (freePopulation <= 0) return

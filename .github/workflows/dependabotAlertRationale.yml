@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  vulnerability-alerts: read
 
 jobs:
   check:
@@ -20,11 +21,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify the checker's analysis logic
         run: python3 .github/workflows/check-dependabot-alert-rationales.py --self-test
-      - name: Fail on manually-dismissed alerts without a rationale
+      - name: Fetch dismissed Dependabot alerts with gh
         env:
-          # The Dependabot alerts API is not readable with GITHUB_TOKEN
-          # (github/community#60612). Provide a token with the security_events
-          # scope (public repos: public_repo) in the DEPENDABOT_AUDIT_TOKEN
-          # repository secret.
-          GH_TOKEN: ${{ secrets.DEPENDABOT_AUDIT_TOKEN }}
-        run: python3 .github/workflows/check-dependabot-alert-rationales.py "${{ github.repository }}"
+          # gh authenticates with the workflow GITHUB_TOKEN. The
+          # `vulnerability-alerts: read` permission above grants it the
+          # "Read Dependabot alerts" capability, so no PAT secret is needed.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate \
+            "repos/${{ github.repository }}/dependabot/alerts?state=dismissed&per_page=100" \
+            > dismissed-alerts.json
+      - name: Fail on manually-dismissed alerts without a rationale
+        run: python3 .github/workflows/check-dependabot-alert-rationales.py dismissed-alerts.json

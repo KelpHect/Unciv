@@ -671,7 +671,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
             val techBoost = (0.5f * medianCost).roundToInt()
             civ.tech.addScience(techBoost)
         }
-        
+
         applyKoreanUnique()
 
         val previousHappiness = civ.getHappiness()

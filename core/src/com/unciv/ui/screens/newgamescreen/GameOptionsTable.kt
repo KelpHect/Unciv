@@ -231,7 +231,7 @@ class GameOptionsTable(
     private fun Table.addCensorStatsCheckbox() =
         addCheckbox("Restrict to own civilization", gameParameters.hideOtherCivilizationStats)
         { gameParameters.hideOtherCivilizationStats = it }
-    
+
     private fun Table.addShowAdditionalRankingTypesCheckbox() =
         addCheckbox("Show additional stat types", gameParameters.showAdditionalRankingTypes)
         { gameParameters.showAdditionalRankingTypes = it }

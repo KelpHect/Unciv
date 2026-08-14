@@ -25,7 +25,7 @@ object UseGoldAutomation {
             useGoldForCityStates(civ)
 
         val acceptableHurryCostModifier = civ.gold.coerceAtLeast(0)/100
-        // Ideally we buy things with good gold:production conversion from purchasing and hard-build the rest, but some mods have high hurryCostModifier on everything leading to too much gold being saved. 
+        // Ideally we buy things with good gold:production conversion from purchasing and hard-build the rest, but some mods have high hurryCostModifier on everything leading to too much gold being saved.
         // Rather than checking the full ruleset for future available constructions and determining if they're worth it, let's gradually accept less efficiency if it turns out we're saving too much
 
         for (city in civ.cities.sortedByDescending { it.cityStats.currentCityStats.production }) {

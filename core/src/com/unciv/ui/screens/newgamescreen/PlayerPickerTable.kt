@@ -283,51 +283,5 @@ class PlayerPickerTable(
             available.remove(friendList.getFriendById(player.playerId))
         return available.asSequence()
     }
-}
-
-class FriendSelectionPopup(
-    private val playerPicker: PlayerPickerTable,
-    player: Player,
-    screen: BaseScreen,
-) : Popup(screen) {
-
-    private val pickerPane = PickerPane()
-    private var selectedFriendId: String? = null
-
-    init {
-        val pickerCell = add()
-            .width(700f).fillX().expandX()
-            .minHeight(screen.stage.height * 0.5f)
-            .maxHeight(screen.stage.height * 0.8f)
-
-        val friendList = FriendPickerList(playerPicker, ::friendSelected)
-        pickerPane.topTable.add(friendList)
-        pickerPane.rightSideButton.setText("Select friend".tr())
-        pickerPane.closeButton.onActivation(::close)
-        pickerPane.closeButton.keyShortcuts.add(KeyCharAndCode.BACK)
-        pickerCell.setActor(pickerPane)
-        pickerPane.rightSideButton.onClick {
-            close()
-            val friendId = selectedFriendId
-            if (friendId != null) {
-                player.playerId = selectedFriendId.toString()
-                close()
-                playerPicker.update()
-            }
-        }
-
-        clickBehindToClose = true
-    }
-
-    private fun friendSelected(friendName: String) {
-        val friendsList = FriendList()
-        val friend = friendsList.getFriendByName(friendName)
-        if (friend != null) {
-            selectedFriendId = friend.playerID
-        }
-        pickerPane.setRightSideButtonEnabled(true)
-        pickerPane.rightSideButton.setText("Select [$friendName]".tr())
->>>>>>> 8b8411542 (Max players with spectator (#15068))
-    }
 
 }

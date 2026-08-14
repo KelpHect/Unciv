@@ -162,9 +162,6 @@ class WorldMapHolder(
     fun onTileClicked(tileView: TileView) {
         val tile = tileView.getTile()
 
-        if (!worldScreen.gameView.civView.hasExplored(tileView))
-            return // This tile doesn't exist for you
-
         removeUnitActionOverlay()
         selectedTile = tileView
         unitMovementPaths.clear()
@@ -216,7 +213,7 @@ class WorldMapHolder(
         if (newSelectedUnit == null || newSelectedUnit.isCivilian()) {
             val unitsInTile = tile.getUnits()
             if (previousSelectedCity != null && previousSelectedCity.canBombard()
-                    && tile.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile().getTile())
+                    && tile.tilesInDistanceSequence(2).contains(previousSelectedCity.getCenterTile().getTile())
                     && unitsInTile.any()
                     && unitsInTile.first().civ.isAtWarWith(worldScreen.viewingCiv)) {
                 // try to select the closest city to bombard this guy

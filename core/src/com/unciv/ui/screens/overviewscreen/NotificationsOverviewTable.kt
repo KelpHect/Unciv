@@ -109,7 +109,6 @@ class NotificationsOverviewTable(
     private fun generateNotificationTable() {
         if (viewingPlayer.getCiv().notifications.isNotEmpty())
             add(oneTurnTable(gameInfo.turns, viewingPlayer.getCiv().notifications, doHighlight = true)).row()
-    }
 
         for (turnNotifications in notificationLog.asReversed()) {
             add(oneTurnTable(turnNotifications.turn, turnNotifications.notifications, doHighlight = false)).row()

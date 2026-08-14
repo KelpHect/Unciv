@@ -116,7 +116,7 @@ class Tile : IsPartOfGameInfoSerialization {
     @delegate:Transient
     val neighbors: Sequence<Tile> by lazy {
         if (!isTilemapInitialized()) emptySequence()
-        else getTilesAtDistance(1).toList().asSequence()
+        else tilesAtDistanceSequence(1).toList().asSequence()
     }
     // We have to .toList() so that the values are stored together once for caching,
     // and the toSequence so that aggregations (like neighbors.flatMap{it.units} don't take up their own space

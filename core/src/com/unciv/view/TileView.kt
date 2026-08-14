@@ -70,7 +70,7 @@ class TileView internal constructor(private val tile: Tile, val tileMapView: Til
             .filter { viewer == null || it.isExplored(viewer) }
             .map { tileMapView.getTile(it) }
     @Readonly fun getVisibleTilesInDistance(distance: Int): Sequence<TileView> =
-        tile.getTilesInDistance(distance)
+        tile.tilesInDistanceSequence(distance)
             .filter { viewer == null || it.isExplored(viewer) }
             .map { tileMapView.getTile(it) }
 

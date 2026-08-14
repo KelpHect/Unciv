@@ -57,7 +57,7 @@ class TileLayerTerrain(tileGroup: TileGroup, size: Float) : TileLayer(tileGroup,
         val viewableResource = if (UncivGame.Current.settings.showPixelImprovements)
             tileView.getViewableResource(if (isForceVisible) null else viewingCiv) else null
 
-        val resourceAndImprovementSequence = if (viewableResource == null && !shouldShowImprovement)
+        val resourceAndImprovementSequence = if (viewableResource == null && shownImprovement == null)
             emptySequence()
         else sequence {
             if (viewableResource != null)  yield(viewableResource.name)

@@ -139,7 +139,7 @@ class StatsOverviewTab(
                     UniqueType.ConditionalWhenBetweenStatResource,
                     UniqueType.ConditionalWhenBelowAmountStatResource,
                 ).flatMap { conditionalType ->
-                    viewingPlayer.getCiv().getMatchingUniques(conditionalType)
+                    viewingPlayer.getCiv().matchingUniquesSequence(conditionalType)
                         .filter { it.params.last() == "Happiness" }
                         .sortedBy { it.type } // otherwise order might change as a HashMap is involved
                 }.filterNot { it.isHiddenToUsers() }

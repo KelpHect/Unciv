@@ -4,6 +4,7 @@ import com.badlogic.gdx.math.Vector2
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.map.TileMap
 import com.unciv.logic.map.tile.Tile
+import yairm210.purity.annotations.Cache
 import yairm210.purity.annotations.Readonly
 
 /** Lazy cache of [TileView]s for a [TileMap] from the perspective of [viewer]. */
@@ -13,12 +14,12 @@ class TileMapView(private val tileMap: TileMap,
                   val gameView: GameView? = null) {
     @Cache private val tileViews: Array<TileView?> by lazy { arrayOfNulls(tileMap.tileList.size) }
 
-    fun getTile(tile: Tile): TileView {
+    @Readonly fun getTile(tile: Tile): TileView {
         val idx = tile.zeroBasedIndex
         return tileViews[idx] ?: TileView(tile, this, viewer, spectatorMode).also { tileViews[idx] = it }
     }
 
-    private fun Tile.toViewIfExplored(): TileView? {
+    @Readonly private fun Tile.toViewIfExplored(): TileView? {
         if (viewer != null && !isExplored(viewer)) return null
         return TileView(this, this@TileMapView, viewer, spectatorMode)
     }

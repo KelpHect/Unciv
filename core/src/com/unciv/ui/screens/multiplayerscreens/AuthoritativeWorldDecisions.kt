@@ -16,6 +16,9 @@ import com.unciv.ui.components.input.onClick
  * This is presentation and typed-input routing, not a client rules engine.
  */
 /**
+ * The city panels are absent too: they belong to the city a player tapped, not
+ * to a list of every city at once.
+ *
  * The unit action and order panels are deliberately absent here: they now sit
  * with the real unit table, next to the unit they act on.
  */
@@ -31,19 +34,12 @@ internal class AuthoritativeWorldDecisions(
             AuthoritativePlayerStatusPanel(controller.projection).build(),
         ).left().row()
         add(
-            AuthoritativeCityEconomyPanel(
-                controller.projection,
-                controller.cityEconomy,
-                busy,
-                submit,
-            ).build(),
-        ).left().row()
-        add(
             AuthoritativeCityControlPanel(
                 controller.projection,
                 controller.cityControls,
                 busy,
                 submit,
+                includeCities = false,
             ).build(),
         ).left().row()
         add(

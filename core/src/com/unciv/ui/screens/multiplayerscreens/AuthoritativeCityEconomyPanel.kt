@@ -21,10 +21,13 @@ internal class AuthoritativeCityEconomyPanel(
     private val controller: AuthoritativeCityEconomyController,
     private val busy: Boolean,
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
+    /** When set, only this city is shown - the rest belong to other cities' panels. */
+    private val onlyCityId: String? = null,
 ) {
     fun build(): Table = Table().apply {
         defaults().pad(3f)
-        for (city in projection.ownCities) addCity(city)
+        for (city in projection.ownCities.filter { onlyCityId == null || it.id == onlyCityId })
+            addCity(city)
     }
 
     private fun Table.addCity(city: ProjectedCity) {

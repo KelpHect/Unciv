@@ -20,11 +20,23 @@ internal class AuthoritativeCityControlPanel(
     private val controller: AuthoritativeCityControlController,
     private val busy: Boolean,
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
+    /** When set, only this city's controls are shown. */
+    private val onlyCityId: String? = null,
+    /** Per-city controls belong to the tapped city's panel. */
+    private val includeCities: Boolean = true,
+    /**
+     * Conquest prompts are not per-city controls: the conquered city need not be
+     * one the player owns, and hiding the choice behind tapping it on the map
+     * can leave the decision unreachable. They stay on the always-visible list.
+     */
+    private val includeDispositions: Boolean = true,
 ) {
     fun build(): Table = Table().apply {
         defaults().pad(3f)
-        addDispositions()
-        for (city in projection.ownCities) addCity(city)
+        if (includeDispositions) addDispositions()
+        if (!includeCities) return@apply
+        for (city in projection.ownCities.filter { onlyCityId == null || it.id == onlyCityId })
+            addCity(city)
     }
 
     private fun Table.addDispositions() {

@@ -8,7 +8,10 @@ import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldController
+import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldSelection
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldStatus
+import com.unciv.logic.multiplayer.authoritative.ProjectedCity
+import com.unciv.logic.multiplayer.authoritative.ProjectedTap
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.Ruleset
 import com.unciv.ui.components.extensions.disable
@@ -121,6 +124,9 @@ class AuthoritativeWorldScreen(
      * forbids, so the buttons below it come from what the server advertised.
      */
     private val unitTable = UnitTable(this)
+
+    /** Tap and city-selection decisions, kept outside this GL-bound screen. */
+    private val selection = AuthoritativeWorldSelection()
     private var renderedRevision = controller.current.committedRevision
 
     @Volatile private var busy = false
@@ -170,6 +176,9 @@ class AuthoritativeWorldScreen(
         // Orders for the selected unit: advertised by the server on the
         // projection, dispatched through the same typed command bus as before.
         topTable.add(unitOrdersForSelection()).colspan(3).row()
+        selection.selectedCity(controller.projection)?.let { city ->
+            topTable.add(cityPanelFor(city)).colspan(3).row()
+        }
         topTable.add(ScrollPane(
             AuthoritativeWorldDecisions(
                 controller,
@@ -224,6 +233,9 @@ class AuthoritativeWorldScreen(
         stage.scrollFocus = mapHolder
         // The old map is discarded wholesale, so anything holding one of its
         // tiles or views would render state the server has already replaced.
+        // A razed or captured city must not keep its panel open over a
+        // projection that no longer lists it.
+        selection.onProjectionReplaced(controller.projection)
         tileInfoTable.civView = world.gameView.civView
         // Every MapUnit is a new object after a revision, so the table would
         // otherwise hold one belonging to the discarded map.
@@ -238,32 +250,35 @@ class AuthoritativeWorldScreen(
         val x = tile.position.x
         val y = tile.position.y
         // Inspecting a tile is a read, so it happens on every tap regardless of
-        // whether the tap also turns out to be a unit selection or an order.
+        // what the tap also turns out to mean.
         inspectedTile = tile
-        if (controller.unitTargetMode != null) {
-            if (controller.canSubmitUnitTarget(x, y)) {
-                runOperation("Submit authoritative unit target") {
-                    controller.submitUnitTarget(x, y)
-                }
-            // Tapping somewhere that is not a legal target submits nothing, but
-            // it is still an inspection, so the readout has to redraw.
-            } else rebuild()
-            return
+        when (val tap = selection.decide(
+            controller.projection, x, y,
+            unitTargetModeActive = controller.unitTargetMode != null,
+            canSubmitUnitTarget = controller.canSubmitUnitTarget(x, y),
+            canMoveSelectedTo = controller.canMoveSelectedTo(x, y),
+        )) {
+            is ProjectedTap.SubmitUnitTarget -> runOperation("Submit authoritative unit target") {
+                controller.submitUnitTarget(tap.x, tap.y)
+            }
+            is ProjectedTap.SelectCity -> {
+                selection.selectCity(tap.cityId)
+                unitTable.selectUnit(null)
+                syncControllerSelection()
+                rebuild()
+            }
+            ProjectedTap.SelectUnit -> {
+                selection.selectCity(null)
+                // The game's own selection order - military before civilian,
+                // re-tap to cycle - rather than whichever unit is listed first.
+                unitTable.tileSelected(tile)
+                syncControllerSelection()
+                rebuild()
+            }
+            is ProjectedTap.MoveSelectedUnit -> submitMove(tap.x, tap.y)
+            // Nothing was submitted, but the readout still has to redraw.
+            ProjectedTap.RejectedUnitTarget, ProjectedTap.InspectOnly -> rebuild()
         }
-        val ownUnit = controller.projection.ownUnits.any { it.x == x && it.y == y }
-        if (ownUnit) {
-            // The game's own selection order - military before civilian, re-tap
-            // to deselect - instead of whichever unit the projection lists first.
-            // A unit that failed to materialize is simply not on the tile, so it
-            // cannot be selected into a state the controller then has to undo.
-            unitTable.tileSelected(tile)
-            syncControllerSelection()
-            rebuild()
-            return
-        }
-        if (controller.canMoveSelectedTo(x, y)) submitMove(x, y)
-        // A tap that is only an inspection still has to redraw the readout.
-        else rebuild()
     }
 
     private fun submitMove(x: Int, y: Int) = runOperation("Move authoritative unit") {
@@ -386,6 +401,25 @@ class AuthoritativeWorldScreen(
                 controller.unitOrders, disabled,
                 { mode -> controller.beginUnitTargetSelection(mode); rebuild() },
                 submit,
+            ).build()).left().row()
+        }
+    }
+
+    /** The open city's own panel: production, purchases, tiles and governance. */
+    private fun cityPanelFor(city: ProjectedCity): Table {
+        val disabled = busy || !controller.canAcceptProjectedInput
+        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
+            runOperation(taskName, operation = operation)
+        }
+        return Table().apply {
+            defaults().pad(3f)
+            add("${city.name} - population [${city.population}]".toLabel()).left().row()
+            add(AuthoritativeCityEconomyPanel(
+                controller.projection, controller.cityEconomy, disabled, submit, city.id,
+            ).build()).left().row()
+            add(AuthoritativeCityControlPanel(
+                controller.projection, controller.cityControls, disabled, submit,
+                onlyCityId = city.id, includeDispositions = false,
             ).build()).left().row()
         }
     }

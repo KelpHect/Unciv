@@ -16,6 +16,7 @@ import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.Ruleset
 import com.unciv.models.ruleset.RulesetCache
 import com.unciv.ui.components.extensions.disable
+import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onActivation
@@ -56,7 +57,6 @@ class AuthoritativeLobbyScreen(
     private val seatCard = LobbyChrome.card("Your seat")
     private val mapCard = LobbyChrome.card("Map preview")
     private val summaryCard = LobbyChrome.card("Match summary")
-    private val actionBar = LobbyChrome.card()
     private val statusLine = LobbyChrome.hint("")
 
     private val ruleset: Ruleset = RulesetCache.getComplexRuleset(
@@ -91,8 +91,10 @@ class AuthoritativeLobbyScreen(
 
     init {
         setDefaultCloseAction()
-        rightSideButton.disable()
-        rightSideButton.isVisible = false
+        // Start lives in the picker's own bottom bar, so it is reachable at any
+        // scroll position instead of hiding under the setup editor.
+        rightSideButton.setText("Start match")
+        rightSideButton.onActivation { runAction { session.startLobby(lobby) } }
         // Nation portraits resolve their icon atlas and ring colours through the
         // globally selected ruleset, so a modded room needs its own set first.
         ImageGetter.setNewRuleset(ruleset, ignoreIfModsAreEqual = true)
@@ -111,35 +113,50 @@ class AuthoritativeLobbyScreen(
     private fun buildRoom() {
         content.clear()
         content.top()
-        content.add(headerCard).growX().row()
-        val workspace = if (isNarrowerThan4to3()) stackedWorkspace() else columnWorkspace()
-        content.add(workspace).growX().row()
-        content.add(settingsWorkspace()).growX().row()
-        content.add(actionBar).growX().row()
+        content.add(headerCard).growX().padBottom(2f).row()
+        if (isNarrowerThan4to3()) content.add(stackedWorkspace()).growX().row()
+        else content.add(columnWorkspace()).grow().row()
     }
 
-    /** Desktop: players, map, and chat side by side like a staging room. */
+    /**
+     * Desktop: roster, setup, and the match panels sit side by side and each
+     * column scrolls on its own, so the whole room stays on one screen and the
+     * host never has to scroll past the editor to find Start.
+     */
     private fun columnWorkspace(): Table {
-        val available = this@AuthoritativeLobbyScreen.stage.width - 40f
+        val available = stage.width - 40f
+        val height = workspaceHeight()
         return Table(skin).apply {
             defaults().pad(5f).top()
-            add(
-                Table(skin).apply {
-                    defaults().pad(4f)
-                    add(playersCard).growX().row()
-                    add(seatCard).growX().row()
-                },
-            ).width(available * 0.38f).growY()
-            add(
-                Table(skin).apply {
-                    defaults().pad(4f)
-                    add(mapCard).growX().row()
-                    add(summaryCard).growX().row()
-                },
-            ).width(available * 0.34f).growY()
-            add(LobbyChrome.card("Room chat").apply { add(chatPanel).colspan(2).grow().row() })
-                .width(available * 0.28f).growY()
+            add(scrollingColumn(playersCard, seatCard)).width(available * 0.28f).height(height)
+            add(settingsWorkspace()).width(available * 0.46f).height(height)
+            add(scrollingColumn(mapCard, summaryCard, roomChatCard()))
+                .width(available * 0.26f).height(height)
         }
+    }
+
+    /**
+     * The room occupies everything between the header and the picker's bottom
+     * bar. Columns are given this height explicitly so a long roster or a long
+     * setup page scrolls inside its own column rather than pushing the room down.
+     */
+    private fun workspaceHeight() = stage.height * 0.66f
+
+    private fun scrollingColumn(vararg cards: Table): AutoScrollPane {
+        val column = Table(skin).apply {
+            top()
+            defaults().pad(4f).growX()
+            for (card in cards) add(card).row()
+        }
+        return AutoScrollPane(column).apply {
+            setScrollingDisabled(true, false)
+            setOverscroll(false, false)
+            fadeScrollBars = false
+        }
+    }
+
+    private fun roomChatCard() = LobbyChrome.card("Room chat").apply {
+        add(chatPanel).colspan(2).growX().row()
     }
 
     /** Touch and portrait: one column of collapsible sections. */
@@ -147,6 +164,7 @@ class AuthoritativeLobbyScreen(
         defaults().pad(4f).growX()
         add(playersCard).row()
         add(seatCard).row()
+        add(section("Game setup", settingsWorkspace())).row()
         add(section("Map preview", mapCard)).row()
         add(section("Match summary", summaryCard)).row()
         add(section("Room chat", chatPanel, startsOpened = false)).row()
@@ -180,26 +198,36 @@ class AuthoritativeLobbyScreen(
 
     private fun renderHeader() {
         LobbyChrome.resetCard(headerCard)
-        headerCard.add(LobbyChrome.caption("Staging room")).left().row()
-        headerCard.add(LobbyChrome.title(lobby.displayName)).left().row()
-        headerCard.add(
-            (
-                "Host [${lobby.ownerUsername}]  •  " +
-                    "[${lobby.occupiedSlots}]/[${lobby.humanSlots}] human players  •  " +
-                    "revision [${lobby.lobbyRevision}]"
-            ).toLabel(LobbyChrome.muted),
-        ).left().row()
-        headerCard.add(statusLine).left().row()
+        headerCard.left()
+        val identity = Table(skin).apply {
+            defaults().left()
+            add(LobbyChrome.caption("Staging room")).left().row()
+            add(LobbyChrome.title(lobby.displayName)).left().row()
+            add(
+                (
+                    "Host [${lobby.ownerUsername}]  •  " +
+                        "[${lobby.occupiedSlots}]/[${lobby.humanSlots}] human players  •  " +
+                        "revision [${lobby.lobbyRevision}]"
+                ).toLabel(LobbyChrome.muted),
+            ).left().row()
+        }
+        headerCard.add(identity).growX().left()
+        headerCard.add(statusLine).right().padRight(8f)
+        headerCard.add("Refresh now".toTextButton().onActivation { refresh() }).right().row()
     }
 
     private fun renderPlayers() {
         LobbyChrome.resetCard(playersCard, "Players", columns = 4)
         for (member in lobby.members) {
-            val isActor = member.username == lobby.ownerUsername && lobby.actorRole == "owner"
-            val row = LobbyChrome.row(highlighted = isActor)
+            // Highlight the actor's own seat, not simply the host's.
+            val isActor = lobby.actorRole != null &&
+                member.civilizationId.isNotBlank() &&
+                member.civilizationId == lobby.actorCivilizationId
+            val row = LobbyChrome.row(highlighted = isActor).apply { left() }
             row.add(LobbyChrome.nationBadge(ruleset, member.civilizationId, 44f)).left()
             row.add(
                 Table(skin).apply {
+                    left()
                     add(member.username.toLabel(hideIcons = true)).left().row()
                     add(LobbyChrome.nationLabel(ruleset, member.civilizationId)).left().row()
                 },
@@ -211,7 +239,7 @@ class AuthoritativeLobbyScreen(
             playersCard.add(row).colspan(4).growX().row()
         }
         repeat((lobby.humanSlots - lobby.occupiedSlots).coerceAtLeast(0)) {
-            val row = LobbyChrome.row()
+            val row = LobbyChrome.row().apply { left() }
             row.add(LobbyChrome.nationBadge(ruleset, "", 44f)).left()
             row.add(LobbyChrome.hint("Open human slot")).growX().left().padLeft(6f)
             row.add()
@@ -340,28 +368,20 @@ class AuthoritativeLobbyScreen(
         if (lobby.modNames.isNotEmpty()) append(" + ").append(lobby.modNames.joinToString())
     }
 
+    /** Start and its reason live in the picker's bottom bar, always on screen. */
     private fun renderActions() {
-        LobbyChrome.resetCard(actionBar)
-        if (lobby.actorRole == "owner") {
-            val canStart = lobby.occupiedSlots == lobby.humanSlots &&
-                lobby.members.all { it.ready && it.civilizationId.isNotBlank() }
-            val start = "Start match".toTextButton()
-            start.onActivation { runAction { session.startLobby(lobby) } }
-            if (!canStart) start.disable()
-            actionBar.add(start).growX()
-            if (!canStart)
-                actionBar.add(
-                    LobbyChrome.hint(
-                        "Every human slot must be filled, assigned a civilization, and ready.",
-                    ),
-                ).growX().left()
-            else actionBar.add(LobbyChrome.hint("Everyone is ready.")).growX().left()
-        } else {
-            actionBar.add(
-                LobbyChrome.hint("Only the host can start the match."),
-            ).growX().left()
-        }
-        actionBar.add("Refresh now".toTextButton().onActivation { refresh() }).right().row()
+        val isOwner = lobby.actorRole == "owner"
+        val canStart = isOwner && lobby.occupiedSlots == lobby.humanSlots &&
+            lobby.members.all { it.ready && it.civilizationId.isNotBlank() }
+        rightSideButton.isVisible = isOwner
+        if (canStart) rightSideButton.enable() else rightSideButton.disable()
+        descriptionLabel.setText(
+            when {
+                !isOwner -> "Only the host can start the match."
+                canStart -> "Everyone is ready."
+                else -> "Every human slot must be filled, assigned a civilization, and ready."
+            },
+        )
     }
 
     // endregion
@@ -416,11 +436,20 @@ class AuthoritativeLobbyScreen(
 
     private fun settingsWorkspace(): Table {
         val workspace = LobbyChrome.card("Game setup")
+        // Sized to its own column so the pager scrolls internally instead of
+        // growing the room past the bottom of the screen.
+        val columnWidth =
+            if (isNarrowerThan4to3()) stage.width - 70f else (stage.width - 40f) * 0.46f - 24f
+        val pagerHeight =
+            if (isNarrowerThan4to3()) stage.height * 0.45f else workspaceHeight() - 70f
         val pager = TabbedPager(
-            minimumWidth = stage.width.coerceAtMost(620f),
-            maximumWidth = stage.width.coerceAtMost(1100f),
-            minimumHeight = stage.height * 0.34f,
-            maximumHeight = stage.height * 0.52f,
+            // A range rather than one pinned width: a page whose controls want
+            // more room must be allowed to shrink into the column instead of
+            // overflowing it and clipping its own labels.
+            minimumWidth = columnWidth * 0.5f,
+            maximumWidth = columnWidth,
+            minimumHeight = pagerHeight,
+            maximumHeight = pagerHeight,
             separatorColor = LobbyChrome.accent,
             shortcutScreen = this,
             capacity = 5,
@@ -681,7 +710,13 @@ class AuthoritativeLobbyScreen(
                 launchOnGLThread {
                     requestInFlight = false
                     game.replaceCurrentScreen(
-                        AuthoritativeWorldScreen(summary, directory, opened.projection, session),
+                        AuthoritativeWorldScreen(
+                            summary,
+                            directory,
+                            opened.projection,
+                            session,
+                            ruleset,
+                        ),
                     )
                 }
             } catch (exception: Exception) {

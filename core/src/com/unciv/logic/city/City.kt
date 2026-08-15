@@ -218,7 +218,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
     @Readonly fun isCoastal(): Boolean = centerTile.isAdjacentToCoast()
     @Readonly fun isNaval(): Boolean = centerTile.isWater || isCoastal()
 
-    @Readonly fun getBombardRange(): Int = civ.gameInfo.ruleset.modOptions.constants.baseCityBombardRange
+    @Readonly fun getBombardRange(): Int = civ.ruleset.modOptions.constants.baseCityBombardRange
     @Readonly fun getWorkRange(): Int = civ.ruleset.modOptions.constants.cityWorkRange
     @Readonly fun getExpandRange(): Int = civ.ruleset.modOptions.constants.cityExpandRange
 
@@ -355,7 +355,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
     @Readonly fun getStrength() = cityConstructions.getBuiltBuildings().sumOf { it.cityStrength }.toFloat()
 
     /** Gets max air units that can remain in the city untransported */
-    @Readonly fun getMaxAirUnits(): Int = civ.gameInfo.ruleset.modOptions.constants.cityAirUnitCapacity +
+    @Readonly fun getMaxAirUnits(): Int = civ.ruleset.modOptions.constants.cityAirUnitCapacity +
         matchingUniquesSequence(UniqueType.CarryExtraAirUnits)
             .filter { it.params[1] == "Air" }
             .sumOf { it.params[0].toInt() }
@@ -369,8 +369,8 @@ class City : IsPartOfGameInfoSerialization, INamed {
     fun canBeDestroyed(justCaptured: Boolean = false): Boolean {
         if (civ.gameInfo.gameParameters.noCityRazing) return false
 
-        val allowRazeCapital = civ.gameInfo.ruleset.modOptions.hasUnique(UniqueType.AllowRazeCapital)
-        val allowRazeHolyCity = civ.gameInfo.ruleset.modOptions.hasUnique(UniqueType.AllowRazeHolyCity)
+        val allowRazeCapital = civ.ruleset.modOptions.hasUnique(UniqueType.AllowRazeCapital)
+        val allowRazeHolyCity = civ.ruleset.modOptions.hasUnique(UniqueType.AllowRazeHolyCity)
 
         if (isOriginalCapital && !allowRazeCapital) return false
         if (isHolyCity() && !allowRazeHolyCity) return false

@@ -150,7 +150,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     @Transient
     var neutralRoads = HashSet<HexCoord>()
 
-    val modConstants get() = gameInfo.ruleset.modOptions.constants
+    val modConstants get() = ruleset.modOptions.constants
 
     var playerType = PlayerType.AI
 
@@ -463,7 +463,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     @Readonly fun isAlive(): Boolean = !isDefeated()
 
     @delegate:Transient
-    val cityStateType: CityStateType by lazy { gameInfo.ruleset.cityStateTypes[nation.cityStateType!!]!! }
+    val cityStateType: CityStateType by lazy { ruleset.cityStateTypes[nation.cityStateType!!]!! }
     var cityStatePersonality: CityStatePersonality = CityStatePersonality.Neutral
     var cityStateResource: String? = null
     var cityStateUniqueUnit: String? = null // Unique unit for militaristic city state. Might still be null if there are no appropriate units
@@ -488,7 +488,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     fun getPersonality(): Personality {
         if (!isAIOrAutoPlaying()) return Personality.neutralPersonality
         val chosen = personalityOverride.ifEmpty { nation.personality }
-        return gameInfo.ruleset.personalities[chosen] ?: Personality.neutralPersonality
+        return ruleset.personalities[chosen] ?: Personality.neutralPersonality
     }
 
     @Transient
@@ -500,7 +500,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     fun updateStatsForNextTurn(): Unit = timeThis<Unit>("Civilization.updateStatsForNextTurn") {
         val previousHappiness = stats.happiness
         stats.happiness = stats.getHappinessBreakdown().values.sum().roundToInt()
-        if (stats.happiness != previousHappiness && gameInfo.ruleset.allHappinessLevelsThatAffectUniques.any {
+        if (stats.happiness != previousHappiness && ruleset.allHappinessLevelsThatAffectUniques.any {
             stats.happiness < it != previousHappiness < it // If move from being below them to not, or vice versa
             })
             for (city in cities) city.cityStats.update(updateCivStats = false)
@@ -571,8 +571,8 @@ class Civilization : IsPartOfGameInfoSerialization {
      */
     @Readonly
     fun getCivResourcesByName(): HashMap<String, Int> {
-        val hashMap = HashMap<String, Int>(gameInfo.ruleset.tileResources.size)
-        for (resource in gameInfo.ruleset.tileResources.keys) hashMap[resource] = 0
+        val hashMap = HashMap<String, Int>(ruleset.tileResources.size)
+        for (resource in ruleset.tileResources.keys) hashMap[resource] = 0
         for (entry in getCivResourceSupply())
             if (!entry.resource.isStockpiled)
                 hashMap[entry.resource.name] = entry.amount
@@ -603,7 +603,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     /** Gets modifiers for ALL resources */
     @Readonly
     fun getResourceModifiers(): Map<String, Float> =
-        gameInfo.ruleset.tileResources.values.associate { it.name to getResourceModifier(it) }
+        ruleset.tileResources.values.associate { it.name to getResourceModifier(it) }
 
     /**
      * Returns the resource production modifier as a multiplier.
@@ -680,7 +680,10 @@ class Civilization : IsPartOfGameInfoSerialization {
         cityStateFunctions.forEachUniqueProvidedByCityStates(uniqueType, gameContext, op)
         religionManager.religion?.founderBeliefUniqueMap?.forEachMatchingUnique(uniqueType, gameContext, op)
         civResourcesUniqueMap.forEachMatchingUnique(uniqueType, gameContext, op)
-        gameInfo.getGlobalUniques().forEachMatchingUnique(uniqueType, gameContext, op)
+        // Same fallback as matchingUniquesSequence above: a projection client
+        // reads tile yields through here and has no game behind its civilization.
+        (gameInfoOrNull?.getGlobalUniques() ?: ruleset.globalUniques)
+            .forEachMatchingUnique(uniqueType, gameContext, op)
     }
 
     @Readonly
@@ -699,7 +702,7 @@ class Civilization : IsPartOfGameInfoSerialization {
         yieldAll(policies.policyUniques.getAllUniques())
         yieldAll(tech.techUniques.getAllUniques())
         yieldAll(getEra().uniqueMap.getAllUniques())
-        yieldAll(gameInfo.getGlobalUniques().uniqueMap.getAllUniques())
+        yieldAll((gameInfoOrNull?.getGlobalUniques() ?: ruleset.globalUniques).uniqueMap.getAllUniques())
     }.toList().asSequence() // Then convert back to a Sequence to check conditionals when triggering rather than before triggering
         .filter { it.getModifiers(trigger).any(triggerFilter) && it.conditionalsApply(gameContext) }
         .flatMap { it.getMultiplied(gameContext) }
@@ -734,7 +737,7 @@ class Civilization : IsPartOfGameInfoSerialization {
         yieldAll(policies.policyUniques.getAllUniques())
         yieldAll(tech.techUniques.getAllUniques())
         yieldAll(getEra().uniqueMap.getAllUniques())
-        yieldAll(gameInfo.getGlobalUniques().uniqueMap.getAllUniques())
+        yieldAll((gameInfoOrNull?.getGlobalUniques() ?: ruleset.globalUniques).uniqueMap.getAllUniques())
     }.toList().asSequence() // Then convert back to a Sequence to check conditionals when triggering rather than before triggering
         .filter { it.getModifiers(trigger).any(triggerFilter) && it.conditionalsApply(gameContext) }
         .flatMap { it.getMultiplied(gameContext) }
@@ -770,7 +773,8 @@ class Civilization : IsPartOfGameInfoSerialization {
         policies.policyUniques.forEachMatchingUnique(trigger, gameContext, uniqueFilter, listOp)
         tech.techUniques.forEachMatchingUnique(trigger, gameContext, uniqueFilter, listOp)
         getEra().uniqueMap.forEachMatchingUnique(trigger, gameContext, uniqueFilter, listOp)
-        gameInfo.getGlobalUniques().uniqueMap.forEachMatchingUnique(trigger, gameContext, uniqueFilter, listOp)
+        (gameInfoOrNull?.getGlobalUniques() ?: ruleset.globalUniques)
+            .uniqueMap.forEachMatchingUnique(trigger, gameContext, uniqueFilter, listOp)
         // now its safe to do the op, which might mutate the lists
         uniqueList.forEach(op)
     }
@@ -802,7 +806,7 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun getEquivalentBuilding(buildingName: String): Building {
-        val building = gameInfo.ruleset.buildings[buildingName]
+        val building = ruleset.buildings[buildingName]
             ?: throw Exception("No building by the name of $buildingName exists!")
         return getEquivalentBuilding(building)
     }
@@ -810,7 +814,7 @@ class Civilization : IsPartOfGameInfoSerialization {
     @Readonly
     fun getEquivalentBuilding(baseBuilding: Building): Building {
         if (baseBuilding.replaces != null
-                && baseBuilding.replaces in gameInfo.ruleset.buildings)
+                && baseBuilding.replaces in ruleset.buildings)
             return getEquivalentBuilding(baseBuilding.replaces!!)
 
         for (building in cache.uniqueBuildings)
@@ -821,7 +825,7 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun getEquivalentTileImprovement(tileImprovementName: String): TileImprovement {
-        val tileImprovement = gameInfo.ruleset.tileImprovements[tileImprovementName]
+        val tileImprovement = ruleset.tileImprovements[tileImprovementName]
             ?: throw UncivShowableException("Improvement $tileImprovementName doesn't seem to exist!")
         return getEquivalentTileImprovement(tileImprovement)
     }
@@ -839,14 +843,14 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Readonly
     fun getEquivalentUnit(baseUnitName: String): BaseUnit {
-        val baseUnit = gameInfo.ruleset.units[baseUnitName]
+        val baseUnit = ruleset.units[baseUnitName]
             ?: throw UncivShowableException("Unit $baseUnitName doesn't seem to exist!")
         return getEquivalentUnit(baseUnit)
     }
 
     @Readonly
     fun getEquivalentUnit(baseUnit: BaseUnit): BaseUnit {
-        if (baseUnit.replaces != null && baseUnit.replaces in gameInfo.ruleset.units)
+        if (baseUnit.replaces != null && baseUnit.replaces in ruleset.units)
             return getEquivalentUnit(baseUnit.replaces!!) // Equivalent of unique unit is the equivalent of the replaced unit
 
         for (unit in cache.uniqueUnits)
@@ -860,7 +864,7 @@ class Civilization : IsPartOfGameInfoSerialization {
         val gameContext = if (city?.civ == this) city.state
         else if (city == null) state
         else GameContext(this, city)
-        val indicatorBuildings = gameInfo.ruleset.buildings.values.asSequence()
+        val indicatorBuildings = ruleset.buildings.values.asSequence()
             .filter { it.hasUnique(UniqueType.IndicatesCapital, gameContext) }
 
         val civSpecificBuilding = indicatorBuildings.firstOrNull { it.uniqueTo != null && matchesFilter(it.uniqueTo!!, gameContext) }
@@ -973,7 +977,7 @@ class Civilization : IsPartOfGameInfoSerialization {
         if (mapSizeModifier > 1)
             mapSizeModifier = (mapSizeModifier - 1) / 3 + 1
 
-        val modConstants= gameInfo.ruleset.modOptions.constants
+        val modConstants= ruleset.modOptions.constants
         scoreBreakdown["Cities"] = cities.size * 10 * mapSizeModifier
         scoreBreakdown["Population"] = cities.sumOf { it.population.population } * modConstants.scoreFromPopulation * mapSizeModifier
         scoreBreakdown["Tiles"] = cities.sumOf { city -> city.getTiles().filter { !it.isWater}.count() } * 1 * mapSizeModifier
@@ -1003,8 +1007,8 @@ class Civilization : IsPartOfGameInfoSerialization {
      *  And if the civs don't yet know who they are then they don't know if they're barbarians =\
      *  */
     fun setNationTransient() {
-        nation = gameInfo.ruleset.nations[civName]
-                ?: throw MissingNationException("Nation $civName is not found!", gameInfo.ruleset.mods)
+        nation = ruleset.nations[civName]
+                ?: throw MissingNationException("Nation $civName is not found!", ruleset.mods)
     }
 
     fun setTransients():Unit = timeThis("Civilization.setTransients") {

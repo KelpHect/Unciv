@@ -17,6 +17,8 @@ import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.pickerscreens.PickerScreen
+import com.unciv.ui.screens.worldscreen.WorldHudHost
+import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
 import com.unciv.ui.screens.savescreens.LoadGameScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
@@ -36,7 +38,7 @@ class AuthoritativeWorldScreen(
     session: AuthoritativeMultiplayerSession,
     /** The server manifest's ruleset, resolved by the caller off the GL thread. */
     private val ruleset: Ruleset,
-) : PickerScreen(disableScroll = true) {
+) : PickerScreen(disableScroll = true), WorldHudHost {
     private val controller = AuthoritativeWorldController(
         initialProjection,
         refreshProjection = {
@@ -87,6 +89,16 @@ class AuthoritativeWorldScreen(
      */
     private var world = AuthoritativeProjectionWorldMap(controller.projection, ruleset)
     private var mapHolder = AuthoritativeProjectionMapHolder(this, world, ::tileClicked)
+
+    override val hudScreen get() = this
+    override val hudGameView get() = world.gameView
+
+    /** Civilopedia must describe the server's pinned ruleset, not a guessed one. */
+    override fun getCivilopediaRuleset() = ruleset
+
+    /** The tile whose readout is shown, independent of unit selection. */
+    private var inspectedTile: Tile? = null
+    private val tileInfoTable = TileInfoTable(this)
     private var renderedRevision = controller.current.committedRevision
 
     @Volatile private var busy = false
@@ -122,6 +134,10 @@ class AuthoritativeWorldScreen(
         ).colspan(3).row()
         rebuildMapIfProjectionReplaced()
         topTable.add(mapHolder).colspan(3).grow().maxHeight(stage.height * 0.62f).row()
+        // The game's own tile readout, over the projection - same stats, same
+        // description, same Civilopedia links a single-player game shows.
+        tileInfoTable.updateTileTable(inspectedTile)
+        topTable.add(tileInfoTable).colspan(3).row()
         topTable.add(ScrollPane(
             AuthoritativeWorldDecisions(
                 controller,
@@ -174,18 +190,29 @@ class AuthoritativeWorldScreen(
         mapHolder = AuthoritativeProjectionMapHolder(this, world, ::tileClicked)
         restoredCenter?.let(mapHolder::setCenterPosition)
         stage.scrollFocus = mapHolder
+        // The old map is discarded wholesale, so anything holding one of its
+        // tiles or views would render state the server has already replaced.
+        tileInfoTable.civView = world.gameView.civView
+        inspectedTile = inspectedTile?.position?.let {
+            world.tileMap.getIfTileExistsOrNull(it.x, it.y)
+        }
     }
 
     private fun tileClicked(tile: Tile) {
         if (busy) return
         val x = tile.position.x
         val y = tile.position.y
+        // Inspecting a tile is a read, so it happens on every tap regardless of
+        // whether the tap also turns out to be a unit selection or an order.
+        inspectedTile = tile
         if (controller.unitTargetMode != null) {
             if (controller.canSubmitUnitTarget(x, y)) {
                 runOperation("Submit authoritative unit target") {
                     controller.submitUnitTarget(x, y)
                 }
-            }
+            // Tapping somewhere that is not a legal target submits nothing, but
+            // it is still an inspection, so the readout has to redraw.
+            } else rebuild()
             return
         }
         val ownUnit = controller.projection.ownUnits.firstOrNull { it.x == x && it.y == y }
@@ -195,6 +222,8 @@ class AuthoritativeWorldScreen(
             return
         }
         if (controller.canMoveSelectedTo(x, y)) submitMove(x, y)
+        // A tap that is only an inspection still has to redraw the readout.
+        else rebuild()
     }
 
     private fun submitMove(x: Int, y: Int) = runOperation("Move authoritative unit") {

@@ -16,6 +16,7 @@ import com.unciv.logic.civilization.diplomacy.DiplomaticStatus
 import com.unciv.logic.event.EventBus
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.MapVisualization
+import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.MultiplayerGameUpdated
 import com.unciv.logic.multiplayer.storage.FileStorageRateLimitReached
 import com.unciv.logic.multiplayer.storage.MultiplayerAuthException
@@ -92,7 +93,14 @@ class WorldScreen(
     val autoPlay: AutoPlay,
     val viewingCiv: Civilization,
     restoreState: RestoreState? = null
-) : BaseScreen() {
+) : BaseScreen(), WorldHudHost {
+
+    override val hudScreen get() = this
+    override val hudGameView get() = selectedGameView
+
+    /** Unchanged behaviour: the debug overlay still reads the live tile groups. */
+    override fun tileImageNames(tile: Tile) =
+        mapHolder.tileGroups[tile]?.layerTerrain?.tileBaseImages?.map { it.name }.orEmpty()
     /** When set, causes the screen to update in the next [render][render] event */
     var shouldUpdate = false
 

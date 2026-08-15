@@ -500,7 +500,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
 
     private fun constructionBegun(construction: IConstruction) {
         for ((resourceName, amount) in construction.getStockpiledResourceRequirements(city.state)) {
-            val resource = city.civ.gameInfo.ruleset.tileResources[resourceName] ?: continue
+            val resource = city.civ.ruleset.tileResources[resourceName] ?: continue
             city.gainStockpiledResource(resource, -amount)
         }
 
@@ -681,7 +681,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
 
         /** Same check as [com.unciv.logic.civilization.Civilization.updateStatsForNextTurn] -
          *   but that triggers *stat calculation* whereas this is for *population assignment* */
-        if (previousHappiness != newHappiness && city.civ.gameInfo.ruleset.allHappinessLevelsThatAffectUniques
+        if (previousHappiness != newHappiness && city.civ.ruleset.allHappinessLevelsThatAffectUniques
                 .any { newHappiness < it != previousHappiness < it})
             city.civ.cities.filter { it != city }.forEach { it.reassignPopulationDeferred() }
 
@@ -830,7 +830,7 @@ class CityConstructions : IsPartOfGameInfoSerialization {
             // Consume stockpiled resources - usually consumed when construction starts, but not when bought
             if (getWorkDone(construction.name) == 0){ // we didn't pay the resources when we started building
                 for ((resourceName, amount) in construction.getStockpiledResourceRequirements(conditionalState)) {
-                    val resource = city.civ.gameInfo.ruleset.tileResources[resourceName] ?: continue
+                    val resource = city.civ.ruleset.tileResources[resourceName] ?: continue
                     city.gainStockpiledResource(resource, -amount)
                 }
             }

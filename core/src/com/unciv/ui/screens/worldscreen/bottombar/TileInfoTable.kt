@@ -16,12 +16,12 @@ import com.unciv.ui.popups.Popup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.civilopediascreen.FormattedLine.IconDisplay
 import com.unciv.ui.screens.civilopediascreen.MarkupRenderer
-import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.utils.DebugUtils
 import com.unciv.view.CivView
 
-class TileInfoTable(private val worldScreen: WorldScreen) : Table(BaseScreen.skin) {
-    var civView: CivView = worldScreen.selectedGameView.civView
+class TileInfoTable(private val host: WorldHudHost) : Table(BaseScreen.skin) {
+    var civView: CivView = host.hudGameView.civView
 
     init {
         background = BaseScreen.skinStrings.getUiBackground(
@@ -37,11 +37,11 @@ class TileInfoTable(private val worldScreen: WorldScreen) : Table(BaseScreen.ski
         if (tile != null && (DebugUtils.VISIBLE_MAP || civView.getCiv().hasExplored(tile)) ) {
             add(getStatsTable(tile)).left().row()
             add(MarkupRenderer.render(TileDescription.toMarkup(civView.gameView.tileMapView.getTile(tile), civView), padding = 0f, iconDisplay = IconDisplay.None) {
-                worldScreen.openCivilopedia(it)
+                host.hudScreen.openCivilopedia(it)
             } ).padTop(5f).row()
             if (DebugUtils.VISIBLE_MAP) add(tile.position.toPrettyString().toLabel()).colspan(2).pad(5f)
             if (DebugUtils.SHOW_TILE_IMAGE_LOCATIONS){
-                val imagesString = "Images: " + worldScreen.mapHolder.tileGroups[tile]!!.layerTerrain.tileBaseImages.joinToString{"\n"+it.name}
+                val imagesString = "Images: " + host.tileImageNames(tile).joinToString { "\n" + it }
                 add(imagesString.toLabel())
             }
             
@@ -61,7 +61,7 @@ class TileInfoTable(private val worldScreen: WorldScreen) : Table(BaseScreen.ski
         }
         table.touchable = Touchable.enabled
         table.onClick {
-            Popup(worldScreen).apply {
+            Popup(host.hudScreen).apply {
                 for ((name, stats) in tile.stats.getTileStatsBreakdown(tile.getCity(), civView.getCiv()))
                     add("${name.tr()}: {${stats.clone()}}".toLabel()).row()
                 addCloseButton()

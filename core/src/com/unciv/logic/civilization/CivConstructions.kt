@@ -153,7 +153,7 @@ class CivConstructions : IsPartOfGameInfoSerialization {
     }
 
     fun addFreeBuildings() {
-        val autoGrantedBuildings = civInfo.gameInfo.ruleset.buildings.values
+        val autoGrantedBuildings = civInfo.ruleset.buildings.values
             .filter { it.hasUnique(UniqueType.GainBuildingWhereBuildable) }
 
         // "Gain a free [buildingName] [cityFilter]"

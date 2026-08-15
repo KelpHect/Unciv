@@ -14,12 +14,16 @@ import com.unciv.logic.multiplayer.authoritative.ProjectedResearch
 import com.unciv.logic.multiplayer.authoritative.ProjectedTileVisibility
 import com.unciv.logic.multiplayer.authoritative.ProjectedUnit
 import com.unciv.models.ruleset.Ruleset
+import com.unciv.models.ruleset.unique.UniqueType
 import com.unciv.models.tilesets.TileSetCache
 import com.unciv.testing.GdxTestRunner
 import com.unciv.testing.TestGame
 import com.unciv.ui.components.fonts.Fonts
 import com.unciv.ui.components.tilegroups.layers.TileLayerCityButton
 import com.unciv.ui.images.ImageGetter
+import com.unciv.ui.screens.basescreen.BaseScreen
+import com.unciv.ui.screens.worldscreen.WorldHudHost
+import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
 import com.unciv.view.CivView
 import com.unciv.view.GameView
 import org.junit.Assert
@@ -341,6 +345,113 @@ class ProjectionWorldMapRenderTests {
         Assert.assertSame(viewer, tileMap[HexCoord(0, 0)].getCity()!!.civ)
         Assert.assertNull("The impostor city must be dropped, not rendered",
             tileMap[HexCoord(2, 0)].getCity())
+    }
+
+    /**
+     * The seam's payoff: the singleplayer tile readout renders over a projection,
+     * with no WorldScreen and no GameInfo anywhere behind it.
+     */
+    @Test
+    fun theSingleplayerTileInfoTableRendersOverAProjection() {
+        val city = ProjectedCity(
+            id = "city-1",
+            name = "Roma",
+            x = 1,
+            y = 1,
+            population = 4,
+            health = 200,
+            constructionQueue = emptyList(),
+            availableConstructions = emptyList(),
+            tileStates = listOf(
+                ProjectedCityTileState(1, 1, true, "city-1", "city-1", true, false),
+            ),
+        )
+        val (tileMap, gameView, _) = buildWorldMap(projection(listOf(city)))
+        Assert.assertNull(com.unciv.UncivGame.Current.worldScreen)
+
+        val host = object : WorldHudHost {
+            // Rendering the readout must not need a screen at all - the screen is
+            // only for popups and Civilopedia links, which are click-time.
+            override val hudScreen: BaseScreen
+                get() = throw UnsupportedOperationException("rendering must not need a screen")
+            override val hudGameView = gameView
+        }
+        val table = TileInfoTable(host)
+        // updateTileTable is module-internal, so it is driven the same
+        // reflective way this harness reaches the projection map itself.
+        val update = TileInfoTable::class.java.declaredMethods
+            .single { it.name == "updateTileTable\$core" }
+            .apply { isAccessible = true }
+
+        // A tile the projection explored renders its stats and description. This
+        // is the whole point: computing tile yields runs real rules, which is
+        // what used to reach through civ.gameInfo and crash.
+        update.invoke(table, tileMap[HexCoord(1, 1)])
+        val populatedCells = table.cells.size
+        Assert.assertTrue("The readout must render content for an explored tile",
+            populatedCells > 0)
+        Assert.assertTrue(table.width > 0f)
+
+        // Null clears the content, exactly as it does in single-player. The
+        // border actor stays, so cells - not children - are what to check.
+        update.invoke(table, null)
+        Assert.assertEquals(0, table.cells.size)
+    }
+
+    /**
+     * Closes a whole class of crash rather than one screen at a time.
+     *
+     * A projection-shell civilization has no `GameInfo`. Every member below used
+     * to reach through `civ.gameInfo` for something the ruleset alone can
+     * answer, so each was one screen away from an
+     * `UninitializedPropertyAccessException` - exactly how the tile-yield crash
+     * was found. They now go through the established `ruleset` /
+     * `gameInfoOrNull` fallbacks, and this pins them.
+     */
+    @Test
+    fun projectionShellCivSurvivesRulesetAndUniqueLookups() {
+        val city = ProjectedCity(
+            id = "city-1",
+            name = "Roma",
+            x = 1,
+            y = 1,
+            population = 3,
+            health = 200,
+            constructionQueue = emptyList(),
+            availableConstructions = emptyList(),
+            tileStates = listOf(
+                ProjectedCityTileState(1, 1, true, "city-1", "city-1", true, false),
+            ),
+        )
+        val (tileMap, _, viewer) = buildWorldMap(projection(listOf(city)))
+        val materialized = viewer.cities.single()
+        val tile = tileMap[HexCoord(1, 1)]
+
+        // Ruleset lookups on the civilization itself.
+        Assert.assertTrue(viewer.modConstants.cityWorkRange > 0)
+        Assert.assertNotNull(viewer.getEquivalentBuilding("Monument"))
+        Assert.assertNotNull(viewer.getEquivalentUnit("Warrior"))
+        Assert.assertNotNull(viewer.getEquivalentTileImprovement("Farm"))
+        Assert.assertTrue(viewer.getCivResourcesByName().isNotEmpty())
+        Assert.assertTrue(viewer.getResourceModifiers().isNotEmpty())
+
+        // Unique enumeration, including the global-uniques fallback that the
+        // tile-yield path crashed on and the trigger-family siblings.
+        viewer.forEachMatchingUnique(UniqueType.Strength) { }
+        Assert.assertNotNull(viewer.matchingUniquesSequence(UniqueType.Strength).toList())
+        Assert.assertNotNull(viewer.getTriggeredUniques(UniqueType.OneTimeFreeUnit).toList())
+
+        // Ruleset lookups on the materialized city and tile.
+        Assert.assertTrue(materialized.getBombardRange() > 0)
+        Assert.assertTrue(materialized.getMaxAirUnits() >= 0)
+        tile.canBeSettled(viewer)
+        // Deliberately NOT exercised: City.canBeDestroyed reads
+        // gameParameters.noCityRazing, a game setting with no ruleset fallback.
+        // A V3 client must never ask - razing permission is server-decided and
+        // arrives as availableGovernanceActions on the projection.
+
+        // And the original crash: computing tile yields.
+        Assert.assertNotNull(tile.stats.getTileStats(viewer))
     }
 
     @Test

@@ -22,7 +22,7 @@ import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.images.padTopDescent
 import com.unciv.ui.screens.basescreen.BaseScreen
-import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.unit.presenter.CityPresenter
 import com.unciv.ui.screens.worldscreen.unit.presenter.SpyPresenter
 import com.unciv.ui.screens.worldscreen.unit.presenter.SummaryPresenter
@@ -31,11 +31,11 @@ import com.unciv.view.ForeignCityView
 import yairm210.purity.annotations.Readonly
 import java.awt.Label
 
-class UnitTable(val worldScreen: WorldScreen) : Table() {
+class UnitTable(val host: WorldHudHost) : Table() {
     private val prevIdleUnitButton =
-        IdleUnitButton(this, worldScreen.mapHolder, true, KeyboardBinding.PrevIdleButton)
+        IdleUnitButton(this, true, KeyboardBinding.PrevIdleButton)
     private val nextIdleUnitButton =
-        IdleUnitButton(this, worldScreen.mapHolder, false, KeyboardBinding.NextIdleButton)
+        IdleUnitButton(this, false, KeyboardBinding.NextIdleButton)
     internal val unitIconHolder = Table()
     internal val unitNameLabel = "".toLabel(fontSize = 24).apply { setAlignment(Label.CENTER) }
     internal val unitIconNameGroup = Table()
@@ -50,7 +50,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
      */
     private var presenter: Presenter
 
-    private val unitPresenter = UnitPresenter(this, worldScreen)
+    private val unitPresenter = UnitPresenter(this, host)
     private val cityPresenter = CityPresenter(this, unitPresenter)
     private val spyPresenter = SpyPresenter(this)
     private val summaryPresenter = SummaryPresenter(this)
@@ -106,7 +106,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
 
         closeButton = addRoundCloseButton(this) {
             selectUnit()
-            worldScreen.shouldUpdate = true
+            host.hudShouldUpdate = true
         }
         closeButton.keyShortcuts.clear() // This is the only place we don't want the BACK keyshortcut getCloseButton assigns
 
@@ -127,13 +127,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
             add(descriptionTable)
             touchable = Touchable.enabled
             onClick {
-                presenter.position?.let {
-                    worldScreen.mapHolder.setCenterPosition(
-                        it.toHexCoord(),
-                        immediately = false,
-                        selectUnit = false
-                    )
-                }
+                presenter.position?.let { host.hudCenterOn(it.toHexCoord()) }
             }
         }).expand()
 
@@ -157,7 +151,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
         presenter = cityPresenter
         return cityPresenter.selectCity(city).also {
             resetUnitTable()
-            worldScreen.shouldUpdate = true
+            host.hudShouldUpdate = true
         }
     }
 
@@ -169,7 +163,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
         presenter.update()
 
         // more efficient to do this check once for both
-        if (worldScreen.viewingCiv.units.getIdleUnits().any()) {
+        if (host.hudViewingCiv.units.getIdleUnits().any()) {
             prevIdleUnitButton.enable()
             nextIdleUnitButton.enable()
         } else {
@@ -214,8 +208,8 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
         if (selectedUnit != null && selectedUnit!!.isPreparingAirSweep()) return
 
         @Readonly
-        fun MapUnit.isEligible(): Boolean = (this.civ == worldScreen.viewingCiv
-                || worldScreen.viewingCiv.isSpectator()) && this !in selectedUnits
+        fun MapUnit.isEligible(): Boolean = (this.civ == host.hudViewingCiv
+                || host.hudViewingCiv.isSpectator()) && this !in selectedUnits
 
         // This is the Civ 5 Order of selection:
         // 1. City
@@ -251,7 +245,7 @@ class UnitTable(val worldScreen: WorldScreen) : Table() {
 
 
         val isCitySelected = selectedTile.isCityCenter()
-            && (selectedTile.getOwner() == worldScreen.viewingCiv || worldScreen.viewingCiv.isSpectator())
+            && (selectedTile.getOwner() == host.hudViewingCiv || host.hudViewingCiv.isSpectator())
             && !selectedUnitIsConnectingRoad
         when {
             forceSelectUnit != null -> selectUnit(forceSelectUnit)

@@ -24,6 +24,7 @@ import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
+import com.unciv.ui.screens.worldscreen.unit.UnitTable
 import com.unciv.view.CivView
 import com.unciv.view.GameView
 import org.junit.Assert
@@ -366,7 +367,7 @@ class ProjectionWorldMapRenderTests {
                 ProjectedCityTileState(1, 1, true, "city-1", "city-1", true, false),
             ),
         )
-        val (tileMap, gameView, _) = buildWorldMap(projection(listOf(city)))
+        val (tileMap, gameView, viewer) = buildWorldMap(projection(listOf(city)))
         Assert.assertNull(com.unciv.UncivGame.Current.worldScreen)
 
         val host = object : WorldHudHost {
@@ -375,6 +376,10 @@ class ProjectionWorldMapRenderTests {
             override val hudScreen: BaseScreen
                 get() = throw UnsupportedOperationException("rendering must not need a screen")
             override val hudGameView = gameView
+            override val hudViewingCiv = viewer
+            override var hudShouldUpdate = false
+            override val hudCanChangeState = true
+            override fun hudCenterOn(position: HexCoord) = Unit
         }
         val table = TileInfoTable(host)
         // updateTileTable is module-internal, so it is driven the same
@@ -452,6 +457,95 @@ class ProjectionWorldMapRenderTests {
 
         // And the original crash: computing tile yields.
         Assert.assertNotNull(tile.stats.getTileStats(viewer))
+    }
+
+    /**
+     * The real single-player unit table, driven over a projection: selection,
+     * unit info and idle-unit cycling all work on units the server sent, with no
+     * WorldScreen and no GameInfo behind them.
+     */
+    @Test
+    fun theSingleplayerUnitTableWorksOverAProjection() {
+        val civ = ruleset.nations.keys.first()
+        val units = listOf(
+            ProjectedUnit(id = 11, name = "Warrior", civilizationId = civ,
+                x = 0, y = 0, health = 100, currentMovement = 2f),
+            ProjectedUnit(id = 12, name = "Warrior", civilizationId = civ,
+                x = 1, y = 0, health = 80, currentMovement = 1f),
+        )
+        val (tileMap, gameView, viewer) = buildWorldMap(projection(emptyList(), units))
+
+        // Units are registered with the civilization, or there is nothing to cycle.
+        Assert.assertEquals(2, viewer.units.getCivUnits().count())
+        Assert.assertNotNull(viewer.units.getUnitById(11))
+        Assert.assertEquals(2, viewer.units.getIdleUnits().count())
+
+        var centered: HexCoord? = null
+        val host = object : WorldHudHost {
+            override val hudScreen: BaseScreen
+                get() = throw UnsupportedOperationException("no screen needed to drive selection")
+            override val hudGameView = gameView
+            override val hudViewingCiv = viewer
+            override var hudShouldUpdate = false
+            override val hudCanChangeState = true
+            override fun hudCenterOn(position: HexCoord) { centered = position }
+        }
+        val table = UnitTable(host)
+
+        // Selecting through the game's own tile-selection order.
+        table.tileSelected(tileMap[HexCoord(0, 0)])
+        Assert.assertEquals(11, table.selectedUnit?.id)
+        table.update()
+        Assert.assertTrue("The table must show the selected unit's name",
+            table.nameLabelText.isNotEmpty())
+
+        // Idle-unit cycling drives selection and asks the host to recentre.
+        val idle = viewer.units.getIdleUnits().toList()
+        Assert.assertTrue(idle.any { it.id == 12 })
+        table.selectUnit(viewer.units.getUnitById(12))
+        table.update()
+        Assert.assertEquals(12, table.selectedUnit?.id)
+
+        // Closing the selection falls back to the summary presenter, not a crash.
+        table.selectUnit(null)
+        table.update()
+        Assert.assertNull(table.selectedUnit)
+        Assert.assertNull("centering is only driven by explicit navigation", centered)
+    }
+
+    /**
+     * Two units on one tile: the projection lists the civilian first, but the
+     * game's selection order prefers the military unit and re-tapping cycles.
+     * This is why the screen defers to the widget instead of picking
+     * ownUnits.firstOrNull.
+     */
+    @Test
+    fun stackedUnitsFollowTheGamesSelectionOrder() {
+        val civ = ruleset.nations.keys.first()
+        val stacked = listOf(
+            ProjectedUnit(id = 21, name = "Worker", civilizationId = civ,
+                x = 0, y = 0, health = 100, currentMovement = 2f),
+            ProjectedUnit(id = 22, name = "Warrior", civilizationId = civ,
+                x = 0, y = 0, health = 100, currentMovement = 2f),
+        )
+        val (tileMap, gameView, viewer) = buildWorldMap(projection(emptyList(), stacked))
+        val host = object : WorldHudHost {
+            override val hudScreen: BaseScreen get() = throw UnsupportedOperationException()
+            override val hudGameView = gameView
+            override val hudViewingCiv = viewer
+            override var hudShouldUpdate = false
+            override val hudCanChangeState = true
+            override fun hudCenterOn(position: HexCoord) = Unit
+        }
+        val table = UnitTable(host)
+        val tile = tileMap[HexCoord(0, 0)]
+
+        // Military first, even though the civilian is listed first.
+        table.tileSelected(tile)
+        Assert.assertEquals(22, table.selectedUnit?.id)
+        // Tapping again moves to the civilian rather than sticking.
+        table.tileSelected(tile)
+        Assert.assertEquals(21, table.selectedUnit?.id)
     }
 
     @Test

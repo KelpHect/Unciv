@@ -1,5 +1,7 @@
 package com.unciv.ui.screens.worldscreen
 
+import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.tile.Tile
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.view.GameView
@@ -31,4 +33,21 @@ interface WorldHudHost {
      * developer overlay, not gameplay.
      */
     fun tileImageNames(tile: Tile): List<String> = emptyList()
+
+    /** The civilization whose units and cities the HUD may act for. */
+    val hudViewingCiv: Civilization
+
+    /** Set by a widget to ask the host to redraw on its next update. */
+    var hudShouldUpdate: Boolean
+
+    /**
+     * Whether the host currently accepts input that changes state.
+     *
+     * For a projection client this is the server's answer, not a local guess -
+     * it is false whenever the server says it is not this player's turn.
+     */
+    val hudCanChangeState: Boolean
+
+    /** Scrolls the world map to [position]. */
+    fun hudCenterOn(position: HexCoord)
 }

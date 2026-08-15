@@ -10,11 +10,9 @@ import com.unciv.ui.components.input.KeyboardBinding
 import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.images.ImageGetter
-import com.unciv.ui.screens.worldscreen.worldmap.WorldMapHolder
 
 class IdleUnitButton (
     private val unitTable: UnitTable,
-    private val tileMapHolder: WorldMapHolder,
     val previous: Boolean,
     keyShortcutBind: KeyboardBinding
 ) : Table() {
@@ -33,7 +31,7 @@ class IdleUnitButton (
         keyShortcuts.add(keyShortcutBind)
         onActivation (binding = keyShortcutBind) {
 
-            val idleUnits = unitTable.worldScreen.viewingCiv.units.getIdleUnits()
+            val idleUnits = unitTable.host.hudViewingCiv.units.getIdleUnits()
             if (idleUnits.none()) return@onActivation
 
             val unitToSelect: MapUnit
@@ -47,9 +45,9 @@ class IdleUnitButton (
                 unitToSelect = idleUnits.elementAt(index)
             }
 
-            tileMapHolder.setCenterPosition(unitToSelect.currentTile.position)
+            unitTable.host.hudCenterOn(unitToSelect.currentTile.position)
             unitTable.selectUnit(unitToSelect)
-            unitTable.worldScreen.shouldUpdate = true
+            unitTable.host.hudShouldUpdate = true
         }
     }
 

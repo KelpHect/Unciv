@@ -13,11 +13,11 @@ import com.unciv.ui.components.widgets.UnitIconGroup
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.screens.pickerscreens.PromotionPickerScreen
 import com.unciv.ui.screens.pickerscreens.UnitRenamePopup
-import com.unciv.ui.screens.worldscreen.WorldScreen
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.unit.UnitTable
 import yairm210.purity.annotations.Readonly
 
-class UnitPresenter(private val unitTable: UnitTable, private val worldScreen: WorldScreen) : UnitTable.Presenter {
+class UnitPresenter(private val unitTable: UnitTable, private val host: WorldHudHost) : UnitTable.Presenter {
 
     val selectedUnit : MapUnit?
         get() = selectedUnits.firstOrNull()
@@ -48,12 +48,12 @@ class UnitPresenter(private val unitTable: UnitTable, private val worldScreen: W
         val unit = selectedUnit ?: return
         // The unit that was selected, was captured. It exists but is no longer ours.
         val captured =
-            unit.civ != worldScreen.viewingCiv && !worldScreen.viewingCiv.isSpectator()
+            unit.civ != host.hudViewingCiv && !host.hudViewingCiv.isSpectator()
         // The unit that was there no longer exists
         val disappeared = unit !in unit.getTile().getUnits()
         if (captured || disappeared) {
             unitTable.selectUnit()
-            worldScreen.shouldUpdate = true
+            host.hudShouldUpdate = true
             return
         }
 
@@ -64,9 +64,9 @@ class UnitPresenter(private val unitTable: UnitTable, private val worldScreen: W
             nameLabelText = buildNameLabelText(unit)
             unitNameLabel.clearListeners()
             unitNameLabel.onClick {
-                if (!worldScreen.canChangeState) return@onClick
+                if (!host.hudCanChangeState) return@onClick
                 UnitRenamePopup(
-                    screen = worldScreen,
+                    screen = host.hudScreen,
                     unit = unit,
                     actionOnClose = {
                         unitNameLabel.setText(buildNameLabelText(unit))
@@ -99,7 +99,7 @@ class UnitPresenter(private val unitTable: UnitTable, private val worldScreen: W
                 descriptionTable.add("XP".toLabel().apply {
                     onClick {
                         if (selectedUnit == null) return@onClick
-                        worldScreen.game.pushScreen(PromotionPickerScreen(unit))
+                        host.hudScreen.game.pushScreen(PromotionPickerScreen(unit))
                     }
                 })
                 descriptionTable.add(
@@ -146,11 +146,11 @@ class UnitPresenter(private val unitTable: UnitTable, private val worldScreen: W
             // Since Clear also clears the listeners, we need to re-add them every time
             promotionsTable.onClick {
                 if (selectedUnit == null || promotionsTable.children.isEmpty) return@onClick
-                worldScreen.game.pushScreen(PromotionPickerScreen(unit))
+                host.hudScreen.game.pushScreen(PromotionPickerScreen(unit))
             }
 
             unitIconHolder.onClick {
-                worldScreen.openCivilopedia(unit.baseUnit.makeLink())
+                host.hudScreen.openCivilopedia(unit.baseUnit.makeLink())
             }
         } else { // multiple selected units
             for (selectedUnit in selectedUnits)

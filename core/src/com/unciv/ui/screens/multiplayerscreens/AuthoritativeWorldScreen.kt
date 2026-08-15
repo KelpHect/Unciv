@@ -1,5 +1,6 @@
 package com.unciv.ui.screens.multiplayerscreens
 
+import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameProjection
@@ -19,6 +20,7 @@ import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
+import com.unciv.ui.screens.worldscreen.unit.UnitTable
 import com.unciv.ui.screens.savescreens.LoadGameScreen
 import com.unciv.utils.Concurrency
 import com.unciv.utils.launchOnGLThread
@@ -92,6 +94,18 @@ class AuthoritativeWorldScreen(
 
     override val hudScreen get() = this
     override val hudGameView get() = world.gameView
+    override val hudViewingCiv get() = world.viewer
+
+    /** A widget asking to redraw becomes a rebuild on the next render. */
+    override var hudShouldUpdate = false
+
+    /**
+     * The server decides this, not the client: input is accepted only while the
+     * projection says this player may act, and never mid-submission.
+     */
+    override val hudCanChangeState get() = controller.canAcceptProjectedInput && !busy
+
+    override fun hudCenterOn(position: HexCoord) = mapHolder.setCenterPosition(position)
 
     /** Civilopedia must describe the server's pinned ruleset, not a guessed one. */
     override fun getCivilopediaRuleset() = ruleset
@@ -99,6 +113,14 @@ class AuthoritativeWorldScreen(
     /** The tile whose readout is shown, independent of unit selection. */
     private var inspectedTile: Tile? = null
     private val tileInfoTable = TileInfoTable(this)
+
+    /**
+     * The game's own unit table: selection, unit info, promotions and idle-unit
+     * cycling, over units materialized from the projection. Its orders are not
+     * from here - the singleplayer action row mutates GameInfo locally, which V3
+     * forbids, so the buttons below it come from what the server advertised.
+     */
+    private val unitTable = UnitTable(this)
     private var renderedRevision = controller.current.committedRevision
 
     @Volatile private var busy = false
@@ -116,6 +138,11 @@ class AuthoritativeWorldScreen(
 
     override fun render(delta: Float) {
         super.render(delta)
+        // A widget (idle-unit cycling, the table's close button) asked to redraw.
+        if (hudShouldUpdate && !busy) {
+            hudShouldUpdate = false
+            rebuild()
+        }
         secondsSinceRefresh += delta
         if (secondsSinceRefresh >= REFRESH_INTERVAL_SECONDS && !busy) {
             secondsSinceRefresh = 0f
@@ -138,6 +165,11 @@ class AuthoritativeWorldScreen(
         // description, same Civilopedia links a single-player game shows.
         tileInfoTable.updateTileTable(inspectedTile)
         topTable.add(tileInfoTable).colspan(3).row()
+        unitTable.update()
+        topTable.add(unitTable).colspan(3).row()
+        // Orders for the selected unit: advertised by the server on the
+        // projection, dispatched through the same typed command bus as before.
+        topTable.add(unitOrdersForSelection()).colspan(3).row()
         topTable.add(ScrollPane(
             AuthoritativeWorldDecisions(
                 controller,
@@ -193,6 +225,9 @@ class AuthoritativeWorldScreen(
         // The old map is discarded wholesale, so anything holding one of its
         // tiles or views would render state the server has already replaced.
         tileInfoTable.civView = world.gameView.civView
+        // Every MapUnit is a new object after a revision, so the table would
+        // otherwise hold one belonging to the discarded map.
+        unitTable.selectUnit(controller.selectedUnitId?.let(::materializedUnit))
         inspectedTile = inspectedTile?.position?.let {
             world.tileMap.getIfTileExistsOrNull(it.x, it.y)
         }
@@ -215,9 +250,14 @@ class AuthoritativeWorldScreen(
             } else rebuild()
             return
         }
-        val ownUnit = controller.projection.ownUnits.firstOrNull { it.x == x && it.y == y }
-        if (ownUnit != null) {
-            controller.selectUnit(ownUnit.id)
+        val ownUnit = controller.projection.ownUnits.any { it.x == x && it.y == y }
+        if (ownUnit) {
+            // The game's own selection order - military before civilian, re-tap
+            // to deselect - instead of whichever unit the projection lists first.
+            // A unit that failed to materialize is simply not on the tile, so it
+            // cannot be selected into a state the controller then has to undo.
+            unitTable.tileSelected(tile)
+            syncControllerSelection()
             rebuild()
             return
         }
@@ -298,6 +338,56 @@ class AuthoritativeWorldScreen(
             ?: projection.exploredTiles.firstOrNull()?.let { it.x to it.y }
             ?: return null
         return HexCoord(start.first, start.second)
+    }
+
+    /** The materialized unit for a projected id, on the current map. */
+    private fun materializedUnit(id: Int) = world.viewer.units.getUnitById(id)
+
+    /**
+     * Makes the controller agree with whatever the unit table now has selected.
+     *
+     * The table changes selection on its own - idle-unit cycling, its close
+     * button, the game's tile-selection order - so the controller follows it
+     * rather than the other way round.
+     */
+    private fun syncControllerSelection() {
+        val tableSelection = unitTable.selectedUnit?.id
+        if (tableSelection == controller.selectedUnitId) return
+        // selectUnit refuses a unit the projection does not advertise, so a
+        // table selection the server does not know about clears instead.
+        if (tableSelection != null &&
+            controller.projection.ownUnits.any { it.id == tableSelection }
+        ) controller.selectUnit(tableSelection)
+        else controller.deselectUnit()
+    }
+
+    /**
+     * The unit table can change the selection on its own (idle-unit cycling and
+     * its close button), so the controller is resynchronized from it before the
+     * order buttons are built for whatever is now selected.
+     */
+    private fun unitOrdersForSelection(): Table {
+        // A no-op when the two already agree, so starting a target selection and
+        // redrawing does not cancel it. When they genuinely differ the table has
+        // moved to another unit, and dropping the stale target mode is correct.
+        syncControllerSelection()
+        val disabled = busy || !controller.canAcceptProjectedInput
+        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
+            runOperation(taskName, operation = operation)
+        }
+        return Table().apply {
+            defaults().pad(3f)
+            add(AuthoritativeUnitActionPanel(
+                controller.projection, controller.selectedUnitId,
+                controller.unitActions, disabled, submit,
+            ).build()).left().row()
+            add(AuthoritativeUnitOrderPanel(
+                controller.projection, controller.selectedUnitId,
+                controller.unitOrders, disabled,
+                { mode -> controller.beginUnitTargetSelection(mode); rebuild() },
+                submit,
+            ).build()).left().row()
+        }
     }
 
     companion object {

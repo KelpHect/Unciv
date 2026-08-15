@@ -15,6 +15,10 @@ import com.unciv.ui.components.input.onClick
  *
  * This is presentation and typed-input routing, not a client rules engine.
  */
+/**
+ * The unit action and order panels are deliberately absent here: they now sit
+ * with the real unit table, next to the unit they act on.
+ */
 internal class AuthoritativeWorldDecisions(
     private val controller: AuthoritativeWorldController,
     private val busy: Boolean,
@@ -48,25 +52,6 @@ internal class AuthoritativeWorldDecisions(
                 controller.selectedUnitId,
                 controller.combat,
                 busy,
-                submit,
-            ).build(),
-        ).left().row()
-        add(
-            AuthoritativeUnitActionPanel(
-                controller.projection,
-                controller.selectedUnitId,
-                controller.unitActions,
-                busy,
-                submit,
-            ).build(),
-        ).left().row()
-        add(
-            AuthoritativeUnitOrderPanel(
-                controller.projection,
-                controller.selectedUnitId,
-                controller.unitOrders,
-                busy,
-                selectUnitTarget,
                 submit,
             ).build(),
         ).left().row()

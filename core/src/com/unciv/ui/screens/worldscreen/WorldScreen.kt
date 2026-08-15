@@ -97,6 +97,13 @@ class WorldScreen(
 
     override val hudScreen get() = this
     override val hudGameView get() = selectedGameView
+    override val hudViewingCiv get() = viewingCiv
+    override var hudShouldUpdate
+        get() = shouldUpdate
+        set(value) { shouldUpdate = value }
+    override val hudCanChangeState get() = canChangeState
+    override fun hudCenterOn(position: HexCoord) =
+        mapHolder.setCenterPosition(position, immediately = false, selectUnit = false).let { }
 
     /** Unchanged behaviour: the debug overlay still reads the live tile groups. */
     override fun tileImageNames(tile: Tile) =

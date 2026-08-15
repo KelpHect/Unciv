@@ -218,6 +218,7 @@ internal class AuthoritativeProjectionWorldMap(
             val tile = tileMap.getIfTileExistsOrNull(projected.x, projected.y) ?: continue
             val civilization = civilization(projected.civilizationId)
             val unit = MapUnit()
+            unit.id = projected.id
             unit.name = projected.name
             unit.owner = projected.civilizationId
             unit.civ = civilization
@@ -234,6 +235,11 @@ internal class AuthoritativeProjectionWorldMap(
                 continue
             }
             if (baseUnit.isCivilian()) tile.civilianUnit = unit else tile.militaryUnit = unit
+            // The same call the load path uses to rebuild a civilization's unit
+            // list from tiles. Without it civ.units is empty, so the unit table
+            // has nothing to cycle through. updateCivInfo stays false: upkeep and
+            // resource recalculation are the server's business, not the renderer's.
+            civilization.units.addUnit(unit, updateCivInfo = false)
         }
     }
 }

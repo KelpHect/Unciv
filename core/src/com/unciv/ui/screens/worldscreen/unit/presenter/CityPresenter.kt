@@ -26,7 +26,7 @@ class CityPresenter(private val unitTable: UnitTable, private val unitPresenter:
             }
         }
         if (city === selectedCity?.getCity()) return false
-        selectedCity = unitTable.worldScreen.selectedGameView.getForeignCityView(city)
+        selectedCity = unitTable.host.hudGameView.getForeignCityView(city)
         return true
     }
 
@@ -40,13 +40,13 @@ class CityPresenter(private val unitTable: UnitTable, private val unitPresenter:
             unitNameLabel.setText(nameLabelText)
             unitNameLabel.clearListeners()
             unitNameLabel.onClick {
-                if (!worldScreen.canChangeState) return@onClick
+                if (!host.hudCanChangeState) return@onClick
                 CityRenamePopup(
-                    screen = worldScreen,
-                    cityView = worldScreen.selectedGameView.getCityView(city.getCity()),
+                    screen = host.hudScreen,
+                    cityView = host.hudGameView.getCityView(city.getCity()),
                     actionOnClose = {
                         unitNameLabel.setText(city.name.tr())
-                        worldScreen.shouldUpdate = true
+                        host.hudShouldUpdate = true
                     })
             }
         }

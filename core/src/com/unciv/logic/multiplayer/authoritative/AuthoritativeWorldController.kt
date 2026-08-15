@@ -132,6 +132,12 @@ class AuthoritativeWorldController(
         unitTargetMode = null
     }
 
+    /** Clears the selection, e.g. when the unit table's close button is used. */
+    fun deselectUnit() {
+        selectedUnitId = null
+        unitTargetMode = null
+    }
+
     fun selectedUnit(): ProjectedUnit? =
         selectedUnitId?.let { id -> projection.ownUnits.singleOrNull { it.id == id } }
 

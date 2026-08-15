@@ -284,6 +284,50 @@ class AuthoritativeMultiplayerSessionTests {
         session.close()
     }
 
+    /**
+     * A server that has been upgraded holds one bundle per engine build for the
+     * same base ruleset and mod set, so name-only resolution is permanently
+     * ambiguous and creation is impossible. The exact bundle the host selected
+     * must narrow it, while an invented hash must still fail closed.
+     */
+    @Test
+    fun creationUsesTheSelectedBundleWhenOneServerHasSeveralEngineBuilds() = runBlocking {
+        val transport = FakeTransport().apply {
+            restored = true
+            current = projection(0, "hash-0")
+            manifestPages[null] = ApiV3RulesetManifestPage(
+                listOf(
+                    manifest("a", "Civ V - Vanilla", emptyList()),
+                    manifest("b", "Civ V - Vanilla", emptyList()),
+                ),
+            )
+        }
+        val session = session(transport)
+        session.restore()
+        val setup = gameSetup()
+
+        assertThrows<IllegalStateException> {
+            session.createAuthoritativeGame("Civ V - Vanilla", emptySet(), setup, CREATION_ID)
+        }
+        assertThrows<IllegalStateException> {
+            session.createAuthoritativeGame(
+                "Civ V - Vanilla", emptySet(), setup, CREATION_ID,
+                manifestHash = "f".repeat(64),
+            )
+        }
+
+        session.createAuthoritativeGame(
+            "Civ V - Vanilla", emptySet(), setup, CREATION_ID,
+            manifestHash = "b".repeat(64),
+        )
+
+        assertEquals(
+            listOf(Triple(CREATION_ID, "b".repeat(64), setup)),
+            transport.createdGames,
+        )
+        session.close()
+    }
+
     @Test
     fun matchSetupListsEveryServerInstalledRulesetPage() = runBlocking {
         val cursor = "b".repeat(64)

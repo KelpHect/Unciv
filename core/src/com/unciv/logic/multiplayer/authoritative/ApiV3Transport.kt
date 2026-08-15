@@ -4,6 +4,16 @@ import kotlinx.coroutines.flow.Flow
 
 interface ApiV3Transport {
     suspend fun restoreSession(): Boolean
+
+    /** Drops locally stored credentials without contacting the server. */
+    suspend fun discardStoredSession() {}
+
+    /**
+     * Proves a restored credential is still accepted, throwing [ApiV3Exception]
+     * with a 401 when the server has revoked it. Defaults to success for
+     * transports whose credentials cannot go stale behind the client's back.
+     */
+    suspend fun verifySession() {}
     suspend fun capabilities(): ApiV3Capabilities
     suspend fun register(username: String, password: String): ApiV3Account
     suspend fun login(username: String, password: String): ApiV3Account

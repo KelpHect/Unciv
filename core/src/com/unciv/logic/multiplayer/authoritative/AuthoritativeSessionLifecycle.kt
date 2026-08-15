@@ -140,8 +140,11 @@ class AuthoritativeSessionLifecycle(
 
     suspend fun logout() = mutex.withLock {
         val current = session ?: return@withLock
-        current.logout()
-        status = AuthoritativeSessionStatus.LoginRequired
+        try {
+            current.logout()
+        } finally {
+            status = AuthoritativeSessionStatus.LoginRequired
+        }
     }
 
     suspend fun logoutAll() = mutex.withLock {

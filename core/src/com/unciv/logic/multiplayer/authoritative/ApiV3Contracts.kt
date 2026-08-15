@@ -1086,10 +1086,16 @@ data class ApiV3RevisionNotification(
     @SerialName("canonical_state_hash") val canonicalStateHash: String? = null,
 )
 
+/**
+ * Unchecked so it survives a JVM proxy boundary intact: Kotlin has no checked
+ * exceptions, but a `java.lang.reflect.Proxy` wraps anything not declared in a
+ * `throws` clause, which would hide the HTTP status from callers that branch on
+ * it (session verification distinguishing 401 from a transport failure).
+ */
 class ApiV3Exception(
     val httpStatus: Int,
     val error: ApiV3ErrorResponse,
-) : Exception(error.code)
+) : RuntimeException(error.code)
 
 @Serializable
 data class ApiV3RevisionSummary(

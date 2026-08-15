@@ -6,6 +6,8 @@ data class AuthoritativeCreationMeaning(
     val baseRulesetName: String,
     val modNames: Set<String>,
     val setup: ApiV3GameSetup,
+    /** Part of the meaning: choosing a different content bundle is a different game. */
+    val manifestHash: String? = null,
 )
 
 /**

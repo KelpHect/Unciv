@@ -61,6 +61,52 @@ class AuthoritativeSessionLifecycleTests {
         assertNotNull(loggedOut.session)
     }
 
+    /**
+     * A stored token is not proof of a live session. If the server has revoked
+     * it the client must return to the login screen and drop the credential,
+     * rather than report "Authenticated" while every request fails as
+     * unauthenticated with no way for the player to sign back in.
+     */
+    @Test
+    fun aRevokedStoredCredentialRequiresLoginInsteadOfLookingAuthenticated() = runBlocking {
+        val calls = mutableListOf<String>()
+        val revoked = lifecycle(
+            ApiVersion.APIv3,
+            restored = true,
+            verifyFailure = ApiV3Exception(401, ApiV3ErrorResponse("invalid_credentials")),
+            calls = calls,
+        )
+
+        val status = revoked.restoreConfiguredServer("https://v3.example") {
+            InMemoryApiV3SessionTokenStore()
+        }
+
+        assertEquals(AuthoritativeSessionStatus.LoginRequired, status)
+        assertTrue("the dead credential must be discarded", calls.contains("discard"))
+    }
+
+    /**
+     * An unreachable server is not a revoked credential: a transport failure
+     * must never silently sign the player out of a still-valid session.
+     */
+    @Test
+    fun aTransportFailureDuringVerificationKeepsTheStoredCredential() = runBlocking {
+        val calls = mutableListOf<String>()
+        val offline = lifecycle(
+            ApiVersion.APIv3,
+            restored = true,
+            verifyFailure = ApiV3Exception(503, ApiV3ErrorResponse("service_unavailable")),
+            calls = calls,
+        )
+
+        val status = offline.restoreConfiguredServer("https://v3.example") {
+            InMemoryApiV3SessionTokenStore()
+        }
+
+        assertEquals(AuthoritativeSessionStatus.Failed, status)
+        assertFalse("a transient failure must not discard credentials", calls.contains("discard"))
+    }
+
     @Test
     fun unknownOrFailedDetectionNeverFallsBackToLegacy() = runBlocking {
         val unknown = lifecycle(null, restored = false)
@@ -192,14 +238,18 @@ class AuthoritativeSessionLifecycleTests {
     private fun lifecycle(
         version: ApiVersion?,
         restored: Boolean,
+        verifyFailure: Exception? = null,
+        calls: MutableList<String> = mutableListOf(),
     ) = AuthoritativeSessionLifecycle(
         detectServer = { version },
-        createSession = { _, _ -> fakeSession(restored) },
+        createSession = { _, _ -> fakeSession(restored, calls, verifyFailure) },
     )
 
     private fun fakeSession(
         restored: Boolean,
         calls: MutableList<String> = mutableListOf(),
+        /** Non-null makes the server reject the restored credential. */
+        verifyFailure: Exception? = null,
     ): AuthoritativeMultiplayerSession {
         val transport = Proxy.newProxyInstance(
             ApiV3Transport::class.java.classLoader,
@@ -214,6 +264,15 @@ class AuthoritativeSessionLifecycleTests {
                     websocketNotifications = true,
                 )
                 "restoreSession" -> restored
+                "verifySession" -> {
+                    calls += "verify"
+                    if (verifyFailure != null) throw verifyFailure
+                    Unit
+                }
+                "discardStoredSession" -> {
+                    calls += "discard"
+                    Unit
+                }
                 "notifications" -> emptyFlow<ApiV3RevisionNotification>()
                 "login" -> {
                     calls += "login"

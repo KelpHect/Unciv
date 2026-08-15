@@ -160,6 +160,7 @@ class AuthoritativeCreateLobbyScreen(
                 manifest.baseRuleset.name,
                 manifest.mods.mapTo(linkedSetOf()) { it.name },
                 setup,
+                manifest.manifestHash,
             )
             createButton.disable()
             createButton.setText(Constants.working)
@@ -178,6 +179,7 @@ class AuthoritativeCreateLobbyScreen(
                         slots,
                         requestedPassword,
                         availableCivilizations,
+                        meaning.manifestHash,
                     )
                     val lobby = session.lobby(creation.metadata.gameId)
                     launchOnGLThread {

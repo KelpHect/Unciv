@@ -73,16 +73,27 @@ class AuthoritativeMultiplayerSession(
 
     suspend fun restore(): Boolean {
         negotiate()
-        authenticated = transport.restoreSession()
-        if (authenticated) {
-            startNotifications()
-        } else {
-            notificationJob?.cancel()
-            notificationJob = null
-            mutex.withLock { games.clear() }
-            openedGameIds.clear()
+        if (!transport.restoreSession()) {
+            clearAuthenticatedState()
+            return false
         }
-        return authenticated
+        // A stored credential is not proof of a live session: it can have been
+        // revoked, expired, or had its account removed. Prove it against the
+        // server before reporting the account as signed in, or the client shows
+        // "Authenticated" while every request fails as unauthenticated.
+        try {
+            transport.verifySession()
+        } catch (exception: ApiV3Exception) {
+            if (exception.httpStatus != UNAUTHENTICATED_STATUS) throw exception
+            // Only an explicit rejection discards the credential; a transport
+            // failure must never silently sign the player out.
+            transport.discardStoredSession()
+            clearAuthenticatedState()
+            return false
+        }
+        authenticated = true
+        startNotifications()
+        return true
     }
 
     suspend fun login(username: String, password: String): ApiV3Account {
@@ -190,13 +201,15 @@ class AuthoritativeMultiplayerSession(
         humanSlots: Int = 2,
         password: String? = null,
         availableCivilizations: List<String> = emptyList(),
+        manifestHash: String? = null,
     ): AuthoritativeGameCreation {
         requireAuthenticated()
         val parsedOperationId = runCatching { UUID.fromString(operationId) }.getOrNull()
         require(parsedOperationId != null && parsedOperationId != UUID(0, 0)) {
             "Creation operation ID must be a non-zero UUID"
         }
-        val manifest = RulesetManifestResolver(transport).resolve(baseRulesetName, modNames)
+        val manifest =
+            RulesetManifestResolver(transport).resolve(baseRulesetName, modNames, manifestHash)
         val metadata = transport.createGame(
             operationId,
             manifest.manifestHash,
@@ -2055,8 +2068,14 @@ class AuthoritativeMultiplayerSession(
     }
 
     suspend fun logout() {
-        if (authenticated) transport.logout()
-        clearAuthenticatedState()
+        try {
+            if (authenticated) transport.logout()
+        } finally {
+            // Signing out is a local decision. A server that refuses the token
+            // has already ended the session, so it must not block the client
+            // from returning to the login screen.
+            clearAuthenticatedState()
+        }
     }
 
     private suspend fun clearAuthenticatedState() {
@@ -2130,6 +2149,8 @@ class AuthoritativeMultiplayerSession(
     }
 
     companion object {
+        /** The server's answer for a credential it no longer accepts. */
+        private const val UNAUTHENTICATED_STATUS = 401
         private const val DEFAULT_DIRECTORY_PAGE_SIZE = 50
         private const val DEFAULT_MAXIMUM_LOBBIES = 1_000
         private const val MAXIMUM_DIRECTORY_PAGE_SIZE = 100

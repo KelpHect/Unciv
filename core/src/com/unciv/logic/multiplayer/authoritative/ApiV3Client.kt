@@ -87,9 +87,26 @@ class ApiV3Client(
     }
 
     override suspend fun logout() {
-        val response = client.post("api/v3/auth/logout") { authenticate() }
+        try {
+            val response = client.post("api/v3/auth/logout") { authenticate() }
+            if (!response.status.isSuccess()) throw response.toApiException()
+        } finally {
+            // Signing out must always drop the local credential. A server that
+            // rejects the token has already ended the session, so failing here
+            // without clearing would strand the client permanently signed in.
+            authState.clear()
+        }
+    }
+
+    override suspend fun discardStoredSession() = authState.clear()
+
+    /** The cheapest bounded authenticated read this API offers. */
+    override suspend fun verifySession() {
+        val response = client.get("api/v3/games") {
+            authenticate()
+            parameter("limit", 1)
+        }
         if (!response.status.isSuccess()) throw response.toApiException()
-        authState.clear()
     }
 
     override suspend fun logoutAll() {

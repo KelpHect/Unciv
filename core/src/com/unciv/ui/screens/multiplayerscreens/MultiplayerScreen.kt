@@ -344,6 +344,13 @@ class MultiplayerScreen : PickerScreen() {
         Concurrency.runOnNonDaemonThreadPool("Open V3 game") {
             try {
                 val opened = AuthoritativeGameDirectory(activeSession).open(summary)
+                // The projection deliberately carries no ruleset identity, so the
+                // server's own manifest names are read here, off the GL thread.
+                val lobby = activeSession.lobby(summary.gameId)
+                val ruleset = RulesetCache.getComplexRuleset(
+                    lobby.modNames.toCollection(linkedSetOf()),
+                    lobby.baseRulesetName,
+                )
                 launchOnGLThread {
                     when (opened) {
                         is OpenedAuthoritativeGame.Player -> {
@@ -354,6 +361,7 @@ class MultiplayerScreen : PickerScreen() {
                                     AuthoritativeGameDirectory(activeSession),
                                     opened.projection,
                                     activeSession,
+                                    ruleset,
                                 ),
                             )
                         }

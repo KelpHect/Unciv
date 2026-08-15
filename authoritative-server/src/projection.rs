@@ -36,6 +36,10 @@ pub struct PlayerProjection {
     pub own_units: Vec<ProjectedUnit>,
     pub explored_tiles: Vec<ProjectedTileVisibility>,
     pub visible_foreign_units: Vec<ProjectedUnit>,
+    /// `default` so a worker predating projection 63 still parses; always
+    /// serialized, so the Rust and Kotlin wire shapes stay identical.
+    #[serde(default)]
+    pub visible_foreign_cities: Vec<ProjectedForeignCity>,
     pub pending_city_dispositions: Vec<ProjectedCityDisposition>,
     pub diplomatic_vote_candidates: Vec<String>,
     pub selectable_great_people: Vec<String>,
@@ -293,6 +297,23 @@ pub struct ProjectedCity {
     pub available_governance_actions: Vec<CityGovernanceAction>,
     pub sellable_buildings: Vec<String>,
     pub bombard_targets: Vec<ProjectedBombardTarget>,
+}
+
+/// A rival city on a tile the worker already decided this player can see.
+///
+/// Deliberately much smaller than [`ProjectedCity`]: enough to draw a city and
+/// its borders, and nothing about how that city is doing. `owned_tiles` is
+/// clipped to the player's own vision by the worker.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedForeignCity {
+    pub id: String,
+    pub name: String,
+    pub civilization_id: String,
+    pub x: i32,
+    pub y: i32,
+    #[serde(default)]
+    pub owned_tiles: Vec<ProjectedTargetCoordinate>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

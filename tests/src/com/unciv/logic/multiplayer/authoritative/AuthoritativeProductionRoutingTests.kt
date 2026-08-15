@@ -809,7 +809,8 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         // Both entry points route through the same projection-only opening.
-        assertTrue(lobby.contains("AuthoritativeWorldScreen(summary, directory, opened.projection, session)"))
+        assertTrue(lobby.contains("AuthoritativeWorldScreen("))
+        assertTrue(lobby.contains("opened.projection"))
         assertTrue(lobby.contains("opened is OpenedAuthoritativeGame.Player"))
         assertTrue(multiplayer.contains("is OpenedAuthoritativeGame.Player"))
         assertTrue(multiplayer.contains("opened.projection"))
@@ -879,11 +880,42 @@ class AuthoritativeProductionRoutingTests {
             )
         }
 
-        // The fixed forms: the header is one parenthesized concat turned into a
-        // single Label, and the map buttons carry the screen's skin explicitly.
+        // The fixed form: the header is one parenthesized concat turned into a
+        // single Label. The map itself no longer builds skinned text buttons —
+        // it is drawn by the game's real hex renderer, pinned separately below.
         assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains("Server game [\${controller.current.gameId}]"))
         assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains(").toLabel(),"))
-        assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains("BaseScreen.skin"))
+    }
+
+    /**
+     * The online world must look like the game, not like a debug harness. It is
+     * drawn by the same hex renderer single-player uses, over a disposable
+     * TileMap materialized from the server projection — never a text grid, and
+     * still never a `GameInfo`.
+     */
+    @Test
+    fun projectionWorldRendersWithTheRealHexRenderer() {
+        val world = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt",
+        ).readText()
+        val map = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/" +
+                "AuthoritativeProjectionWorldMap.kt",
+        ).readText()
+
+        assertTrue(world.contains("AuthoritativeProjectionMapHolder("))
+        assertTrue(map.contains("WorldTileGroup("))
+        assertTrue(map.contains("TileGroupMap("))
+        // Fog of war stays server-decided rather than force-revealed.
+        assertTrue(map.contains("viewer.viewableTiles"))
+        assertTrue(map.contains("tile.setExplored(viewer, true)"))
+        assertFalse(map.contains("isForceVisible = true"))
+        for (forbidden in listOf(
+            "import com.unciv.logic.GameInfo",
+            "import com.unciv.ui.screens.worldscreen.WorldScreen",
+            "GameStarter",
+            "MapGenerator",
+        )) assertFalse("Projection map must not reference $forbidden", map.contains(forbidden))
     }
 
     @Test

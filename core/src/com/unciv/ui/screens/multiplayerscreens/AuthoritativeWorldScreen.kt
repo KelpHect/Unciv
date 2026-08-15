@@ -1,7 +1,7 @@
 package com.unciv.ui.screens.multiplayerscreens
 
-import com.badlogic.gdx.scenes.scene2d.ui.Table
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.unciv.logic.map.HexCoord
+import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameProjection
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
@@ -9,15 +9,13 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSession
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldController
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeWorldStatus
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
-import com.unciv.logic.multiplayer.authoritative.ProjectedTileVisibility
-import com.unciv.logic.multiplayer.authoritative.ProjectedUnit
+import com.unciv.models.ruleset.Ruleset
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.popups.ToastPopup
-import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.ui.screens.savescreens.LoadGameScreen
 import com.unciv.utils.Concurrency
@@ -36,6 +34,8 @@ class AuthoritativeWorldScreen(
     private val directory: AuthoritativeGameDirectory,
     initialProjection: ApiV3GameProjection,
     session: AuthoritativeMultiplayerSession,
+    /** The server manifest's ruleset, resolved by the caller off the GL thread. */
+    private val ruleset: Ruleset,
 ) : PickerScreen(disableScroll = true) {
     private val controller = AuthoritativeWorldController(
         initialProjection,
@@ -80,8 +80,15 @@ class AuthoritativeWorldScreen(
         tradeActions = authoritativeTradeActions(session, gameSummary.gameId),
     )
 
-    private var centerX = initialCenter().first
-    private var centerY = initialCenter().second
+    /**
+     * Rebuilt from each accepted projection. The hex map is drawn by the game's
+     * real renderer over this disposable cache, so the online world looks and
+     * pans exactly like a local one without ever holding canonical state.
+     */
+    private var world = AuthoritativeProjectionWorldMap(controller.projection, ruleset)
+    private var mapHolder = AuthoritativeProjectionMapHolder(this, world, ::tileClicked)
+    private var renderedRevision = controller.current.committedRevision
+
     @Volatile private var busy = false
     private var secondsSinceRefresh = 0f
 
@@ -90,6 +97,9 @@ class AuthoritativeWorldScreen(
         rightSideButton.setText("End turn")
         rightSideButton.onClick { submitEndTurn() }
         rebuild()
+        initialCenter()?.let(mapHolder::setCenterPosition)
+        // Without this the map never receives scroll events, so it cannot zoom.
+        stage.scrollFocus = mapHolder
     }
 
     override fun render(delta: Float) {
@@ -110,17 +120,8 @@ class AuthoritativeWorldScreen(
                     "turn [${controller.projection.turn}]"
                 ).toLabel(),
         ).colspan(3).row()
-        topTable.add(navigationButton("←", -WINDOW_STEP, 0))
-        topTable.add(navigationButton("↑", 0, WINDOW_STEP))
-        topTable.add(navigationButton("→", WINDOW_STEP, 0)).row()
-        topTable.add(navigationButton("↙", -WINDOW_STEP, -WINDOW_STEP))
-        topTable.add(navigationButton("↓", 0, -WINDOW_STEP))
-        topTable.add(navigationButton("↗", WINDOW_STEP, WINDOW_STEP)).row()
-        val map = buildMap()
-        topTable.add(ScrollPane(map).apply {
-            setScrollingDisabled(false, false)
-            setOverscroll(false, false)
-        }).colspan(3).grow().maxHeight(stage.height * 0.55f).row()
+        rebuildMapIfProjectionReplaced()
+        topTable.add(mapHolder).colspan(3).grow().maxHeight(stage.height * 0.62f).row()
         topTable.add(ScrollPane(
             AuthoritativeWorldDecisions(
                 controller,
@@ -159,59 +160,26 @@ class AuthoritativeWorldScreen(
         descriptionLabel.setText(description())
     }
 
-    private fun buildMap(): Table {
-        val projection = controller.projection
-        val tiles = projection.exploredTiles.associateBy { it.x to it.y }
-        val ownUnits = projection.ownUnits.groupBy { it.x to it.y }
-        val foreignUnits = projection.visibleForeignUnits.groupBy { it.x to it.y }
-        val cities = projection.ownCities.associateBy { it.x to it.y }
-        return Table().apply {
-            defaults().width(TILE_WIDTH).height(TILE_HEIGHT).pad(1f)
-            for (y in (centerY + WINDOW_RADIUS) downTo (centerY - WINDOW_RADIUS)) {
-                for (x in (centerX - WINDOW_RADIUS)..(centerX + WINDOW_RADIUS)) {
-                    val tile = tiles[x to y]
-                    if (tile == null) {
-                        add()
-                    } else {
-                        val button = TextButton(
-                            tileText(
-                                tile,
-                                ownUnits[x to y].orEmpty(),
-                                foreignUnits[x to y].orEmpty(),
-                                cities[x to y]?.name,
-                            ),
-                            BaseScreen.skin,
-                        )
-                        button.onClick { tileClicked(x, y, ownUnits[x to y].orEmpty()) }
-                        add(button)
-                    }
-                }
-                row()
-            }
-        }
+    /**
+     * The projection is immutable and replaced wholesale, so the rendered map is
+     * rebuilt only when the server actually committed a new revision. Rebuilding
+     * on every UI refresh would throw away the player's pan and zoom.
+     */
+    private fun rebuildMapIfProjectionReplaced() {
+        val revision = controller.current.committedRevision
+        if (revision == renderedRevision) return
+        renderedRevision = revision
+        val restoredCenter = mapHolder.centerPosition()
+        world = AuthoritativeProjectionWorldMap(controller.projection, ruleset)
+        mapHolder = AuthoritativeProjectionMapHolder(this, world, ::tileClicked)
+        restoredCenter?.let(mapHolder::setCenterPosition)
+        stage.scrollFocus = mapHolder
     }
 
-    private fun tileText(
-        tile: ProjectedTileVisibility,
-        ownUnits: List<ProjectedUnit>,
-        foreignUnits: List<ProjectedUnit>,
-        cityName: String?,
-    ): String {
-        val selected = controller.selectedUnitId
-        return buildList {
-            add(if (tile.visible) tile.baseTerrain else "Fog: ${tile.baseTerrain}")
-            tile.terrainFeatures.firstOrNull()?.let(::add)
-            tile.resourceName?.let { add("{$it}") }
-            cityName?.let { add("[$it]") }
-            ownUnits.firstOrNull()?.let {
-                add("${if (it.id == selected) "▶" else "U"} ${it.name}")
-            }
-            foreignUnits.firstOrNull()?.let { add("Enemy ${it.name}") }
-        }.joinToString("\n")
-    }
-
-    private fun tileClicked(x: Int, y: Int, units: List<ProjectedUnit>) {
+    private fun tileClicked(tile: Tile) {
         if (busy) return
+        val x = tile.position.x
+        val y = tile.position.y
         if (controller.unitTargetMode != null) {
             if (controller.canSubmitUnitTarget(x, y)) {
                 runOperation("Submit authoritative unit target") {
@@ -220,25 +188,14 @@ class AuthoritativeWorldScreen(
             }
             return
         }
-        val ownUnit = units.firstOrNull()
+        val ownUnit = controller.projection.ownUnits.firstOrNull { it.x == x && it.y == y }
         if (ownUnit != null) {
             controller.selectUnit(ownUnit.id)
-            centerX = x
-            centerY = y
             rebuild()
             return
         }
         if (controller.canMoveSelectedTo(x, y)) submitMove(x, y)
     }
-
-    private fun navigationButton(text: String, deltaX: Int, deltaY: Int): TextButton =
-        text.toTextButton().apply {
-            onClick {
-                centerX += deltaX
-                centerY += deltaY
-                rebuild()
-            }
-        }
 
     private fun submitMove(x: Int, y: Int) = runOperation("Move authoritative unit") {
         controller.moveSelectedTo(x, y)
@@ -305,19 +262,16 @@ class AuthoritativeWorldScreen(
         is AuthoritativeWorldStatus.Rejected -> "Rejected: ${status.code}"
     }
 
-    private fun initialCenter(): Pair<Int, Int> {
+    private fun initialCenter(): HexCoord? {
         val projection = controller.projection
-        return projection.ownCities.firstOrNull()?.let { it.x to it.y }
+        val start = projection.ownCities.firstOrNull()?.let { it.x to it.y }
             ?: projection.ownUnits.firstOrNull()?.let { it.x to it.y }
             ?: projection.exploredTiles.firstOrNull()?.let { it.x to it.y }
-            ?: (0 to 0)
+            ?: return null
+        return HexCoord(start.first, start.second)
     }
 
     companion object {
-        private const val WINDOW_RADIUS = 6
-        private const val WINDOW_STEP = 5
-        private const val TILE_WIDTH = 105f
-        private const val TILE_HEIGHT = 75f
         private const val REFRESH_INTERVAL_SECONDS = 5f
     }
 }

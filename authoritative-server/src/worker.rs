@@ -309,6 +309,7 @@ impl EngineWorkerClient {
             ("combat", projection.combat_is_consistent()),
             ("city_economy", projection.city_economy_is_consistent()),
             ("wonder_events", projection.wonder_events_are_consistent()),
+            ("foreign_cities", projection.foreign_cities_are_consistent()),
         ];
         if projection_checks.iter().any(|(_, valid)| !valid) {
             tracing::warn!(

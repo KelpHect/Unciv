@@ -33,7 +33,7 @@ class CivView(civ: Civilization,
         tileView.getTile().improvementFunctions.canBuildImprovement(improvement, civ.state)
     @Readonly fun getImprovementBuildingProblems(improvement: TileImprovement, tileView: TileView): Sequence<ImprovementBuildingProblem> =
         tileView.getTile().improvementFunctions.getImprovementBuildingProblems(improvement, civ.state)
-    @Readonly fun technologyByName(name: String?): Technology? = civ.gameInfo.ruleset.technologies[name]
+    @Readonly fun technologyByName(name: String?): Technology? = civ.ruleset.technologies[name]
 
     @Readonly fun hasUnique(type: UniqueType): Boolean = civ.hasUnique(type)
     @Readonly fun isReligionEnabled(): Boolean = civ.gameInfo.isReligionEnabled()

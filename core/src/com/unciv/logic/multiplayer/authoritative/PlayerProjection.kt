@@ -29,6 +29,7 @@ data class PlayerProjection(
     val ownUnits: List<ProjectedUnit>,
     val exploredTiles: List<ProjectedTileVisibility>,
     val visibleForeignUnits: List<ProjectedUnit>,
+    val visibleForeignCities: List<ProjectedForeignCity> = emptyList(),
     val pendingCityDispositions: List<ProjectedCityDisposition> = emptyList(),
     val diplomaticVoteCandidates: List<String> = emptyList(),
     val selectableGreatPeople: List<String> = emptyList(),
@@ -43,7 +44,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 62
+        const val CURRENT_PROJECTION_VERSION = 63
     }
 }
 
@@ -254,6 +255,26 @@ data class ProjectedCity(
     val bombardTargets: List<ProjectedBombardTarget> = emptyList(),
 )
 
+/**
+ * A rival city standing on a tile the server already decided this player can see.
+ *
+ * Deliberately far smaller than [ProjectedCity]: it carries only what is needed to
+ * draw a city and its borders. Population, health, construction, specialists,
+ * garrison and every other mutable interior fact stay server-side, because seeing
+ * a city is not the same as knowing how it is doing. [ownedTiles] is itself
+ * clipped to the tiles this player can currently see, so a border never reveals
+ * territory beyond the player's own vision.
+ */
+@Serializable
+data class ProjectedForeignCity(
+    val id: String,
+    val name: String,
+    val civilizationId: String,
+    val x: Int,
+    val y: Int,
+    val ownedTiles: List<ProjectedTargetCoordinate> = emptyList(),
+)
+
 @Serializable
 data class ProjectedUnitPromotionPreference(
     val baseUnitName: String,
@@ -396,6 +417,30 @@ object PlayerProjectionBuilder {
             .map { unitProjection(it, includePrivateOrders = false, canIssueTurnCommands = false) }
             .sortedWith(compareBy<ProjectedUnit> { it.civilizationId }.thenBy { it.id })
             .toList()
+        // Same fog gate as visibleForeignUnits: a rival city is disclosed only when
+        // its centre tile is one the server already lets this player see. Explored
+        // but currently fogged cities are deliberately absent - remembering a city
+        // under fog would be a wider disclosure than the tile gate above allows.
+        val visibleForeignCities = game.civilizations.asSequence()
+            .filter { it != actor }
+            .flatMap { it.cities.asSequence() }
+            .filter { it.getCenterTile() in actor.viewableTiles }
+            .map { city ->
+                ProjectedForeignCity(
+                    id = city.id,
+                    name = city.name,
+                    civilizationId = city.civ.civID,
+                    x = city.location.x,
+                    y = city.location.y,
+                    ownedTiles = city.getTiles()
+                        .filter { it in actor.viewableTiles }
+                        .map { ProjectedTargetCoordinate(it.position.x, it.position.y) }
+                        .sortedWith(compareBy<ProjectedTargetCoordinate> { it.x }.thenBy { it.y })
+                        .toList(),
+                )
+            }
+            .sortedWith(compareBy<ProjectedForeignCity> { it.civilizationId }.thenBy { it.id })
+            .toList()
         return PlayerProjection(
             civilizationId = actor.civID,
             turn = game.turns,
@@ -516,6 +561,7 @@ object PlayerProjectionBuilder {
                 .sortedWith(compareBy<ProjectedTileVisibility> { it.x }.thenBy { it.y })
                 .toList(),
             visibleForeignUnits = visibleForeignUnits,
+            visibleForeignCities = visibleForeignCities,
             pendingCityDispositions = actor.popupAlerts.asSequence()
                 .filter { it.type == com.unciv.logic.civilization.AlertType.CityConquered }
                 .mapNotNull { alert -> game.getCities().singleOrNull { it.id == alert.value } }

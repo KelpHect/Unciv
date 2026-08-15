@@ -171,6 +171,48 @@ widening rather than a confidentiality reduction. Every new leaf is classified
 `legally_known` in `projection-disclosure-policy.tsv` and is guarded by the
 `ProjectionDisclosurePolicyTests` fail-closed enumeration.
 
+The 2026-08-15 projection bump (62 → 63) adds `visibleForeignCities`, so a
+player can finally see rival cities and their borders. Before it, the projection
+carried `visibleForeignUnits` but nothing equivalent for cities, and a rival
+city was invisible even on a tile the server had already made visible.
+
+The gate is deliberately the same one `visibleForeignUnits` already uses: a
+rival city is disclosed only when its centre tile is in the viewing
+civilization's `viewableTiles`. Explored-but-currently-fogged cities are
+**not** disclosed. Remembering a city under fog would be a wider disclosure
+than the tile gate permits, because unlike static terrain a city's presence,
+name and borders are mutable facts that change while the player cannot see
+them; that widening would need its own review.
+
+Per-field reasoning for `ProjectedForeignCity`, all classified `legally_known`:
+
+- `x`, `y` — the city stands on a tile the server already decided is visible,
+  so its location is knowledge the player provably has.
+- `civilizationId` — the same owner identity `visibleForeignUnits` already
+  discloses for a visible rival unit; no new inference is created.
+- `name` — displayed on the map for anyone who can see the city.
+- `id` — an opaque key so the client can track one city across revisions. It
+  carries no interior state and is not a canonical handle for commands.
+- `ownedTiles[].x`, `ownedTiles[].y` — border tiles, clipped by the worker to
+  the viewer's own `viewableTiles`, so a border can never outline territory the
+  player cannot see.
+
+Everything a rival city knows about itself is excluded by construction:
+population, health, construction queue and options, specialists, citizen focus,
+tile purchases, governance actions, sellable buildings, bombard targets, puppet
+and razing status. `ProjectedForeignCity` is a separate, much smaller type than
+`ProjectedCity` precisely so those fields cannot arrive by accident, and
+`the_foreign_city_payload_has_one_exact_public_shape` pins its exact wire shape.
+
+The Rust boundary fails closed independently of the worker:
+`foreign_cities_are_consistent` rejects the whole projection when a "foreign"
+city is owned by the viewer, repeats an `own_cities` entry, is unsorted or
+unbounded, or discloses a border that omits the centre tile it was disclosed
+on. `ForeignCityProjectionTests` covers the visible case, the non-visible case,
+and the viewer's own city; the new leaves are enumerated in
+`projection-disclosure-policy.tsv` and guarded by the same
+`ProjectionDisclosurePolicyTests` fail-closed check.
+
 Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.
 
 ### Replay projection and public match directory

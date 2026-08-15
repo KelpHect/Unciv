@@ -50,6 +50,10 @@ class TileLayerCityButton(tileGroup: TileGroup, size: Float) : TileLayer(tileGro
         }
 
         if (viewingCiv == null) return
+        // CityButton reaches the WorldScreen through GUI for the selected player and
+        // the unit table. A projection-only client renders the same world map with no
+        // WorldScreen at all, so it gets the city tile and its borders but no button.
+        if (viewingCiv.getCiv().gameInfoOrNull == null) return
         if (cityView == null || !tileGroup.tileView.isCityCenter()) return
 
         // Create wrapper + city button if not yet present

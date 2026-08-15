@@ -128,6 +128,35 @@ impl PlayerProjection {
             })
     }
 
+    /// Fails closed on a worker that discloses rival cities incorrectly.
+    ///
+    /// A "foreign" city that is really the player's own, or that repeats an
+    /// entry of `own_cities`, means the fog gate was bypassed somewhere - so the
+    /// whole projection is rejected rather than served.
+    pub fn foreign_cities_are_consistent(&self) -> bool {
+        let bounded_name = |value: &str| !value.is_empty() && value.chars().count() <= 128;
+        self.visible_foreign_cities.len() <= MAX_PROJECTED_CHOICES
+            && self.visible_foreign_cities.windows(2).all(|pair| {
+                (&pair[0].civilization_id, &pair[0].id) < (&pair[1].civilization_id, &pair[1].id)
+            })
+            && self.visible_foreign_cities.iter().all(|city| {
+                bounded_name(&city.id)
+                    && bounded_name(&city.name)
+                    && bounded_name(&city.civilization_id)
+                    // A foreign city owned by the viewer is a fog-gate bug.
+                    && city.civilization_id != self.civilization_id
+                    && !self.own_cities.iter().any(|own| own.id == city.id)
+                    && coordinates_are_sorted(&city.owned_tiles)
+                    // The centre tile is owned by definition, so an empty border
+                    // list would mean the worker clipped away a tile it just
+                    // disclosed the city on.
+                    && city
+                        .owned_tiles
+                        .iter()
+                        .any(|tile| tile.x == city.x && tile.y == city.y)
+            })
+    }
+
     pub fn unit_actions_are_consistent(&self) -> bool {
         let valid_project_name = |name: &Option<String>| {
             name.as_ref()

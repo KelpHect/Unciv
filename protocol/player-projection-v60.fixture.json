@@ -386,6 +386,7 @@
       "airSweepTargets": []
     }
   ],
+  "visibleForeignCities": [],
   "pendingCityDispositions": [
     {
       "cityId": "captured-city",

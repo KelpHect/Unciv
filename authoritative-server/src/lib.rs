@@ -12,6 +12,8 @@ mod projection_combat_tests;
 mod projection_delta;
 #[cfg(test)]
 mod projection_escort_tests;
+#[cfg(test)]
+mod projection_foreign_city_tests;
 mod projection_lobby_terrain;
 #[cfg(test)]
 mod projection_policy_tests;
@@ -58,7 +60,7 @@ pub use projection_lobby_terrain::LobbyTerrainProjection;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 4;
-pub const PROJECTION_VERSION: u16 = 62;
+pub const PROJECTION_VERSION: u16 = 63;
 pub const SPECTATOR_PROJECTION_VERSION: u16 = 3;
 pub const LOBBY_TERRAIN_PROJECTION_VERSION: u16 = 1;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;

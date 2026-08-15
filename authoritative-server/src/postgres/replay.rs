@@ -10,7 +10,8 @@ impl PostgresGameRepository {
             "SELECT r.revision, r.revision_kind,
                     to_char(r.created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_str
              FROM game_revisions r
-             WHERE r.game_id = $1
+             JOIN games g ON g.id = r.game_id
+             WHERE r.game_id = $1 AND g.lifecycle_status <> 'active'
              ORDER BY r.revision ASC",
         )
         .bind(game_id)
@@ -50,7 +51,9 @@ impl PostgresGameRepository {
              JOIN game_snapshots s ON s.game_id = g.id AND s.revision = $2
              LEFT JOIN game_snapshot_blobs b ON b.game_id = s.game_id AND b.revision = s.revision
              JOIN ruleset_manifests m ON m.hash = g.ruleset_manifest_hash
-             WHERE g.id = $1",
+             -- Defence in depth: a live game has no readable replay even if a
+             -- caller reaches this without the handler's authorization gate.
+             WHERE g.id = $1 AND g.lifecycle_status <> 'active'",
         )
         .bind(game_id)
         .bind(i64::try_from(revision).expect("revision fits in i64"))
@@ -83,15 +86,22 @@ impl PostgresGameRepository {
         })
     }
 
-    /// Checks whether a game is publicly visible.
-    pub async fn is_public_game(&self, game_id: Uuid) -> Result<bool, CommitError> {
-        let visibility: Option<String> =
-            sqlx::query_scalar("SELECT visibility FROM games WHERE id = $1")
-                .bind(game_id)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(CommitError::storage)?;
-        Ok(visibility.as_deref() == Some("public"))
+    /// Visibility and playability of a game, for the replay authorization gate.
+    pub async fn replay_access(&self, game_id: Uuid) -> Result<ReplayAccess, CommitError> {
+        let row = sqlx::query("SELECT visibility, lifecycle_status FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(CommitError::storage)?
+            .ok_or(CommitError::NotFound)?;
+        let visibility: String = row.get("visibility");
+        let lifecycle_status: String = row.get("lifecycle_status");
+        Ok(ReplayAccess {
+            is_public: visibility == "public",
+            // Only `active` games accept commands, so anything else is finished
+            // play and can no longer be influenced by what a replay reveals.
+            is_concluded: lifecycle_status != "active",
+        })
     }
 
     /// Lists public matches for the public matches directory.
@@ -104,7 +114,7 @@ impl PostgresGameRepository {
             "SELECT g.id, g.display_name, g.lifecycle_status, g.head_revision,
                     to_char(g.created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at_str
              FROM games g
-             WHERE g.visibility = 'public'
+             WHERE g.visibility = 'public' AND g.lifecycle_status <> 'active'
              ORDER BY g.created_at DESC
              LIMIT $1 OFFSET $2",
         )
@@ -129,6 +139,13 @@ impl PostgresGameRepository {
 }
 
 pub const REPLAY_PROJECTION_VERSION: u16 = 1;
+
+/// Whether a caller may be shown a game's full no-fog-of-war replay.
+#[derive(Clone, Copy, Debug)]
+pub struct ReplayAccess {
+    pub is_public: bool,
+    pub is_concluded: bool,
+}
 
 #[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]

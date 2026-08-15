@@ -173,6 +173,43 @@ widening rather than a confidentiality reduction. Every new leaf is classified
 
 Required hardening includes a documented per-field projection policy, golden tests for every civilization and spectator role, fail-closed serialization when the engine model grows, response-size and timing review, safe error redaction, operator endpoint separation, cache-control headers, and tests that canonical snapshots and hidden fields never occur in HTTP, WebSocket, audit, or routine log output.
 
+### Replay projection and public match directory
+
+**Attacker story:** An authenticated account requests the replay of a match that
+is still being played and reads the complete map, every rival's cities, units,
+gold, and research without fog of war — either as an opponent inside a private
+game, or as any account at all against a public one.
+
+`ReplayProjection` is deliberately a full no-fog-of-war view of every
+civilization, so it is a separate projection type that does **not** pass through
+the per-field player/spectator disclosure policy above. It was therefore not
+covered by the sentinel-leak matrices, and until 2026-08-15 both
+`GET /api/v3/games/{game_id}/revisions` and
+`GET /api/v3/games/{game_id}/revisions/{revision}/replay` served it for games in
+any lifecycle state, while `GET /api/v3/public-matches` advertised live matches
+as watchable.
+
+The control is that a replay is only ever served once play has concluded. Only
+`lifecycle_status = 'active'` games accept commands, so any other state is a
+match whose outcome a replay can no longer influence. The lifecycle gate is
+applied in three places: the two SQL reads (`list_revisions` and
+`replay_projection`) fail closed on their own, the public directory query
+excludes active games, and the API handlers refuse with
+`replay_unavailable_while_active` (403).
+
+Handler order matters and is part of the control: membership is checked *before*
+the lifecycle gate, so a caller who may not see a private game at all cannot
+learn from the error code whether that game is still being played. Live
+spectating remains available through the separate public-only spectator
+projection, which respects fog of war.
+
+`replay_confidentiality_integration_tests.rs` pins the active case (no listing,
+no revision history, no snapshot resolution), the concluded case for both
+`closed` and `archived`, and the independence of visibility from conclusion, so
+a private game that ends stays private. Widening the replay payload, or
+admitting any further lifecycle state to it, changes this boundary and requires
+updating this section together with those tests.
+
 #### Pregame terrain disclosure (accepted, bounded)
 
 The pregame lobby exposes one deliberate map disclosure:

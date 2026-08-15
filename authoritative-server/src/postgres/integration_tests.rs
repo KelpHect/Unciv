@@ -35,6 +35,8 @@ mod reconciliation;
 mod recovery;
 #[path = "repair_integration_tests.rs"]
 mod repair;
+#[path = "replay_confidentiality_integration_tests.rs"]
+mod replay_confidentiality;
 #[path = "replica_fault_integration_tests.rs"]
 mod replica_faults;
 #[path = "retention_integration_tests.rs"]

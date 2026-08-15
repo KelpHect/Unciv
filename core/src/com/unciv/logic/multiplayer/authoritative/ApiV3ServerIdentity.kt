@@ -38,6 +38,26 @@ fun apiV3CredentialScope(baseUrl: String): String {
     return digest.joinToString("") { "%02x".format(it) }
 }
 
+/**
+ * Full `ws(s)://` URL for the authenticated revision-notification stream.
+ *
+ * Ktor's `webSocketSession { url { ... } }` builder starts from an empty
+ * `ws://` and is not fed by `defaultRequest { url(...) }`, so the origin must
+ * be carried explicitly in the URL string. This function must stay in sync
+ * with the `api/v3/notifications` route the server exposes.
+ */
+@org.jetbrains.annotations.VisibleForTesting
+fun apiV3NotificationWebSocketUrl(baseUrl: String): String {
+    val normalized = normalizeApiV3BaseUrl(baseUrl)
+    return when {
+        normalized.startsWith("https://") ->
+            "wss://" + normalized.removePrefix("https://") + "api/v3/notifications"
+        normalized.startsWith("http://") ->
+            "ws://" + normalized.removePrefix("http://") + "api/v3/notifications"
+        else -> error("API-v3 server URL must use http:// or https://")
+    }
+}
+
 private val LOOPBACK_HOSTS = setOf("localhost", "127.0.0.1", "::1")
 
 private fun isLiteralIpAddress(host: String): Boolean =

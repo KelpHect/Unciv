@@ -23,7 +23,7 @@ use unciv_authoritative_server::{
 };
 use uuid::Uuid;
 
-const WORKER_PROTOCOL_VERSION: u16 = 2;
+const WORKER_PROTOCOL_VERSION: u16 = 8;
 const WORKER_SECRET_HEX: &str = "5555555555555555555555555555555555555555555555555555555555555555";
 const WORKER_KEY: [u8; 32] = [0x55; 32];
 const REQUEST_DOMAIN: &[u8] = b"UNCIV-WORKER-V2\0request\0";

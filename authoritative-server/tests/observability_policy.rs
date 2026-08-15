@@ -6,6 +6,7 @@ const TELEMETRY: &str = include_str!("../src/telemetry.rs");
 const BOOTSTRAP: &str = include_str!("../src/api/bootstrap.rs");
 const API_SERVICE: &str = include_str!("../systemd/unciv-authoritative-api.service");
 const WORKFLOW: &str = include_str!("../../.github/workflows/authoritativeV3Observability.yml");
+const VERIFICATION: &str = include_str!("run-authoritative-verification.sh");
 
 #[test]
 fn alert_rules_and_dashboard_are_parseable_and_cover_authority_failures() {
@@ -77,9 +78,14 @@ fn observability_is_private_bounded_and_release_packaged() {
 fn hosted_qualification_is_least_privilege_and_immutable() {
     let workflow = WORKFLOW.replace("\r\n", "\n");
     assert!(workflow.contains("permissions:\n  contents: read"));
-    assert!(workflow.contains("rustup toolchain install 1.97.0"));
-    assert!(workflow.contains("cargo clippy --all-targets --all-features -- -D warnings"));
-    assert!(workflow.contains("cargo test --all-targets --all-features"));
+    assert!(
+        workflow
+            .contains("bash authoritative-server/tests/run-authoritative-verification.sh --rust")
+    );
+    assert!(VERIFICATION.contains("cargo fmt --all -- --check"));
+    assert!(VERIFICATION.contains("cargo clippy --all-targets --all-features -- -D warnings"));
+    assert!(VERIFICATION.contains("cargo test --all-targets --all-features"));
+    assert!(VERIFICATION.contains("--test-threads=1"));
     assert!(workflow.contains(
         "prom/prometheus@sha256:214f8427c8fba80c327bb94a75feb802ae12f2d6ca30812aa6e7d22f09bbea80"
     ));

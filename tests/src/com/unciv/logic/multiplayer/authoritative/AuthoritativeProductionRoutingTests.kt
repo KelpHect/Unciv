@@ -790,6 +790,102 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(lobby.contains(").toLabel(LobbyChrome.muted),"))
     }
 
+    /**
+     * The playtest crashed on the lobby -> world and browser -> world hops, so
+     * both routes are pinned here: only the owner may start a lobby, only at
+     * exact capacity with every human ready, and the world screen is always
+     * reached with the directory's player projection - never a GameInfo.
+     */
+    @Test
+    fun lobbyToWorldRoutingOpensOnlyStartedPlayerProjections() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+        val multiplayer = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/MultiplayerScreen.kt",
+        ).readText()
+        val world = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt",
+        ).readText()
+
+        // Both entry points route through the same projection-only opening.
+        assertTrue(lobby.contains("AuthoritativeWorldScreen(summary, directory, opened.projection, session)"))
+        assertTrue(lobby.contains("opened is OpenedAuthoritativeGame.Player"))
+        assertTrue(multiplayer.contains("is OpenedAuthoritativeGame.Player"))
+        assertTrue(multiplayer.contains("opened.projection"))
+        assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
+        // The world screen is a projection surface, not a save/simulation surface.
+        assertTrue(world.contains("ApiV3GameProjection"))
+        assertTrue(world.contains("AuthoritativeWorldController"))
+        assertTrue(world.contains("OpenedAuthoritativeGame"))
+        assertFalse(world.contains("import com.unciv.logic.GameInfo"))
+        assertFalse(world.contains("GameStarter"))
+        // Only the owner may start, and only at exact capacity with every human ready.
+        assertTrue(lobby.contains("session.startLobby(lobby)"))
+        assertTrue(lobby.contains("lobby.occupiedSlots == lobby.humanSlots"))
+        assertTrue(lobby.contains("lobby.members.all { it.ready && it.civilizationId.isNotBlank() }"))
+        assertTrue(lobby.contains("Every human slot must be filled, assigned a civilization, and ready."))
+        assertTrue(lobby.contains("Everyone is ready."))
+        assertTrue(lobby.contains("Only the host can start the match."))
+    }
+
+    /**
+     * The playtest crashed the world screen with `Table must have a skin set`
+     * because of two Kotlin/gdx traps that are invisible to the compiler:
+     * 1. `"a" + "b" + "c".toLabel()` re-coerces the whole expression back to a
+     *    String (`String.plus(Any)`), which then reaches `Table.add(CharSequence)`
+     *    on a skinless table.
+     * 2. a bare `skin` inside `Table().apply { }` resolves to the table's own
+     *    null skin field instead of `BaseScreen.skin`.
+     * These guards keep the fixed world surfaces from regressing into either trap.
+     */
+    @Test
+    fun worldSurfacesAreSkinSafeAndNeverCoerceLabelsBackToStrings() {
+        val surfaces = listOf(
+            "AuthoritativeWorldScreen",
+            "AuthoritativeWorldDecisions",
+            "AuthoritativeSpyPanel",
+            "AuthoritativeTradePanel",
+        ).associateWith {
+            sourceFile("core/src/com/unciv/ui/screens/multiplayerscreens/$it.kt").readText()
+        }
+
+        // A `+` whose continuation ends in "...".toLabel() is the Kotlin
+        // precedence bug: the trailing fragment is a Label, the sum is a String.
+        val coercedLabel = Regex("""\+[^()]*"[^"\n]*"\.toLabel\(\)""")
+        // A bare `skin` reads the Actor's own null field, not BaseScreen.skin.
+        val bareSkin = Regex("""(?<![.\w])skin(?![.\w])""")
+        for ((name, source) in surfaces) {
+            assertFalse(
+                "$name must wrap concatenated text in parens before .toLabel()",
+                coercedLabel.containsMatchIn(source),
+            )
+            assertFalse("$name must not use the ambiguous bare `skin`", bareSkin.containsMatchIn(source))
+        }
+
+        // The three panel files only build tables for the world screen, so a raw
+        // string literal straight into add() is always a Table.add(CharSequence).
+        // (AuthoritativeWorldScreen also builds a MutableList in tileText, so it
+        // is excluded here and pinned positively below instead.)
+        val rawLiteralAdd = Regex("""add\("[^"]*"\)""")
+        for (name in listOf(
+            "AuthoritativeWorldDecisions",
+            "AuthoritativeSpyPanel",
+            "AuthoritativeTradePanel",
+        )) {
+            assertFalse(
+                "$name must not add a raw string literal to a Table",
+                rawLiteralAdd.containsMatchIn(surfaces.getValue(name)),
+            )
+        }
+
+        // The fixed forms: the header is one parenthesized concat turned into a
+        // single Label, and the map buttons carry the screen's skin explicitly.
+        assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains("Server game [\${controller.current.gameId}]"))
+        assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains(").toLabel(),"))
+        assertTrue(surfaces.getValue("AuthoritativeWorldScreen").contains("BaseScreen.skin"))
+    }
+
     @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(

@@ -1,7 +1,7 @@
 # Authoritative multiplayer work still missing
 
 This is the current executable gap list for authoritative multiplayer v3 as of
-2026-07-29 on `master`. Completed foundations and
+2026-08-13 on `master`. Completed foundations and
 command families are retained below with checked marks; the detailed evidence
 and historical milestones remain in `docs/multiplayer-command-coverage.md` and
 `docs/architecture/authoritative-multiplayer-status.md`.
@@ -133,6 +133,37 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   restoration. Remote origins require HTTPS, credentials are scoped by
   normalized server origin, Windows uses live-tested user-bound DPAPI storage,
   and unavailable/failed detection cannot fall through to local game creation.
+- [x] Bound late-game AI pathfinding in the private Kotlin worker. `AStar` now
+  fails closed at the map tile count, skips stale queue entries, rejects
+  blocked neighbours before the cost callback, and short-circuits impossible
+  destinations; `MapPathing` uses the correct goal-directed heuristic
+  (`neighbour → destination`) instead of the near-zero `from → destination`
+  term. This removed the tens-of-thousands `MapPathing` diagnostic backlog and
+  late-game slowdown observed on Huge/Continents benchmarks and is covered by a
+  forced `PathfindingTests` rerun.
+- [x] Cut worker frame allocation pressure at the JVM boundary.
+  `LoopbackEngineWorkerServer` now reads exact bounded frames with `readExact`
+  instead of `readNBytes`, removing the allocation hotspot JFR attributed to
+  `InputStream.readNBytes`/`byte[]`.
+- [x] Add a hard aggregate Lockwell archive-byte budget
+  (`UNCIV_V3_SNAPSHOT_ARCHIVE_BUDGET_BYTES`) with quota-pause behaviour that
+  refuses new objects without deleting existing archives or protected
+  checkpoints, plus archive-byte and quota-exceeded Prometheus metrics and
+  maintenance log warnings. Per-game PostgreSQL retention and checkpoint
+  protection remain intact.
+- [x] Make worker transport timeouts attributable. The bounded worker failure
+  log now records the failure variant and elapsed time so a 502 timeout can be
+  correlated with its operation type instead of surfacing as an anonymous
+  transport error.
+- [x] Re-split the largest Rust modules back under the 800-line guardrail.
+  `postgres.rs` (1103) now delegates snapshot validation to
+  `postgres/snapshot_validation.rs` and commit/creation to `postgres/commit.rs`;
+  `worker.rs` (865) delegates construction commands to `worker/construction.rs`;
+  `projection.rs` (828) moved its round-trip tests to `projection_tests.rs`;
+  `api/commands.rs` (807) delegates construction handlers to
+  `api/construction_commands.rs`; and `postgres/commands.rs` (802) delegates
+  construction execution to `postgres/construction_commands.rs`. No
+  non-test Rust source file now exceeds 800 lines.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -560,6 +591,17 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   through its Kotlin worker command. Rust rejects duplicate, reordered,
   legacy `move_spies`, or blocker projections without a matching choice.
   Transient idle-unit and spy-movement reminders remain client-local.
+- [x] Project city-state quests and influence status into the V3 city-state
+  projection. `ProjectedCityStatePartner` now also exposes `influence`,
+  `influenceLevel` (`unforgivable`/`enemy`/`neutral`/`friend`/`ally`), and a
+  bounded `quests` list (`ProjectedCityStateQuest`: quest name, opaque
+  `data1`/`data2` targets, influence reward, optional remaining turns, and
+  global/individual flag). Quests are still completed passively through
+  ordinary worker-owned commands, so this is projection-visibility parity with
+  no widened mutation surface. Projection version bumped 61 → 62 (Kotlin,
+  Rust, and the release compatibility contract) and the OpenAPI contract was
+  regenerated; a Kotlin influence/relationship test and Rust round-trip,
+  backward-compat, and enum-shape tests were added.
 
 ## P0: membership and game administration
 
@@ -1250,19 +1292,56 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   cases serially (with only documented intentional skips), plus
   `:android:compileDebugKotlin`. Earlier full Android assemble/lint and desktop
   distribution qualifications remain recorded in the status document.
-- Rust passes 190 active library tests and 29 HTTP/OpenAPI/AsyncAPI/runtime
-  tests; all 39 ordinary serialized PostgreSQL integration tests pass on the
-  exact PostgreSQL 19 Beta
-  2 digest. Controlled response-loss/Rust-death and packaged-worker/outbox-death
-  lanes also pass.
-- `cargo fmt --all -- --check`, warnings-as-errors
-  `cargo clippy --all-targets --all-features -- -D warnings`, generated
-  OpenAPI/AsyncAPI parity, official AsyncAPI validation, and `git diff --check`
-  pass.
-- `main.rs` is 5 substantive lines, `lib.rs` is a 60-line facade, and the
-  largest Rust source is 770 lines. New work must split by concern before
-  crossing the 800-line
-  guardrail.
+- Rust passes 284 tests with 0 failures across `cargo test --all-targets
+  --all-features`; 62 tests are ignored because they are environment-gated
+  (PostgreSQL 19 Beta 2, Lockwell object storage, and out-of-band process/
+  destructive-drill lanes). `cargo fmt --all -- --check`, warnings-as-errors
+  `cargo clippy --all-targets --all-features -- -D warnings`, and
+  `git diff --check` all pass on the current source.
+- `main.rs` and `lib.rs` remain thin façades, and no non-test Rust source file
+  exceeds the 800-line guardrail after the 2026-08-13 re-split: the largest is
+  `api/contracts.rs` at 795 lines, followed by `worker/protocol.rs` (761) and
+  `projection_validation.rs` (648). `postgres/integration_tests.rs` remains the
+  only file above 800 lines and is the environment-gated integration fixture
+  include, not implementation.
+
+## Upstream sync (2026-08-13)
+
+`upstream/master` (yairm210/Unciv, `94e893d8a`) is 118 commits ahead of this
+fork's `master` (`e6c3151ae`); this fork is 324 commits ahead on the
+authoritative-v3 surface. The delta is dominated by the desktop/Android
+"View implementation" refactor (#15280) and is safe to defer, but several
+engine/worker-relevant fixes are missing and should be ported in order of
+canonical impact:
+
+- [ ] Port `d72ad396e` — "preserve carrier payloads during paradrop and
+  transform". This is a canonical-state correctness fix: a full carrier lost
+  its transported aircraft because the relocation filter used `canTransport`,
+  which returns false once the carrier is full. Our private Kotlin worker
+  executes the same rules code, so it inherits this bug.
+- [ ] Port `c4486df80` — "compute city baseline for building stats once instead
+  of per-building" (saves ~20% of next-turn computation in a late-game save).
+  This is the single highest-value latency fix for the worker's AI
+  `EndTurn` path.
+- [ ] Port the remaining AI/rules fixes: `e6ac35917` (AI bug fixes),
+  `680f51c7c` (AI war-for-gold kamikaze guard), `92e3ee8d3` (stealth-bomber
+  evasion + no negative interception damage), `4422044ea` (no XP ruin rewards
+  for civilians), `507309947` (city-construction gold usage), `4a7a1f97f`
+  (non-vanilla ranking types), `8b8411542` (max players with spectator).
+- [ ] Evaluate the build-toolchain bump (`ca69ef198` Gradle 8.11→9.4 + AGP +
+  Kotlin, `37eee47d9` LibGDX 1.14.0→1.14.2, `dd7de0e19` target SDK 36) under
+  the AGENTS.md whole-family version-alignment guardrail; do not cherry-pick
+  these without rerunning the V3 server and Android gates.
+- [ ] Defer the entire #15280 "View implementation" series. It is a massive
+  desktop/Android UI migration that is orthogonal to authoritative
+  multiplayer and conflicts heavily with the projection-only V3 client; it is
+  a separate project, not a prerequisite for V3 correctness.
+
+Legacy multiplayer posture is unchanged: `core/src/com/unciv/logic/multiplayer/`
+still contains the `apiv2` and `LegacyMultiplayer` compatibility shims, but the
+production multiplayer screen is API-v3-only and legacy upload/download is
+unreachable from it. No upstream commit in the 118-commit delta extends the
+legacy client-authored protocol, so there is nothing new to quarantine.
 
 Update this file whenever a gap is completed, split, newly discovered, or
 proven not applicable. Never delete an unresolved item merely because it moves

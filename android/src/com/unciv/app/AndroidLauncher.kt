@@ -1,6 +1,7 @@
 package com.unciv.app
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import androidx.core.app.NotificationManagerCompat
@@ -11,6 +12,7 @@ import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import com.unciv.logic.IdChecker
 import com.unciv.logic.files.UncivFiles
+import com.unciv.logic.multiplayer.authoritative.KtorNonceProviderGuard
 import com.unciv.ui.components.fonts.Fonts
 import com.unciv.ui.screens.multiplayerscreens.AddFriendScreen
 import com.unciv.utils.Concurrency.runOnGLThread
@@ -30,6 +32,13 @@ open class AndroidLauncher : AndroidApplication() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // V3 multiplayer opens a Ktor WebSocket for turn notifications. Ktor's
+        // nonce generator falls back to SecureRandom.getInstanceStrong() (API 26+)
+        // when no JVM provider is found, which crashes Android 6.0/7.x with
+        // NoSuchMethodError. Pin a provider Android always provides before any
+        // WebSocket can open; Android 8+ keeps Ktor's defaults.
+        KtorNonceProviderGuard.configureFor(Build.VERSION.SDK_INT)
 
         // Setup Android logging
         Log.backend = AndroidLogBackend(this)

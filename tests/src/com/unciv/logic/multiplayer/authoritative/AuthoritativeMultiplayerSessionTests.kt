@@ -2741,6 +2741,7 @@ class AuthoritativeMultiplayerSessionTests {
             espionageEnabled = true,
             noStartBias = false,
             shufflePlayerOrder = false,
+            simultaneousHumanTurns = false,
             noCityRazing = false,
             worldWrap = false,
             strategicBalance = false,

@@ -23,11 +23,12 @@ internal class AuthoritativeSpyPanel(
         if (PendingEndTurnAction.MoveSpies in projection.pendingTurnActions) {
             add("Assign every required spy before ending the turn".toLabel()).left().row()
         }
-        for (spy in projection.spies) {
-            add(
-                "${spy.name} (rank ${spy.rank}) - ${spy.action.name} - " +
-                    "${spy.turnsRemaining} turns".toLabel(),
-            ).left().row()
+        for (spy in projection.spies) {                add(
+                    (
+                        "${spy.name} (rank ${spy.rank}) - ${spy.action.name} - " +
+                            "${spy.turnsRemaining} turns"
+                        ).toLabel(),
+                ).left().row()
             if (spy.canMoveToHideout) {
                 add(actionButton("Move ${spy.name} to hideout") {
                     controller.move(spy.name, null)

@@ -17,6 +17,7 @@ import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.pickerscreens.PickerScreen
 import com.unciv.ui.screens.savescreens.LoadGameScreen
 import com.unciv.utils.Concurrency
@@ -103,9 +104,11 @@ class AuthoritativeWorldScreen(
     private fun rebuild() {
         topTable.clear()
         topTable.add(
-            "Server game [${controller.current.gameId}] - " +
-                "revision [${controller.current.committedRevision}] - " +
-                "turn [${controller.projection.turn}]".toLabel(),
+            (
+                "Server game [${controller.current.gameId}] - " +
+                    "revision [${controller.current.committedRevision}] - " +
+                    "turn [${controller.projection.turn}]"
+                ).toLabel(),
         ).colspan(3).row()
         topTable.add(navigationButton("←", -WINDOW_STEP, 0))
         topTable.add(navigationButton("↑", 0, WINDOW_STEP))
@@ -177,7 +180,7 @@ class AuthoritativeWorldScreen(
                                 foreignUnits[x to y].orEmpty(),
                                 cities[x to y]?.name,
                             ),
-                            skin,
+                            BaseScreen.skin,
                         )
                         button.onClick { tileClicked(x, y, ownUnits[x to y].orEmpty()) }
                         add(button)

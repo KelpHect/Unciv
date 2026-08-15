@@ -302,9 +302,10 @@ Storage for the complete 279-turn match:
 A huge-map all-AI match therefore produces roughly 1.4 MB of compressed
 revision history per turn — two orders of magnitude more than the tiny-map
 baseline above — which is the expected cost of full-map immutable snapshots
-and is directly relevant to retention policy sizing. Raw per-round evidence is
-retained in `authoritative-server/tests/results/benchmark-10random-huge-continents-20260808-151953.csv`
-(game `92db598b-eadf-46c9-92f9-9d2abc600808`).
+and is directly relevant to retention policy sizing. The raw per-round CSV and detached benchmark logs were intentionally purged
+from the checkout after the measured summary was recorded; future runs write
+fresh CSV and NDJSON telemetry artifacts and should be retained only for the
+active qualification window.
 
 This run also exercised the all-AI `advance-ai-turn` commit path end-to-end
 for the first time and found a real defect: the generic commit path rejected
@@ -390,7 +391,13 @@ checkpoint-relative deltas, passed canonical-head validation, and produced no
 reconciliation findings. The fixture is ignored by default and requires
 explicit PostgreSQL and Lockwell credentials.
 
-Production archival is intentionally not automatic in the commit hot path:
-run the dry-run `unciv-v3-archive` CLI, inspect candidate/byte counts, then use
-`--apply`. This avoids coupling a human command's availability to object-store
-latency while keeping every cold read fail-closed and retry-safe.
+Production archival is intentionally outside the commit hot path. With a
+complete Lockwell configuration, the API now runs a bounded background
+maintenance pass using the same verified archive transaction; it never waits on
+Lockwell during a human or AI command. `UNCIV_V3_SNAPSHOT_POSTGRES_BUDGET_BYTES`
+can make the pass act only after a game's retained PostgreSQL payload crosses a
+per-game limit. Protected checkpoints are never removed to satisfy the budget;
+the pass reports `budget_exceeded` for operator action. The explicit dry-run
+`unciv-v3-archive` CLI remains available for qualification and recovery drills,
+while the destructive PostgreSQL-only `unciv-v3-compact` CLI remains manual and
+is not used by the automatic path.

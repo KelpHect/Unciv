@@ -82,8 +82,10 @@ internal class AuthoritativeTradePanel(
                 null,
             )
             add(
-                "${offer.name} (${offer.type}, duration ${offer.duration}, " +
-                    "max ${offer.amount})".toLabel(),
+                (
+                    "${offer.name} (${offer.type}, duration ${offer.duration}, " +
+                        "max ${offer.amount})"
+                    ).toLabel(),
             ).left()
             add(amount).width(100f).row()
             OfferInput(offer, amount)

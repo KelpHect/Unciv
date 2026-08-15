@@ -124,6 +124,7 @@ class ApiV3GameSetupTests {
             .replace("\"espionage_enabled\"", "\"espionageEnabled\"")
             .replace("\"no_start_bias\"", "\"noStartBias\"")
             .replace("\"shuffle_player_order\"", "\"shufflePlayerOrder\"")
+            .replace("\"simultaneous_human_turns\"", "\"simultaneousHumanTurns\"")
             .replace("\"no_city_razing\"", "\"noCityRazing\"")
             .replace("\"world_wrap\"", "\"worldWrap\"")
             .replace("\"strategic_balance\"", "\"strategicBalance\"")
@@ -142,6 +143,9 @@ class ApiV3GameSetupTests {
             .replace("\"water_threshold\"", "\"waterThreshold\"")
 
         assertEquals(setup, Json.decodeFromString<ApiV3GameSetup>(storedWorkerJson))
+        // Regression: the worker's stored setup carries the turn-format flag and strict
+        // decoding must accept it (the client crashed on this unknown key when listing lobbies).
+        assertTrue(Json.decodeFromString<ApiV3GameSetup>(storedWorkerJson).simultaneousHumanTurns)
     }
 
     @Test
@@ -189,6 +193,7 @@ class ApiV3GameSetupTests {
     private fun authoritativeSetup() = GameSetupInfo().apply {
         gameParameters.isOnlineMultiplayer = true
         gameParameters.anyoneCanSpectate = false
+        gameParameters.simultaneousHumanTurns = true
         gameParameters.players.forEach {
             it.chosenCiv = Constants.random
             it.playerType = PlayerType.AI

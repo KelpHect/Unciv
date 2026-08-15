@@ -1,5 +1,257 @@
 # Authoritative multiplayer v3 status
 
+## Rust module re-split and gameplay-coverage re-audit (2026-08-13)
+
+The 800-line Rust guardrail drifted after the storage/archival work, so the five
+largest modules were re-split into shallow, purpose-named submodules while
+preserving every public route and handler name:
+
+- `postgres.rs` (1103 → 335): snapshot validation moved to
+  `postgres/snapshot_validation.rs` and commit/creation to `postgres/commit.rs`.
+- `worker.rs` (865 → 670): construction commands moved to
+  `worker/construction.rs`.
+- `projection.rs` (828 → 516): the semantic round-trip tests moved to the
+  top-level `projection_tests.rs` test module.
+- `api/commands.rs` (807 → 334): construction handlers moved to
+  `api/construction_commands.rs`.
+- `postgres/commands.rs` (802 → 424): construction execution moved to
+  `postgres/construction_commands.rs`.
+
+No non-test Rust source file now exceeds 800 lines; the largest is
+`api/contracts.rs` (795). `postgres/integration_tests.rs` remains the only file
+over 800 lines and is the environment-gated integration fixture include, not
+implementation.
+
+A full gameplay-coverage re-audit was also performed: all 81 `GameCommand`
+variants map one-to-one to worker operations (`JoinGame` → `AssignPlayer`,
+`KickMember` → `KickPlayer`); the 89 `WorkerOperation` variants add eight
+non-gameplay intents (handshake, create/reconfigure/normalize game, and the
+four projection intents). Every `UnitActionType` in the Kotlin engine resolves
+to a closed V3 command. Unciv ships no BNW trade-route or archaeology mechanic,
+so those are not applicable rather than missing. Whole-turn/military/civilian
+autoplay remains a deliberate exclusion, not a gap.
+
+City-state quests and influence status are now projected to V3 clients:
+`ProjectedCityStatePartner` gained `influence`, `influenceLevel`
+(`unforgivable`/`enemy`/`neutral`/`friend`/`ally`), and a bounded `quests`
+list (`ProjectedCityStateQuest`), closing the one previously recorded parity
+gap. Projection version is 62 on both the Kotlin DTO and the Rust control
+plane, and `release/compatibility.json` was updated in lockstep with the
+regenerated OpenAPI contract.
+
+Validation on the current source: `cargo fmt --all -- --check`, `cargo clippy
+--all-targets --all-features -- -D warnings`, and `cargo test --all-targets
+--all-features` (284 passed, 0 failed, 62 environment-gated ignored) all pass;
+`git diff --check` is clean. The focused Kotlin
+`ProjectionLeakSentinelTests` and `AuthoritativeDiplomacyControllerTests` pass,
+and `:server:test` `ReleaseCompatibilityContractTests` (which also exercises
+`authoritativeWorkerDist`) passes.
+
+## Latest optimization pass: bounded pathfinding and automatic snapshot maintenance (2026-08-12)
+
+This pass applies the Huge-map evidence without introducing Go or a second rules
+engine:
+
+- `AStar` now caps distinct search nodes at the initialized map tile count and
+  ignores stale queue entries left behind by a cheaper route. `MapPathing`
+  rejects an impossible destination before allocating a full search, uses a
+  bounded admissible target heuristic for generic connections, and makes
+  unreachable-target diagnostics opt-in through
+  `-Dunciv.pathing.failureLogs=true`. No-path is a normal AI outcome and is no
+  longer formatted tens of thousands of times in a benchmark worker log.
+- Cold archival now streams one PostgreSQL payload at a time instead of loading
+  every Huge-map blob into the API process. Full Lockwell objects do not gain an
+  envelope byte penalty; bounded delta objects retain the archive envelope and
+  checkpoint/base hash evidence. Archive selection scans newest cold revisions
+  first so a bounded maintenance batch continues to make progress as new turns
+  arrive.
+- A Lockwell-backed background maintenance loop starts automatically when a
+  complete object-store configuration is present, unless explicitly disabled.
+  It is outside the gameplay command hot path, archives only after verified
+  PUT/GET evidence, preserves genesis/recent/end-turn/recovery/rewind and
+  long-term checkpoints, and never invokes the destructive PostgreSQL-only
+  compactor. A per-game PostgreSQL byte budget reports and warns when protected
+  checkpoints keep storage above the configured limit.
+- New bounded maintenance metrics expose retained PostgreSQL bytes, budget
+  state, pass/failure counts, and budget-exceeded passes without game/account
+  labels. Configuration is documented in `.env.example` and the operations
+  verification contract.
+
+Current validation for this pass:
+
+- `:tests:test --tests com.unciv.logic.map.PathfindingTests` passed, including
+  the map-count bound and impossible-destination cases.
+- `:tests:test :server:test` passed with command-local Java 21; server worker
+  distribution rebuilt and the expected negative worker-fixture diagnostics
+  remained fail-closed.
+- `:desktop:dist`, Android debug/release APK and AAB gates passed with command-
+  local Java 21. No Android emulator was connected for a new instrumentation
+  run after this core change.
+- Rust full all-target tests passed in an isolated target directory: 203
+  library tests, 32 API tests, all active integration/policy targets, with 53
+  environment-gated tests ignored. Strict Clippy, format, and check passed.
+- The disposable PostgreSQL 19 Beta 2 retention/compaction integration test
+  passed serially. The Lockwell archival integration test also passed against
+  the local native Lockwell service using a fresh disposable bucket; it verified
+  PUT/GET integrity, checkpoint-relative delta reconstruction, cold-blob
+  deletion, canonical-head validation, and reconciliation. The bucket and its
+  nine test objects were removed afterward.
+
+## Deterministic AI-assisted verification contract and benchmark telemetry
+
+Implemented and qualified on 2026-08-12:
+
+- Added `authoritative-server/tests/run-authoritative-verification.sh` as the
+  single safe local entry point. Its default is Rust plus Kotlin/server; `--all`
+  adds desktop and Android packaging, and `--postgres` explicitly opts into a
+  disposable serialized PostgreSQL carrier. It never starts services, changes
+  global Java settings, or runs destructive storage qualifications implicitly.
+- The entry point resolves Java 21 only for child Gradle processes through
+  `JAVA_HOME_21` or `JAVA21_HOME`; the host Java 25 installation remains
+  untouched. It runs Rust formatting, all-target tests, all-target check, and
+  warnings-as-errors Clippy, plus the shared client/server and packaging lanes.
+- The observability workflow now invokes the same Rust contract. Its policy test
+  checks that the workflow delegates to the entry point and that the entry
+  point still contains the required formatter, test-thread, and Clippy gates.
+- The Huge Continents benchmark now writes a matching NDJSON telemetry stream
+  beside its CSV. It classifies HTTP 429, stale 409, HTTP 5xx, projection, and
+  advance failures; retries only idempotent requests with bounded backoff and
+  preserves the same command ID; records recovered requests and per-round
+  counters; and never stores bearer tokens or response bodies.
+- Regenerated `openapi/api-v3.json` after the refresh-token route gained its
+  request/response schema. The contract test now correctly treats `/auth/refresh`
+  as public, while keeping all gameplay and account routes authenticated.
+- The shared PostgreSQL fixture now truncates outbox receipts and operator-audit
+  rows, making repeated serialized runs independent instead of accumulating
+  audit records between runs.
+
+Verification on the final worktree state:
+
+- `bash authoritative-server/tests/run-authoritative-verification.sh --rust`:
+  passed; 202 library tests, 32 API tests, all active integration/policy targets,
+  format, all-target check, and strict Clippy passed. 53 environment-gated Rust
+  tests remain intentionally ignored by that non-destructive lane.
+- `JAVA_HOME_21=/c/Users/KellHect/AppData/Local/NeoMD-build-tools/jdk-21 bash
+  authoritative-server/tests/run-authoritative-verification.sh --kotlin`:
+  passed; `:tests:test` and `:server:test` completed successfully.
+- The same entry point with `--desktop` passed `:desktop:dist`; `--android`
+  passed `:android:assembleDebug`, `:android:bundleDebug`,
+  `:android:assembleRelease`, and `:android:bundleRelease`.
+- The PostgreSQL 19 Beta 2 carrier ran against a disposable database on the
+  pinned local image and passed 49 serialized persistence/integration tests,
+  the two HTTP response-loss/process-death tests, packaged account handoff,
+  packaged worker-death recovery, and ruleset acquisition. The disposable
+  database and role were removed afterward. The Lockwell archive test and
+  destructive PITR/disk-full/promotion cases remain separate explicit lanes.
+
+Failure repair
+
+1. Failed check: `bash authoritative-server/tests/run-authoritative-verification.sh --rust`
+   first failed with exit 101 because the checked-in OpenAPI document did not
+   contain the current refresh-token request/response shape, and the route
+   policy still required authentication on `/api/v3/auth/refresh`.
+2. Minimal reproduction: `cargo test --manifest-path authoritative-server/Cargo.toml
+   --bin unciv-authoritative-server api::tests -- --test-threads=1`.
+3. Causal diagnosis: the refresh implementation had advanced without regenerating
+   the checked-in contract; the public refresh endpoint was also missing from
+   the policy test's public set. The generated document and policy test were the
+   bounded owners; no runtime authority code was involved.
+4. Bounded repair owner: `authoritative-server/openapi/api-v3.json` was regenerated
+   from the current API, and `authoritative-server/src/api/tests.rs` was updated
+   to classify refresh as public.
+5. Final state: the final verification identity below includes those contract
+   changes and the workflow delegation.
+6. Final rerun: the final Rust contract passed with 202 library tests, 32 API
+   tests, all active targets, formatting, check, and strict Clippy.
+
+7. Failed check: the first PostgreSQL carrier attempt on the disposable target
+   exited 101 with 49 authentication failures (`28P01`) because the initial
+   bootstrap command did not actually create its intended disposable role and
+   database.
+8. Minimal reproduction: the same `--postgres` carrier against the absent
+   disposable role/URL.
+9. Causal diagnosis: the database bootstrap shell used a `\gexec` form whose
+   variable expansion did not execute the generated statements; the Rust tests
+   all failed before migrations or application logic ran.
+10. Bounded repair owner: the test environment was recreated with explicit
+    `CREATE ROLE`/`CREATE DATABASE` statements and an ephemeral password; no
+    production role, database, or source runtime was changed.
+11. Final state: the disposable target was migrated, exercised, and removed.
+12. Final rerun: the same carrier passed all 49 serialized tests, plus its active
+    packaged integration targets.
+
+13. Failed check: the response-loss targets then exited 101 because their fake
+    worker advertised protocol version 2 while the current Rust worker contract
+    is version 8.
+14. Minimal reproduction: `cargo test --manifest-path authoritative-server/Cargo.toml
+    --test http_response_loss -- --ignored --test-threads=1` against the
+    disposable PostgreSQL target.
+15. Causal diagnosis: the fixture's hard-coded worker protocol was stale; the
+    API correctly rejected the incompatible worker during startup.
+16. Bounded repair owner: `authoritative-server/tests/http_response_loss.rs`
+    now uses the checked-in worker protocol version 8. The test's normal stderr
+    isolation was restored after diagnosis.
+17. Final state: the final disposable target retained the corrected fixture.
+18. Final rerun: both response-loss/process-death tests passed, including exact
+    once-only worker execution and retry recovery.
+
+19. Failed check: the repeated PostgreSQL carrier exposed an outbox assertion
+    mismatch (`(active, receipts, requeues, compactions) = (0,1,1,2)` instead
+    of `(0,1,1,1)`).
+20. Minimal reproduction: rerun the outbox poison/requeue test twice against the
+    same disposable database.
+21. Causal diagnosis: `seed_repository` cleared canonical rows but retained
+    derived receipt/operator-audit rows, so the second run counted prior audit
+    evidence. This was an order-dependent test fixture, not a canonical-state
+    defect.
+22. Bounded repair owner: `authoritative-server/src/postgres/integration_tests.rs`
+    now truncates `game_outbox_receipts` and `outbox_operator_audit` with the
+    other disposable fixture tables.
+23. Final state: the fixture repair is included in the final Rust diff.
+24. Final rerun: the full PostgreSQL carrier passed 49 tests and the complete
+    active packaged integration targets.
+
+Final-state verification
+Revision: <recorded after this final documentation edit>; worktree has tracked changes and material untracked files. The exact identity is recorded below.
+Last material edit: this document; it records the bounded pathfinding/archive implementation and its final gates.
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| --- | --- | --- | --- | --- | --- |
+| Rust | passed | `cargo fmt --manifest-path authoritative-server/Cargo.toml --all -- --check; cargo check --manifest-path authoritative-server/Cargo.toml --all-targets --all-features; cargo clippy --manifest-path authoritative-server/Cargo.toml --all-targets --all-features -- -D warnings; CARGO_TARGET_DIR=target/authoritative-verification-final cargo test --manifest-path authoritative-server/Cargo.toml --all-targets --all-features` | bounded pathfinding-adjacent shared code does not weaken typed authority, snapshot delta safety, observability, or strict warnings | 203 library + 32 API tests passed; all active targets, format, check, and warnings-as-errors Clippy passed | - |
+| Kotlin | passed | `JAVA_HOME=/c/Users/KellHect/AppData/Local/NeoMD-build-tools/jdk-21 ./gradlew --no-daemon --no-parallel --console=plain :tests:test :server:test` | shared Kotlin rules/worker pathfinding behavior and packaged worker parity | full tests and worker distribution passed; focused `PathfindingTests` also passed; Java 25/global configuration untouched | - |
+| Desktop | passed | `JAVA_HOME=/c/Users/KellHect/AppData/Local/NeoMD-build-tools/jdk-21 ./gradlew --no-daemon --no-parallel --console=plain :desktop:dist` | desktop packaging remains compatible with shared core changes | distribution gate passed | - |
+| Android | passed | `JAVA_HOME=/c/Users/KellHect/AppData/Local/NeoMD-build-tools/jdk-21 ./gradlew --no-daemon --no-parallel --console=plain :android:assembleDebug :android:bundleDebug :android:assembleRelease :android:bundleRelease` | Android APK/AAB packaging remains compatible with shared core changes | all four packaging gates passed | no emulator was connected for a new device-level run after this core edit |
+| PostgreSQL | passed | disposable pinned PostgreSQL 19 Beta 2 `retention::compaction_preserves_milestones_head_history_and_idempotency` with `--ignored --test-threads=1` | checkpoint retention, immutable history, compaction, replay fail-closed behavior | focused disposable integration passed; live database remains healthy; the separate archival lane also passed | - |
+| Object storage | passed | `cargo test --manifest-path authoritative-server/Cargo.toml --lib postgres::integration_tests::archive::lockwell_archival_verifies_objects_and_removes_only_cold_blobs -- --ignored --test-threads=1 --nocapture` with a disposable PostgreSQL 19 Beta 2 database and local Lockwell bucket | verified PUT/GET, delta archive reconstruction, cold-blob deletion, canonical-head validation, reconciliation, and cleanup | integration passed in 1.62s; 9 archive objects were created and removed | - |
+| Huge benchmark | unavailable | full `run-10-random-huge-continents-benchmark.ps1` rerun on the rebuilt API/worker | end-to-end late-game latency and MapPathing warning reduction under the new binaries | prior terminal artifact is Rome Domination turn 969, revision 15,508; it predates this optimization pass | a fresh multi-hour benchmark has not been started after the code edit |
+| Toolchain contract | passed | `bash -n authoritative-server/tests/run-authoritative-verification.sh; PowerShell parser checks; git diff --check` | deterministic entry points, Java 21 child-process isolation, Windows parity | syntax/help/diff checks passed | - |
+| Security/supply chain | not affected | - | no dependency, credential, release, or hosted workflow boundary was changed by this optimization pass | - | hosted attestation/deployment acceptance remains external |
+
+Benchmark cleanup: the six old tracked CSV/JSON result artifacts were removed
+from the worktree, and the stopped dedicated `unciv-v3-huge` PostgreSQL container
+and volume were removed. The retained latest benchmark CSV and NDJSON remain
+untracked runtime evidence. Its terminal telemetry recorded Rome Domination on
+turn 969, final revision 15,508, one expected post-victory HTTP 422, and no
+429/5xx/retry events. The current local qualification database still contains
+that finished match and is approximately 2.15 GiB, of which approximately 2.12
+GiB is `game_snapshot_blobs`; the new automatic Lockwell maintenance is not
+running in the existing process because it was built before this pass and has no
+Lockwell credentials.
+
+Failure repair
+1. Failed check: `cargo test --manifest-path authoritative-server/Cargo.toml --all-targets --all-features`; current worktree before the final isolated rerun; exit 101; Windows denied removal of the running `authoritative-server/target/debug/unciv-authoritative-server.exe` (`Acesso negado`, os error 5).
+2. Minimal reproduction: rerun the same command while the local API process held the debug executable open.
+3. Causal diagnosis: a live local API process owned the default Cargo target binary; this was a workspace-process lock, not a Rust compile or test failure. Stopping unrelated live services was avoided.
+4. Bounded repair owner: invocation configuration only; rerun with `CARGO_TARGET_DIR=target/authoritative-verification-final`, leaving the source and global toolchains unchanged.
+5. Final state: the isolated target was removed after verification; the exact worktree identity is recorded below.
+6. Final rerun: `CARGO_TARGET_DIR=target/authoritative-verification-final cargo test --manifest-path authoritative-server/Cargo.toml --all-targets --all-features` passed with 203 library tests, 32 API tests, all active targets, and 53 ignored environment-gated tests.
+
+7. Failed check: the first PowerShell syntax gate invocation exited 1 because the ad-hoc parser command passed undefined `[ref]` variables (`InvalidOperation: [ref] cannot be applied to a variable that does not exist`).
+8. Minimal reproduction: the same parser command with `[ref]$null` in place of initialized token/error variables.
+9. Causal diagnosis: the validation command was malformed; both project scripts were parsed by PowerShell only after the command initialized `$tokens` and `$errors`. No project parser or script failure was observed.
+10. Bounded repair owner: the validation invocation, not repository source; it was rerun with initialized parser reference variables.
+11. Final state: the scripts remained unchanged by this repair and the final worktree identity is recorded below.
+12. Final rerun: PowerShell parsing of `run-authoritative-verification.ps1` and `run-10-random-huge-continents-benchmark.ps1` passed, alongside `bash -n` and `git diff --check`.
+
 ## Full AI match benchmark with per-turn timing and history
 
 Verified on 2026-08-06:
@@ -11251,3 +11503,360 @@ The disk-full smoke exposed the same cause independently and received the same
 bounded fixture-local repair in
 `authoritative-server/tests/run-postgres-disk-full-smoke.ps1`; its exact final
 rerun passed all three disk-full tests and clean reconciliation.
+
+## Maximum-difficulty all-AI API/client qualification (2026-08-12)
+
+The fresh qualification run uses the rebuilt API and worker, Java 21 only for
+that worker process, 10 random AI civilizations at `Deity`, Huge map size,
+Continents terrain, 6 city-states, zero human slots, Domination-only victory,
+and a 100,000-turn driver ceiling. The previous benchmark artifacts and its
+dedicated database volume were removed before this run; only the current CSV
+and NDJSON remain as disposable live evidence.
+
+At the latest recorded checkpoint the run was healthy at turn 1,048,
+revision 16,780, with six civilizations alive. The CSV contains 1,678 completed
+AI-round records and the NDJSON contains 1,678 round events plus 167 resource
+samples. No terminal victory has been recorded yet; the benchmark process is
+intentionally still running.
+
+The API/client surface comparison found 134 OpenAPI operations and 126 direct
+Kotlin transport literals. The nine apparent omissions are expected: health,
+OpenAPI, and AsyncAPI documents are server-only; notifications use the
+WebSocket URL builder; friends use a URL builder; and the three diplomacy
+commands share one dynamic helper. The authoritative client session, shared
+core controllers, desktop UI, and Android integration all route through the
+same projection-only `ApiV3Client`/`ApiV3Transport` boundary; no client-side
+canonical save upload or legacy multiplayer route was used by the benchmark.
+
+Storage qualification during the live run shows 36.7 MB of retained
+PostgreSQL snapshot payload and 105.0 MB total logical database size, while
+16,539 archive records represent about 1.51 GB of verified Lockwell objects.
+The background maintenance has completed 386 bounded passes and the budget
+gauge is not exceeded. This is the intended bounded-replay tradeoff: the
+PostgreSQL hot set remains small while cold history is recoverable from
+verified full checkpoints and bounded deltas.
+
+Observed API status counts are 18,512 successful requests, two successful
+creation responses, and two transient HTTP 502 responses. Both 502 requests
+were the same idempotent `advance-ai-turn` command retried and recovered; no
+429, 409, 4xx command, 5xx terminal failure, projection error, or advance
+error was recorded. The worker log has zero `MapPathing` diagnostics and zero
+error/warning/exception lines in this run. Prometheus currently reports two
+worker protocol failures and two worker timeouts, all recovered without a
+benchmark-visible command failure; they remain an operational signal to
+investigate after the terminal run rather than being silently discarded.
+
+Focused final checks during this qualification pass include Rust formatting and
+`cargo check --all-targets --all-features`, and
+`JAVA_HOME=<command-local Java 21> ./gradlew :tests:test
+--tests com.unciv.logic.map.PathfindingTests --no-daemon`; all passed. A
+terminal-victory result, final storage measurement, and final-state hash must
+be appended after the detached benchmark exits.
+
+Final-state verification
+Revision: `e6c3151ae5cae75adf6bcbfd0b2b2b90054586a9`; worktree has tracked
+source/docs changes, deleted historical generated artifacts, and current
+benchmark CSV/NDJSON evidence; exact binary diff hash and untracked hashes are
+recorded in the handoff response for this checkpoint.
+Last material edit: `docs/architecture/authoritative-multiplayer-status.md`,
+updated the maximum-difficulty benchmark checkpoint and verification record.
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | `JAVA_HOME=<Java 21> ./gradlew :tests:test :server:test --no-daemon` | shared rules/pathfinding and packaged worker behavior | `BUILD SUCCESSFUL` | - |
+| Rust | passed | `cargo fmt --all -- --check`; `cargo test --all-targets --all-features`; `cargo clippy --all-targets --all-features -- -D warnings` | archival, retention, API contracts, authority, corruption/idempotency boundaries | 203 library + 32 API tests passed; 53 environment-gated tests ignored; format/check/Clippy passed | - |
+| Desktop | passed | `JAVA_HOME=<Java 21> ./gradlew :desktop:dist --no-daemon` | production desktop packaging uses the shared API-v3 client boundary | `BUILD SUCCESSFUL` | - |
+| Android | passed | `JAVA_HOME=<Java 21> ./gradlew :android:assembleDebug --no-daemon` | Android packaging includes the shared projection-only client path | `BUILD SUCCESSFUL` | device/emulator behavior remains outside this checkpoint |
+| PostgreSQL/Lockwell | passed | live PostgreSQL 19 Beta 2 + Lockwell qualification telemetry | bounded retained hot set, verified full/delta archives, budget guard | 36.7 MB retained payload; 105.0 MB database; 16,539 archives; 1.51 GB object data; budget gauge 0 | terminal benchmark victory pending |
+| Benchmark | unavailable | detached `run-10-random-huge-continents-benchmark.ps1 -AiDifficulty Deity` | terminal Domination victory and final late-game behavior | active at the latest observation; prior checkpoint was turn 1,048/revision 16,780 with six alive; no winner record yet | keep monitoring until terminal result |
+
+## Continuation checkpoint: archive quota and worker timeout evidence (2026-08-12)
+
+The detached Deity benchmark remained active after the previous checkpoint and
+reached turn 1,596 / revision 25,540 with six civilizations alive. Its current
+CSV has 2,554 completed AI-round records. It has recorded no terminal victory, stale conflicts, rate limits, projection
+errors, or advance errors. The
+benchmark telemetry records seven HTTP 502 worker timeouts; each was retried
+with the identical idempotency key and recovered, so the run has seven
+successful retries and no unrecovered command failure. The benchmark driver is
+still running; its CSV/NDJSON must not be deleted until the terminal boundary is
+closed.
+
+The current storage measurement is approximately 143 MiB for the logical
+PostgreSQL database, 51.6 MiB of retained snapshot payload, 25,214 verified
+archive metadata rows representing 2,293,343,740 object bytes, and 2.4 GiB on
+the local Lockwell volume. The old API binary predates the new aggregate
+archive-quota metric, so this run exercises the existing per-game PostgreSQL
+budget guard but not the newly added quota configuration.
+
+The archive maintenance configuration now supports
+`UNCIV_V3_SNAPSHOT_ARCHIVE_BUDGET_BYTES`. When nonzero, the maintenance pass
+accounts for verified `object_size` metadata before each archive, refuses any
+object that would cross the aggregate budget, pauses when it is reached, and
+emits `unciv_v3_snapshot_archive_bytes`,
+`unciv_v3_snapshot_archive_quota_exceeded`, and the corresponding counter. The
+existing per-game PostgreSQL budget and protected-checkpoint policy remain
+unchanged. Worker failures now log only their bounded public error variant and
+elapsed time, never private rejection diagnostics.
+
+A Java Flight Recorder profile was captured from the live Kotlin worker for
+300 seconds during the benchmark at
+`C:\\Users\\KellHect\\AppData\\Local\\Temp\\unciv-v3-deity-live-20260812.jfr`.
+It is 9.9 MiB and contains 5,085 execution samples, 40,930 allocation samples,
+828 garbage-collection checkpoints, and 114 socket-write events. It provides
+runtime evidence for the late-game worker profile, but no JFR event correlates
+the seven historical timeouts to a rules operation because the prior API log
+records only the bounded worker failure class; the new source logging will make
+that correlation available on the next rebuilt run.
+
+Continuation validation after the quota/logging edits:
+
+- `cargo fmt --all -- --check` passed.
+- `cargo test --all-targets --all-features` passed: 203 library tests, 32 API
+  tests, and 53 environment-gated tests ignored.
+- `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- `git diff --check` passed.
+
+Final-state verification
+Revision: `e6c3151ae5cae75adf6bcbfd0b2b2b90054586a9`; worktree contains the
+pre-existing V3 changes, the quota/logging edits, deleted historical generated
+artifacts, current benchmark evidence, and untracked `.freebuff/` left
+untouched. The final tracked diff hash and material untracked hashes must be
+computed after the benchmark terminal checkpoint.
+Last material edit: `docs/architecture/authoritative-multiplayer-status.md`,
+updated the live benchmark checkpoint and storage measurements.
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | not affected | - | No Kotlin source changed in this continuation; JFR was observational only | - | - |
+| Rust | passed | `cargo fmt --all -- --check`; `CARGO_TARGET_DIR=target/continuation-check cargo test --all-targets --all-features`; `CARGO_TARGET_DIR=target/continuation-check-clippy cargo clippy --all-targets --all-features -- -D warnings` | aggregate archive quota, retention, failure diagnostics, authority and recovery contracts | 203 library + 32 API tests passed; 53 environment-gated tests ignored; format and Clippy passed | - |
+| PostgreSQL/Lockwell | unavailable | live benchmark telemetry and local PostgreSQL measurements | quota enforcement and archive accounting on the rebuilt binary | existing run used the pre-quota binary; rerun requires rebuilt API and a controlled Lockwell qualification fixture | rebuild API and run the deterministic Lockwell quota qualification |
+| Benchmark | unavailable | detached Deity benchmark CSV/NDJSON | terminal Domination victory and late-game worker behavior | turn 1,596/revision 25,540; six alive; seven transient 502s recovered; no winner record at this checkpoint | process remains active; append terminal result after it exits |
+
+## Continuation checkpoint: rebuilt quota qualification and clean Deity rerun (2026-08-12)
+
+The previous benchmark artifacts and its disposable PostgreSQL volume were cleaned
+before starting a fresh run. The new run uses 10 random AI civilizations, Deity,
+Huge Continents, six city-states, Domination only, zero humans, and a 100,000-turn
+driver cap with no practical Time-victory limit. It is running against a rebuilt
+Rust API and Java 21 worker; the global Java 25 configuration was not changed.
+
+The live run reached turn 435 / revision 6,960 with four major civilizations
+alive. The current CSV is
+`authoritative-server/tests/results/benchmark-10random-huge-continents-20260812-230606.csv`;
+it contains 696 completed records and no winner yet. All benchmark rows have zero
+API, projection, advance, stale-revision, rate-limit, and 5xx counters. Two
+worker timeouts at 22:44 UTC returned HTTP 502, were retried with the same
+idempotency operation, and recovered; no command was lost or duplicated. No
+MapPathing diagnostics or worker stderr errors were observed.
+
+A fresh quota qualification used a clean PostgreSQL 19 Beta 2 database and a
+Lockwell bucket with the aggregate budget set to 3,088,605,838 bytes, equal to
+the pre-cleanup archive metadata total. The rebuilt API became ready, completed
+five maintenance passes, reported `archive_quota_exceeded=true`, and left the
+archive row count and byte total unchanged (`32601|3088605838`). The fresh Deity
+run uses a 500 MiB quota and has reached 524,287,763 verified archive bytes;
+archival is bounded and gameplay continues. A follow-up source repair now also
+marks the quota exhausted when the next eligible object does not fit in the
+remaining bytes, rather than leaving the gauge false a few bytes below the cap.
+The repair has focused unit coverage in
+`postgres::retention::tests::quota_pauses_when_the_next_object_cannot_fit`.
+The active process predates that last source-only repair and will not be
+restarted mid-match; the rebuilt binary is ready for the next controlled run.
+
+The JFR profile analysis found the principal worker allocation pressure in
+`java.io.InputStream.readNBytes` / `byte[]` (99.17% sampled allocation pressure,
+about 8 TB extrapolated thread allocation over the 300-second recording), with
+`HashMap.getNode` the hottest sampled method (12.47% execution samples), followed
+by JSON parsing, unique lookup, and map visibility/path traversal. GC was frequent
+(828 collections) but individual pauses were generally below 25 ms. Socket writes
+were 114 events totaling about 292 MiB, with p99 latency about 488 ms; the
+profile does not prove a specific rules operation as the cause of the worker
+timeouts.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | not affected | - | No Kotlin source changed; JFR was observational | - | active benchmark uses the already-built worker |
+| Rust | passed | `CARGO_TARGET_DIR=target/quota-repair-check cargo fmt --all`; focused retention test; `CARGO_TARGET_DIR=target/quota-final-check cargo clippy --all-targets --all-features -- -D warnings`; final API build | quota boundary, retention policy, worker diagnostics, authority and recovery contracts | 3 focused retention tests passed; format, strict Clippy, and API build passed | - |
+| PostgreSQL/Lockwell | passed | clean PostgreSQL 19 Beta 2 + Lockwell quota qualification | verified archive accounting pauses without new objects at the hard quota | ready API; 5 passes; unchanged `32601|3088605838`; readiness passed | active run uses a pre-repair binary; rerun after terminal match if live gauge evidence is required |
+| Benchmark | unavailable | detached `run-10-random-huge-continents-benchmark.ps1 -AiDifficulty Deity` | terminal Domination victory and late-game behavior | turn 435/revision 6,960; four alive; 696 CSV rows; two recovered 502s; no winner yet | process remains active; append terminal result after it exits |
+
+## Live desktop + Android client playtest of lobby-through-world routing (2026-08-14)
+
+Playtested the V3 production multiplayer path on a real desktop client and a
+real Android client against the local full stack (Rust API on :3060, private
+Kotlin worker, digest-pinned PostgreSQL 19 Beta 2). Routing was visually
+confirmed end to end on both clients: multiplayer browser -> server connection
+-> owner login -> lobby browse -> staging room -> ready -> start -> world
+screen -> projection sync -> turn handoff.
+
+### Android (API 34 emulator, current-tree APK)
+
+1. Server popup -> `http://10.0.2.2:3060`; `GET contract -> 200`,
+   `Connection LoginRequired`.
+2. Owner login (`POST /api/v3/auth/login -> 200`), `Connection Authenticated`.
+3. Lobby list parsed and rendered only after the contract fix below; before it,
+   every lobby fetch failed client-side with `Unexpected JSON token ... unknown
+   key` on `simultaneousHumanTurns`.
+4. Opened a staging room; owner seated Rome; `PUT ready -> 200`; second human
+   joined via API (Arabia); both ready; `POST start -> 200`.
+5. World screen rendered: `Server game ... - revision 1 - turn 0`,
+   `Civilization: Rome | Current player: Rome`, `Status: Synchronized`.
+6. `End turn` -> `POST command -> 200` -> `revision 2`,
+   `Current player: Arabia`.
+
+### Desktop (Windows, current-tree `Unciv.jar`, seeded data dir)
+
+1. Server settings -> `http://127.0.0.1:3060/`, login as owner,
+   `Connection Authenticated`.
+2. `YOUR MATCHES` -> `Play` on an active match -> `GET projection -> 200` ->
+   world screen rendered: `Server game 5edb2435-... - revision 3 - turn 0`,
+   `Civilization: Rome | Current player: India`, `Status: Synchronized`,
+   terrain labels rendered on the map, `End turn` present but blocked for the
+   non-current player.
+
+### Bugs found and fixed during the playtest
+
+- **Lobby list contract mismatch (blocked every client):** the server embeds
+  the private worker's full setup JSON in `LobbySummary.setup`, including
+  `GameParameters.simultaneousHumanTurns`, but the client DTO
+  `ApiV3GameSetup` parsed strictly without that field, so every lobby browse
+  failed. Added the field to the DTO, the setup default
+  (`false`; the V3 editor never exposed simultaneous turns, so the wire
+  behavior is unchanged), and the lobby editor's local state. Pinned with a
+  round-trip test in `ApiV3GameSetupTests` and a session-test constructor.
+- **World-screen crash on first render (never reachable before):** Kotlin
+  precedence bug at `AuthoritativeWorldScreen` header: `"..." + "...".toLabel()`
+  re-coerced the whole expression to a `String`, hitting the gdx skin check on
+  `Table.add(CharSequence)`. Parenthesized the label.
+- **World-screen map crash:** bare `skin` inside `Table().apply { ... }`
+  resolved to the Table's own null `skin` field instead of
+  `BaseScreen.skin`; `TextButton(..., skin)` got null. Qualified the reference.
+- **Decisions panel crash:** raw `String` passed to a skinless `Table.add`;
+  wrapped in `toLabel()`. A sweep of the V3 UI package found the same
+  precedence bug in four more places (decisions render, spy panel, trade
+  panel) that would have crashed on later turns; all fixed.
+- **Fixed (2026-08-14): Android 6/7 login crash (`NoSuchMethodError` in
+  Ktor `NonceKt`).** Ktor's notification-WebSocket handshake calls
+  `SecureRandom.getInstanceStrong()` (API 26+) via `NonceKt`, crashing the
+  client on Android 6.0 (API 23) right after login. Root-caused to Ktor's
+  nonce provider list (`NativePRNGNonBlocking`, `WINDOWS-PRNG`, `DRBG`)
+  containing nothing Android provides, so the fatal fallback always ran on
+  API 21-25. Fixed with `KtorNonceProviderGuard`: Ktor consults the
+  `io.ktor.random.secure.random.provider` system property before its provider
+  list, so `AndroidLauncher.onCreate` pins it to `SHA1PRNG` (available on
+  every Android release) on API < 26 only; newer platforms keep Ktor's
+  defaults. Live-verified on the API 23 emulator: fresh login `POST -> 200`,
+  no crash, session and browser fully functional.
+- **Fixed (2026-08-14): notification WebSocket never connected on any
+  platform.** While verifying the crash fix, probing showed Ktor's
+  `webSocketSession { url { ... } }` builder starts from an empty `ws://` and
+  is not fed by `defaultRequest { url(...) }`, so the client built
+  `ws:///api/v3/notifications` (no authority), threw `ConnectException` on
+  every attempt, and silently retried forever - on desktop and Android alike.
+  Fixed in `ApiV3Client.notifications()` by carrying the full origin in the
+  URL string via `apiV3NotificationWebSocketUrl` (`http` -> `ws`, `https` ->
+  `wss`). Live-verified: a JVM probe held an `ESTABLISHED` connection for the
+  whole collection window, and the API 23 emulator keeps the notification
+  WebSocket `ESTABLISHED` after session restore.
+
+### Verification record
+
+Final-state verification
+Revision: playtest working tree at HEAD `20e960d21` (tileview-migration); the
+9 playtest-edited files below remain unstaged alongside pre-existing earlier-turn
+changes; tracked diff hash for the 9 files `77cc97cbd840167719ffbba97e0b3c43d4662f6f`;
+material untracked hashes per `git status --short` at handoff.
+Last material code edit: `core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeTradePanel.kt`
+(precedence-bug sweep); the only edit after the final verification runs is this status record itself.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | `./gradlew :tests:test` | full core suite incl. the new `simultaneousHumanTurns` round-trip and session constructors | 116 classes / 1185 tests, 0 failures | - |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.ApiV3GameSetupTests" --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests"` | DTO round-trip and session wiring of the new field | passed | - |
+| Android | passed | `./gradlew :android:assembleDebug` + live API-34 emulator run of the built APK | lobby -> ready -> start -> world -> end-turn handoff routing | APK built; full routing visually confirmed; `POST command -> 200` | - |
+| Desktop | passed | `./gradlew :desktop:dist` + live Windows run of the built jar | browser -> YOUR MATCHES -> Play -> projection -> world screen routing | jar built; `GET projection -> 200`; world screen rendered with correct turn state | - |
+| Rust | not affected | - | no Rust source changed in this milestone | - | - |
+| PostgreSQL | not affected | - | no schema/query change; server-side state unchanged | - | - |
+
+## Android 6/7 login crash and notification-WebSocket connectivity fixes (2026-08-14)
+
+Fixed two client-side V3 networking bugs found in the playtest era:
+
+1. **Android API 21-25 crash after login** - Ktor `NonceKt` falls back to
+   `SecureRandom.getInstanceStrong()` (API 26+) when none of its JVM-oriented
+   providers exists, throwing `NoSuchMethodError` during the notification
+   WebSocket handshake. `KtorNonceProviderGuard.configureFor(Build.VERSION.SDK_INT)`
+   runs in `AndroidLauncher.onCreate` and pins the
+   `io.ktor.random.secure.random.provider` system property to `SHA1PRNG` on
+   API < 26, which Ktor consults before its provider list. API 26+ keeps
+   Ktor's defaults.
+2. **Notification WebSocket never connected on any platform** - Ktor's
+   `webSocketSession { url { ... } }` builder starts from an empty `ws://`
+   and `defaultRequest { url(...) }` does not supply the authority, so the
+   client built `ws:///api/v3/notifications`, threw `ConnectException` on
+   every attempt, and retried forever. `ApiV3Client.notifications()` now uses
+   the full URL from `apiV3NotificationWebSocketUrl` (`http` -> `ws`,
+   `https` -> `wss`).
+
+Live verification on the API 23 emulator (current-tree APK):
+- fresh login `POST /api/v3/auth/login -> 200`, no `FATAL`/`NoSuchMethodError`
+  in logcat, app stays on the multiplayer browser;
+- session restore keeps the notification WebSocket
+  `ESTABLISHED` (`10.0.2.15 -> 10.0.2.2:3060`) across the whole watch window;
+- `Connection Authenticated` on screen.
+A JVM probe against the local stack held the same WebSocket `ESTABLISHED` for
+the full collection window, confirming the fix is platform-independent.
+
+Final-state verification
+Revision: working tree at HEAD `20e960d21` (tileview-migration); 4 files
+edited for this milestone plus the pre-existing earlier-turn changes.
+Last material code edit: `core/src/com/unciv/logic/multiplayer/authoritative/ApiV3Client.kt`
+(notification WebSocket URL fix); the only later edit is this record.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.KtorNonceProviderGuardTests" --tests "com.unciv.logic.multiplayer.authoritative.ApiV3ServerIdentityTests" --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeMultiplayerSessionTests"` | property pin below API 26, no-op at/above, resolvable provider, ws/wss URL derivation | all passed | - |
+| Kotlin (full) | passed | `./gradlew :tests:test` | full core suite incl. both new test classes | 118 classes / 0 failures | - |
+| Android | passed | `./gradlew :android:assembleDebug` + live API 23 emulator run of the built APK | login without `NoSuchMethodError`; notification WebSocket connects and stays ESTABLISHED | APK built; fresh login 200; no crash; WS ESTABLISHED across watch window; Connection Authenticated | - |
+| Desktop | not affected | - | no desktop-specific behavior changed; same core code proven on JVM by the live probe | - | - |
+| Rust | not affected | - | no Rust source changed in this milestone | - | - |
+| PostgreSQL | not affected | - | no schema/query change | - | - |
+
+## Deterministic guards for lobby-to-world routing and world-screen rendering patterns (2026-08-14)
+
+The 2026-08-14 playtest crashed the world screen three times on patterns the
+compiler cannot see. Two source-level guard tests were added to
+`AuthoritativeProductionRoutingTests` (the project's established deterministic
+routing-test convention):
+
+- `lobbyToWorldRoutingOpensOnlyStartedPlayerProjections` pins both production
+  entry points into the world screen - the lobby's post-start hop and the
+  match browser's Play button - to the projection-only
+  `AuthoritativeGameDirectory.open` player path, forbids `GameInfo`/`GameStarter`
+  on the world screen, and pins the start gate: only the owner may start, only
+  at exact capacity (`occupiedSlots == humanSlots`) with every member ready and
+  civilization-assigned.
+- `worldSurfacesAreSkinSafeAndNeverCoerceLabelsBackToStrings` guards the four
+  world surfaces (`AuthoritativeWorldScreen`, `AuthoritativeWorldDecisions`,
+  `AuthoritativeSpyPanel`, `AuthoritativeTradePanel`) against the two traps
+  that crashed during the playtest:
+  1. `"a" + "b" + "c".toLabel()` - Kotlin's `String.plus(Any)` re-coerces the
+     sum back to `String`, reaching `Table.add(CharSequence)` on a skinless
+     table. The guard rejects any `+` whose continuation ends in
+     `"literal".toLabel()` and requires the fixed `(...).toLabel()` form.
+  2. a bare `skin` inside `Table().apply {}` resolves to the table's own null
+     skin field instead of `BaseScreen.skin`; the guard rejects a bare `skin`
+     identifier. The panel files additionally reject raw string literals
+     passed straight to `add()`.
+
+Mutation-validated against the fixed sources: each guard was exercised with a
+temporarily reintroduced bug (raw literal add, `"..." .toLabel()` coercion,
+bare `skin`) and each failed the suite exactly as intended, then the files
+were restored. Full `:tests:test`: 118 classes, 0 failures.
+
+Final-state verification
+Revision: working tree at HEAD `20e960d21` (tileview-migration); the only
+material edit for this milestone is the routing-test file plus this record.
+Last material edit: `tests/src/com/unciv/logic/multiplayer/authoritative/AuthoritativeProductionRoutingTests.kt`
+(+96 lines, two tests).
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeProductionRoutingTests"` | lobby->world and browser->world routing, start gate, world-surface skin/label patterns | 29 tests incl. both new guards, 0 failures; 3 mutation checks fired the guards | - |
+| Kotlin (full) | passed | `./gradlew :tests:test` | full core suite with the extended routing test class | 118 classes / 0 failures | - |
+| Android | not affected | - | no production code changed; guards are compile-time source pins | - | - |
+| Desktop | not affected | - | no production code changed | - | - |
+| Rust | not affected | - | no Rust source changed | - | - |

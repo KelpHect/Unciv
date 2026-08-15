@@ -13,7 +13,9 @@ on:
       - 'authoritative-server/src/**'
       - 'authoritative-server/tests/observability_policy.rs'
       - 'authoritative-server/tests/observability_runtime.rs'
+      - 'authoritative-server/tests/run-authoritative-verification.sh'
       - 'docs/operations/authoritative-observability.md'
+      - 'docs/operations/authoritative-verification.md'
       - 'server/src/**'
   push:
     branches:
@@ -31,7 +33,9 @@ on:
       - 'authoritative-server/src/**'
       - 'authoritative-server/tests/observability_policy.rs'
       - 'authoritative-server/tests/observability_runtime.rs'
+      - 'authoritative-server/tests/run-authoritative-verification.sh'
       - 'docs/operations/authoritative-observability.md'
+      - 'docs/operations/authoritative-verification.md'
       - 'server/src/**'
   workflow_dispatch:
 
@@ -53,14 +57,8 @@ jobs:
         run: |
           rustup toolchain install 1.97.0 --profile minimal --component clippy,rustfmt --no-self-update
           rustup override set 1.97.0
-      - name: Enforce formatting and warnings-as-errors
-        working-directory: authoritative-server
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features -- -D warnings
-      - name: Run authoritative Rust tests
-        working-directory: authoritative-server
-        run: cargo test --all-targets --all-features
+      - name: Run the deterministic Rust verification contract
+        run: bash authoritative-server/tests/run-authoritative-verification.sh --rust
       - name: Validate Prometheus alert semantics
         working-directory: authoritative-server
         run: |

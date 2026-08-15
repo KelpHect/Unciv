@@ -43,12 +43,16 @@ class ApiV3Client(
     private val tokenStore: ApiV3SessionTokenStore,
     client: HttpClient? = null,
 ) : ApiV3Transport, AutoCloseable {
+    private val normalizedBaseUrl = normalizeApiV3BaseUrl(baseUrl)
     private val authState = ApiV3AuthState(tokenStore)
-    private val client = client ?: defaultClient(baseUrl, authState)
+    private val client = client ?: defaultClient(normalizedBaseUrl, authState)
 
-    init {
-        normalizeApiV3BaseUrl(baseUrl)
-    }
+    /**
+     * `defaultRequest { url(...) }` does not supply the authority to Ktor's
+     * `webSocketSession` builder (it starts from an empty `ws://`), so the
+     * notification URL must carry the full origin explicitly.
+     */
+    private val notificationWebSocketUrl: String = apiV3NotificationWebSocketUrl(baseUrl)
 
     private val json = Json { ignoreUnknownKeys = false; encodeDefaults = true }
 
@@ -1057,8 +1061,7 @@ class ApiV3Client(
         val reconnectBackoff = NotificationReconnectBackoff()
         while (currentCoroutineContext().isActive) {
             val session = try {
-                client.webSocketSession {
-                    url { appendPathSegments("api", "v3", "notifications") }
+                client.webSocketSession(notificationWebSocketUrl) {
                     authenticate()
                 }
             } catch (_: Throwable) {

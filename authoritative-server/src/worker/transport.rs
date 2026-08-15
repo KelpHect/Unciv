@@ -97,7 +97,13 @@ impl EngineWorkerClient {
         if payload.len() > MAX_FRAME_BYTES {
             return Err(WorkerClientError::FrameTooLarge);
         }
-        validate_worker_json(&payload)?;
+        let request_value = validate_worker_json(&payload)?;
+        let operation_type = request_value
+            .get("operation")
+            .and_then(|operation| operation.get("type"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unknown")
+            .to_owned();
         let total_started = Instant::now();
         let _queue_permit = timeout(self.deadlines.total, self.queue.acquire())
             .await
@@ -201,7 +207,13 @@ impl EngineWorkerClient {
                     "outcome" => "failure"
                 )
                 .record(elapsed);
-                tracing::error!(failure_kind = kind, "private engine worker request failed");
+                tracing::error!(
+                    failure_kind = kind,
+                    operation_type = %operation_type,
+                    failure = %error,
+                    elapsed_ms = elapsed * 1000.0,
+                    "private engine worker request failed"
+                );
             }
         }
         result

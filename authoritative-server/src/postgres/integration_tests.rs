@@ -58,7 +58,7 @@ fn database_url() -> String {
 }
 
 async fn seed_repository(repository: &PostgresGameRepository) -> (Uuid, Uuid) {
-    sqlx::query("TRUNCATE game_outbox, game_revisions, game_commands, game_snapshots, game_members, games, ruleset_manifests, accounts CASCADE")
+    sqlx::query("TRUNCATE game_outbox, game_outbox_receipts, outbox_operator_audit, game_revisions, game_commands, game_snapshots, game_members, games, ruleset_manifests, accounts CASCADE")
         .execute(&repository.pool)
         .await
         .unwrap();

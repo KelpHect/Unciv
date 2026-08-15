@@ -357,6 +357,9 @@ internal class AuthoritativeGameSetupEditor(
             espionageEnabled = espionageEnabled.isChecked,
             noStartBias = noStartBias.isChecked,
             shufflePlayerOrder = shufflePlayerOrder.isChecked,
+            // V3 turns stay sequential by design (unlimited human turn time); the
+            // worker still pins this flag in the canonical setup payload.
+            simultaneousHumanTurns = false,
             noCityRazing = noCityRazing.isChecked,
             worldWrap = worldWrap.isChecked,
             strategicBalance = strategicBalance.isChecked,

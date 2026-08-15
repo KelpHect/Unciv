@@ -135,6 +135,8 @@ data class ApiV3GameSetup(
     @SerialName("no_start_bias") val noStartBias: Boolean,
     @JsonNames("shufflePlayerOrder")
     @SerialName("shuffle_player_order") val shufflePlayerOrder: Boolean,
+    @JsonNames("simultaneousHumanTurns")
+    @SerialName("simultaneous_human_turns") val simultaneousHumanTurns: Boolean,
     @JsonNames("noCityRazing")
     @SerialName("no_city_razing") val noCityRazing: Boolean,
     @JsonNames("worldWrap")
@@ -201,6 +203,7 @@ data class ApiV3GameSetup(
             espionageEnabled = this@ApiV3GameSetup.espionageEnabled
             noStartBias = this@ApiV3GameSetup.noStartBias
             shufflePlayerOrder = this@ApiV3GameSetup.shufflePlayerOrder
+            simultaneousHumanTurns = this@ApiV3GameSetup.simultaneousHumanTurns
             noCityRazing = this@ApiV3GameSetup.noCityRazing
             isOnlineMultiplayer = true
             anyoneCanSpectate = false
@@ -305,6 +308,7 @@ data class ApiV3GameSetup(
                 espionageEnabled = game.espionageEnabled,
                 noStartBias = game.noStartBias,
                 shufflePlayerOrder = game.shufflePlayerOrder,
+                simultaneousHumanTurns = game.simultaneousHumanTurns,
                 noCityRazing = game.noCityRazing,
                 worldWrap = map.worldWrap,
                 strategicBalance = map.strategicBalance,

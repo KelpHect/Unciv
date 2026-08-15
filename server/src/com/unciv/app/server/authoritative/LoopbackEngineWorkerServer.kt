@@ -34,15 +34,15 @@ class LoopbackEngineWorkerServer(
         val output = DataOutputStream(socket.getOutputStream())
         val frameSize = input.readInt()
         require(frameSize in 1..EngineWorkerProtocol.maxFrameBytes) { "Invalid frame length" }
-        val nonce = input.readNBytes(EngineWorkerAuthentication.nonceBytes)
+        val nonce = input.readExact(EngineWorkerAuthentication.nonceBytes, "authentication nonce")
         require(nonce.size == EngineWorkerAuthentication.nonceBytes) {
             "Incomplete worker authentication nonce"
         }
-        val requestTag = input.readNBytes(EngineWorkerAuthentication.tagBytes)
+        val requestTag = input.readExact(EngineWorkerAuthentication.tagBytes, "authentication tag")
         require(requestTag.size == EngineWorkerAuthentication.tagBytes) {
             "Incomplete worker authentication tag"
         }
-        val requestPayload = input.readNBytes(frameSize)
+        val requestPayload = input.readExact(frameSize, "request payload")
         authentication.verify(
             EngineWorkerFrameDirection.Request,
             nonce,
@@ -74,5 +74,15 @@ class LoopbackEngineWorkerServer(
 
     private companion object {
         const val backlog = 50
+
+        fun DataInputStream.readExact(size: Int, name: String): ByteArray {
+            val bytes = ByteArray(size)
+            try {
+                readFully(bytes)
+            } catch (error: java.io.EOFException) {
+                throw IllegalArgumentException("Incomplete worker $name", error)
+            }
+            return bytes
+        }
     }
 }

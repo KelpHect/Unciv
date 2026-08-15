@@ -6,14 +6,17 @@
 
 .DESCRIPTION
   Creates a Huge Continents lobby with 10 major civilizations (all AI, all
-  random nations), 6 city-states, and 0 human slots. Every non-hidden victory
-  type is enabled (Domination, Scientific, Cultural, Diplomatic) so the match
-  ends through whichever path the AI reaches first. The owner account holds
+  random nations), 6 city-states, and 0 human slots. Victory types are selected
+  by -VictoryTypes (Domination by default), so the benchmark can run without a
+  practical Time-victory cutoff. The owner account holds
   the spectator membership created for 0-human lobbies and drives the game
   with one advance-ai-turn command per AI civilization per round; the turn
   number advances after the 10th AI move. Eliminations and victory are
   tracked through the spectator projection. Every round is benchmarked and
-  appended to a CSV for crash-safe results.
+  appended to a CSV for crash-safe results. A matching NDJSON telemetry file
+  records retryable HTTP failures, stale conflicts, projection failures, and
+  recovered idempotent requests without storing bearer tokens or response
+  bodies.
 #>
 [CmdletBinding()]
 param(
@@ -23,15 +26,86 @@ param(
     # milestone is never enabled, so the engine keeps playing past turn 1500
     # until a real victory. A high value here means "no practical turn limit".
     [int]$MaxTurns = 100000,
-    [string[]]$VictoryTypes = @("Domination")
+    [string[]]$VictoryTypes = @("Domination"),
+    [ValidateNotNullOrEmpty()]
+    [string]$AiDifficulty = "Deity",
+    [int]$MetricsPort = 0,
+    [string]$DatabaseContainer = "",
+    [int]$ResourceSampleEveryRounds = 10
 )
 
 $ErrorActionPreference = 'Stop'
 
 $AiCount = 10
 $CityStates = 6
-$AiDifficulty = "Chieftain"
 $VictoryJson = ($VictoryTypes | ForEach-Object { "`"$_`"" }) -join ","
+
+$resultsDir = Join-Path $PSScriptRoot "results"
+New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+$runStamp = Get-Date
+$csvPath = Join-Path $resultsDir ("benchmark-10random-huge-continents-{0:yyyyMMdd-HHmmss}.csv" -f $runStamp)
+$telemetryPath = [System.IO.Path]::ChangeExtension($csvPath, ".ndjson")
+$script:BenchmarkTelemetryPath = $telemetryPath
+
+function Write-BenchmarkTelemetry {
+    param(
+        [string]$Event,
+        [string]$Phase,
+        [int]$Turn = 0,
+        [int]$Round = 0,
+        [int]$Attempt = 1,
+        [int]$Status = 0,
+        [string]$Code = "",
+        [int]$ElapsedMs = 0,
+        [string]$Message = ""
+    )
+    $record = [ordered]@{
+        timestamp = (Get-Date).ToUniversalTime().ToString("o")
+        event = $Event
+        phase = $Phase
+        turn = $Turn
+        round = $Round
+        attempt = $Attempt
+        status = $Status
+        code = $Code
+        elapsed_ms = $ElapsedMs
+        message = $Message
+    }
+    ($record | ConvertTo-Json -Compress) | Add-Content -Path $script:BenchmarkTelemetryPath
+}
+
+function Get-ApiErrorStatus {
+    param($ErrorRecord)
+    $value = $ErrorRecord.Exception.Data["status"]
+    if ($null -ne $value) { return [int]$value }
+    return 0
+}
+
+function Get-ApiErrorCode {
+    param($ErrorRecord)
+    $body = $ErrorRecord.Exception.Data["body"]
+    if ($body) {
+        try {
+            $parsed = $body | ConvertFrom-Json
+            if ($parsed.code) { return [string]$parsed.code }
+        } catch { }
+    }
+    switch (Get-ApiErrorStatus $ErrorRecord) {
+        409 { return "conflict" }
+        429 { return "rate_limited" }
+        502 { return "bad_gateway" }
+        503 { return "service_unavailable" }
+        504 { return "gateway_timeout" }
+        default { return "http_error" }
+    }
+}
+
+function Add-BenchmarkMetric {
+    param([hashtable]$Metrics, [string]$Name, [int]$Amount = 1)
+    if ($null -ne $Metrics) {
+        $Metrics[$Name] = [int]($Metrics[$Name] + $Amount)
+    }
+}
 
 function Invoke-Api {
     param([string]$Method, [string]$Path, [string]$Body, [string]$Token)
@@ -57,16 +131,118 @@ function Invoke-Api {
                 $errBody = $reader.ReadToEnd()
                 $reader.Close()
             } catch { $errBody = "" }
-            throw "API $Method $Path -> $([int]$resp.StatusCode)`: $errBody"
+            $apiError = [System.InvalidOperationException]::new(
+                "API $Method $Path -> $([int]$resp.StatusCode)"
+            )
+            $apiError.Data["status"] = [int]$resp.StatusCode
+            $apiError.Data["body"] = $errBody
+            $retryAfter = $resp.Headers["Retry-After"]
+            if ($retryAfter) { $apiError.Data["retry_after"] = $retryAfter }
+            throw $apiError
         }
         throw
     }
 }
 
+function Write-BenchmarkResourceSample {
+    param(
+        [int]$Turn,
+        [int]$Round
+    )
+    if ($MetricsPort -le 0 -and [string]::IsNullOrWhiteSpace($DatabaseContainer)) {
+        return
+    }
+    $details = [ordered]@{}
+    if ($MetricsPort -gt 0) {
+        try {
+            $metricsResponse = Invoke-WebRequest -Uri "http://127.0.0.1:$MetricsPort/metrics" -UseBasicParsing -TimeoutSec 5
+            $metricsText = $metricsResponse.Content
+            $details.metrics_bytes = $metricsText.Length
+            foreach ($metric in @("unciv_v3_http_requests_total", "unciv_v3_commands_committed_total", "unciv_v3_worker_failures_total")) {
+                $match = [regex]::Match($metricsText, "(?m)^$metric(?:\\{[^}]*\\})?\\s+([0-9.eE+\\-]+)$")
+                if ($match.Success) {
+                    $details[$metric] = $match.Groups[1].Value
+                }
+            }
+        } catch {
+            $details.metrics_error = $_.Exception.GetType().Name
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($DatabaseContainer)) {
+        try {
+            $storage = & docker exec $DatabaseContainer psql -U unciv_authoritative -d unciv_authoritative -Atc "select pg_database_size(current_database()), pg_total_relation_size('game_snapshot_blobs')" 2>$null
+            $parts = ($storage -join '').Trim() -split '\\|'
+            if ($parts.Count -eq 2) {
+                $details.database_bytes = [int64]$parts[0]
+                $details.snapshot_blob_bytes = [int64]$parts[1]
+            }
+        } catch {
+            $details.storage_error = $_.Exception.GetType().Name
+        }
+    }
+    Write-BenchmarkTelemetry -Event "resource_sample" -Phase "resources" -Turn $Turn -Round $Round -Message (($details | ConvertTo-Json -Compress))
+}
+
+function Invoke-ApiWithRetry {
+    param(
+        [string]$Method,
+        [string]$Path,
+        [string]$Body,
+        [string]$Token,
+        [string]$Phase,
+        [int]$Turn = 0,
+        [int]$Round = 0,
+        [hashtable]$Metrics = $null,
+        [int]$MaxAttempts = 5,
+        [int[]]$RetryStatuses = @(429, 502, 503, 504)
+    )
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        $started = Get-Date
+        try {
+            $result = Invoke-Api -Method $Method -Path $Path -Body $Body -Token $Token
+            $elapsed = [int]((Get-Date) - $started).TotalMilliseconds
+            if ($attempt -gt 1) {
+                Add-BenchmarkMetric $Metrics "recovered_requests"
+                Write-BenchmarkTelemetry -Event "request_recovered" -Phase $Phase -Turn $Turn -Round $Round -Attempt $attempt -ElapsedMs $elapsed -Message "same idempotent request succeeded after transient failure"
+            }
+            return $result
+        } catch {
+            $status = Get-ApiErrorStatus $_
+            $code = Get-ApiErrorCode $_
+            $elapsed = [int]((Get-Date) - $started).TotalMilliseconds
+            Add-BenchmarkMetric $Metrics "api_errors"
+            if ($status -eq 429) { Add-BenchmarkMetric $Metrics "http_429" }
+            if ($status -eq 409) { Add-BenchmarkMetric $Metrics "http_409" }
+            if ($status -ge 500 -and $status -le 599) { Add-BenchmarkMetric $Metrics "http_5xx" }
+            $retryable = $RetryStatuses -contains $status
+            if ($retryable -and $attempt -lt $MaxAttempts) {
+                Add-BenchmarkMetric $Metrics "transient_retries"
+                Write-BenchmarkTelemetry -Event "request_retry" -Phase $Phase -Turn $Turn -Round $Round -Attempt $attempt -Status $status -Code $code -ElapsedMs $elapsed -Message "retrying idempotent request"
+                $retryAfter = $_.Exception.Data["retry_after"]
+                $delayMs = if ($retryAfter -as [int]) {
+                    [math]::Min(10000, [int]$retryAfter * 1000)
+                } else {
+                    [math]::Min(5000, 250 * [math]::Pow(2, $attempt - 1)) + (Get-Random -Maximum 101)
+                }
+                Start-Sleep -Milliseconds ([int]$delayMs)
+                continue
+            }
+            Write-BenchmarkTelemetry -Event "request_failed" -Phase $Phase -Turn $Turn -Round $Round -Attempt $attempt -Status $status -Code $code -ElapsedMs $elapsed -Message "request was not retried or retry budget was exhausted"
+            throw
+        }
+    }
+    throw "API retry loop exhausted for $Method $Path"
+}
+
+Write-BenchmarkTelemetry -Event "run_started" -Phase "setup" -Message "Huge Continents, 10 random AI, 6 city-states, $AiDifficulty difficulty, Domination-only"
+
 Write-Host "=== 10-Random Huge Continents All-AI Benchmark ===" -ForegroundColor Cyan
-Write-Host "Map: Huge Continents | 10 random AI civs | 0 humans | 6 city-states | Quick"
+Write-Host "Map: Huge Continents | 10 random AI civs | 0 humans | 6 city-states | Quick | Difficulty: $AiDifficulty"
 Write-Host "Victory types: $($VictoryTypes -join ', ')"
 Write-Host "Driver loop max turns: $MaxTurns (no practical limit; game max_turns is 1500 and is ignored when Time victory is not enabled)"
+if ($MetricsPort -gt 0 -or -not [string]::IsNullOrWhiteSpace($DatabaseContainer)) {
+    Write-Host "Resource telemetry: metrics=$MetricsPort database_container=$DatabaseContainer every $ResourceSampleEveryRounds rounds"
+}
 Write-Host ""
 
 # 1. Register / login owner (spectator)
@@ -75,7 +251,7 @@ $regBody = "{`"username`":`"bench10-$suffix`",`"password`":`"correct horse batte
 $registered = $false
 for ($attempt = 0; $attempt -lt 6 -and -not $registered; $attempt++) {
     try {
-        Invoke-Api -Method POST -Path "/api/v3/auth/register" -Body $regBody | Out-Null
+        Invoke-ApiWithRetry -Method POST -Path "/api/v3/auth/register" -Body $regBody -Phase "register" -MaxAttempts 6 -RetryStatuses @(429) | Out-Null
         $registered = $true
     } catch {
         if ($_.Exception.Message -match "rate_limited|HTTP 429|-> 429") {
@@ -142,10 +318,7 @@ foreach ($civ in $proj.projection.majorCivilizations) {
 Write-Host "Initial majors: $($prevAlive.Count) ($((($prevAlive.Values | Where-Object { $_ })).Count) alive)"
 Write-Host ""
 
-$resultsDir = Join-Path $PSScriptRoot "results"
-New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
-$csvPath = Join-Path $resultsDir ("benchmark-10random-huge-continents-{0:yyyyMMdd-HHmmss}.csv" -f (Get-Date))
-"turn,round_ms,ai_avg_ms,ai_min_ms,ai_max_ms,revision,alive_civs,current_player" | Set-Content $csvPath
+"turn,round_ms,ai_avg_ms,ai_min_ms,ai_max_ms,revision,alive_civs,current_player,transient_retries,recovered_requests,api_errors,http_429,http_409,http_5xx,projection_errors,advance_errors,error_code" | Set-Content $csvPath
 
 Write-Host "Turn  | Round(ms) | Avg/AI(ms) | Rev    | Alive | Notes"
 Write-Host "------|-----------|------------|--------|-------|-----"
@@ -161,13 +334,24 @@ while ($turn -lt $MaxTurns -and -not $victory) {
     $roundHash = $proj.canonical_state_hash
     $advanceTimes = @()
     $roundError = $null
+    $roundErrorCode = ""
+    $metrics = @{
+        transient_retries = 0
+        recovered_requests = 0
+        api_errors = 0
+        http_429 = 0
+        http_409 = 0
+        http_5xx = 0
+        projection_errors = 0
+        advance_errors = 0
+    }
 
     for ($i = 0; $i -lt $AiCount; $i++) {
         $advStart = Get-Date
         $cmdId = [guid]::NewGuid().ToString()
         $body = "{`"command_id`":`"$cmdId`",`"expected_revision`":$roundRev,`"client_observed_state_hash`":`"$roundHash`"}"
         try {
-            $resp = Invoke-Api -Method POST -Path "/api/v3/games/$gameId/commands/advance-ai-turn" -Body $body -Token $token
+            $resp = Invoke-ApiWithRetry -Method POST -Path "/api/v3/games/$gameId/commands/advance-ai-turn" -Body $body -Token $token -Phase "advance_ai" -Turn $turn -Round $roundCount -Metrics $metrics
             $advMs = [int]((Get-Date) - $advStart).TotalMilliseconds
             $advanceTimes += $advMs
             $roundRev = $resp.committed_revision
@@ -176,7 +360,9 @@ while ($turn -lt $MaxTurns -and -not $victory) {
             $advMs = [int]((Get-Date) - $advStart).TotalMilliseconds
             $advanceTimes += $advMs
             $roundError = $_.Exception.Message
-            Write-Host "  advance $i failed after turn $turn : $roundError"
+            $roundErrorCode = Get-ApiErrorCode $_
+            $metrics.advance_errors++
+            Write-Host "  advance $i failed after turn $turn : $roundError ($roundErrorCode)"
             break
         }
     }
@@ -186,11 +372,13 @@ while ($turn -lt $MaxTurns -and -not $victory) {
 
     # Fetch projection to learn the new turn / victory / eliminations
     try {
-        $proj = Invoke-Api -Method GET -Path "/api/v3/games/$gameId/spectator-projection" -Token $token
+        $proj = Invoke-ApiWithRetry -Method GET -Path "/api/v3/games/$gameId/spectator-projection" -Token $token -Phase "projection" -Turn $turn -Round $roundCount -Metrics $metrics
         $errorCount = 0
     } catch {
         $errorCount++
-        Write-Host "Turn $turn : projection error: $($_.Exception.Message)"
+        $metrics.projection_errors++
+        $roundErrorCode = Get-ApiErrorCode $_
+        Write-Host "Turn $turn : projection error: $($_.Exception.Message) ($roundErrorCode)"
         if ($errorCount -ge $maxErrors) { throw "Too many consecutive projection errors" }
         Start-Sleep -Seconds 2
         continue
@@ -240,7 +428,11 @@ while ($turn -lt $MaxTurns -and -not $victory) {
         Error = $roundError
     }
 
-    "{0},{1},{2},{3},{4},{5},{6},{7}" -f $turn, $roundMs, $aiAvg, $aiMin, $aiMax, $roundRev, $aliveCount, $currentCiv | Add-Content $csvPath
+    "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16}" -f $turn, $roundMs, $aiAvg, $aiMin, $aiMax, $roundRev, $aliveCount, $currentCiv, $metrics.transient_retries, $metrics.recovered_requests, $metrics.api_errors, $metrics.http_429, $metrics.http_409, $metrics.http_5xx, $metrics.projection_errors, $metrics.advance_errors, $roundErrorCode | Add-Content $csvPath
+    Write-BenchmarkTelemetry -Event "round_complete" -Phase "round" -Turn $turn -Round $roundCount -Message (([ordered]@{ revision = $roundRev; alive_civs = $aliveCount; transient_retries = $metrics.transient_retries; recovered_requests = $metrics.recovered_requests; api_errors = $metrics.api_errors; projection_errors = $metrics.projection_errors; advance_errors = $metrics.advance_errors; error_code = $roundErrorCode } | ConvertTo-Json -Compress))
+    if ($ResourceSampleEveryRounds -gt 0 -and ($roundCount % $ResourceSampleEveryRounds) -eq 0) {
+        Write-BenchmarkResourceSample -Turn $turn -Round $roundCount
+    }
 
     $shouldPrint = ($turn -le 10) -or ($turn % 10 -eq 0) -or ($turn -gt $MaxTurns - 10)
     if ($shouldPrint) {
@@ -319,4 +511,6 @@ if ($rounds.Count -gt 0) {
 
 Write-Host ""
 Write-Host "Game ID: $gameId"
+Write-BenchmarkTelemetry -Event "run_complete" -Phase "summary" -Turn $turn -Message (([ordered]@{ victory = $victory; winner = $winner; victory_type = $victoryType; victory_turn = $victoryTurn; final_revision = $final.committed_revision; csv = $csvPath; telemetry = $telemetryPath } | ConvertTo-Json -Compress))
+Write-Host "Telemetry NDJSON: $telemetryPath"
 Write-Host "=== BENCHMARK COMPLETE ===" -ForegroundColor Green

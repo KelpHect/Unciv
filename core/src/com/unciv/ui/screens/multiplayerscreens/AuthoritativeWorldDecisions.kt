@@ -113,7 +113,7 @@ internal class AuthoritativeWorldDecisions(
         add(
             AuthoritativeHistoryPanel(controller.projection).build(),
         ).left().row()
-        add(researchSummary()).left().row()
+        add(researchSummary().toLabel()).left().row()
         addChoices(
             "Research",
             controller.projection.research.selectableTargets,
@@ -134,9 +134,11 @@ internal class AuthoritativeWorldDecisions(
             }).left().row()
         }
         add(
-            "Culture: ${controller.projection.policies.storedCulture}/" +
-                "${controller.projection.policies.cultureNeededForNextPolicy} - " +
-                "free policies: ${controller.projection.policies.freePolicies}".toLabel(),
+            (
+                "Culture: ${controller.projection.policies.storedCulture}/" +
+                    "${controller.projection.policies.cultureNeededForNextPolicy} - " +
+                    "free policies: ${controller.projection.policies.freePolicies}"
+                ).toLabel(),
         ).left().row()
         addChoices(
             "Adopt policy",
@@ -148,8 +150,10 @@ internal class AuthoritativeWorldDecisions(
     private fun Table.addResearchQueue() {
         for ((index, entry) in controller.projection.research.queueEntries.withIndex()) {
             add(
-                "${index + 1}. ${entry.technologyName}: ${entry.storedScience}/" +
-                    "${entry.cost}${entry.estimatedTurns?.let { " ($it turns)" }.orEmpty()}".toLabel(),
+                (
+                    "${index + 1}. ${entry.technologyName}: ${entry.storedScience}/" +
+                        "${entry.cost}${entry.estimatedTurns?.let { " ($it turns)" }.orEmpty()}"
+                    ).toLabel(),
             ).left().row()
             if (entry.availableActions.isNotEmpty()) {
                 val actions = Table()

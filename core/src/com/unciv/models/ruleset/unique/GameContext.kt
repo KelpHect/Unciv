@@ -31,15 +31,15 @@ data class GameContext(
     val region: Region? = null,
     // tile and region do not deduce gameInfo because that field is not set during MapGeneration,
     // and querying if its initialized is non-trivial
-    val gameInfo: GameInfo? = (civInfo?.gameInfo) ?: (city?.civ?.gameInfo) ?: (unit?.civ?.gameInfo) ?:
-        (ourCombatant?.getCivInfo()?.gameInfo) ?: (theirCombatant?.getCivInfo()?.gameInfo) ?: (attackedTile?.tileMap?.gameInfo) ?:
-        (otherCiv?.gameInfo),
+    val gameInfo: GameInfo? = (civInfo?.gameInfoOrNull) ?: (city?.civ?.gameInfoOrNull) ?: (unit?.civ?.gameInfoOrNull) ?:
+        (ourCombatant?.getCivInfo()?.gameInfoOrNull) ?: (theirCombatant?.getCivInfo()?.gameInfoOrNull) ?: (attackedTile?.tileMap?.gameInfoOrNull) ?:
+        (otherCiv?.gameInfoOrNull),
 
     val ignoreConditionals: Boolean = false,
 ) {
-    constructor(city: City) : this(city.civ, city, tile = city.getCenterTileOrNull(), gameInfo = city.civ.gameInfo)
-    constructor(unit: MapUnit) : this(unit.civ, unit = unit, tile = if (unit.hasTile()) unit.getTile() else null, gameInfo = unit.civ.gameInfo)
-    constructor(civ: Civilization, civ2: Civilization?=null) : this(civ, otherCiv = civ2, gameInfo = civ.gameInfo)
+    constructor(city: City) : this(city.civ, city, tile = city.getCenterTileOrNull(), gameInfo = city.civ.gameInfoOrNull)
+    constructor(unit: MapUnit) : this(unit.civ, unit = unit, tile = if (unit.hasTile()) unit.getTile() else null, gameInfo = unit.civ.gameInfoOrNull)
+    constructor(civ: Civilization, civ2: Civilization?=null) : this(civ, otherCiv = civ2, gameInfo = civ.gameInfoOrNull)
     constructor(ourCombatant: ICombatant, theirCombatant: ICombatant? = null,
                 attackedTile: Tile? = null, combatAction: CombatAction? = null) : this(
         ourCombatant.getCivInfo(),

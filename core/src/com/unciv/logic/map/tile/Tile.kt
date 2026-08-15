@@ -919,7 +919,9 @@ class Tile : IsPartOfGameInfoSerialization {
             roadOwnerObject = null
         }
         owningCity = city
-        stateThisTile = GameContext(tile = this, city = city, gameInfo = tileMap.gameInfo)
+        // A projection-only client owns cities and tiles without any GameInfo behind them.
+        stateThisTile = GameContext(tile = this, city = city,
+            gameInfo = if (tileMap.hasGameInfo()) tileMap.gameInfo else null)
         isCityCenterInternal = getCity()?.location?.toHexCoord() == position
     }
 

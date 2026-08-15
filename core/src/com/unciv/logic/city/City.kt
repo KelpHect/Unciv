@@ -219,8 +219,8 @@ class City : IsPartOfGameInfoSerialization, INamed {
     @Readonly fun isNaval(): Boolean = centerTile.isWater || isCoastal()
 
     @Readonly fun getBombardRange(): Int = civ.gameInfo.ruleset.modOptions.constants.baseCityBombardRange
-    @Readonly fun getWorkRange(): Int = civ.gameInfo.ruleset.modOptions.constants.cityWorkRange
-    @Readonly fun getExpandRange(): Int = civ.gameInfo.ruleset.modOptions.constants.cityExpandRange
+    @Readonly fun getWorkRange(): Int = civ.ruleset.modOptions.constants.cityWorkRange
+    @Readonly fun getExpandRange(): Int = civ.ruleset.modOptions.constants.cityExpandRange
 
     @Readonly
     fun isConnectedToCapital() = this in civ.cache.citiesConnectedToCapitalToMediums
@@ -287,7 +287,7 @@ class City : IsPartOfGameInfoSerialization, INamed {
         }
     }
 
-    @Readonly fun getRuleset() = civ.gameInfo.ruleset
+    @Readonly fun getRuleset() = civ.ruleset
 
     @Readonly fun getResourcesGeneratedByCity() = CityResources.getResourcesGeneratedByCity(this)
     @Readonly fun getAvailableResourceAmount(resourceName: String) = CityResources.getAvailableResourceAmount(this, resourceName)
@@ -405,10 +405,11 @@ class City : IsPartOfGameInfoSerialization, INamed {
         lockedTiles.clear()
     }
 
-    fun setTransients(civInfo: Civilization) {
+    /** [map] is only passed explicitly by a client that renders a server projection, which has no [GameInfo]. */
+    fun setTransients(civInfo: Civilization, map: TileMap = civInfo.gameInfo.tileMap) {
         this.civ = civInfo
         this.id = if (id != NO_ID) id else pseudoRandomId(civ)
-        tileMap = civInfo.gameInfo.tileMap
+        tileMap = map
         centerTile = tileMap[location]
         state = GameContext(this)
         tilesInRange = getCenterTile().tilesInDistanceSequence(getWorkRange()).toHashSet()

@@ -152,6 +152,14 @@ class CityPopulationManager : IsPartOfGameInfoSerialization {
         addPopulation(-population + count)
     }
 
+    /**
+     * Assigns the count with no growth, specialist or religion side effects.
+     * Only for a projection-only client, where the server already decided all of them.
+     */
+    fun setProjectedPopulation(count: Int) {
+        population = count
+    }
+
     /** Only assigns free population */
     // Required for compatibility with rulesets that still use the legacy specialist-food unique.
     @Suppress("DEPRECATION")

@@ -19,6 +19,7 @@ import com.unciv.models.Counter
 import com.unciv.models.metadata.GameParameters
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.Policy
+import com.unciv.models.ruleset.Ruleset
 import com.unciv.models.ruleset.nation.CityStateType
 import com.unciv.models.ruleset.nation.Difficulty
 import com.unciv.models.ruleset.nation.Nation
@@ -72,6 +73,26 @@ class Civilization : IsPartOfGameInfoSerialization {
 
     @Transient
     lateinit var gameInfo: GameInfo
+
+    /** `null` when this civilization deliberately exists outside a [GameInfo]. */
+    val gameInfoOrNull: GameInfo? get() = if (this::gameInfo.isInitialized) gameInfo else null
+
+    @Transient
+    private var detachedRuleset: Ruleset? = null
+
+    /**
+     * The ruleset this civilization plays by.
+     *
+     * Normally the game's own. A client that renders a server projection has no
+     * [GameInfo] at all, so it attaches the server's pinned ruleset directly
+     * through [attachRuleset] and the view layer keeps working.
+     */
+    val ruleset: Ruleset get() = detachedRuleset ?: gameInfo.ruleset
+
+    /** Only for a civilization that deliberately exists outside a [GameInfo]. */
+    fun attachRuleset(ruleset: Ruleset) {
+        detachedRuleset = ruleset
+    }
 
     /** Context for [UniqueType.StartBias] during map gen / start placement.
      *  Passes [GameInfo] only — never this [Civilization], which may be only partially initialized.
@@ -639,7 +660,12 @@ class Civilization : IsPartOfGameInfoSerialization {
             yieldAll(religionManager.religion!!.founderBeliefUniqueMap.matchingUniquesSequence(uniqueType, gameContext))
 
         yieldAll(civResourcesUniqueMap.matchingUniquesSequence(uniqueType, gameContext))
-        yieldAll(gameInfo.getGlobalUniques().matchingUniquesSequence(uniqueType, gameContext))
+        // Without a game behind this civilization the ruleset's own global
+        // uniques are the whole truth, since there is no speed/difficulty layer.
+        yieldAll(
+            (gameInfoOrNull?.getGlobalUniques() ?: ruleset.globalUniques)
+                .matchingUniquesSequence(uniqueType, gameContext),
+        )
     }
 
     @Readonly

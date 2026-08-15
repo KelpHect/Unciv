@@ -73,6 +73,10 @@ class TileMap(initialCapacity: Int = 10) : IsPartOfGameInfoSerialization {
     @Transient
     lateinit var gameInfo: GameInfo
 
+    /** `null` for a map that deliberately has no game behind it, e.g. one a
+     *  client materialized purely to render an authoritative server projection. */
+    val gameInfoOrNull: GameInfo? get() = if (this::gameInfo.isInitialized) gameInfo else null
+
     /** Keep a copy of the [Ruleset] object passed to setTransients, for now only to allow subsequent setTransients without. Copied on [clone]. */
     @Transient
     var ruleset: Ruleset? = null

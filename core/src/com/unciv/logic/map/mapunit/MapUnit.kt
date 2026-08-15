@@ -115,7 +115,7 @@ class MapUnit : IsPartOfGameInfoSerialization {
         lateinit var uniques: List<Unique>
 
         fun setTransients(unit: MapUnit) {
-            uniques = unit.civ.gameInfo.ruleset.unitPromotions[name]?.uniqueObjects ?: emptyList()
+            uniques = unit.civ.ruleset.unitPromotions[name]?.uniqueObjects ?: emptyList()
         }
 
         @Readonly

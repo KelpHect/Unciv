@@ -37,7 +37,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
     @Readonly
     fun getPromotions(sorted: Boolean = false): Sequence<Promotion> = sequence {
         if (promotions.isEmpty()) return@sequence
-        val unitPromotions = unit.civ.gameInfo.ruleset.unitPromotions
+        val unitPromotions = unit.civ.ruleset.unitPromotions
         if (sorted && promotions.size > 1) {
             for (promotion in unitPromotions.values)
                 if (promotion.name in promotions) yield(promotion)
@@ -121,7 +121,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
 
     fun addPromotion(promotionName: String, isFree: Boolean = false) {
         if (promotions.contains(promotionName)) return
-        val ruleset = unit.civ.gameInfo.ruleset
+        val ruleset = unit.civ.ruleset
         val promotion = ruleset.unitPromotions[promotionName] ?: return
 
         if (!isFree) {
@@ -153,7 +153,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
     }
 
     fun removePromotion(promotionName: String) {
-        val ruleset = unit.civ.gameInfo.ruleset
+        val ruleset = unit.civ.ruleset
         val promotion = ruleset.unitPromotions[promotionName]!!
 
         if (getPromotions().contains(promotion)) {
@@ -180,7 +180,7 @@ class UnitPromotions : IsPartOfGameInfoSerialization {
      */
     @Readonly
     fun getAvailablePromotions(): Sequence<Promotion> {
-        return unit.civ.gameInfo.ruleset.unitPromotions.values.asSequence().filter { isAvailable(it) }
+        return unit.civ.ruleset.unitPromotions.values.asSequence().filter { isAvailable(it) }
     }
 
     @Readonly

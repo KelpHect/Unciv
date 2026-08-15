@@ -199,3 +199,9 @@ authoritative-server/target/
 
 # Local Oracle Cloud SSH credentials and host metadata
 /oracle_arm/
+
+# Freebuff desktop-harness local artifacts (scripts, SQLite session db)
+/.freebuff/
+
+# Local settings backups written by audit tooling
+GameSettings.json.audit-backup

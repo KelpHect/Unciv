@@ -295,6 +295,13 @@ player	player.turn	public	Public protocol or turn metadata required to synchroni
 player	player.victory.victoryTurn	public	Canonical completed-game result shown identically to every authorized participant.
 player	player.victory.victoryType	public	Canonical completed-game result shown identically to every authorized participant.
 player	player.victory.winningCivilizationId	public	Canonical completed-game result shown identically to every authorized participant.
+player	player.visibleForeignCities[].civilizationId	legally_known	Owner of a city the player can already see; the same identity visibleForeignUnits discloses for a visible rival unit.
+player	player.visibleForeignCities[].id	legally_known	Opaque key so the client can track one visible rival city across revisions. Carries no interior city state.
+player	player.visibleForeignCities[].name	legally_known	City name is on the map for anyone who can see the city. No production, population or health accompanies it.
+player	player.visibleForeignCities[].ownedTiles[].x	legally_known	Border tile the player can currently see; the worker clips this list to the player's own vision.
+player	player.visibleForeignCities[].ownedTiles[].y	legally_known	Border tile the player can currently see; the worker clips this list to the player's own vision.
+player	player.visibleForeignCities[].x	legally_known	Location of a city standing on a tile the server already decided this player can see.
+player	player.visibleForeignCities[].y	legally_known	Location of a city standing on a tile the server already decided this player can see.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerBaseStrength	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.visibleForeignUnits[].airSweepTargets[].attackerMaxHealth	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.

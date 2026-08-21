@@ -43,4 +43,21 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
         numberOfAdoptedPolicies = (adopted.size - completionsAdopted).coerceAtLeast(0),
     )
     policies.setTransients(this)
+
+    // Per-city yields and growth: the classic city screen renders these
+    // figures from the projection instead of recomputing them without a game.
+    for (projectedCity in projection.ownCities) {
+        val city = cities.firstOrNull { it.id == projectedCity.id } ?: continue
+        projectedCity.stats?.let { stats ->
+            city.cityStats.currentCityStats = com.unciv.models.stats.Stats(
+                food = stats.food.toFloat(),
+                production = stats.production.toFloat(),
+                gold = stats.gold.toFloat(),
+                science = stats.science.toFloat(),
+                culture = stats.culture.toFloat(),
+                faith = stats.faith.toFloat(),
+                happiness = stats.happiness.toFloat(),
+            )
+        }
+    }
 }

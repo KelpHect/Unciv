@@ -176,6 +176,30 @@ player can finally see rival cities and their borders. Before it, the projection
 carried `visibleForeignUnits` but nothing equivalent for cities, and a rival
 city was invisible even on a tile the server had already made visible.
 
+The 2026-08-21 projection bump (63 → 64) widens three player-private or
+legally-known surfaces, each restoring single-player visibility parity rather
+than disclosing anything new to any other party:
+
+- `ProjectedResearch.researchableTechEstimates`: worker-computed turn
+  estimates for technologies the player may research or has queued. These fold
+  difficulty, speed, map size and known-civ modifiers that stay server-owned;
+  the client renders them instead of recomputing costs it cannot compute.
+- `ProjectedCity.stats`: the owner's own headline yields per city (food,
+  production, gold, science, culture, faith, happiness) - exactly what the
+  classic city screen shows its owner. Absent for foreign cities.
+- `ProjectedDiplomacyPartner` relationship display: `relationshipLevel`,
+  `opinionOfUs`, and `peaceTreatyCooldownTurns`. These are the partner's
+  visibly expressed stance toward the actor, the same figures the classic
+  diplomacy screen prints; no hidden AI internals beyond that display are
+  disclosed. The peace cooldown appears only while at war.
+
+All new leaves are classified in `projection-disclosure-policy.tsv`
+(`player_private` for own research/city figures, `legally_known` for the
+partner's visible stance) and guarded by the fail-closed
+`ProjectionDisclosurePolicyTests` enumeration plus a focused sentinel test
+proving relationship facts mirror only the partner's canonical visible stance
+and city stats appear on owned cities only.
+
 The gate is deliberately the same one `visibleForeignUnits` already uses: a
 rival city is disclosed only when its centre tile is in the viewing
 civilization's `viewableTiles`. Explored-but-currently-fogged cities are

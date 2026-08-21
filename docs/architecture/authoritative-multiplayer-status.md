@@ -12049,3 +12049,65 @@ Last material edit:
 | Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging with shared-UI changes | BUILD SUCCESSFUL | - |
 | Android | not affected | - | no android source changed; changed code is shared core exercised by :tests:test | - | - |
 | Rust | not affected | - | no Rust source changed; client view layer + presentation-only engine seams | - | - |
+
+## Projection v64: research estimates, city yields, relationship display; victory, chat, empire, lobby feel (2026-08-21)
+
+A coordinated server+client milestone closing the remaining single-player
+visibility-parity gaps that needed a boundary decision, plus four client-only
+experience upgrades:
+
+**Projection widening 63 -> 64 (Kotlin DTO + worker builder + Rust mirror):**
+- `ProjectedResearch.researchableTechEstimates`: worker-computed turn
+  estimates for every researchable or queued technology. The tech tree now
+  labels every node exactly as a local game does; difficulty/speed/map-size/
+  known-civ modifiers stay server-owned.
+- `ProjectedCity.stats`: owner-only headline yields per city (food,
+  production, gold, science, culture, faith, happiness). The real CityScreen
+  header now shows true figures; the world screen populates its materialized
+  cities via `applyProjectionPresentation` before opening it.
+- `ProjectedDiplomacyPartner` gains `relationshipLevel`
+  (`ProjectedRelationshipLevel`, the diplomacy screen's own bands),
+  `opinionOfUs`, and `peaceTreatyCooldownTurns` (war only) - the partner's
+  visibly expressed stance, nothing beyond classic-screen display.
+- Touchpoints shipped together: Rust `projection.rs` structs +
+  `is_consistent`, `lib.rs PROJECTION_VERSION`, `release/compatibility.json`,
+  regenerated `openapi/api-v3.json` (+144 lines), disclosure policy rows
+  (7 player_private + 4 legally_known), threat-model paragraph, projection
+  fixture update, and a new sentinel test proving relationship facts mirror
+  only the partner's canonical visible stance and stats appear on owned cities
+  only.
+
+**Client experience:**
+- Terminal victory moment: full-screen overlay with winner portrait, victory
+  type and turn once the projection reports the canonical result.
+- Chat button in the world top bar opens the authoritative game chat popup
+  mid-match.
+- Projection-native empire overview in the decisions drawer: treasury, city
+  roster with yields, units, research standing, policy progress.
+- Lobby: Civ-style leader-portrait faction grid (tap-to-select, ring highlight,
+  IDs-only transport), ready-click feedback, join/leave toast announcements.
+
+Deliberately not done: spectator map visibility stays withheld pending its own
+boundary decision; classic DiplomacyScreen literal reuse still awaits modifier-
+list/promise disclosure decisions.
+
+Final-state verification
+Revision: branch master at base HEAD `5b7092cc1`; tracked diff hash
+`4d182b3257bbb1ca7c544a55b47ee0193fcc8c3a` over the 20 files listed by git
+status at record time (Kotlin engine/UI/tests, Rust projection/openapi/lib,
+compatibility.json, disclosure TSV, threat model, fixture, missing_multiplayer).
+This record is the only edit after that hash. No material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt`
+prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete suite incl. disclosure enumeration, sentinel matrix with new fields, updated routing pins | all green after two stale-pin fixes (EmpirePanel pin moved to decisions file; Civilization control pin generalized) | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | `cargo test --all-targets --all-features` then fmt --check then clippy -D warnings (authoritative-server) | OpenAPI drift check passes after regeneration; compatibility contract matches runtime constants; projection consistency validators accept v64 shapes | lib 214 passed / bin 32 passed / others ok; fmt 0; clippy clean | - |
+| PostgreSQL | not affected | - | no schema/migration/query change; JSON payload shape only | - | - |
+| Android | not affected | - | no android source changed; shared core exercised by :tests:test | - | - |
+
+Delivery closure note: this milestone was pushed to origin/master immediately
+afterward (user-requested); push acceptance is recorded in the delivery table
+of the accompanying handoff message, not here.

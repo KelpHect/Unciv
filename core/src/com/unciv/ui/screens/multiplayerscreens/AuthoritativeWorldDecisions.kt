@@ -97,6 +97,9 @@ internal class AuthoritativeWorldDecisions(
         add(
             AuthoritativeHistoryPanel(controller.projection).build(),
         ).left().row()
+        add(
+            AuthoritativeEmpirePanel(controller.projection).build(),
+        ).left().row()
         add(researchSummary().toLabel()).left().row()
         // Research and policies are chosen on the real tech-tree and policy
         // screens, which the world screen opens fed by this projection; only

@@ -46,6 +46,18 @@ internal class AuthoritativeDiplomacyPanel(
             partnerHeader(partner.civilizationId)
             add(
                 (
+                    "relationship: " +
+                        partner.relationshipLevel.name.replaceFirstChar(Char::lowercase) +
+                        "  •  opinion of us: ${partner.opinionOfUs}"
+                    ).toLabel(LobbyChrome.muted),
+            ).left().padLeft(40f).row()
+            partner.peaceTreatyCooldownTurns?.let { turns ->
+                if (turns > 0) add(
+                    "Peace treaty possible in $turns turns".toLabel(LobbyChrome.muted),
+                ).left().padLeft(40f).row()
+            }
+            add(
+                (
                     "policies: " +
                         partner.adoptedPolicyBranches.joinToString().ifEmpty { "none" }
                     ).toLabel(),

@@ -186,6 +186,14 @@ class AuthoritativeWorldScreen(
     /** The revision whose blocker prompt the player explicitly dismissed. */
     private var blockersDismissedAtRevision = Long.MIN_VALUE
 
+    /**
+     * Full-screen terminal overlay, raised once the projection reports the
+     * canonical winner. The server rejects every post-victory command, so this
+     * is presentation of an already-final fact.
+     */
+    private val victoryOverlay = Table(BaseScreen.skin)
+    private var victoryShownForRevision: Long? = null
+
     // endregion
 
     init {
@@ -203,6 +211,7 @@ class AuthoritativeWorldScreen(
         stage.addActor(tileInfoTable)
         stage.addActor(minimapWrapper)
         stage.addActor(sidePanel)
+        stage.addActor(victoryOverlay)
 
         rebuild()
         initialCenter()?.let(mapHolder::setCenterPosition)
@@ -227,6 +236,7 @@ class AuthoritativeWorldScreen(
         rebuildTopBar()
         rebuildUnitDock()
         rebuildSidePanel()
+        rebuildVictoryOverlay()
         // The minimap tracks the current map and the show/hide setting; a null
         // viewer reveals everything, which is correct - the projection already
         // contains only what this player may see.
@@ -307,6 +317,13 @@ class AuthoritativeWorldScreen(
         topBar.add(treasury).right()
 
         statusLabel()?.let { topBar.add(it).right().padLeft(10f) }
+
+        val chat = "Chat".toTextButton()
+        chat.onClick {
+            AuthoritativeGameChatPopup(this, session.chatCoordinator(), gameSummary.gameId)
+                .openAndRefresh()
+        }
+        topBar.add(chat).right().padLeft(10f)
 
         val decisions = decisionsButtonText().toTextButton()
         decisions.onClick { toggleSidePanel(PanelMode.Decisions) }
@@ -555,6 +572,58 @@ class AuthoritativeWorldScreen(
     }
 
     // endregion
+
+    /** The terminal moment: winner, victory type, and turn, over the map. */
+    private fun rebuildVictoryOverlay() {
+        val victory = controller.projection.victory
+        val revision = controller.current.committedRevision
+        if (victory == null) {
+            victoryOverlay.isVisible = false
+            return
+        }
+        if (victoryShownForRevision == revision && victoryOverlay.isVisible) return
+        victoryShownForRevision = revision
+
+        victoryOverlay.clear()
+        victoryOverlay.defaults().pad(8f)
+        victoryOverlay.setBackground(
+            BaseScreen.skinStrings.getUiBackground(
+                "MultiplayerScreen/VictoryOverlay",
+                BaseScreen.skinStrings.roundedEdgeRectangleMidShape,
+                BaseScreen.skinStrings.skinConfig.baseColor.darken(0.55f),
+            ),
+        )
+        val nation = ruleset.nations[victory.winningCivilizationId]
+        val winnerName = nation?.getLeaderDisplayName() ?: victory.winningCivilizationId
+        if (nation != null)
+            victoryOverlay.add(LobbyChrome.nationBadge(ruleset, victory.winningCivilizationId, 64f))
+                .center().row()
+        victoryOverlay.add(LobbyChrome.title("$winnerName wins!")).center().row()
+        victoryOverlay.add(
+            (
+                "Victory: [${victory.victoryType}]  •  Turn [${victory.victoryTurn}]"
+                ).toLabel(LobbyChrome.accent),
+        ).center().row()
+        victoryOverlay.add(
+            LobbyChrome.hint("The match is final - every further command is rejected by the server."),
+        ).center().row()
+        val leave = "Leave match".toTextButton()
+        leave.onClick { game.popScreen() }
+        val close = "Keep viewing".toTextButton()
+        close.onClick { victoryOverlay.isVisible = false }
+        val actions = Table(BaseScreen.skin).apply { defaults().pad(6f) }
+        actions.add(leave)
+        actions.add(close)
+        victoryOverlay.add(actions).center().row()
+
+        victoryOverlay.width = (stage.width * 0.5f).coerceAtLeast(360f)
+        victoryOverlay.pack()
+        victoryOverlay.setPosition(
+            stage.width / 2 - victoryOverlay.width / 2,
+            stage.height / 2 - victoryOverlay.height / 2,
+        )
+        victoryOverlay.isVisible = true
+    }
 
     /** Places every floating widget, sized to what it actually drew. */
     private fun layoutChrome() {

@@ -44,7 +44,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 63
+        const val CURRENT_PROJECTION_VERSION = 64
     }
 }
 
@@ -146,7 +146,31 @@ data class ProjectedDiplomacyPartner(
     val canDenounce: Boolean,
     val canOfferFriendship: Boolean,
     val availableDemands: List<DiplomaticDemand>,
+    /**
+     * How this partner sees the actor, as the classic diplomacy screen shows
+     * it: the closed [ProjectedRelationshipLevel] band, the partner's opinion
+     * of the actor in points, and - while at war - the remaining turns before
+     * a peace treaty may be negotiated. All three are what the partner already
+     * visibly expresses through the game's own diplomacy UI; nothing here
+     * exposes hidden AI internals beyond that display.
+     */
+    val relationshipLevel: ProjectedRelationshipLevel = ProjectedRelationshipLevel.Neutral,
+    val opinionOfUs: Int = 0,
+    val peaceTreatyCooldownTurns: Int? = null,
 )
+
+/** The diplomacy screen's own relationship bands, projected verbatim. */
+@Serializable
+enum class ProjectedRelationshipLevel {
+    @SerialName("unforgivable") Unforgivable,
+    @SerialName("enemy") Enemy,
+    @SerialName("afraid") Afraid,
+    @SerialName("competitor") Competitor,
+    @SerialName("neutral") Neutral,
+    @SerialName("favorable") Favorable,
+    @SerialName("friend") Friend,
+    @SerialName("ally") Ally,
+}
 
 @Serializable
 data class ProjectedDiplomacyPrompt(
@@ -253,6 +277,24 @@ data class ProjectedCity(
     val availableGovernanceActions: List<CityGovernanceAction> = emptyList(),
     val sellableBuildings: List<String> = emptyList(),
     val bombardTargets: List<ProjectedBombardTarget> = emptyList(),
+    /**
+     * This city's own headline yields and growth figures - what the classic
+     * city screen's stat header shows its owner. Owner-private canonical
+     * output; the client renders these instead of recomputing yields from a
+     * game it does not have.
+     */
+    val stats: ProjectedCityStats? = null,
+)
+
+@Serializable
+data class ProjectedCityStats(
+    val food: Int,
+    val production: Int,
+    val gold: Int,
+    val science: Int,
+    val culture: Int,
+    val faith: Int,
+    val happiness: Int,
 )
 
 /**
@@ -308,6 +350,15 @@ data class ProjectedResearch(
     val appendableTargets: List<String>,
     val freeTechnologyChoices: List<String>,
     val completionPrompts: List<ProjectedResearchCompletion>,
+    /**
+     * Worker-computed turn estimates for every technology this player may
+     * research or has queued, keyed by name. The client cannot recompute
+     * these - they fold difficulty, game speed, map size and known-civilization
+     * modifiers that stay server-owned - so the tech tree labels every node
+     * with the same number a local game would show. Absent entries simply
+     * render without an estimate.
+     */
+    val researchableTechEstimates: Map<String, Int> = emptyMap(),
 )
 
 @Serializable
@@ -532,6 +583,17 @@ object PlayerProjectionBuilder {
                     availableGovernanceActions = CityGovernanceExecutor.availableActions(it),
                     sellableBuildings = CityEconomyProjection.sellableBuildings(it),
                     bombardTargets = CombatTargetProjection.bombardTargets(it, canIssueTurnCommands),
+                    stats = it.cityStats.currentCityStats.let { stats ->
+                        ProjectedCityStats(
+                            food = stats.food.toInt(),
+                            production = stats.production.toInt(),
+                            gold = stats.gold.toInt(),
+                            science = stats.science.toInt(),
+                            culture = stats.culture.toInt(),
+                            faith = stats.faith.toInt(),
+                            happiness = stats.happiness.toInt(),
+                        )
+                    },
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,
@@ -716,6 +778,11 @@ object PlayerProjectionBuilder {
                     .sorted()
                     .toList(),
             completionPrompts = ResearchCompletionCommandExecutor.prompts(civilization),
+            researchableTechEstimates = technologies.asSequence()
+                .map { it.name }
+                .filter { it in queuedTechnologies || civilization.tech.canBeResearched(it) }
+                .mapNotNull { name -> civilization.tech.estimatedTurnsToTech(name)?.let { name to it } }
+                .toMap(),
         )
     }
 

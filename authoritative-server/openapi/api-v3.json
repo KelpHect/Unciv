@@ -14572,6 +14572,13 @@
               }
             ]
           },
+          "visibleForeignCities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedForeignCity"
+            },
+            "description": "`default` so a worker predating projection 63 still parses; always\nserialized, so the Rust and Kotlin wire shapes stay identical."
+          },
           "visibleForeignUnits": {
             "type": "array",
             "items": {
@@ -14827,6 +14834,17 @@
               "$ref": "#/components/schemas/ProjectedSpecialist"
             }
           },
+          "stats": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedCityStats",
+                "description": "The owner's own headline yields; absent for foreign cities."
+              }
+            ]
+          },
           "tileBatchPurchases": {
             "type": "array",
             "items": {
@@ -15035,6 +15053,50 @@
               "integer",
               "null"
             ],
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityStats": {
+        "type": "object",
+        "description": "Headline per-city yields, exactly the figures the classic city screen's\nstat header shows its owner.",
+        "required": [
+          "food",
+          "production",
+          "gold",
+          "science",
+          "culture",
+          "faith",
+          "happiness"
+        ],
+        "properties": {
+          "culture": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "faith": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "food": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "happiness": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "production": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "science": {
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -15446,7 +15508,9 @@
           "canDeclareWar",
           "canDenounce",
           "canOfferFriendship",
-          "availableDemands"
+          "availableDemands",
+          "relationshipLevel",
+          "opinionOfUs"
         ],
         "properties": {
           "adoptedPolicyBranches": {
@@ -15472,6 +15536,21 @@
           },
           "civilizationId": {
             "type": "string"
+          },
+          "opinionOfUs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "peaceTreatyCooldownTurns": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "relationshipLevel": {
+            "$ref": "#/components/schemas/ProjectedRelationshipLevel",
+            "description": "How this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed."
           }
         },
         "additionalProperties": false
@@ -15564,6 +15643,43 @@
               "integer",
               "null"
             ],
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedForeignCity": {
+        "type": "object",
+        "description": "A rival city on a tile the worker already decided this player can see.\n\nDeliberately much smaller than [`ProjectedCity`]: enough to draw a city and\nits borders, and nothing about how that city is doing. `owned_tiles` is\nclipped to the player's own vision by the worker.",
+        "required": [
+          "id",
+          "name",
+          "civilizationId",
+          "x",
+          "y"
+        ],
+        "properties": {
+          "civilizationId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownedTiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTargetCoordinate"
+            }
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -15708,6 +15824,20 @@
         },
         "additionalProperties": false
       },
+      "ProjectedRelationshipLevel": {
+        "type": "string",
+        "description": "The diplomacy screen's own relationship bands, projected verbatim.",
+        "enum": [
+          "unforgivable",
+          "enemy",
+          "afraid",
+          "competitor",
+          "neutral",
+          "favorable",
+          "friend",
+          "ally"
+        ]
+      },
       "ProjectedReligionChoice": {
         "type": "object",
         "required": [
@@ -15767,7 +15897,8 @@
           "selectableTargets",
           "appendableTargets",
           "freeTechnologyChoices",
-          "completionPrompts"
+          "completionPrompts",
+          "researchableTechEstimates"
         ],
         "properties": {
           "appendableTargets": {
@@ -15808,6 +15939,17 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProjectedResearchQueueEntry"
+            }
+          },
+          "researchableTechEstimates": {
+            "type": "object",
+            "description": "Worker-computed turn estimates for researchable/queued technologies.\nDifficulty, speed, map size, and known-civ modifiers stay server-owned.",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "propertyNames": {
+              "type": "string"
             }
           },
           "researchedTechnologies": {

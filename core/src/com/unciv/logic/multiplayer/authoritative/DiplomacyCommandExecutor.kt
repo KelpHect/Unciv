@@ -18,6 +18,7 @@ object DiplomacyCommandExecutor {
         .filter { it.isMajorCiv() && !it.isDefeated() && it != actor }
         .map { other ->
             val diplomacy = actor.getDiplomacyManager(other)!!
+            val theirView = other.getDiplomacyManager(actor)!!
             val peaceful = !actor.isAtWarWith(other)
             val relationshipsCanChange = !actor.gameInfo.ruleset.modOptions
                 .hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)
@@ -38,6 +39,10 @@ object DiplomacyCommandExecutor {
                     .filter { demand -> other.popupAlerts.none { it.type == demand.demandAlert && it.value == actor.civID } }
                     .map { DiplomaticDemand.valueOf(it.name) }
                     .toList(),
+                relationshipLevel =
+                    ProjectedRelationshipLevel.valueOf(theirView.relationshipLevel().name),
+                opinionOfUs = theirView.opinionOfOtherCiv().toInt(),
+                peaceTreatyCooldownTurns = if (peaceful) null else diplomacy.turnsToPeaceTreaty(),
             )
         }
         .sortedBy { it.civilizationId }

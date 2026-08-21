@@ -167,7 +167,7 @@ class AuthoritativeProductionRoutingTests {
         ).readText()
 
         assertTrue(lobby.contains("session.joinLobby("))
-        assertTrue(lobby.contains("control(\"Civilization\", civilization)"))
+        assertTrue(lobby.contains("\"Civilization\""))
         assertTrue(lobby.contains("Join match"))
         assertTrue(multiplayer.contains("AuthoritativeGameDirectory(activeSession).open(summary)"))
         assertTrue(multiplayer.contains("AuthoritativeWorldScreen("))
@@ -969,12 +969,16 @@ class AuthoritativeProductionRoutingTests {
 
         assertTrue(lobby.contains("PickerScreen(), RecreateOnResize"))
         assertTrue(lobby.contains("override fun recreate(): BaseScreen = AuthoritativeLobbyScreen(lobby, session)"))
-        assertTrue(lobby.contains("private class CivilizationSelect"))
-        assertTrue(lobby.contains("val selectedCivilizationId"))
-        // The raw-ID select box must not come back.
+        // The Civ-style leader-portrait grid replaced the raw-ID dropdown;
+        // only server civilization IDs cross the transport.
+        assertTrue(lobby.contains("private fun civilizationGrid("))
+        assertTrue(lobby.contains("LobbyChrome.nationBadge(ruleset, id, 44f)"))
         assertFalse(lobby.contains("SelectBox<String>(skin)"))
         assertTrue(lobby.contains("renderAiSeats()"))
         assertTrue(lobby.contains("Server-run"))
+        // Live-room feel: join/leave announcements and click feedback.
+        assertTrue(lobby.contains("announceMembershipChanges(refreshed)"))
+        assertTrue(lobby.contains("UncivSound.Click"))
     }
 
     /**
@@ -998,6 +1002,14 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(world.contains("Open city screen"))
         assertTrue(world.contains("forceReadOnly = true"))
         assertTrue(world.contains("projectedCity = city"))
+
+        // Terminal moment and live chat are world-screen surfaces.
+        assertTrue(world.contains("rebuildVictoryOverlay()"))
+        assertTrue(world.contains("AuthoritativeGameChatPopup(this, session.chatCoordinator(), gameSummary.gameId)"))
+        val decisionsSource = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldDecisions.kt",
+        ).readText()
+        assertTrue(decisionsSource.contains("AuthoritativeEmpirePanel(controller.projection)"))
 
         val cityScreen = sourceFile("core/src/com/unciv/ui/screens/cityscreen/CityScreen.kt").readText()
         assertTrue(cityScreen.contains("internal val projectedCity: ProjectedCity? = null"))

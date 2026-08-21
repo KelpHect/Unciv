@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use utoipa::ToSchema;
 
 use crate::{
@@ -172,6 +173,25 @@ pub struct ProjectedDiplomacyPartner {
     pub can_denounce: bool,
     pub can_offer_friendship: bool,
     pub available_demands: Vec<DiplomaticDemand>,
+    /// How this partner sees the actor, exactly as the classic diplomacy
+    /// screen displays it. Nothing beyond the visible stance is disclosed.
+    pub relationship_level: ProjectedRelationshipLevel,
+    pub opinion_of_us: i32,
+    pub peace_treaty_cooldown_turns: Option<i32>,
+}
+
+/// The diplomacy screen's own relationship bands, projected verbatim.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectedRelationshipLevel {
+    Unforgivable,
+    Enemy,
+    Afraid,
+    Competitor,
+    Neutral,
+    Favorable,
+    Friend,
+    Ally,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -297,6 +317,23 @@ pub struct ProjectedCity {
     pub available_governance_actions: Vec<CityGovernanceAction>,
     pub sellable_buildings: Vec<String>,
     pub bombard_targets: Vec<ProjectedBombardTarget>,
+    /// The owner's own headline yields; absent for foreign cities.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<ProjectedCityStats>,
+}
+
+/// Headline per-city yields, exactly the figures the classic city screen's
+/// stat header shows its owner.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityStats {
+    pub food: i32,
+    pub production: i32,
+    pub gold: i32,
+    pub science: i32,
+    pub culture: i32,
+    pub faith: i32,
+    pub happiness: i32,
 }
 
 /// A rival city on a tile the worker already decided this player can see.
@@ -369,6 +406,9 @@ pub struct ProjectedResearch {
     pub appendable_targets: Vec<String>,
     pub free_technology_choices: Vec<String>,
     pub completion_prompts: Vec<ProjectedResearchCompletion>,
+    /// Worker-computed turn estimates for researchable/queued technologies.
+    /// Difficulty, speed, map size, and known-civ modifiers stay server-owned.
+    pub researchable_tech_estimates: BTreeMap<String, i32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -414,6 +454,10 @@ impl ProjectedResearch {
                 },
             )
             && self.overflow_science >= 0
+            && self
+                .researchable_tech_estimates
+                .values()
+                .all(|turns| *turns >= 0)
             && self
                 .researched_technologies
                 .windows(2)

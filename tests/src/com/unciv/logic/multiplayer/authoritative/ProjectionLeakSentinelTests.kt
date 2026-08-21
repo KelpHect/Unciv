@@ -190,6 +190,53 @@ class ProjectionLeakSentinelTests {
         assertEquals(ProjectedCityStateInfluenceLevel.Ally, partner.influenceLevel)
     }
 
+    /**
+     * The widened relationship and yield fields disclose exactly what the
+     * classic screens already showed: the met partner's visible stance toward
+     * us (never our hidden modifiers about them), peace cooldown only while at
+     * war, and per-city yields for owned cities only.
+     */
+    @Test
+    fun relationshipAndCityStatsDiscloseOnlyVisibleStanceAndOwnedYields() {
+        val fixture = privateSubsystemFixture()
+
+        for (status in DiplomaticStatus.entries) {
+            val actorDiplomacy = fixture.actor.getDiplomacyManager(fixture.foreign)!!
+            val foreignDiplomacy = fixture.foreign.getDiplomacyManager(fixture.actor)!!
+            actorDiplomacy.diplomaticStatus = status
+            foreignDiplomacy.diplomaticStatus = status
+
+            val projection = PlayerProjectionBuilder.build(
+                fixture.testGame.gameInfo,
+                fixture.actor,
+            )
+
+            val partner = projection.diplomacyPartners
+                .single { it.civilizationId == fixture.foreign.civID }
+            // The band is what the partner visibly expresses towards us.
+            assertEquals(
+                foreignDiplomacy.relationshipLevel().name,
+                partner.relationshipLevel.name,
+            )
+            assertEquals(
+                foreignDiplomacy.opinionOfOtherCiv().toInt(),
+                partner.opinionOfUs,
+            )
+            if (status == DiplomaticStatus.War) {
+                assertTrue(partner.peaceTreatyCooldownTurns != null)
+            } else {
+                assertNull(partner.peaceTreatyCooldownTurns)
+            }
+
+            // Yields are owner-private: every own city carries them, and no
+            // other projection family does.
+            assertEquals(
+                projection.ownCities.size,
+                projection.ownCities.count { it.stats != null },
+            )
+        }
+    }
+
     private fun encode(projection: PlayerProjection): String =
         json.encodeToString(PlayerProjection.serializer(), projection)
 

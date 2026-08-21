@@ -36,7 +36,12 @@
         "promptId": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "technologyName": "Mining"
       }
-    ]
+    ],
+    "researchableTechEstimates": {
+      "Archery": 4,
+      "Pottery": 2,
+      "Writing": 7
+    }
   },
   "policies": {
     "storedCulture": 35,
@@ -184,7 +189,16 @@
             "outcome": null
           }
         }
-      ]
+      ],
+      "stats": {
+        "food": 6,
+        "production": 9,
+        "gold": 11,
+        "science": 14,
+        "culture": 5,
+        "faith": 0,
+        "happiness": 1
+      }
     }
   ],
   "ownUnits": [
@@ -437,7 +451,10 @@
       "canDeclareWar": true,
       "canDenounce": true,
       "canOfferFriendship": true,
-      "availableDemands": ["do_not_settle_near_us"]
+      "availableDemands": ["do_not_settle_near_us"],
+      "relationshipLevel": "neutral",
+      "opinionOfUs": 5,
+      "peaceTreatyCooldownTurns": null
     }
   ],
   "diplomacyPrompts": [

@@ -101,12 +101,15 @@ class TechPickerScreen(
      */
     private val turnsToTech: Map<String, String> =
         if (projectedResearch != null)
-            projectedResearch.queueEntries
-                .mapNotNull { entry ->
-                    entry.estimatedTurns?.let { turns ->
-                        entry.technologyName to "$turns${Fonts.turn}"
-                    }
-                }.toMap()
+            buildMap {
+                // The server estimates every researchable or queued node;
+                // queue entries win where both exist because they carry the
+                // same figure the worker derived with current progress.
+                for ((name, turns) in projectedResearch.researchableTechEstimates)
+                    put(name, "$turns${Fonts.turn}")
+                for (entry in projectedResearch.queueEntries)
+                    entry.estimatedTurns?.let { put(entry.technologyName, "$it${Fonts.turn}") }
+            }
         else buildMap {
             for (tech in ruleset.technologies.values) put(tech.name, civTech.turnsToTech(tech.name))
         }

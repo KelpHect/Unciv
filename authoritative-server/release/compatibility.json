@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "public_protocol_version": 4,
-  "player_projection_version": 63,
+  "player_projection_version": 64,
   "spectator_projection_version": 3,
   "lobby_terrain_projection_version": 1,
   "worker_protocol_version": 8,

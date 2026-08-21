@@ -243,6 +243,8 @@ use super::*;
         unciv_authoritative_server::projection::DiplomaticDemand,
         unciv_authoritative_server::projection::DiplomacyPromptType,
         unciv_authoritative_server::projection::ProjectedDiplomacyPartner,
+        unciv_authoritative_server::projection::ProjectedRelationshipLevel,
+        unciv_authoritative_server::projection::ProjectedCityStats,
         unciv_authoritative_server::projection::ProjectedDiplomacyPrompt,
         unciv_authoritative_server::projection::ProjectedCityStatePartner,
         unciv_authoritative_server::projection::ProjectedCityStateInfluenceLevel,

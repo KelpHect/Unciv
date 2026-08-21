@@ -230,12 +230,42 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   world-screen wiring.
 - [x] Give diplomacy partners their real identity. The V3 diplomacy panel
   renders leader portraits and display names for every major and city-state
-  partner (from the pinned ruleset) instead of raw civilization IDs, and shows
-  each city-state's projected influence level. The classic `DiplomacyScreen`
-  itself remains deliberately unreused: relationship levels, opinions,
-  promise states, and war-declaration countdowns are canonical cross-civ state
-  that the projection intentionally does not carry, so reusing that screen
-  would require widening the confidentiality boundary rather than a view seam.
+  partner (from the pinned ruleset) instead of raw civilization IDs, shows
+  each city-state's projected influence level, and now also shows each major
+  partner's projected relationship band and opinion plus the peace-treaty
+  cooldown while at war (projection v64). The classic `DiplomacyScreen`
+  itself remains deliberately unreused: AI modifier lists, promises, and
+  prompt-composition flows are canonical cross-civ state that would need a
+  further disclosure decision; relationship display parity is done.
+- [x] Project worker-computed research turn estimates for every researchable
+  or queued technology (`ProjectedResearch.researchableTechEstimates`,
+  projection v64). The tech tree now labels every node with the same figure a
+  local game shows - difficulty, speed, map size and known-civ modifiers stay
+  server-owned, so the client renders rather than recomputes.
+- [x] Project per-city headline yields (`ProjectedCity.stats`, v64) so the
+  real CityScreen's stat header shows the owner's true food/production/gold/
+  science/culture/faith/happiness instead of zeros; the world screen populates
+  its materialized cities from the projection before opening it.
+- [x] Add the terminal victory moment to the online world: when the projection
+  reports the canonical winner, the world raises a full-screen overlay with
+  the winning nation portrait, victory type, turn, and leave/close actions.
+  Presentation only - the server already rejects every post-victory command.
+- [x] Make game chat reachable while playing: a Chat button in the world top
+  bar opens the existing authoritative game chat popup over the session's
+  chat coordinator.
+- [x] Add a projection-native empire overview to the decisions drawer:
+  treasury, city roster with server-computed yields, unit count, research
+  standing, and policy progress. The classic overview tabs read GameInfo
+  families outside the projection contract; this panel covers what is
+  projected and grows only when the policy grows.
+- [x] Lobby feel upgrades: faction picking is now a Civ-style leader-portrait
+  grid (tap to select, selection ring, leader labels, IDs-only transport),
+  ready toggles click, and membership joins/leaves announce themselves as
+  toasts so the room feels live between polls.
+- [ ] Spectator map view remains deliberately withheld: the spectator
+  projection intentionally carries only public match status, so a spectator
+  minimap/HUD requires its own visibility-boundary decision first. The
+  spectator screen stays a public-status summary until that decision is made.
 
 ## P0: required before v3 can replace legacy online play
 

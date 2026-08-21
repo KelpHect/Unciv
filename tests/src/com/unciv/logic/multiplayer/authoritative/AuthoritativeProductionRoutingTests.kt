@@ -968,6 +968,68 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(lobby.contains("Server-run"))
     }
 
+    /**
+     * The online world gets the game's own minimap, and its city panel opens
+     * the real city screen read-only with server figures fed in - a client
+     * without canonical state must never compute costs locally.
+     */
+    @Test
+    fun projectionWorldHasTheRealMinimapAndOpensAProjectionFedReadOnlyCityScreen() {
+        val world = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt",
+        ).readText()
+
+        // The single-player minimap, over the projection map holder seam, and
+        // rebuilt together with every committed revision.
+        assertTrue(world.contains("MinimapHolder(this, mapHolder)"))
+        assertTrue(world.contains("minimapWrapper.update(null)"))
+        assertTrue(world.contains("minimapWrapper.remove()"))
+
+        // The real CityScreen opens read-only and projection-fed.
+        assertTrue(world.contains("Open city screen"))
+        assertTrue(world.contains("forceReadOnly = true"))
+        assertTrue(world.contains("projectedCity = city"))
+
+        val cityScreen = sourceFile("core/src/com/unciv/ui/screens/cityscreen/CityScreen.kt").readText()
+        assertTrue(cityScreen.contains("internal val projectedCity: ProjectedCity? = null"))
+        assertTrue(cityScreen.contains("internal val hasCanonicalGame = cityView.city.civ.gameInfoOrNull != null"))
+        // Stats that need difficulty are skipped for a projection viewer...
+        assertTrue(cityScreen.contains("if (hasCanonicalGame) cityView.updateCityStats()"))
+        // ...and paging, recreation, and re-entry keep both read-only flags.
+        assertTrue(cityScreen.contains("forceReadOnly = forceReadOnly,\n            projectedCity = projectedCity,"))
+        assertTrue(cityScreen.contains("newScreen is WorldHudHost"))
+
+        val constructions = sourceFile(
+            "core/src/com/unciv/ui/screens/cityscreen/CityConstructionsTable.kt",
+        ).readText()
+        // Queue and available list render server figures when projected.
+        assertTrue(constructions.contains("updateProjectedConstructionQueue(projected)"))
+        assertTrue(constructions.contains("getProjectedConstructionButtonDTOs"))
+
+        val info = sourceFile(
+            "core/src/com/unciv/ui/screens/cityscreen/ConstructionInfoTable.kt",
+        ).readText()
+        // Buy costs are difficulty-scaled canonical figures; gated off.
+        assertTrue(info.contains("cityScreen.hasCanonicalGame && buyButtonFactory.hasBuyButtons(construction)"))
+    }
+
+    /** The minimap is hosted through a seam, never directly by a WorldScreen. */
+    @Test
+    fun minimapRendersThroughAMapHolderSeamBothOfflineAndOnline() {
+        val minimap = sourceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/minimap/Minimap.kt",
+        ).readText()
+        val holder = sourceFile(
+            "core/src/com/unciv/ui/screens/worldscreen/minimap/MinimapHolder.kt",
+        ).readText()
+
+        assertTrue(minimap.contains("mapHolder: MinimapMapHolder"))
+        assertFalse(minimap.contains("WorldMapHolder"))
+        assertTrue(holder.contains("private val host: WorldHudHost"))
+        assertFalse(holder.contains("worldScreen.game.settings"))
+        assertFalse(holder.contains("GUI.getViewingPlayer()"))
+    }
+
     @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(

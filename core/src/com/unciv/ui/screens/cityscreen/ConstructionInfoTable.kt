@@ -12,6 +12,7 @@ import com.unciv.models.ruleset.PerpetualConstruction
 import com.unciv.models.ruleset.PerpetualConstruction.StatConversion
 import com.unciv.models.ruleset.unit.BaseUnit
 import com.unciv.models.translations.tr
+import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionKind
 import com.unciv.ui.components.extensions.darken
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.isEnabled
@@ -75,8 +76,23 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
             var buildingText = construction.name.tr(hideIcons = true)
             val specialConstruction = PerpetualConstruction.perpetualConstructionsMap[construction.name]
 
-            buildingText += specialConstruction?.let { cityView.getProductionTooltip(it) }
-                    ?: cityConstructions.getTurnsToConstructionString(construction)
+            // A projection viewer renders the server's own figures and never
+            // computes a turn estimate locally - production costs need a
+            // GameInfo difficulty the client does not have.
+            buildingText += when {
+                cityScreen.projectedCity != null -> {
+                    val option = cityScreen.projectedCity.constructionOptions
+                        .firstOrNull { it.name == construction.name }
+                    when {
+                        option == null -> ""
+                        option.kind == ProjectedConstructionKind.Perpetual -> Fonts.infinity.toString()
+                        else -> "${option.storedProduction}/${option.productionCost ?: 0}" +
+                            (option.estimatedTurns?.let { " ($it turns)" } ?: "")
+                    }
+                }
+                specialConstruction != null -> cityView.getProductionTooltip(specialConstruction)
+                else -> cityConstructions.getTurnsToConstructionString(construction)
+            }
 
             add(Label(buildingText, BaseScreen.skin)).expandX().row()  // already translated
 
@@ -94,7 +110,10 @@ class ConstructionInfoTable(val cityScreen: CityScreen) : Table() {
 
             if (cityConstructions.isBuilt(construction.name)) {
                 showSellButton(construction)
-            } else if (buyButtonFactory.hasBuyButtons(construction)) {
+            } else if (cityScreen.hasCanonicalGame && buyButtonFactory.hasBuyButtons(construction)) {
+                // Buy costs are difficulty-scaled canonical figures; a
+                // projection viewer sees the server's prices in the world's
+                // own city panel instead.
                 row()
                 for (button in buyButtonFactory.getBuyButtons(construction)) {
                     selectedConstructionTable.add(button).padTop(5f).colspan(2).center().row()

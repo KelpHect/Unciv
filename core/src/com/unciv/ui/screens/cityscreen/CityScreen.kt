@@ -8,6 +8,7 @@ import com.unciv.GUI
 import com.unciv.UncivGame
 import com.unciv.logic.automation.Automation
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.multiplayer.authoritative.ProjectedCity
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Building
@@ -39,6 +40,7 @@ import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.popups.closeAllPopups
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.view.CityView
 import com.unciv.view.TileView
@@ -61,6 +63,15 @@ class CityScreen(
      * commands instead. Single-player never sets it.
      */
     private val forceReadOnly: Boolean = false,
+    /**
+     * The server projection of this city, when opened by an API-v3 client.
+     *
+     * Everything the screen cannot compute without a GameInfo - production
+     * costs, turn estimates, buy prices - is read from here instead: those are
+     * server-computed figures, never client guesses. Non-null implies a
+     * read-only viewer with no canonical game behind its civilization.
+     */
+    internal val projectedCity: ProjectedCity? = null,
 ): BaseScreen(), RecreateOnResize {
     companion object {
         /** Distance from stage edges to floating widgets */
@@ -84,6 +95,15 @@ class CityScreen(
 
     /** Toggles or adds/removes all state changing buttons */
     val canChangeState = !forceReadOnly && GUI.isAllowedChangeState() && !isSpying
+
+    /**
+     * Whether the city's civilization has a canonical game behind it.
+     *
+     * A projection viewer's materialized city carries only what the server
+     * sent, so every locally recomputed stat - difficulty-scaled costs, city
+     * yields - is skipped rather than guessed.
+     */
+    internal val hasCanonicalGame = cityView.city.civ.gameInfoOrNull != null
 
     // Clockwise from the top-left
 
@@ -188,8 +208,9 @@ class CityScreen(
     override fun getCivilopediaRuleset() = cityView.getRuleset()
 
     internal fun update() {
-        // Recalculate Stats
-        cityView.updateCityStats()
+        // Recalculate Stats - canonical state only; a projection viewer renders
+        // the server's figures elsewhere and must not recompute them locally.
+        if (hasCanonicalGame) cityView.updateCityStats()
 
         constructionsTable.isVisible = !isSpying
         constructionsTable.update(selectedConstruction)
@@ -457,7 +478,14 @@ class CityScreen(
             SoundPlayer.play(UncivSound.Coin)
             cityView.tryBuyTile(selectedTile)
             // preselect the next tile on city screen rebuild so bulk buying can go faster
-            UncivGame.Current.replaceCurrentScreen(CityScreen(cityView, initSelectedTile = cityView.chooseNewTileToOwn()))
+            UncivGame.Current.replaceCurrentScreen(
+                CityScreen(
+                    cityView,
+                    initSelectedTile = cityView.chooseNewTileToOwn(),
+                    forceReadOnly = forceReadOnly,
+                    projectedCity = projectedCity,
+                ),
+            )
         }.open()
     }
 
@@ -547,6 +575,10 @@ class CityScreen(
         if (newScreen is WorldScreen) {
             newScreen.mapHolder.setCenterPosition(cityView.location.toHexCoord(), immediately = true)
             newScreen.bottomUnitTable.selectUnit()
+        } else if (newScreen is WorldHudHost) {
+            // An API-v3 world screen: same recentering courtesy, through the
+            // HUD seam instead of a WorldScreen field.
+            newScreen.hudCenterOn(cityView.location.toHexCoord())
         }
     }
 
@@ -564,7 +596,12 @@ class CityScreen(
         if (numCities == 0) return
         val indexOfCity = viewableCities.indexOfFirst { it.getCity() === cityView.getCity() }
         val indexOfNextCity = (indexOfCity + delta + numCities) % numCities
-        val newCityScreen = CityScreen(viewableCities[indexOfNextCity], ambiencePlayer = passOnCityAmbiencePlayer())
+        val newCityScreen = CityScreen(
+            viewableCities[indexOfNextCity],
+            ambiencePlayer = passOnCityAmbiencePlayer(),
+            forceReadOnly = forceReadOnly,
+            projectedCity = projectedCity,
+        )
         newCityScreen.mapScrollPane.zoom(mapScrollPane.scaleX) // Retain zoom
         newCityScreen.update()
         game.replaceCurrentScreen(newCityScreen)
@@ -572,7 +609,10 @@ class CityScreen(
 
     // Don't use passOnCityAmbiencePlayer here - continuing play on the replacement screen would be nice,
     // but the rapid firing of several resize events will get that un-synced, they would no longer stop on leaving.
-    override fun recreate(): BaseScreen = CityScreen(cityView, selectedConstruction, selectedTile)
+    override fun recreate(): BaseScreen = CityScreen(
+        cityView, selectedConstruction, selectedTile,
+        forceReadOnly = forceReadOnly, projectedCity = projectedCity,
+    )
 
     override fun dispose() {
         cityAmbiencePlayer?.dispose()

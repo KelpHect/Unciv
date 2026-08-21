@@ -114,7 +114,9 @@ class CityView(city: City,
     @Readonly fun getConversionRate(statConversion: PerpetualConstruction.StatConversion): Int = statConversion.getConversionRate(city)
     @Readonly fun getGoldForSellingBuilding(buildingName: String): Int = city.getGoldForSellingBuilding(buildingName)
     @Readonly fun hasSoldBuildingThisTurn(): Boolean = city.hasSoldBuildingThisTurn
-    @Readonly fun isGodModeEnabled(): Boolean = city.civ.gameInfo.gameParameters.godMode
+    /** God mode is a game setting; a projection client has no game and thus never god mode. */
+    @Readonly fun isGodModeEnabled(): Boolean =
+        city.civ.gameInfoOrNull?.let { it.gameParameters.godMode } == true
     @Readonly fun getUnitShouldUseSavedPromotion(baseUnit: String): Boolean? = city.unitShouldUseSavedPromotion[baseUnit]
     @Readonly fun getCityAmbienceSound(): String = city.civ.getEra().citySound
     @Readonly fun isBeingRazed(): Boolean = city.isBeingRazed

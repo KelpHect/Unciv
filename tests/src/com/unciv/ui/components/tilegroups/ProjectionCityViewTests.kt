@@ -187,4 +187,20 @@ class ProjectionCityViewTests {
         Assert.assertNull(com.unciv.GUI.hudHost)
         Assert.assertFalse(com.unciv.GUI.isAllowedChangeState())
     }
+
+    /**
+     * Game settings are facts about a game this client does not have. Every
+     * view-layer reader must answer "off" instead of crashing - these are the
+     * exact reads the religion and sell/specialist panels make.
+     */
+    @Test
+    fun gameSettingsReadToOffWithoutAGameBehindTheCity() {
+        val (_, gameView, viewer) = buildWorldMap()
+        val cityView = gameView.getCityView(viewer.cities.single())
+
+        Assert.assertFalse(cityView.isGodModeEnabled())
+        Assert.assertFalse(cityView.viewingCiv().isReligionEnabled())
+        Assert.assertFalse((cityView as com.unciv.view.ForeignCityView).isReligionEnabled())
+        Assert.assertFalse(cityView.isEspionageEnabled())
+    }
 }

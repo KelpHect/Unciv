@@ -10,6 +10,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.utils.Align
 import com.unciv.Constants
+import com.unciv.logic.multiplayer.authoritative.ProjectedCity
+import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionKind
+import com.unciv.logic.multiplayer.authoritative.ProjectedConstructionQueueEntry
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Building
 import com.unciv.models.ruleset.IConstruction
@@ -198,6 +201,14 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         val queueScrollY = constructionsQueueScrollPane.scrollY
         constructionsQueueTable.clear()
 
+        // A projection viewer's queue is the server's, not the materialized
+        // city's: render exactly what the projection carries.
+        val projected = cityScreen.projectedCity
+        if (projected != null) {
+            updateProjectedConstructionQueue(projected)
+            return
+        }
+
         val cityConstructions = cityView.constructions
         val currentConstruction = cityConstructions.currentConstructionName()
         val queue = cityConstructions.constructionQueue
@@ -239,6 +250,121 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         constructionsQueueScrollPane.updateVisualScroll()
     }
 
+    /**
+     * The construction queue exactly as the server projects it: names, stored
+     * production, costs and turn estimates are server figures, and every entry
+     * is display-only - reordering happens through typed commands elsewhere.
+     */
+    private fun updateProjectedConstructionQueue(projected: ProjectedCity) {
+        val entries = projected.constructionQueueEntries
+
+        constructionsQueueTable.defaults().pad(0f)
+        constructionsQueueTable.add(getHeader("Current construction")).fillX()
+        constructionsQueueTable.addSeparator()
+
+        if (entries.isEmpty())
+            constructionsQueueTable.add("Pick a construction".toLabel()).height(50f).pad(2f).row()
+        else
+            constructionsQueueTable.add(getProjectedQueueEntry(0, entries[0]))
+                .expandX().fillX().row()
+
+        queueExpander.innerTable.clear()
+        queueExpander.headerContent.clear()
+        queueExpander.isHeaderIconVisible = entries.size >= 2
+        queueExpander.header.pad(0f)
+        queueExpander.setText("Construction queue".tr())
+        for (i in 1..entries.lastIndex) {
+            queueExpander.innerTable.add(getProjectedQueueEntry(i, entries[i]))
+                .expandX().fillX().row()
+            if (i != entries.lastIndex) queueExpander.innerTable.addSeparator()
+        }
+        if (!queueExpander.isOpen) updateProjectedQueuePreview(entries)
+        constructionsQueueTable.add(queueExpander).fillX().pad(2f)
+
+        constructionsQueueScrollPane.layout()
+        constructionsQueueScrollPane.updateVisualScroll()
+    }
+
+    /** One server-projected queue row: progress, portrait, and its figures. */
+    private fun getProjectedQueueEntry(index: Int, entry: ProjectedConstructionQueueEntry): Table {
+        val table = Table()
+        table.align(Align.left).pad(5f)
+        highlightQueueEntry(table, index == selectedQueueEntry)
+
+        val text = entry.name.tr(true) + "\n" +
+            projectedCostText(entry.storedProduction, entry.productionCost, entry.estimatedTurns)
+
+        table.defaults().pad(2f).minWidth(40f)
+        if (entry.storedProduction > 0 && entry.productionCost != null && entry.productionCost > 0)
+            table.add(
+                ImageGetter.getProgressBarVertical(
+                    2f, 30f,
+                    (entry.storedProduction.toFloat() / entry.productionCost).coerceIn(0f, 1f),
+                    Color.BROWN.brighten(0.5f), Color.WHITE,
+                ),
+            ).minWidth(5f)
+        else table.add().minWidth(5f)
+        table.add(ImageGetter.getConstructionPortrait(entry.name, 40f)).padRight(10f)
+        table.add(text.toLabel()).expandX().fillX().left()
+
+        // Display-only: keep the canonical row shape without action buttons.
+        table.add().right()
+        table.add().right()
+        table.add().right()
+
+        table.touchable = Touchable.enabled
+        table.onClick {
+            selectedQueueEntry = index
+            cityScreen.selectConstruction(entry.name)
+            cityScreen.update()
+        }
+        return table
+    }
+
+    /**
+     * Server figures, formatted like the canonical queue: "stored/cost (N
+     * turns)", or the infinity glyph for perpetual constructions, whose cost
+     * the server leaves null.
+     */
+    private fun projectedCostText(stored: Int, cost: Int?, turns: Int?): String = when {
+        cost == null -> Fonts.infinity.toString()
+        else -> buildString {
+            append("$stored/$cost")
+            if (turns != null) append(" ($turns turns)")
+        }
+    }
+
+    /** The collapsed queue preview, over projected entries. */
+    private fun updateProjectedQueuePreview(entries: List<ProjectedConstructionQueueEntry>) {        queueExpander.header.pad(-5f, 0f, -5f, 0f)
+        val title = when (entries.size) {
+            in 0..1 -> "Queue empty".tr()
+            in 2..4 -> "Queue".tr()
+            else -> ""
+        }
+        queueExpander.setText(title)
+        for ((i, entry) in entries.withIndex()) {
+            if (i !in 1..3) continue
+            val color = if (selectedQueueEntry == i) highlightColor
+            else BaseScreen.skinStrings.skinConfig.baseColor
+            val image = ImageGetter.getConstructionPortrait(entry.name, 40f)
+                .surroundWithCircle(miniQueueHeight, false, color)
+            image.addListener(object : ClickListener() {
+                override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: Int): Boolean {
+                    event.stop()
+                    return super.touchDown(event, x, y, pointer, button)
+                }
+                override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: Int) {
+                    selectedQueueEntry = i
+                    cityScreen.selectConstruction(entry.name)
+                    cityScreen.update()
+                    event.stop()
+                    super.touchUp(event, x, y, pointer, button)
+                }
+            })
+            queueExpander.headerContent.add(image)
+        }
+    }
+
     private fun updateQueuePreview(queue: List<String>) {
         queueExpander.header.pad(-5f, 0f, -5f, 0f)
         val title = when(queue.size) {
@@ -278,6 +404,11 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
     }
 
     private fun getConstructionButtonDTOs(): ArrayList<ConstructionButtonDTO> {
+        // A projection viewer gets the server's own figures; it cannot compute
+        // difficulty-scaled costs or turn estimates without a GameInfo, and it
+        // must not guess them.
+        cityScreen.projectedCity?.let { return getProjectedConstructionButtonDTOs(it) }
+
         val constructionButtonDTOList = ArrayList<ConstructionButtonDTO>()
 
         val cityConstructions = cityView.constructions
@@ -327,6 +458,33 @@ class CityConstructionsTable(private val cityScreen: CityScreen) {
         }
 
         return constructionButtonDTOList
+    }
+
+    /**
+     * Available constructions from the projection: each option carries its
+     * finished production cost and turn estimate, so the list renders server
+     * truth grouped exactly like the canonical one. Rejections are absent on
+     * purpose - legality was already decided by the worker.
+     */
+    private fun getProjectedConstructionButtonDTOs(
+        projected: ProjectedCity,
+    ): ArrayList<ConstructionButtonDTO> {
+        val dtoList = ArrayList<ConstructionButtonDTO>()
+        val ruleset = cityView.getRuleset()
+        for (option in projected.constructionOptions) {
+            val construction = ruleset.units[option.name]
+                ?: ruleset.buildings[option.name]
+                ?: PerpetualConstruction.perpetualConstructionsMap[option.name]
+                ?: continue  // an unresolvable modded name must not break the list
+            val buttonText = if (option.kind == ProjectedConstructionKind.Perpetual)
+                Fonts.infinity.toString()
+            else buildString {
+                append("${option.storedProduction}/${option.productionCost ?: 0}")
+                if (option.estimatedTurns != null) append(" (${option.estimatedTurns} turns)")
+            }
+            dtoList.add(ConstructionButtonDTO(construction, buttonText))
+        }
+        return dtoList
     }
 
     private fun updateAvailableConstructions() {

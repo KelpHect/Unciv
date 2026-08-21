@@ -15,7 +15,6 @@ import com.unciv.ui.components.NonTransformGroup
 import com.unciv.ui.components.input.UncivActorGestureListener
 import com.unciv.ui.images.ClippingImage
 import com.unciv.ui.images.ImageGetter
-import com.unciv.ui.screens.worldscreen.worldmap.WorldMapHolder
 import yairm210.purity.annotations.Pure
 import yairm210.purity.annotations.Readonly
 import kotlin.math.max
@@ -26,7 +25,7 @@ class TileLayerGroup: NonTransformGroup(){
     override fun draw(batch: Batch?, parentAlpha: Float) = super.draw(batch, parentAlpha)
 }
 
-class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civInfo: Civilization?) : NonTransformGroup() {
+class Minimap(val mapHolder: MinimapMapHolder, minimapSize: Int, private val civInfo: Civilization?) : NonTransformGroup() {
     private val tileLayer = TileLayerGroup()
     private val borderLayer = NonTransformGroup()
     private val cityLayer = NonTransformGroup()
@@ -120,7 +119,7 @@ class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civIn
                 }
 
         val mapSizePercent = if (minimapSize < 22) minimapSize + 9 else minimapSize * 5 - 75
-        val smallerWorldDimension = mapHolder.worldScreen.stage.let { min(it.width, it.height) }
+        val smallerWorldDimension = mapHolder.minStageDimensionOr(800f)
         return smallerWorldDimension * mapSizePercent / 100 / effectiveRadius
     }
 
@@ -198,14 +197,14 @@ class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civIn
     }
 
     private fun addClickListener() {
-        // Single listener on the Minimap instead of one per MinimapTile - same approach as WorldMapHolder
+        // Single listener on the Minimap instead of one per MinimapTile - same approach as the main map holder
         val imageToTile = minimapTiles.associateBy { it.image }
         val listener = object : UncivActorGestureListener() {
             override fun tap(event: InputEvent?, x: Float, y: Float, count: Int, button: Int) {
                 // tileLayer is at (0,0) with no transform so Minimap coordinates == tileLayer coordinates
                 val image = tileLayer.hit(x, y, true) as? Image ?: return
                 val tile = imageToTile[image]?.tile ?: return
-                mapHolder.setCenterPosition(tile.position)
+                mapHolder.centerOn(tile.position)
             }
         }
         addListener(listener)
@@ -267,7 +266,12 @@ class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civIn
         }
     }
 
-    fun update(viewingCiv: Civilization) {
+    /**
+     * Recolors tiles for [viewingCiv]. A null viewer reveals everything - the
+     * projection minimap passes null, since the server has already bounded the
+     * map to what that player may see.
+     */
+    fun update(viewingCiv: Civilization?) {
         for (minimapTile in minimapTiles) {
             val tileInfo = minimapTile.tile
             val ownerChanged = minimapTile.owningCiv != tileInfo.getOwner()
@@ -275,14 +279,15 @@ class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civIn
                 minimapTile.owningCiv = tileInfo.getOwner()
             }
 
-            val shouldBeUnrevealed = !viewingCiv.hasExplored(tileInfo) && !viewingCiv.isSpectator()
+            val shouldBeUnrevealed =
+                viewingCiv?.let { !it.hasExplored(tileInfo) && !it.isSpectator() } == true
             val revealStatusChanged = minimapTile.isUnrevealed != shouldBeUnrevealed
             if (revealStatusChanged || ownerChanged) {
                 minimapTile.updateColor(shouldBeUnrevealed)
             }
 
             // If owner didn't change, neither city circle nor borders can have changed
-            if (shouldBeUnrevealed || !ownerChanged) continue
+            if (viewingCiv != null && shouldBeUnrevealed || !ownerChanged) continue
 
             if (tileInfo.isCityCenter()) {
                 minimapTile.updateCityCircle().updateActorsIn(cityLayer)
@@ -290,7 +295,7 @@ class Minimap(val mapHolder: WorldMapHolder, minimapSize: Int, private val civIn
 
             minimapTile.updateBorders().updateActorsIn(borderLayer)
         }
-        
+
         lastViewingCiv = viewingCiv
     }
 

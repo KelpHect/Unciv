@@ -41,6 +41,7 @@ import com.unciv.ui.screens.basescreen.UncivStage
 import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.recordUndoCheckpoint
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.ui.screens.worldscreen.bottombar.BattleTableHelpers.battleAnimationDeferred
+import com.unciv.ui.screens.worldscreen.minimap.MinimapMapHolder
 import com.unciv.utils.Concurrency
 import com.unciv.utils.Log
 import com.unciv.utils.launchOnGLThread
@@ -50,8 +51,16 @@ import java.lang.Float.max
 
 class WorldMapHolder(
     internal val worldScreen: WorldScreen,
-    internal val tileMap: TileMap
-) : ZoomableScrollPane(20f, 20f) {
+    override val tileMap: TileMap
+) : ZoomableScrollPane(20f, 20f), MinimapMapHolder {
+    /** The minimap knows this map only through [MinimapMapHolder]. */
+    override fun centerOn(position: HexCoord) {
+        setCenterPosition(position)
+    }
+
+    override fun minStageDimensionOr(default: Float): Float =
+        stage?.let { minOf(it.width, it.height) } ?: default
+
     internal var selectedTile: TileView? = null
     val tileGroups = HashMap<Tile, WorldTileGroup>()
 

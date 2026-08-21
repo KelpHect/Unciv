@@ -8,6 +8,8 @@ import com.unciv.logic.city.City
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.PlayerType
 import com.unciv.logic.map.HexCoord
+import com.unciv.logic.map.MapShape
+import com.unciv.logic.map.MapSize
 import com.unciv.logic.map.TileMap
 import com.unciv.logic.map.mapunit.MapUnit
 import com.unciv.logic.map.tile.RoadStatus
@@ -22,6 +24,7 @@ import com.unciv.ui.components.tilegroups.WorldTileGroup
 import com.unciv.ui.components.widgets.ZoomableScrollPane
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.UncivStage
+import com.unciv.ui.screens.worldscreen.minimap.MinimapMapHolder
 import com.unciv.view.GameView
 import com.unciv.utils.Log
 
@@ -178,6 +181,17 @@ internal class AuthoritativeProjectionWorldMap(
             ?.name
             ?: ruleset.terrains.keys.first()
         val map = TileMap(projection.exploredTiles.size.coerceAtLeast(1))
+        // The projection carries bare coordinates, so the map gets a rectangular
+        // bounding box of exactly what the server sent - the minimap reads these
+        // parameters, and nothing here may imply a larger or wrapped world.
+        if (projection.exploredTiles.isNotEmpty()) {
+            val xs = projection.exploredTiles.asSequence().map { it.x }
+            val ys = projection.exploredTiles.asSequence().map { it.y }
+            val width = (xs.max() - xs.min() + 1).coerceAtLeast(1)
+            val height = (ys.max() - ys.min() + 1).coerceAtLeast(1)
+            map.mapParameters.shape = MapShape.rectangular
+            map.mapParameters.mapSize = MapSize(width, height)
+        }
         map.startingLocations.clear()
         for (projected in projection.exploredTiles) {
             val tile = Tile()
@@ -255,9 +269,11 @@ internal class AuthoritativeProjectionMapHolder(
     screen: BaseScreen,
     private val world: AuthoritativeProjectionWorldMap,
     private val onTileClicked: (Tile) -> Unit,
-) : ZoomableScrollPane(20f, 20f) {
+) : ZoomableScrollPane(20f, 20f), MinimapMapHolder {
     private val tileGroups = HashMap<Tile, WorldTileGroup>()
     private lateinit var tileGroupMap: TileGroupMap<WorldTileGroup>
+
+    override val tileMap: TileMap get() = world.tileMap
 
     init {
         continuousScrollingX = world.tileMap.mapParameters.worldWrap
@@ -266,6 +282,14 @@ internal class AuthoritativeProjectionMapHolder(
         setupZoomPanListeners()
         reloadMaxZoom()
     }
+
+    /** The minimap knows this map only through [MinimapMapHolder]. */
+    override fun centerOn(position: HexCoord) {
+        setCenterPosition(position)
+    }
+
+    override fun minStageDimensionOr(default: Float): Float =
+        stage?.let { minOf(it.width, it.height) } ?: default
 
     private fun addTiles(stage: Stage) {
         val tileSetStrings = TileSetStrings(world.tileMap.ruleset!!, UncivGame.Current.settings)

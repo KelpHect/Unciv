@@ -11,7 +11,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Stack
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.utils.DragListener
 import com.badlogic.gdx.utils.Align
-import com.unciv.GUI
 import com.unciv.UncivGame
 import com.unciv.logic.civilization.Civilization
 import com.unciv.ui.components.extensions.addInTable
@@ -19,10 +18,9 @@ import com.unciv.ui.components.input.onActivation
 import com.unciv.ui.components.input.onClick
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.screens.basescreen.BaseScreen
-import com.unciv.ui.screens.worldscreen.worldmap.WorldMapHolder
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 
-class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
-    private val worldScreen = mapHolder.worldScreen
+class MinimapHolder(private val host: WorldHudHost, val mapHolder: MinimapMapHolder) : Table() {
     private var minimapSize = Int.MIN_VALUE
     private var maximized = false
     private var lastCutoutSetting = false
@@ -67,11 +65,11 @@ class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
         improvementsImageButton
     )
 
-    private fun rebuildIfSizeChanged(civInfo: Civilization) {
+    private fun rebuildIfSizeChanged(civInfo: Civilization?) {
         // For Spectator should not restrict minimap
-        val civ: Civilization? = civInfo.takeUnless { GUI.getViewingPlayer().isSpectator() }
-        val newMinimapSize = worldScreen.game.settings.minimapSize
-        val cutoutSetting = worldScreen.game.settings.androidCutout
+        val civ: Civilization? = civInfo?.takeUnless { host.hudViewingCiv.isSpectator() }
+        val newMinimapSize = UncivGame.Current.settings.minimapSize
+        val cutoutSetting = UncivGame.Current.settings.androidCutout
         if (newMinimapSize == minimapSize && civ?.exploredRegion?.shouldUpdateMinimap() != true && cutoutSetting == lastCutoutSetting) return
         lastCutoutSetting = cutoutSetting
         minimapSize = newMinimapSize
@@ -88,7 +86,7 @@ class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
         val stack = Stack()
         stack.add(wrappedMinimap)
         stack.addInTable(getCornerHandleIcon()).size(20f).pad(8f).top().left()
-        val alignment = if (worldScreen.game.settings.androidCutout) Align.topRight else Align.bottomRight
+        val alignment = if (UncivGame.Current.settings.androidCutout) Align.topRight else Align.bottomRight
         stack.addInTable(getMaximizeToggleButton(civInfo, alignment)).size(40f).align(alignment) // more click area
         add(stack).bottom()
 
@@ -116,7 +114,7 @@ class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
             minimapSize = if (maximized && stage!=null) {
                 minimap.getClosestMinimapSize(Vector2(stage.width, stage.height), touchInside = true)
             } else {
-                worldScreen.game.settings.minimapSize
+                UncivGame.Current.settings.minimapSize
             }
             rebuildAndUpdateMap(civInfo)
         }
@@ -186,7 +184,7 @@ class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
         return toggleIconTable
     }
 
-    fun update(civInfo: Civilization) {
+    fun update(civInfo: Civilization?) {
         rebuildIfSizeChanged(civInfo)
         isVisible = UncivGame.Current.settings.showMinimap
         if (isVisible) {
@@ -208,17 +206,17 @@ class MinimapHolder(val mapHolder: WorldMapHolder) : Table() {
                 return
             dragged = true
             val targetSize = Vector2(stage.width - event.stageX, event.stageY)
-            val newMinimapSize = minimap.getClosestMinimapSize(targetSize) 
+            val newMinimapSize = minimap.getClosestMinimapSize(targetSize)
             if (newMinimapSize == minimapSize) return
-            
+
             minimapSize = newMinimapSize
             rebuildAndUpdateMap(civInfo)
         }
         override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: Int) {
             super.touchUp(event, x, y, pointer, button)
             if (dragged) {
-                worldScreen.game.settings.minimapSize = minimapSize
-                GUI.setUpdateWorldOnNextRender() // full update
+                UncivGame.Current.settings.minimapSize = minimapSize
+                host.hudShouldUpdate = true // full update
             }
         }
     }

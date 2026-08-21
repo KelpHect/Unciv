@@ -89,6 +89,9 @@ class CityStatsTable(private val cityScreen: CityScreen) : Table() {
 
         lowerTable.clear()
 
+        // The detailed popup breaks stats down from canonical state; without a
+        // game behind the city it would show nothing meaningful.
+        detailedStatsButton.isVisible = cityScreen.hasCanonicalGame
         lowerTable.add(detailedStatsButton).row()
         addText()
 

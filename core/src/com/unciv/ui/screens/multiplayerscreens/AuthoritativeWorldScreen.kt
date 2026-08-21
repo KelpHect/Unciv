@@ -29,8 +29,10 @@ import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
+import com.unciv.ui.screens.cityscreen.CityScreen
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
+import com.unciv.ui.screens.worldscreen.minimap.MinimapHolder
 import com.unciv.ui.screens.worldscreen.unit.UnitTable
 import com.unciv.ui.screens.savescreens.LoadGameScreen
 import com.unciv.utils.Concurrency
@@ -130,6 +132,13 @@ class AuthoritativeWorldScreen(
     private val tileInfoTable = TileInfoTable(this)
 
     /**
+     * The game's own minimap over the projected map. It is rebuilt together
+     * with the map on every committed revision, and shows the whole projected
+     * area - the server already bounded it to what this player may see.
+     */
+    private var minimapWrapper = MinimapHolder(this, mapHolder)
+
+    /**
      * The game's own unit table: selection, unit info, promotions and idle-unit
      * cycling, over units materialized from the projection. Its orders are not
      * from here - the singleplayer action row mutates GameInfo locally, which V3
@@ -189,6 +198,7 @@ class AuthoritativeWorldScreen(
         stage.addActor(unitDock)
         stage.addActor(endTurnButton)
         stage.addActor(tileInfoTable)
+        stage.addActor(minimapWrapper)
         stage.addActor(sidePanel)
 
         rebuild()
@@ -214,6 +224,10 @@ class AuthoritativeWorldScreen(
         rebuildTopBar()
         rebuildUnitDock()
         rebuildSidePanel()
+        // The minimap tracks the current map and the show/hide setting; a null
+        // viewer reveals everything, which is correct - the projection already
+        // contains only what this player may see.
+        minimapWrapper.update(null)
         layoutChrome()
 
         if (controller.canEndTurn() && !busy) endTurnButton.enable()
@@ -237,6 +251,11 @@ class AuthoritativeWorldScreen(
         mapHolder = AuthoritativeProjectionMapHolder(this, world, ::tileClicked)
         restoredCenter?.let(mapHolder::setCenterPosition)
         stage.scrollFocus = mapHolder
+        // The minimap renders the old disposable map, so it is rebuilt with the
+        // new one instead of being updated in place.
+        minimapWrapper.remove()
+        minimapWrapper = MinimapHolder(this, mapHolder)
+        stage.addActor(minimapWrapper)
         // The old map is discarded wholesale, so anything holding one of its
         // tiles or views would render state the server has already replaced.
         // A razed or captured city must not keep its panel open over a
@@ -495,6 +514,30 @@ class AuthoritativeWorldScreen(
                 controller.projection, controller.cityControls, disabled, submit,
                 onlyCityId = city.id, includeDispositions = false,
             ).build()).left().row()
+            add(openCityScreenButton(city)).left().row()
+        }
+    }
+
+    /**
+     * Opens the real single-player city screen over this projected city:
+     * read-only, with the server's own construction figures fed in, because a
+     * client without canonical state can neither compute costs nor mutate
+     * anything.
+     */
+    private fun openCityScreenButton(city: ProjectedCity) = "Open city screen".toTextButton().apply {
+        onClick {
+            val materialized = world.viewer.cities.firstOrNull { it.id == city.id }
+            if (materialized == null) {
+                ToastPopup("This city is not on the current projection", this@AuthoritativeWorldScreen)
+                return@onClick
+            }
+            game.pushScreen(
+                CityScreen(
+                    world.gameView.getCityView(materialized),
+                    forceReadOnly = true,
+                    projectedCity = city,
+                ),
+            )
         }
     }
 
@@ -506,12 +549,17 @@ class AuthoritativeWorldScreen(
         topBar.width = stage.width
         topBar.setPosition(0f, stage.height - topBar.height)
         unitDock.setPosition(10f, 10f)
+        minimapWrapper.setPosition(stage.width - minimapWrapper.width, 0f)
         endTurnButton.pack()
-        endTurnButton.setPosition(stage.width - endTurnButton.width - 10f, 10f)
+        endTurnButton.setPosition(
+            stage.width - endTurnButton.width - minimapWrapper.width - 20f,
+            10f,
+        )
         tileInfoTable.pack()
         tileInfoTable.setPosition(
             stage.width - tileInfoTable.width - 10f,
-            endTurnButton.height + 18f,
+            if (minimapWrapper.isVisible) minimapWrapper.height + 5f
+            else endTurnButton.height + 18f,
         )
         if (sidePanelVisible) {
             sidePanel.width = (stage.width * 0.42f).coerceAtMost(480f)

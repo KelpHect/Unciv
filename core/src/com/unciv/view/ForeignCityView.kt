@@ -55,10 +55,10 @@ open class ForeignCityView(internal open val city: City,
     @Readonly fun civKnows(civ: Civilization): Boolean = city.civ.knows(civ)
     @Readonly fun isKnownTo(civ: Civilization): Boolean = civ.knows(city.civ)
     @Readonly fun getDiplomacyManagerWith(civ: Civilization): DiplomacyManager? = city.civ.getDiplomacyManager(civ)
-    /** No game behind the civilization means no espionage layer at all. */
+    /** No game behind the civilization means no espionage or religion layer at all. */
     @Readonly fun isEspionageEnabled(): Boolean =
         city.civ.gameInfoOrNull?.isEspionageEnabled() == true
-    @Readonly fun isReligionEnabled(): Boolean = city.civ.gameInfo.isReligionEnabled()
+    @Readonly fun isReligionEnabled(): Boolean = city.civ.gameInfoOrNull?.isReligionEnabled() == true
     @Readonly fun spyIsSetUpAtCity(viewer: Civilization): Boolean =
         viewer.espionageManager.getSpyAssignedToCity(city)?.isSetUp() == true
     @Readonly fun getCivInnerColor(): ImmutableColor = city.civ.nation.getInnerColor()

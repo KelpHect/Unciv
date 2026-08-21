@@ -36,7 +36,8 @@ class CivView(civ: Civilization,
     @Readonly fun technologyByName(name: String?): Technology? = civ.ruleset.technologies[name]
 
     @Readonly fun hasUnique(type: UniqueType): Boolean = civ.hasUnique(type)
-    @Readonly fun isReligionEnabled(): Boolean = civ.gameInfo.isReligionEnabled()
+    /** Religion is a game setting; a projection client has no game and thus none. */
+    @Readonly fun isReligionEnabled(): Boolean = civ.gameInfoOrNull?.isReligionEnabled() == true
     @Readonly fun getGreatPersonPoints(name: String): Int = civ.greatPeople.greatPersonPointsCounter[name]
     @Readonly fun getPointsRequiredForGreatPerson(name: String): Int = civ.greatPeople.getPointsRequiredForGreatPerson(name)
     @Readonly fun isCivConstructionDisabled(name: String): Boolean = name in civ.disabledCityConstructions

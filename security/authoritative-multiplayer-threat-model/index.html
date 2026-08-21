@@ -3864,6 +3864,29 @@ widening rather than a confidentiality reduction. Every new leaf is classified
 player can finally see rival cities and their borders. Before it, the projection
 carried <code>visibleForeignUnits</code> but nothing equivalent for cities, and a rival
 city was invisible even on a tile the server had already made visible.</p>
+<p>The 2026-08-21 projection bump (63 → 64) widens three player-private or
+legally-known surfaces, each restoring single-player visibility parity rather
+than disclosing anything new to any other party:</p>
+<ul>
+<li><code>ProjectedResearch.researchableTechEstimates</code>: worker-computed turn
+  estimates for technologies the player may research or has queued. These fold
+  difficulty, speed, map size and known-civ modifiers that stay server-owned;
+  the client renders them instead of recomputing costs it cannot compute.</li>
+<li><code>ProjectedCity.stats</code>: the owner's own headline yields per city (food,
+  production, gold, science, culture, faith, happiness) - exactly what the
+  classic city screen shows its owner. Absent for foreign cities.</li>
+<li><code>ProjectedDiplomacyPartner</code> relationship display: <code>relationshipLevel</code>,
+  <code>opinionOfUs</code>, and <code>peaceTreatyCooldownTurns</code>. These are the partner's
+  visibly expressed stance toward the actor, the same figures the classic
+  diplomacy screen prints; no hidden AI internals beyond that display are
+  disclosed. The peace cooldown appears only while at war.</li>
+</ul>
+<p>All new leaves are classified in <code>projection-disclosure-policy.tsv</code>
+(<code>player_private</code> for own research/city figures, <code>legally_known</code> for the
+partner's visible stance) and guarded by the fail-closed
+<code>ProjectionDisclosurePolicyTests</code> enumeration plus a focused sentinel test
+proving relationship facts mirror only the partner's canonical visible stance
+and city stats appear on owned cities only.</p>
 <p>The gate is deliberately the same one <code>visibleForeignUnits</code> already uses: a
 rival city is disclosed only when its centre tile is in the viewing
 civilization's <code>viewableTiles</code>. Explored-but-currently-fogged cities are

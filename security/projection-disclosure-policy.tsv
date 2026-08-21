@@ -407,3 +407,14 @@ spectator	spectator.turn	public	Explicit public spectator summary; canonical pri
 spectator	spectator.victory.victoryTurn	public	Completed-game result is public while canonical private state remains absent.
 spectator	spectator.victory.victoryType	public	Completed-game result is public while canonical private state remains absent.
 spectator	spectator.victory.winningCivilizationId	public	Completed-game result is public while canonical private state remains absent.
+player	player.research.researchableTechEstimates{}	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.food	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.production	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.gold	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.science	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.culture	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.faith	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].stats.happiness	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.diplomacyPartners[].relationshipLevel	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].opinionOfUs	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].peaceTreatyCooldownTurns	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.

@@ -94,14 +94,18 @@ class TechManager : IsPartOfGameInfoSerialization {
 
     @Readonly
     private fun getScienceModifier(techName: String): Float { // https://forums.civfanatics.com/threads/the-mechanics-of-overflow-inflation.517970/
+        // Cross-civilization research discount is canonical state; a client
+        // holding only a projection has neither rival techs nor the civ list,
+        // so it renders without that modifier instead of inventing it.
+        val gameInfo = civInfo.gameInfoOrNull ?: return 1f
         val numberOfCivsResearchedThisTech = civInfo.getKnownCivs()
             .count { it.isMajorCiv() && it.tech.isResearched(techName) }
-        val numberOfCivsRemaining = civInfo.gameInfo.civilizations
+        val numberOfCivsRemaining = gameInfo.civilizations
             .count { it.isMajorCiv() && !it.isDefeated() }
         return 1 + numberOfCivsResearchedThisTech / numberOfCivsRemaining.toFloat() * 0.3f
     }
 
-    @Readonly private fun getRuleset() = civInfo.gameInfo.ruleset
+    @Readonly private fun getRuleset() = civInfo.ruleset
 
     @Readonly
     fun costOfTech(techName: String): Int {
@@ -482,7 +486,7 @@ class TechManager : IsPartOfGameInfoSerialization {
     }
 
     private fun updateEra() {
-        val ruleset = civInfo.gameInfo.ruleset
+        val ruleset = civInfo.ruleset
         if (ruleset.technologies.isEmpty() || researchedTechnologies.isEmpty())
             return
 
@@ -533,7 +537,7 @@ class TechManager : IsPartOfGameInfoSerialization {
         movementSpeedOnRoads = if (civInfo.hasUnique(UniqueType.RoadMovementSpeed))
             RoadStatus.Road.movementImproved else RoadStatus.Road.movement
         roadsConnectAcrossRivers = civInfo.hasUnique(UniqueType.RoadsConnectAcrossRivers)
-        allTechsAreResearched = civInfo.gameInfo.ruleset.technologies.values
+        allTechsAreResearched = civInfo.ruleset.technologies.values
             .all { isResearched(it.name) || !canBeResearched(it.name)}
     }
 

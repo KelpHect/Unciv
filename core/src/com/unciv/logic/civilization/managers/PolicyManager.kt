@@ -116,6 +116,29 @@ class PolicyManager : IsPartOfGameInfoSerialization {
         )
     }
 
+    /**
+     * Presentation-only state for a civilization that deliberately exists
+     * outside a [GameInfo]: an API-v3 projection client renders the classic
+     * policy screen from server figures without owning canonical adoption
+     * state. Never call this on a civilization inside a real game.
+     *
+     * [numberOfAdoptedPolicies] is what canonical adoption would have counted:
+     * every adopted policy except branch-*completion* policies (which
+     * [adopt] adds without counting).
+     */
+    fun setPresentationState(
+        adoptedPolicies: Collection<String>,
+        storedCulture: Int,
+        freePolicies: Int,
+        numberOfAdoptedPolicies: Int,
+    ) {
+        this.adoptedPolicies.clear()
+        this.adoptedPolicies.addAll(adoptedPolicies)
+        this.numberOfAdoptedPolicies = numberOfAdoptedPolicies
+        this.storedCulture = storedCulture
+        this.freePolicies = freePolicies
+    }
+
     private fun addPolicyToTransients(policy: Policy) {
         for (unique in policy.uniqueObjects) {
             policyUniques.addUnique(unique)

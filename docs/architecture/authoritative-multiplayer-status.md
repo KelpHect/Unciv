@@ -11984,3 +11984,68 @@ Delivery closure note: the full-match human run stays open as the P0 release
 gate with its exact procedure in
 `docs/operations/authoritative-full-match-qualification.md`; nothing in this
 milestone weakens or substitutes it.
+
+## Classic tech-tree and policy screens as the V3 decision surfaces (2026-08-21)
+
+The flat research/policy button lists in the decisions drawer are gone.
+Research and policies are now chosen on the real single-player screens, fed
+by the projection and routed through typed commands - no local mutation, no
+session object in either picker:
+
+- `TechPickerScreen` gains `projectedResearch: ProjectedResearch?` plus
+  `onCommitQueue`/`onSelectFreeTechnology`. Turn estimates render from the
+  projected queue entries only; pickability is gated on the server's
+  advertised selectable+appendable sets before any queue is built; progress
+  labels use projected stored/cost figures. Committing submits
+  `AuthoritativeWorldController.commitResearchQueue(queue, ruleset)`, which
+  diffs against the current projection into one replace (when the desired
+  queue starts differently) plus one append per new research root - each root
+  lets the worker derive its prerequisite path and every command revalidates
+  fail-closed.
+- `PolicyPickerScreen` gains `projectedPolicies` plus `onAdopt`: header
+  culture uses the projected cost figure, pickability folds era/requires/
+  unique gates into membership of the server's advertised set, and adoption
+  (single policy or branch starter) submits one typed command instead of
+  calling `PolicyManager.adopt`.
+- `Civilization.applyProjectionPresentation(projection)` populates the world's
+  detached civilization (techsResearched, queue, in-progress science, free
+  techs, adopted policies with a ruleset-derived non-completion count) so both
+  screens render exactly the canonical state the worker owns. Engine seams:
+  `TechManager.getRuleset/updateEra/updateTransientBooleans` resolve through
+  `Civilization.ruleset` (detached fallback), `getScienceModifier` degrades to
+  neutral without cross-civ canonical data, `TechnologyDescriptions` wonder
+  markers degrade, and `TechButton` resolves its ruleset the same way. New
+  `PolicyManager.setPresentationState(...)` is documented presentation-only.
+- The diplomacy panel renders leader portraits/display names for major and
+  city-state partners plus projected influence levels. The classic
+  `DiplomacyScreen` stays deliberately unreused: relationship level, opinion,
+  promises, and war cooldowns are canonical cross-civ state outside the
+  projection contract, so reuse would widen the confidentiality boundary
+  rather than add a view seam.
+
+Source pins updated: the four old flat-list assertions are replaced by
+world-screen wiring pins (`openTechTree`/`openPolicyPicker`, picker
+construction, commitResearchQueue, applyProjectionPresentation), a new
+`classicPickersRenderFromProjectionAndRouteThroughTypedCommands` test forbids
+any `gameInfo.ruleset`/`gameInfo.gameParameters` read in the pickers and pins
+the engine seams, and the floating-HUD pin now forbids extending PickerScreen
+precisely (`": PickerScreen"`) since importing the classic pickers is the
+point.
+
+Final-state verification
+Revision: branch master at base HEAD `48eb4d55e`; tracked diff hash
+`6707284145ab4b9b824617c2eb037dc862d5f731` over the two managers,
+AuthoritativeProjectionPresentation.kt (new), AuthoritativeWorldController.kt,
+TechnologyDescriptions.kt, three authoritative UI files, TechButton.kt,
+TechPickerScreen.kt, PolicyPickerScreen.kt,
+AuthoritativeProductionRoutingTests.kt, and missing_multiplayer.md. This
+record is the only edit after that hash. No material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/pickerscreens/TechPickerScreen.kt` prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.*"` | updated routing pins incl. new classic-picker pin; all controller/command suites | 50 suites / 348 tests / 0 failures | - |
+| Kotlin (full) | passed | `./gradlew :tests:test --rerun-tasks` | complete core suite with the new engine seams and picker changes | 1228 tests / 0 failures / 17 documented skips | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging with shared-UI changes | BUILD SUCCESSFUL | - |
+| Android | not affected | - | no android source changed; changed code is shared core exercised by :tests:test | - | - |
+| Rust | not affected | - | no Rust source changed; client view layer + presentation-only engine seams | - | - |

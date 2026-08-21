@@ -27,7 +27,7 @@ object TechnologyDescriptions {
      * Civilization always known and description tailored to
      */
     fun getDescription(technology: Technology, viewingCiv: Civilization): String = technology.run {
-        val ruleset = viewingCiv.gameInfo.ruleset
+        val ruleset = viewingCiv.ruleset
         val lineList = ArrayList<String>() // more readable than StringBuilder, with same performance for our use-case
 
         for (pediaText in technology.civilopediaText) {
@@ -91,7 +91,7 @@ object TechnologyDescriptions {
      *  Gets icons to display on a [TechButton] - all should be also described in [getDescription]
      */
     fun getTechEnabledIcons(tech: Technology, viewingCiv: Civilization, techIconSize: Float) = sequence {
-        val ruleset = viewingCiv.gameInfo.ruleset
+        val ruleset = viewingCiv.ruleset
         val techName = tech.name
 
         for (unit in getEnabledUnits(techName, ruleset, viewingCiv)) {
@@ -102,12 +102,14 @@ object TechnologyDescriptions {
             // We don't need to show the unavailable marker for techs that are already researched
             // since this is mostly a feature to choose which technologies to research.
             if (building.isWonder && !viewingCiv.tech.isResearched(techName)) {
-                val isAlreadyBuilt = viewingCiv.gameInfo.getCities()
+                // Whether a rival already built this wonder is canonical
+                // cross-civ state; a projection client shows the plain icon.
+                val isAlreadyBuilt = viewingCiv.gameInfoOrNull?.getCities()
                     // This is theoretically not necessary since we already checked the viewingCiv
                     // doesn't have the tech, so it can't have this built anyways. It should be a
                     // little more performant though to add this filter.
-                    .filter{ it.civ != viewingCiv }
-                    .any { it.cityConstructions.isBuilt(building.name)}
+                    ?.filter{ it.civ != viewingCiv }
+                    ?.any { it.cityConstructions.isBuilt(building.name)} == true
                 val wonderConstructionPortrait =
                         if (isAlreadyBuilt)
                             PortraitUnavailableWonderForTechTree(building.name, techIconSize)

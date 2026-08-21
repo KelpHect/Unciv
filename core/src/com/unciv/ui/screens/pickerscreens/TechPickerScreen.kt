@@ -13,6 +13,7 @@ import com.unciv.Constants
 import com.unciv.GUI
 import com.unciv.logic.civilization.Civilization
 import com.unciv.logic.civilization.managers.TechManager
+import com.unciv.logic.multiplayer.authoritative.ProjectedResearch
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.tech.Technology
 import com.unciv.models.ruleset.unique.UniqueType
@@ -38,10 +39,20 @@ import kotlin.math.abs
 class TechPickerScreen(
     internal val civInfo: Civilization,
     centerOnTech: Technology? = null,
+    /**
+     * Server research state for an API-v3 projection client. When present,
+     * turn estimates come from the projected queue entries, clickability from
+     * the server's advertised targets, and committing routes through
+     * [onCommitQueue] / [onSelectFreeTechnology] instead of touching a
+     * [TechManager] - the client has no canonical research state to mutate.
+     */
+    private val projectedResearch: ProjectedResearch? = null,
+    private val onCommitQueue: ((List<String>) -> Unit)? = null,
+    private val onSelectFreeTechnology: ((String) -> Unit)? = null,
 ) : PickerScreen() {
 
     private val freeTechPick: Boolean = civInfo.tech.freeTechs != 0
-    private val ruleset = civInfo.gameInfo.ruleset
+    private val ruleset = civInfo.ruleset
     private var techNameToButton = HashMap<String, TechButton>()
     private var selectedTech: Technology? = null
     private var civTech: TechManager = civInfo.tech
@@ -68,14 +79,37 @@ class TechPickerScreen(
     private var researchableTechs =
         ruleset.technologies.keys.filter { civTech.canBeResearched(it) }.toHashSet()
 
+    /**
+     * What the server will actually accept, folded from its advertised
+     * selectable and appendable targets. Null for single-player, where local
+     * legality checks are the truth.
+     */
+    private val projectedPickable: Set<String>? = projectedResearch?.let {
+        it.selectableTargets.toHashSet() + it.appendableTargets
+    }
+
     private val currentTechColor = skinStrings.getUIColor("TechPickerScreen/CurrentTechColor", colorFromRGB(72, 147, 175))
     private val researchedTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchedTechColor", colorFromRGB(255, 215, 0))
     private val researchableTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchableTechColor", colorFromRGB(28, 170, 0))
     private val queuedTechColor = skinStrings.getUIColor("TechPickerScreen/QueuedTechColor", colorFromRGB(7*2, 46*2, 43*2))
     private val researchedFutureTechColor = skinStrings.getUIColor("TechPickerScreen/ResearchedFutureTechColor", colorFromRGB(127, 50, 0))
 
-    private val turnsToTech =
-        ruleset.technologies.values.associateBy({ it.name }, { civTech.turnsToTech(it.name) })
+    /**
+     * Turn estimates per tech. Single-player computes them for every node;
+     * a projection client knows them only for the queued entries the server
+     * sent, and other nodes simply show no estimate rather than a guess.
+     */
+    private val turnsToTech: Map<String, String> =
+        if (projectedResearch != null)
+            projectedResearch.queueEntries
+                .mapNotNull { entry ->
+                    entry.estimatedTurns?.let { turns ->
+                        entry.technologyName to "$turns${Fonts.turn}"
+                    }
+                }.toMap()
+        else buildMap {
+            for (tech in ruleset.technologies.values) put(tech.name, civTech.turnsToTech(tech.name))
+        }
 
     init {
         Gdx.input.inputProcessor = null // Avoid ANRs while building the tech screen
@@ -128,6 +162,22 @@ class TechPickerScreen(
     }
 
     private fun finishLocalSelection() {
+        if (projectedResearch != null) {
+            // A projection client owns no canonical research state: the queue
+            // (or free-tech claim) goes to the server as typed intent, and the
+            // accepted projection refreshes this screen's host.
+            if (freeTechPick) {
+                val freeTech = selectedTech!!.name
+                if (!researchableTechs.contains(freeTech)) return
+                onSelectFreeTechnology!!(freeTech)
+            } else onCommitQueue!!(tempTechsToResearch.toList())
+
+            game.settings.addCompletedTutorialTask("Pick technology")
+
+            game.popScreen()
+            return
+        }
+
         if (freeTechPick) {
             val freeTech = selectedTech!!.name
             // More evil people fast-clicking to cheat - #4977
@@ -241,7 +291,8 @@ class TechPickerScreen(
             }
 
             if (!isResearched || techName == Constants.futureTech) {
-                techButton.turns.setText(turnsToTech[techName] + "${Fonts.turn}".tr())
+                val turns = turnsToTech[techName]
+                if (turns != null) techButton.turns.setText(turns)
             }
 
             techButton.text.setText(techName.tr(true))
@@ -415,8 +466,8 @@ class TechPickerScreen(
             return
         }
 
-        if (civInfo.gameInfo.gameParameters.godMode && !civInfo.tech.isResearched(tech.name)
-                && selectedTech == previousSelectedTech) {
+        if (civInfo.gameInfoOrNull?.let { it.gameParameters.godMode } == true &&
+                !civInfo.tech.isResearched(tech.name) && selectedTech == previousSelectedTech) {
             civInfo.tech.addTechnology(tech.name)
         }
 
@@ -424,6 +475,13 @@ class TechPickerScreen(
             rightSideButton.setText("Pick a tech".tr())
             rightSideButton.disable()
             setButtonsInfo()
+            return
+        }
+
+        // The server decides what may be researched: a projected target that
+        // was not advertised is rejected before it reaches the transport.
+        if (projectedPickable != null && tech.name !in projectedPickable) {
+            rightSideButton.disable()
             return
         }
 
@@ -469,6 +527,19 @@ class TechPickerScreen(
 
     @Readonly
     private fun getTechProgressLabel(techs: List<String>): String {
+        // Progress figures are server-owned for a projection client: only
+        // queued entries carry them, and the client must not recompute cost.
+        if (projectedResearch != null) {
+            val progress = techs.sumOf { tech ->
+                projectedResearch.queueEntries
+                    .firstOrNull { it.technologyName == tech }?.storedScience ?: 0
+            }
+            val cost = techs.sumOf { tech ->
+                projectedResearch.queueEntries
+                    .firstOrNull { it.technologyName == tech }?.cost ?: 0
+            }
+            return "(${progress}/${cost})"
+        }
         val progress = techs.sumOf { tech -> civTech.researchOfTech(tech) } + civTech.getOverflowScience()
         val techCost = techs.sumOf { tech -> civInfo.tech.costOfTech(tech) }
         return "(${progress}/${techCost})"

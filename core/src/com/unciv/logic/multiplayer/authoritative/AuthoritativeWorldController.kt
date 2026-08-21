@@ -1,5 +1,7 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.models.ruleset.Ruleset
+
 /**
  * Projection-only world state and input boundary.
  *
@@ -245,6 +247,49 @@ class AuthoritativeWorldController(
         submit {
             setResearch(technologyName, append)
         }
+    }
+
+    /**
+     * Commits a tech-tree queue edit as the minimal sequence of typed
+     * commands: a replace when the desired queue starts differently, then one
+     * append per new research root - an entry whose prerequisite path is not
+     * already covered by what precedes it. Appending a root makes the worker
+     * derive its full prerequisite path; every command is revalidated against
+     * the projection it receives, so a stale or illegal path fails closed and
+     * refreshes instead of guessing.
+     *
+     * [ruleset] supplies only static topology (prerequisites); it never
+     * decides legality.
+     */
+    suspend fun commitResearchQueue(desiredQueue: List<String>, ruleset: Ruleset) {
+        require(desiredQueue.isNotEmpty()) { "Committing an empty research queue" }
+        val currentQueue = projection.research.queue
+        var commonPrefix = 0
+        while (commonPrefix < currentQueue.size &&
+            commonPrefix < desiredQueue.size &&
+            currentQueue[commonPrefix] == desiredQueue[commonPrefix]
+        ) commonPrefix++
+
+        val covered = currentQueue.take(commonPrefix).toHashSet()
+        for (name in desiredQueue.drop(commonPrefix)) {
+            val prerequisites = prerequisiteClosure(name, ruleset)
+            if (prerequisites.any { it !in covered }) continue
+            selectResearch(name, append = covered.isNotEmpty())
+            covered += name
+            covered += prerequisites
+        }
+    }
+
+    private fun prerequisiteClosure(techName: String, ruleset: Ruleset): Set<String> {
+        val seen = HashSet<String>()
+        val queue = ArrayDeque<String>().apply { add(techName) }
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            for (prerequisite in ruleset.technologies[current]?.prerequisites.orEmpty()) {
+                if (seen.add(prerequisite)) queue.add(prerequisite)
+            }
+        }
+        return seen
     }
 
     suspend fun manageResearchQueue(

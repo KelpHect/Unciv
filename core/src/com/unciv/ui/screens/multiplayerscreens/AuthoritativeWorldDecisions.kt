@@ -27,6 +27,8 @@ internal class AuthoritativeWorldDecisions(
     private val busy: Boolean,
     private val selectUnitTarget: (AuthoritativeUnitTargetMode) -> Unit,
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
+    /** Presentation-only ruleset for partner identity; never decides anything. */
+    private val ruleset: com.unciv.models.ruleset.Ruleset? = null,
 ) {
     fun build(): Table = Table().apply {
         defaults().pad(3f)
@@ -81,6 +83,7 @@ internal class AuthoritativeWorldDecisions(
                 controller.diplomacy,
                 busy,
                 submit,
+                ruleset,
             ).build(),
         ).left().row()
         add(
@@ -95,71 +98,14 @@ internal class AuthoritativeWorldDecisions(
             AuthoritativeHistoryPanel(controller.projection).build(),
         ).left().row()
         add(researchSummary().toLabel()).left().row()
-        addChoices(
-            "Research",
-            controller.projection.research.selectableTargets,
-        ) { technology -> controller.selectResearch(technology, append = false) }
-        addChoices(
-            "Queue research",
-            controller.projection.research.appendableTargets,
-        ) { technology -> controller.selectResearch(technology, append = true) }
-        addResearchQueue()
-        addChoices(
-            "Free technology",
-            controller.projection.research.freeTechnologyChoices,
-            controller::chooseProjectedFreeTechnology,
-        )
+        // Research and policies are chosen on the real tech-tree and policy
+        // screens, which the world screen opens fed by this projection; only
+        // the completion acknowledgements remain here because they are prompts.
         for (prompt in controller.projection.research.completionPrompts) {
             add(actionButton("Acknowledge ${prompt.technologyName}") {
                 controller.acknowledgeProjectedResearchCompletion(prompt.promptId)
             }).left().row()
         }
-        add(
-            (
-                "Culture: ${controller.projection.policies.storedCulture}/" +
-                    "${controller.projection.policies.cultureNeededForNextPolicy} - " +
-                    "free policies: ${controller.projection.policies.freePolicies}"
-                ).toLabel(),
-        ).left().row()
-        addChoices(
-            "Adopt policy",
-            controller.projection.policies.selectablePolicies,
-            controller::adoptProjectedPolicy,
-        )
-    }
-
-    private fun Table.addResearchQueue() {
-        for ((index, entry) in controller.projection.research.queueEntries.withIndex()) {
-            add(
-                (
-                    "${index + 1}. ${entry.technologyName}: ${entry.storedScience}/" +
-                        "${entry.cost}${entry.estimatedTurns?.let { " ($it turns)" }.orEmpty()}"
-                    ).toLabel(),
-            ).left().row()
-            if (entry.availableActions.isNotEmpty()) {
-                val actions = Table()
-                for (action in entry.availableActions) {
-                    actions.add(actionButton(action.title()) {
-                        controller.manageResearchQueue(entry.technologyName, index, action)
-                    })
-                }
-                add(actions).left().row()
-            }
-        }
-    }
-
-    private fun Table.addChoices(
-        title: String,
-        choices: List<String>,
-        operation: suspend (String) -> Unit,
-    ) {
-        if (choices.isEmpty()) return
-        add("$title:".toLabel()).left().row()
-        val buttons = Table()
-        for (choice in choices) {
-            buttons.add(actionButton(choice) { operation(choice) }).pad(2f)
-        }
-        add(buttons).left().row()
     }
 
     private fun actionButton(
@@ -174,13 +120,5 @@ internal class AuthoritativeWorldDecisions(
         val research = controller.projection.research
         return "Research: ${research.currentTechnology ?: "none"} - " +
             "overflow science: ${research.overflowScience}"
-    }
-
-    private fun ResearchQueueAction.title(): String = when (this) {
-        ResearchQueueAction.MoveToTop -> "Move to top"
-        ResearchQueueAction.MoveUp -> "Move up"
-        ResearchQueueAction.MoveDown -> "Move down"
-        ResearchQueueAction.MoveToEnd -> "Move to end"
-        ResearchQueueAction.Remove -> "Remove"
     }
 }

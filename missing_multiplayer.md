@@ -210,6 +210,32 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   and exiting recenters whichever HUD hosts the map through `WorldHudHost`.
   The pinned boundary stands: construction costs are never computed
   client-side.
+- [x] Make the classic tech-tree and policy screens the V3 decision surfaces.
+  `TechPickerScreen` accepts `projectedResearch` plus commit callbacks, and
+  `PolicyPickerScreen` accepts `projectedPolicies` plus an adopt callback:
+  turn estimates come from the projected queue entries only (other nodes show
+  no estimate rather than a guess), pickability is gated on the server's
+  advertised selectable/appendable sets, progress labels use server figures,
+  and committing submits typed commands (`commitResearchQueue` diffs the
+  desired queue into one replace plus minimal appends; adoption and free-tech
+  claims are single commands). The world screen populates its materialized
+  civilization from the projection before opening either picker, so the full
+  single-player tree/policy rendering - eras, connector lines, queue badges,
+  branch completion - is exactly what online players see. Engine ruleset
+  resolution in `TechManager`, `PolicyManager`, `TechnologyDescriptions`, and
+  `TechButton` now works for detached civilizations via `Civilization.ruleset`,
+  with the cross-civ research discount and wonder-built markers degrading to
+  neutral instead of crashing. Source pins forbid any remaining
+  `gameInfo.ruleset`/`gameInfo.gameParameters` read in the pickers and pin the
+  world-screen wiring.
+- [x] Give diplomacy partners their real identity. The V3 diplomacy panel
+  renders leader portraits and display names for every major and city-state
+  partner (from the pinned ruleset) instead of raw civilization IDs, and shows
+  each city-state's projected influence level. The classic `DiplomacyScreen`
+  itself remains deliberately unreused: relationship levels, opinions,
+  promise states, and war-declaration countdowns are canonical cross-civ state
+  that the projection intentionally does not carry, so reusing that screen
+  would require widening the confidentiality boundary rather than a view seam.
 
 ## P0: required before v3 can replace legacy online play
 

@@ -30,6 +30,9 @@ import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.cityscreen.CityScreen
+import com.unciv.ui.screens.pickerscreens.PolicyPickerScreen
+import com.unciv.ui.screens.pickerscreens.TechPickerScreen
+import com.unciv.logic.multiplayer.authoritative.applyProjectionPresentation
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
 import com.unciv.ui.screens.worldscreen.minimap.MinimapHolder
@@ -479,6 +482,14 @@ class AuthoritativeWorldScreen(
             refresh.onClick { refreshProjection(silent = false) }
             add(refresh).left().row()
         }
+
+        // Research and policies open the real single-player pickers, fed by
+        // the projection and routed to typed commands - the same screens a
+        // local game uses, never local mutation.
+        add("Tech tree".toTextButton().onClick { openTechTree() }).fillX().row()
+        add("Social policies".toTextButton().onClick { openPolicyPicker() })
+            .fillX().row()
+
         add(
             ScrollPane(
                 AuthoritativeWorldDecisions(
@@ -488,9 +499,11 @@ class AuthoritativeWorldScreen(
                         controller.beginUnitTargetSelection(mode)
                         rebuild()
                     },
-                ) { taskName, operation ->
-                    runOperation(taskName, operation = operation)
-                }.build(),
+                    submit = { taskName, operation ->
+                        runOperation(taskName, operation = operation)
+                    },
+                    ruleset = ruleset,
+                ).build(),
             ).apply {
                 setScrollingDisabled(false, false)
                 setOverscroll(false, false)
@@ -699,6 +712,50 @@ class AuthoritativeWorldScreen(
     override fun dispose() {
         if (GUI.hudHost === this) GUI.hudHost = null
         super.dispose()
+    }
+
+    /**
+     * Opens the real single-player tech tree over the current projection:
+     * browsing is fully local (topology is static ruleset data), while
+     * committing submits the queue diff as typed commands.
+     */
+    private fun openTechTree() {
+        if (busy || !controller.canAcceptProjectedInput) return
+        world.viewer.applyProjectionPresentation(controller.projection)
+        game.pushScreen(
+            TechPickerScreen(
+                world.viewer,
+                projectedResearch = controller.projection.research,
+                onCommitQueue = { queue ->
+                    runOperation("Commit authoritative research queue") {
+                        controller.commitResearchQueue(queue, ruleset)
+                    }
+                },
+                onSelectFreeTechnology = { name ->
+                    runOperation("Claim authoritative free technology") {
+                        controller.chooseProjectedFreeTechnology(name)
+                    }
+                },
+            ),
+        )
+    }
+
+    /** Opens the real policy picker, fed by the server's advertised set. */
+    private fun openPolicyPicker() {
+        if (busy || !controller.canAcceptProjectedInput) return
+        world.viewer.applyProjectionPresentation(controller.projection)
+        game.pushScreen(
+            PolicyPickerScreen(
+                world.viewer,
+                canChangeState = true,
+                projectedPolicies = controller.projection.policies,
+                onAdopt = { name ->
+                    runOperation("Adopt authoritative policy") {
+                        controller.adoptProjectedPolicy(name)
+                    }
+                },
+            ),
+        )
     }
 
     companion object {

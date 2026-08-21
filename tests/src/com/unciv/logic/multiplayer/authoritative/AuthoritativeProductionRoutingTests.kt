@@ -601,10 +601,19 @@ class AuthoritativeProductionRoutingTests {
                 "AuthoritativeWorldScreen.kt",
         ).readText()
 
-        assertTrue(decisions.contains("controller.selectResearch("))
-        assertTrue(decisions.contains("controller.manageResearchQueue("))
-        assertTrue(decisions.contains("controller::chooseProjectedFreeTechnology"))
-        assertTrue(decisions.contains("controller::adoptProjectedPolicy"))
+        assertTrue(decisions.contains("controller.acknowledgeProjectedResearchCompletion(prompt.promptId)"))
+        // Research and policies are chosen on the real classic pickers - the
+        // tech tree and policy screens - which the projection world opens fed
+        // by its current projection and routed through the controller.
+        assertTrue(projectionWorld.contains("private fun openTechTree()"))
+        assertTrue(projectionWorld.contains("private fun openPolicyPicker()"))
+        assertTrue(projectionWorld.contains("TechPickerScreen("))
+        assertTrue(projectionWorld.contains("PolicyPickerScreen("))
+        assertTrue(projectionWorld.contains("controller.commitResearchQueue(queue, ruleset)"))
+        assertTrue(projectionWorld.contains("applyProjectionPresentation(controller.projection)"))
+        // The flat button lists must not come back.
+        assertFalse(decisions.contains("selectableTargets"))
+        assertFalse(decisions.contains("adoptProjectedPolicy"))
         assertTrue(prompts.contains("controller.castDiplomaticVote("))
         assertTrue(prompts.contains("controller.chooseGreatPerson("))
         assertTrue(projectionWorld.contains("session.chooseReligiousBeliefsIfOpen("))
@@ -934,7 +943,7 @@ class AuthoritativeProductionRoutingTests {
 
         // A fullscreen surface with floating chrome, not a picker table stack.
         assertTrue(world.contains("BaseScreen(), WorldHudHost, RecreateOnResize"))
-        assertFalse(world.contains("PickerScreen"))
+        assertFalse(world.contains(": PickerScreen"))
         assertTrue(world.contains("stage.addActor(mapHolder)"))
         assertTrue(world.contains("mapHolder.setSize(stage.width, stage.height)"))
         for (widget in listOf("topBar", "unitDock", "endTurnButton", "sidePanel")) {
@@ -1028,6 +1037,51 @@ class AuthoritativeProductionRoutingTests {
         assertTrue(holder.contains("private val host: WorldHudHost"))
         assertFalse(holder.contains("worldScreen.game.settings"))
         assertFalse(holder.contains("GUI.getViewingPlayer()"))
+    }
+
+    /**
+     * The classic tech-tree and policy screens are the V3 decision surfaces:
+     * they render from server-projected figures, gate pickability on the
+     * server's advertised sets, and route every adoption through typed
+     * commands - never local mutation, and never a session object.
+     */
+    @Test
+    fun classicPickersRenderFromProjectionAndRouteThroughTypedCommands() {
+        val tech = sourceFile(
+            "core/src/com/unciv/ui/screens/pickerscreens/TechPickerScreen.kt",
+        ).readText()
+        val policy = sourceFile(
+            "core/src/com/unciv/ui/screens/pickerscreens/PolicyPickerScreen.kt",
+        ).readText()
+        val techManager = sourceFile(
+            "core/src/com/unciv/logic/civilization/managers/TechManager.kt",
+        ).readText()
+        val policyManager = sourceFile(
+            "core/src/com/unciv/logic/civilization/managers/PolicyManager.kt",
+        ).readText()
+
+        // Projection-fed constructor seams.
+        assertTrue(tech.contains("projectedResearch: ProjectedResearch?"))
+        assertTrue(tech.contains("onCommitQueue"))
+        assertTrue(tech.contains("onSelectFreeTechnology"))
+        assertTrue(tech.contains("projectedPickable"))
+        assertTrue(policy.contains("projectedPolicies: ProjectedPolicies?"))
+        assertTrue(policy.contains("onAdopt"))
+
+        // Committing routes to the caller's command bus instead of mutating.
+        assertTrue(tech.contains("onSelectFreeTechnology!!(freeTech)"))
+        assertTrue(tech.contains("onCommitQueue!!(tempTechsToResearch.toList())"))
+        assertTrue(policy.contains("onAdopt(policy.name)"))
+        assertTrue(policy.contains("onAdopt(branch.name)"))
+
+        // No canonical-GameInfo reads may remain in either picker.
+        for ((name, source) in listOf("TechPickerScreen" to tech, "PolicyPickerScreen" to policy)) {
+            assertFalse("$name must resolve rulesets without a GameInfo", source.contains("gameInfo.ruleset"))
+            assertFalse("$name must not read gameInfo.gameParameters directly", source.contains("gameInfo.gameParameters"))
+        }
+        // Engine ruleset resolution works for a detached civilization too.
+        assertTrue(techManager.contains("private fun getRuleset() = civInfo.ruleset"))
+        assertTrue(policyManager.contains("fun setPresentationState("))
     }
 
     @Test

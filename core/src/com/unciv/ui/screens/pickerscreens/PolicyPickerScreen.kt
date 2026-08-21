@@ -9,6 +9,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.utils.Align
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.multiplayer.authoritative.ProjectedPolicies
 import com.unciv.models.TutorialTrigger
 import com.unciv.models.UncivSound
 import com.unciv.models.ruleset.Policy
@@ -74,16 +75,35 @@ private enum class PolicyColors(
 }
 
 @Readonly
-private fun Policy.isPickable(viewingCiv: Civilization, canChangeState: Boolean) =
-    viewingCiv.isCurrentPlayer()
+private fun Policy.isPickable(
+    viewingCiv: Civilization,
+    canChangeState: Boolean,
+    projectedPickable: Collection<String>? = null,
+): Boolean = when {
+    // The server has already folded era, requires-chain and unique gates into
+    // its advertised selectable set; a projection client has no canonical
+    // state to re-check them against.
+    projectedPickable != null ->
+        canChangeState
+            && !viewingCiv.policies.isAdopted(name)
+            && policyBranchType != PolicyBranchType.BranchComplete
+            && name in projectedPickable
+    else -> viewingCiv.isCurrentPlayer()
         && canChangeState
         && !viewingCiv.isDefeated()
-        && !viewingCiv.policies.isAdopted(this.name)
+        && !viewingCiv.policies.isAdopted(name)
         && policyBranchType != PolicyBranchType.BranchComplete
         && viewingCiv.policies.isAdoptable(this)
         && viewingCiv.policies.canAdoptPolicy()
+}
 
-private class PolicyButton(viewingCiv: Civilization, canChangeState: Boolean, val policy: Policy, size: Float = 30f) : BorderedTable(
+private class PolicyButton(
+    viewingCiv: Civilization,
+    canChangeState: Boolean,
+    val policy: Policy,
+    size: Float = 30f,
+    projectedPickable: Collection<String>? = null,
+) : BorderedTable(
     path = "PolicyScreen/PolicyButton",
     defaultBgBorder = BaseScreen.skinStrings.roundedEdgeRectangleSmallShape,
     defaultBgShape = BaseScreen.skinStrings.roundedEdgeRectangleSmallShape,
@@ -91,7 +111,7 @@ private class PolicyButton(viewingCiv: Civilization, canChangeState: Boolean, va
 
     val icon = ImageGetter.getImage("PolicyIcons/" + policy.name)
 
-    private val isPickable = policy.isPickable(viewingCiv, canChangeState)
+    private val isPickable = policy.isPickable(viewingCiv, canChangeState, projectedPickable)
     private val isAdopted = viewingCiv.policies.isAdopted(policy.name)
 
     var isSelected = false
@@ -147,8 +167,19 @@ private class PolicyButton(viewingCiv: Civilization, canChangeState: Boolean, va
 class PolicyPickerScreen(
     val viewingCiv: Civilization,
     val canChangeState: Boolean,
-    select: String? = null
+    select: String? = null,
+    /**
+     * Server policy state for an API-v3 projection client. When present, the
+     * header figures and pickability come from the server's advertised set,
+     * and adoption routes through [onAdopt] instead of touching a
+     * [com.unciv.logic.civilization.managers.PolicyManager].
+     */
+    private val projectedPolicies: ProjectedPolicies? = null,
+    private val onAdopt: ((String) -> Unit)? = null,
 ) : PickerScreen(), RecreateOnResize {
+
+    /** What the server will accept, or null for single-player local truth. */
+    private val projectedPickable: Set<String>? = projectedPolicies?.selectablePolicies?.toSet()
 
     object Sizes {
         const val paddingVertical = 10f
@@ -172,8 +203,10 @@ class PolicyPickerScreen(
                 "All policies adopted"
             policies.freePolicies > 0 ->
                 "Adopt free policy"
-            else ->
-                "{Adopt policy}\n(${policies.storedCulture}/${policies.getCultureNeededForNextPolicy()})"
+            else -> "{Adopt policy}\n(${policies.storedCulture}/${
+                projectedPolicies?.cultureNeededForNextPolicy
+                    ?: policies.getCultureNeededForNextPolicy()
+            })"
         }.tr())
 
         setDefaultCloseAction()
@@ -187,7 +220,7 @@ class PolicyPickerScreen(
 
         topTable.row()
 
-        val branches = viewingCiv.gameInfo.ruleset.policyBranches
+        val branches = viewingCiv.ruleset.policyBranches
         val branchesPerRow: Int
 
         // estimate how many branch boxes fit using average size (including pad)
@@ -249,14 +282,14 @@ class PolicyPickerScreen(
         }
     }
 
-    override fun getCivilopediaRuleset() = viewingCiv.gameInfo.ruleset
+    override fun getCivilopediaRuleset() = viewingCiv.ruleset
 
     private fun pickPolicy(button: PolicyButton) {
 
         val policy = button.policy
 
         rightSideButton.isVisible = !viewingCiv.policies.isAdopted(policy.name)
-        if (!policy.isPickable(viewingCiv, canChangeState)) {
+        if (!policy.isPickable(viewingCiv, canChangeState, projectedPickable)) {
             rightSideButton.disable()
         } else {
             rightSideButton.enable()
@@ -306,7 +339,7 @@ class PolicyPickerScreen(
             val onAdoption = branch.getDescription()
             val onCompletion = branch.policies.last().getDescription()
             var text = ""
-            if (viewingCiv.gameInfo.ruleset.eras[branch.era]!!.eraNumber > viewingCiv.getEraNumber())
+            if (viewingCiv.ruleset.eras[branch.era]!!.eraNumber > viewingCiv.getEraNumber())
                 text += "{Unlocked at} {${branch.era}}" + "\n\n"
             text += "{On adoption}:" + "\n\n" + onAdoption + "\n\n" +
                 "{On completion}:" + "\n\n" + onCompletion
@@ -564,7 +597,7 @@ class PolicyPickerScreen(
     private fun getTopButton(branch: PolicyBranch): Table {
 
         val text: String
-        val isPickable = branch.isPickable(viewingCiv, canChangeState)
+        val isPickable = branch.isPickable(viewingCiv, canChangeState, projectedPickable)
         var isAdoptedBranch = false
         var percentage = 0f
 
@@ -583,7 +616,7 @@ class PolicyPickerScreen(
             text = "{Completed} ($amountDone/$amountToDo)"
             lockIcon.isVisible = false
             isAdoptedBranch = true
-        } else if (viewingCiv.gameInfo.ruleset.eras[branch.era]!!.eraNumber > viewingCiv.getEraNumber()) {
+        } else if (viewingCiv.ruleset.eras[branch.era]!!.eraNumber > viewingCiv.getEraNumber()) {
             text = branch.era
         } else {
             text = "Adopt"
@@ -638,13 +671,18 @@ class PolicyPickerScreen(
         lockIcon.setPosition(table.width, table.height / 2 - lockIcon.height/2)
 
         table.onClick {
-            if (branch.isPickable(viewingCiv, canChangeState))
+            if (branch.isPickable(viewingCiv, canChangeState, projectedPickable))
                 ConfirmPopup(
                     this,
                     "Are you sure you want to adopt [${branch.name}]?",
                     "Adopt", true, action = {
-                        viewingCiv.policies.adopt(branch, false)
-                        game.replaceCurrentScreen(recreate())
+                        if (onAdopt != null) {
+                            onAdopt(branch.name)
+                            game.popScreen()
+                        } else {
+                            viewingCiv.policies.adopt(branch, false)
+                            game.replaceCurrentScreen(recreate())
+                        }
                     }
                 ).open(force = true)
         }
@@ -653,9 +691,9 @@ class PolicyPickerScreen(
     }
 
     private fun getPolicyButton(policy: Policy): PolicyButton {
-        val button = PolicyButton(viewingCiv, canChangeState, policy, size = Sizes.iconSize)
+        val button = PolicyButton(viewingCiv, canChangeState, policy, size = Sizes.iconSize, projectedPickable = projectedPickable)
         button.onClick { pickPolicy(button = button) }
-        if (policy.isPickable(viewingCiv, canChangeState))
+        if (policy.isPickable(viewingCiv, canChangeState, projectedPickable))
             button.onDoubleClick(UncivSound.Policy) { confirmAction() }
         return button
     }
@@ -664,7 +702,16 @@ class PolicyPickerScreen(
         val policy = selectedPolicyButton!!.policy
 
         // Evil people clicking on buttons too fast to confuse the screen - #4977
-        if (!policy.isPickable(viewingCiv, canChangeState)) return
+        if (!policy.isPickable(viewingCiv, canChangeState, projectedPickable)) return
+
+        // A projection client owns no canonical adoption state: the choice is
+        // submitted as typed intent and the accepted projection refreshes the
+        // host world.
+        if (onAdopt != null) {
+            onAdopt(policy.name)
+            game.popScreen()
+            return
+        }
 
         viewingCiv.policies.adopt(policy)
 
@@ -675,7 +722,10 @@ class PolicyPickerScreen(
     }
 
     override fun recreate(): BaseScreen {
-        val newScreen = PolicyPickerScreen(viewingCiv, canChangeState, selectedPolicyButton?.policy?.name)
+        val newScreen = PolicyPickerScreen(
+            viewingCiv, canChangeState, selectedPolicyButton?.policy?.name,
+            projectedPolicies, onAdopt,
+        )
         newScreen.scrollPane.scrollPercentX = scrollPane.scrollPercentX
         newScreen.scrollPane.scrollPercentY = scrollPane.scrollPercentY
         newScreen.scrollPane.updateVisualScroll()

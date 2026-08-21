@@ -112,7 +112,7 @@ class TechButton(
         techEnabledIcons.defaults().padRight(5f)
 
         val civ = techManager.civInfo
-        val tech = civ.gameInfo.ruleset.technologies[techName]!!
+        val tech = civ.ruleset.technologies[techName]!!
 
         TechnologyDescriptions.getTechEnabledIcons(tech, civ, techIconSize = 30f)
             .take(5)

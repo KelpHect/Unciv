@@ -7,11 +7,21 @@ import com.unciv.models.metadata.GameSettings
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.worldscreen.UndoHandler.Companion.clearUndoCheckpoints
 import com.unciv.ui.screens.worldscreen.worldmap.WorldMapHolder
+import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.WorldScreen
 import com.unciv.ui.screens.worldscreen.unit.UnitTable
 import yairm210.purity.annotations.Readonly
 
 object GUI {
+
+    /**
+     * The HUD host driving the screen when there is no WorldScreen.
+     *
+     * Set by an API-v3 world screen while it is active and cleared when it is
+     * not. Single-player leaves it null and keeps answering from its
+     * WorldScreen, so nothing about that path changes.
+     */
+    @Volatile var hudHost: WorldHudHost? = null
 
     fun setUpdateWorldOnNextRender() {
         UncivGame.Current.worldScreen?.shouldUpdate = true
@@ -35,7 +45,16 @@ object GUI {
         return UncivGame.Current.worldScreen!!.isPlayersTurn
     }
 
-    @Readonly fun isAllowedChangeState(): Boolean = UncivGame.Current.worldScreen!!.canChangeState
+    /**
+     * Whether the active screen currently accepts state-changing input.
+     *
+     * A single-player game answers from its WorldScreen exactly as before. An
+     * API-v3 client has no WorldScreen at all, so the question goes to whichever
+     * screen is hosting the HUD, and defaults to `false` - a client that cannot
+     * say "yes" must never be assumed to be allowed to change anything.
+     */
+    @Readonly fun isAllowedChangeState(): Boolean =
+        UncivGame.Current.worldScreen?.canChangeState ?: hudHost?.hudCanChangeState ?: false
 
     @Readonly fun getWorldScreen(): WorldScreen = UncivGame.Current.worldScreen!!
 

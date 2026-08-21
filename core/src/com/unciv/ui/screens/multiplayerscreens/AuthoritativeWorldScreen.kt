@@ -1,6 +1,8 @@
 package com.unciv.ui.screens.multiplayerscreens
 
+import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.unciv.GUI
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.tile.Tile
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameProjection
@@ -14,13 +16,19 @@ import com.unciv.logic.multiplayer.authoritative.ProjectedCity
 import com.unciv.logic.multiplayer.authoritative.ProjectedTap
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.Ruleset
+import com.unciv.models.stats.Stat
+import com.unciv.ui.components.extensions.darken
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
+import com.unciv.ui.components.input.KeyCharAndCode
+import com.unciv.ui.components.input.keyShortcuts
 import com.unciv.ui.components.input.onClick
+import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ToastPopup
-import com.unciv.ui.screens.pickerscreens.PickerScreen
+import com.unciv.ui.screens.basescreen.BaseScreen
+import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
 import com.unciv.ui.screens.worldscreen.unit.UnitTable
@@ -32,18 +40,22 @@ import com.unciv.ui.components.widgets.AutoScrollPane as ScrollPane
 /**
  * API-v3 world surface backed exclusively by a player projection.
  *
- * It intentionally shares no WorldScreen/GameInfo objects. The first supported
- * inputs are projected unit selection/movement and end turn; unavailable
+ * The online match plays on the same kind of surface a local one does: the
+ * game's real hex renderer fills the screen, and the HUD floats above it -
+ * nation and treasury up top, the game's own unit table docked bottom-left,
+ * the tile readout and End turn bottom-right, and every server-advertised
+ * decision reachable from one slide-in panel instead of a permanent wall of
+ * buttons. It intentionally shares no WorldScreen/GameInfo objects: unavailable
  * actions remain absent rather than falling through to local mutation.
  */
 class AuthoritativeWorldScreen(
     private val gameSummary: ApiV3GameSummary,
     private val directory: AuthoritativeGameDirectory,
     initialProjection: ApiV3GameProjection,
-    session: AuthoritativeMultiplayerSession,
+    private val session: AuthoritativeMultiplayerSession,
     /** The server manifest's ruleset, resolved by the caller off the GL thread. */
     private val ruleset: Ruleset,
-) : PickerScreen(disableScroll = true), WorldHudHost {
+) : BaseScreen(), WorldHudHost, RecreateOnResize {
     private val controller = AuthoritativeWorldController(
         initialProjection,
         refreshProjection = {
@@ -121,7 +133,7 @@ class AuthoritativeWorldScreen(
      * The game's own unit table: selection, unit info, promotions and idle-unit
      * cycling, over units materialized from the projection. Its orders are not
      * from here - the singleplayer action row mutates GameInfo locally, which V3
-     * forbids, so the buttons below it come from what the server advertised.
+     * forbids, so the buttons above it come from what the server advertised.
      */
     private val unitTable = UnitTable(this)
 
@@ -132,14 +144,55 @@ class AuthoritativeWorldScreen(
     @Volatile private var busy = false
     private var secondsSinceRefresh = 0f
 
+    // region floating chrome
+
+    /** Full-width status strip across the top, like the single-player top bar. */
+    private val topBar = Table(BaseScreen.skin)
+
+    /** The game's own unit table docked bottom-left, with the advertised
+     *  action and order rows stacked above it exactly like single-player. */
+    private val unitDock = Table(BaseScreen.skin)
+
+    /** Big End turn control in the bottom-right corner. */
+    private val endTurnButton = "End turn".toTextButton().apply {
+        labelCell.pad(14f)
+        onClick { submitEndTurn() }
+    }
+
+    /** What the slide-in panel currently shows. */
+    private enum class PanelMode { Decisions, City }
+
+    /**
+     * One slide-in panel on the right holds everything that is not the map or
+     * the unit dock: the server-advertised decisions, and the open city's own
+     * panels. This replaces the former permanent stack of every choice at once.
+     */
+    private val sidePanel = Table(BaseScreen.skin)
+    private var sidePanelMode = PanelMode.Decisions
+    private var sidePanelVisible = false
+
+    /** The revision whose blocker prompt the player explicitly dismissed. */
+    private var blockersDismissedAtRevision = Long.MIN_VALUE
+
+    // endregion
+
     init {
-        setDefaultCloseAction()
-        rightSideButton.setText("End turn")
-        rightSideButton.onClick { submitEndTurn() }
-        rebuild()
-        initialCenter()?.let(mapHolder::setCenterPosition)
+        // Widgets that consult GUI.isAllowedChangeState (the unit table's
+        // popups, tile readout links) must ask this screen while it hosts them,
+        // and must never be answered by a stale host afterwards.
+        GUI.hudHost = this
+
+        stage.addActor(mapHolder)
         // Without this the map never receives scroll events, so it cannot zoom.
         stage.scrollFocus = mapHolder
+        stage.addActor(topBar)
+        stage.addActor(unitDock)
+        stage.addActor(endTurnButton)
+        stage.addActor(tileInfoTable)
+        stage.addActor(sidePanel)
+
+        rebuild()
+        initialCenter()?.let(mapHolder::setCenterPosition)
     }
 
     override fun render(delta: Float) {
@@ -157,64 +210,17 @@ class AuthoritativeWorldScreen(
     }
 
     private fun rebuild() {
-        topTable.clear()
-        topTable.add(
-            (
-                "Server game [${controller.current.gameId}] - " +
-                    "revision [${controller.current.committedRevision}] - " +
-                    "turn [${controller.projection.turn}]"
-                ).toLabel(),
-        ).colspan(3).row()
         rebuildMapIfProjectionReplaced()
-        topTable.add(mapHolder).colspan(3).grow().maxHeight(stage.height * 0.62f).row()
-        // The game's own tile readout, over the projection - same stats, same
-        // description, same Civilopedia links a single-player game shows.
-        tileInfoTable.updateTileTable(inspectedTile)
-        topTable.add(tileInfoTable).colspan(3).row()
-        unitTable.update()
-        topTable.add(unitTable).colspan(3).row()
-        // Orders for the selected unit: advertised by the server on the
-        // projection, dispatched through the same typed command bus as before.
-        topTable.add(unitOrdersForSelection()).colspan(3).row()
-        selection.selectedCity(controller.projection)?.let { city ->
-            topTable.add(cityPanelFor(city)).colspan(3).row()
-        }
-        topTable.add(ScrollPane(
-            AuthoritativeWorldDecisions(
-                controller,
-                busy || !controller.canAcceptProjectedInput,
-                selectUnitTarget = { mode ->
-                    controller.beginUnitTargetSelection(mode)
-                    rebuild()
-                },
-            ) { taskName, operation ->
-                runOperation(taskName, operation = operation)
-            }.build(),
-        ).apply {
-            setScrollingDisabled(false, false)
-            setOverscroll(false, false)
-        }).colspan(3).growX().maxHeight(stage.height * 0.22f).row()
-        if (controller.status == AuthoritativeWorldStatus.RetryRequired) {
-            val retry = "Retry uncertain action".toTextButton()
-            retry.onClick {
-                runOperation("Retry authoritative action") {
-                    controller.retryUncertainCommand()
-                }
-            }
-            topTable.add(retry).colspan(3).row()
-        } else {
-            val refreshLabel =
-                if (controller.status == AuthoritativeWorldStatus.OfflineCached)
-                    "Reconnect and replace cached projection"
-                else "Refresh server projection"
-            val refresh = refreshLabel.toTextButton()
-            refresh.onClick { refreshProjection(silent = false) }
-            topTable.add(refresh).colspan(3).row()
-        }
+        rebuildTopBar()
+        rebuildUnitDock()
+        rebuildSidePanel()
+        layoutChrome()
 
-        if (controller.canEndTurn() && !busy) rightSideButton.enable()
-        else rightSideButton.disable()
-        descriptionLabel.setText(description())
+        if (controller.canEndTurn() && !busy) endTurnButton.enable()
+        else endTurnButton.disable()
+
+        tileInfoTable.civView = world.gameView.civView
+        tileInfoTable.updateTileTable(inspectedTile)
     }
 
     /**
@@ -236,12 +242,285 @@ class AuthoritativeWorldScreen(
         // A razed or captured city must not keep its panel open over a
         // projection that no longer lists it.
         selection.onProjectionReplaced(controller.projection)
-        tileInfoTable.civView = world.gameView.civView
         // Every MapUnit is a new object after a revision, so the table would
         // otherwise hold one belonging to the discarded map.
         unitTable.selectUnit(controller.selectedUnitId?.let(::materializedUnit))
         inspectedTile = inspectedTile?.position?.let {
             world.tileMap.getIfTileExistsOrNull(it.x, it.y)
+        }
+    }
+
+    // region top bar
+
+    private fun rebuildTopBar() {
+        topBar.clear()
+        topBar.defaults().pad(6f)
+        topBar.setBackground(
+            BaseScreen.skinStrings.getUiBackground(
+                "MultiplayerScreen/WorldTopBar",
+                BaseScreen.skinStrings.roundedEdgeRectangleMidShape,
+                BaseScreen.skinStrings.skinConfig.baseColor.darken(0.45f),
+            ),
+        )
+        topBar.left()
+
+        val identity = Table(BaseScreen.skin).apply { defaults().pad(3f) }
+        identity.add(LobbyChrome.nationBadge(ruleset, controller.projection.civilizationId, 36f))
+            .left()
+        val titles = Table(BaseScreen.skin).apply { defaults().left().pad(1f) }
+        titles.add(
+            (
+                "Server game [${controller.current.gameId}] - " +
+                    "revision [${controller.current.committedRevision}] - " +
+                    "turn [${controller.projection.turn}]"
+                ).toLabel(),
+        ).left().row()
+        titles.add(turnStateLabel()).left().row()
+        identity.add(titles).left().padLeft(6f)
+        topBar.add(identity).growX().left()
+
+        val treasury = Table(BaseScreen.skin)
+        treasury.add(ImageGetter.getStatIcon(Stat.Gold.name)).size(20f)
+        treasury.add("${controller.projection.gold}".toLabel()).padLeft(4f)
+        topBar.add(treasury).right()
+
+        statusLabel()?.let { topBar.add(it).right().padLeft(10f) }
+
+        val decisions = decisionsButtonText().toTextButton()
+        decisions.onClick { toggleSidePanel(PanelMode.Decisions) }
+        topBar.add(decisions).right().padLeft(10f)
+
+        val leave = "Leave match".toTextButton()
+        leave.keyShortcuts.add(KeyCharAndCode.BACK)
+        leave.onClick { game.popScreen() }
+        topBar.add(leave).right().padLeft(10f)
+
+        topBar.pack()
+    }
+
+    private fun turnStateLabel() =
+        if (controller.projection.isCurrentTurn) "Your turn".toLabel(LobbyChrome.ready)
+        else (
+            "Waiting for [" + currentPlayerName() + "]"
+            ).toLabel(LobbyChrome.muted)
+
+    /** The leader display name, falling back to the server's identity string. */
+    private fun currentPlayerName(): String {
+        val id = controller.projection.currentPlayerCivilizationId
+        return ruleset.nations[id]?.leaderName ?: id
+    }
+
+    private fun statusLabel(): Label? = when (val status = controller.status) {
+        AuthoritativeWorldStatus.Synchronized -> null
+        AuthoritativeWorldStatus.Refreshing, AuthoritativeWorldStatus.Submitting ->
+            statusText().toLabel(LobbyChrome.muted)
+        AuthoritativeWorldStatus.StaleRefreshed -> statusText().toLabel(LobbyChrome.accent)
+        is AuthoritativeWorldStatus.Rejected, AuthoritativeWorldStatus.RetryRequired,
+        AuthoritativeWorldStatus.OfflineCached,
+        -> statusText().toLabel(LobbyChrome.danger)
+    }
+
+    private fun decisionsButtonText(): String {
+        val blockers = controller.projection.pendingTurnActions.size
+        return if (blockers == 0) "Decisions" else "Decisions [$blockers]"
+    }
+
+    // endregion
+    // region bottom dock
+
+    private fun rebuildUnitDock() {
+        unitDock.clear()
+        unitDock.defaults().pad(3f)
+        // Orders for the selected unit sit directly above the game's own unit
+        // table, mirroring where the single-player action row lives.
+        unitDock.add(unitOrdersForSelection()).left().row()
+        unitDock.add(unitTable).left().row()
+        unitDock.pack()
+    }
+
+    /**
+     * The unit table can change the selection on its own (idle-unit cycling and
+     * its close button), so the controller is resynchronized from it before the
+     * order buttons are built for whatever is now selected.
+     */
+    private fun unitOrdersForSelection(): Table {
+        // A no-op when the two already agree, so starting a target selection and
+        // redrawing does not cancel it. When they genuinely differ the table has
+        // moved to another unit, and dropping the stale target mode is correct.
+        syncControllerSelection()
+        val disabled = busy || !controller.canAcceptProjectedInput
+        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
+            runOperation(taskName, operation = operation)
+        }
+        return Table().apply {
+            defaults().pad(3f)
+            add(AuthoritativeUnitActionPanel(
+                controller.projection, controller.selectedUnitId,
+                controller.unitActions, disabled, submit,
+            ).build()).left().row()
+            add(AuthoritativeUnitOrderPanel(
+                controller.projection, controller.selectedUnitId,
+                controller.unitOrders, disabled,
+                { mode -> controller.beginUnitTargetSelection(mode); rebuild() },
+                submit,
+            ).build()).left().row()
+        }
+    }
+
+    // endregion
+    // region side panel
+
+    private fun toggleSidePanel(mode: PanelMode) {
+        if (sidePanelVisible && sidePanelMode == mode) {
+            closeSidePanel()
+            return
+        }
+        sidePanelMode = mode
+        sidePanelVisible = true
+        rebuild()
+    }
+
+    private fun closeSidePanel() {
+        sidePanelVisible = false
+        if (sidePanelMode == PanelMode.City) selection.selectCity(null)
+        // Only the revision seen at dismissal counts: a newer blocker asks again.
+        blockersDismissedAtRevision = controller.current.committedRevision
+        rebuild()
+    }
+
+    private fun rebuildSidePanel() {
+        // A blocker the player has not dismissed yet opens the decisions panel
+        // once per revision, so the choice is discoverable without permanently
+        // covering the map. Closing records the revision; a newer blocker asks
+        // again.
+        if (!sidePanelVisible &&
+            sidePanelMode == PanelMode.Decisions &&
+            controller.projection.pendingTurnActions.isNotEmpty() &&
+            blockersDismissedAtRevision != controller.current.committedRevision
+        ) {
+            sidePanelVisible = true
+        }
+        sidePanel.clear()
+        sidePanel.defaults().pad(6f)
+        sidePanel.isVisible = sidePanelVisible
+        if (!sidePanelVisible) return
+
+        val city = selection.selectedCity(controller.projection)
+        if (sidePanelMode == PanelMode.City && city == null) {
+            // The open city was razed or captured out from under the panel.
+            sidePanelMode = PanelMode.Decisions
+        }
+
+        val title = when (sidePanelMode) {
+            PanelMode.City -> city?.name ?: "Decisions"
+            PanelMode.Decisions -> "Decisions"
+        }
+        sidePanel.setBackground(
+            BaseScreen.skinStrings.getUiBackground(
+                "MultiplayerScreen/WorldSidePanel",
+                BaseScreen.skinStrings.roundedEdgeRectangleMidShape,
+                BaseScreen.skinStrings.skinConfig.baseColor.darken(0.35f),
+            ),
+        )
+
+        val header = Table(BaseScreen.skin).apply { defaults().pad(3f) }
+        header.add(LobbyChrome.caption(title)).left()
+        val close = "Close".toTextButton()
+        close.onClick { closeSidePanel() }
+        header.add(close).right()
+        sidePanel.add(header).growX().row()
+
+        val body = when (sidePanelMode) {
+            PanelMode.City -> cityPanelFor(requireNotNull(city))
+            PanelMode.Decisions -> decisionsPanel()
+        }
+        sidePanel.add(ScrollPane(body).apply {
+            setScrollingDisabled(false, false)
+            setOverscroll(false, false)
+        }).grow().row()
+    }
+
+    /** Retry/reconnect controls plus every server-advertised decision. */
+    private fun decisionsPanel(): Table = Table(BaseScreen.skin).apply {
+        defaults().pad(3f)
+        if (controller.status == AuthoritativeWorldStatus.RetryRequired) {
+            val retry = "Retry uncertain action".toTextButton()
+            retry.onClick {
+                runOperation("Retry authoritative action") {
+                    controller.retryUncertainCommand()
+                }
+            }
+            add(retry).left().row()
+        } else {
+            val refreshLabel =
+                if (controller.status == AuthoritativeWorldStatus.OfflineCached)
+                    "Reconnect and replace cached projection"
+                else "Refresh server projection"
+            val refresh = refreshLabel.toTextButton()
+            refresh.onClick { refreshProjection(silent = false) }
+            add(refresh).left().row()
+        }
+        add(
+            ScrollPane(
+                AuthoritativeWorldDecisions(
+                    controller,
+                    busy || !controller.canAcceptProjectedInput,
+                    selectUnitTarget = { mode ->
+                        controller.beginUnitTargetSelection(mode)
+                        rebuild()
+                    },
+                ) { taskName, operation ->
+                    runOperation(taskName, operation = operation)
+                }.build(),
+            ).apply {
+                setScrollingDisabled(false, false)
+                setOverscroll(false, false)
+            },
+        ).grow().row()
+    }
+
+    /** The open city's own panel: production, purchases, tiles and governance. */
+    private fun cityPanelFor(city: ProjectedCity): Table {
+        val disabled = busy || !controller.canAcceptProjectedInput
+        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
+            runOperation(taskName, operation = operation)
+        }
+        return Table(BaseScreen.skin).apply {
+            defaults().pad(3f)
+            add("${city.name} - population [${city.population}]".toLabel()).left().row()
+            add(AuthoritativeCityEconomyPanel(
+                controller.projection, controller.cityEconomy, disabled, submit, city.id,
+            ).build()).left().row()
+            add(AuthoritativeCityControlPanel(
+                controller.projection, controller.cityControls, disabled, submit,
+                onlyCityId = city.id, includeDispositions = false,
+            ).build()).left().row()
+        }
+    }
+
+    // endregion
+
+    /** Places every floating widget, sized to what it actually drew. */
+    private fun layoutChrome() {
+        mapHolder.setSize(stage.width, stage.height)
+        topBar.width = stage.width
+        topBar.setPosition(0f, stage.height - topBar.height)
+        unitDock.setPosition(10f, 10f)
+        endTurnButton.pack()
+        endTurnButton.setPosition(stage.width - endTurnButton.width - 10f, 10f)
+        tileInfoTable.pack()
+        tileInfoTable.setPosition(
+            stage.width - tileInfoTable.width - 10f,
+            endTurnButton.height + 18f,
+        )
+        if (sidePanelVisible) {
+            sidePanel.width = (stage.width * 0.42f).coerceAtMost(480f)
+            sidePanel.height = (stage.height * 0.66f)
+                .coerceAtMost((topBar.y - 12f).coerceAtLeast(200f))
+            sidePanel.setPosition(
+                stage.width - sidePanel.width - 8f,
+                topBar.y - sidePanel.height - 6f,
+            )
         }
     }
 
@@ -265,6 +544,8 @@ class AuthoritativeWorldScreen(
                 selection.selectCity(tap.cityId)
                 unitTable.selectUnit(null)
                 syncControllerSelection()
+                sidePanelMode = PanelMode.City
+                sidePanelVisible = true
                 rebuild()
             }
             ProjectedTap.SelectUnit -> {
@@ -321,20 +602,6 @@ class AuthoritativeWorldScreen(
         }
     }
 
-    private fun description(): String {
-        val selected = controller.selectedUnit()
-        val selection = if (selected == null) "Select one of your projected units"
-        else "${selected.name} #${selected.id} - ${selected.health} health - " +
-            "${requireNotNull(selected.currentMovement)} movement"
-        val blockers = controller.projection.pendingTurnActions
-            .joinToString { it.name }
-            .ifEmpty { "none" }
-        val targetMode = controller.unitTargetMode?.let {
-            "\nTarget selection: ${it.name}"
-        }.orEmpty()
-        return "$selection$targetMode\nEnd-turn requirements: $blockers\nStatus: ${statusText()}"
-    }
-
     private fun statusText(): String = when (val status = controller.status) {
         AuthoritativeWorldStatus.Synchronized -> "Synchronized"
         AuthoritativeWorldStatus.Refreshing -> "Refreshing"
@@ -376,52 +643,14 @@ class AuthoritativeWorldScreen(
         else controller.deselectUnit()
     }
 
-    /**
-     * The unit table can change the selection on its own (idle-unit cycling and
-     * its close button), so the controller is resynchronized from it before the
-     * order buttons are built for whatever is now selected.
-     */
-    private fun unitOrdersForSelection(): Table {
-        // A no-op when the two already agree, so starting a target selection and
-        // redrawing does not cancel it. When they genuinely differ the table has
-        // moved to another unit, and dropping the stale target mode is correct.
-        syncControllerSelection()
-        val disabled = busy || !controller.canAcceptProjectedInput
-        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
-            runOperation(taskName, operation = operation)
-        }
-        return Table().apply {
-            defaults().pad(3f)
-            add(AuthoritativeUnitActionPanel(
-                controller.projection, controller.selectedUnitId,
-                controller.unitActions, disabled, submit,
-            ).build()).left().row()
-            add(AuthoritativeUnitOrderPanel(
-                controller.projection, controller.selectedUnitId,
-                controller.unitOrders, disabled,
-                { mode -> controller.beginUnitTargetSelection(mode); rebuild() },
-                submit,
-            ).build()).left().row()
-        }
-    }
+    /** A resize rebuilds the whole floating chrome around the same projection. */
+    override fun recreate(): BaseScreen = AuthoritativeWorldScreen(
+        gameSummary, directory, controller.current, session, ruleset,
+    )
 
-    /** The open city's own panel: production, purchases, tiles and governance. */
-    private fun cityPanelFor(city: ProjectedCity): Table {
-        val disabled = busy || !controller.canAcceptProjectedInput
-        val submit: (String, suspend () -> Unit) -> Unit = { taskName, operation ->
-            runOperation(taskName, operation = operation)
-        }
-        return Table().apply {
-            defaults().pad(3f)
-            add("${city.name} - population [${city.population}]".toLabel()).left().row()
-            add(AuthoritativeCityEconomyPanel(
-                controller.projection, controller.cityEconomy, disabled, submit, city.id,
-            ).build()).left().row()
-            add(AuthoritativeCityControlPanel(
-                controller.projection, controller.cityControls, disabled, submit,
-                onlyCityId = city.id, includeDispositions = false,
-            ).build()).left().row()
-        }
+    override fun dispose() {
+        if (GUI.hudHost === this) GUI.hudHost = null
+        super.dispose()
     }
 
     companion object {

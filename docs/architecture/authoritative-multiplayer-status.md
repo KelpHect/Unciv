@@ -11860,3 +11860,64 @@ Last material edit: `tests/src/com/unciv/logic/multiplayer/authoritative/Authori
 | Android | not affected | - | no production code changed; guards are compile-time source pins | - | - |
 | Desktop | not affected | - | no production code changed | - | - |
 | Rust | not affected | - | no Rust source changed | - | - |
+
+## Single-player-style projection world HUD and staging-room fixes (2026-08-21)
+
+The playtest verdict was that the online match still felt like "a menu of
+buttons": `AuthoritativeWorldScreen` extended `PickerScreen` and stacked the
+map (capped at 62% height), tile readout, unit table, order rows, city panel,
+and a permanent scrollable wall of every server-advertised decision into one
+column. The staging room also kept a stale layout after rotation, offered raw
+civilization IDs in its faction picker, and hid the AI seats from the roster.
+
+Changes, all inside the existing projection-only boundary:
+
+- `AuthoritativeWorldScreen` now extends `BaseScreen` directly. The real hex
+  renderer fills the screen; floating chrome sits above it: a full-width top
+  bar (nation portrait, game/revision/turn identity line, treasury, turn
+  state, connection status, Decisions toggle, Leave), the game's own
+  `UnitTable` docked bottom-left with the advertised action/order rows stacked
+  above it like the single-player action row, End turn in the bottom-right
+  corner with the real tile readout above it, and one slide-in side panel for
+  everything else. The panel shows either the open city's economy/control
+  panels or the full decision stack (research, policies, prompts, spies,
+  religion, diplomacy, trade, history) with retry/reconnect at its top; it
+  auto-opens once per revision while end-turn blockers remain undismissed.
+  The screen implements `RecreateOnResize`, sets `GUI.hudHost = this` while
+  active so widgets consulting `GUI.isAllowedChangeState` are answered by the
+  hosting screen, and clears that host on dispose only if it is still itself.
+- `AuthoritativeLobbyScreen` implements `RecreateOnResize` (rotation rebuilds
+  the room around the newest lobby state); the faction picker is a new
+  file-private `CivilizationSelect` that displays leader names while every
+  session call keeps sending the server civilization ID (ambiguous modded
+  display names fall back to the ID); and `renderAiSeats()` renders the AI
+  roster inside the players card, labelled "Server-run".
+- The in-flight HUD-seam groundwork landed with this milestone: `GUI.hudHost`
+  (null-safe `isAllowedChangeState` fallback defaulting to false),
+  `CityScreen.forceReadOnly`, and the `gameInfoOrNull` espionage fallbacks in
+  `CityView`/`ForeignCityView`, covered by the new headless
+  `ProjectionCityViewTests` driving every `CityView`/`CityConstructionsView`
+  call the city screens make over a materialized projection city, including
+  the pinned boundary that construction costs cannot be computed client-side.
+- New source-routing pins in `AuthoritativeProductionRoutingTests`:
+  `projectionWorldUsesAFloatingSinglePlayerStyleHudInsteadOfAButtonStack`
+  (BaseScreen+WorldHudHost+RecreateOnResize, no PickerScreen, fullscreen map,
+  the four HUD widgets, exact hudHost set/clear) and
+  `stagingRoomSurvivesResizeNamesFactionsByLeaderAndShowsAiSeats`.
+
+Final-state verification
+Revision: base HEAD `012666f79` (tileview-migration); tracked diff hash
+`ec3dfdd81c97a0f36e15d3b1e235398021dc9008` over GUI.kt, CityScreen.kt,
+CityView.kt, ForeignCityView.kt, AuthoritativeWorldScreen.kt,
+AuthoritativeLobbyScreen.kt, AuthoritativeProductionRoutingTests.kt, and
+missing_multiplayer.md; material untracked file
+`tests/src/com/unciv/ui/components/tilegroups/ProjectionCityViewTests.kt`.
+This record is the only edit after that hash.
+Last material edit: `core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt` (rewritten to the floating-HUD surface).
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeProductionRoutingTests" --tests "com.unciv.ui.components.tilegroups.ProjectionCityViewTests" --tests "com.unciv.ui.components.tilegroups.ProjectionWorldMapRenderTests"` | routing pins incl. two new guards; CityView/CityConstructionsView calls over a projection city; hex-render parity | 0 failures | - |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete core suite with the rewritten world screen and lobby | 1222 tests / 0 failures / 17 documented skips | - |
+| Desktop | not affected | - | no desktop-only source changed; core compiles under allWarningsAsErrors | - | - |
+| Android | not affected | - | no android source changed; UI is shared core code exercised by :tests:test | - | - |
+| Rust | not affected | - | no Rust source changed; client-only presentation rework | - | - |

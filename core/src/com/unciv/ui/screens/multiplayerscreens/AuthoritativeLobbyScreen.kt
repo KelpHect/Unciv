@@ -15,6 +15,7 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
 import com.unciv.logic.multiplayer.authoritative.OpenedAuthoritativeGame
 import com.unciv.models.ruleset.Ruleset
 import com.unciv.models.ruleset.RulesetCache
+import com.unciv.models.translations.tr
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.enable
 import com.unciv.ui.components.extensions.toLabel
@@ -28,6 +29,8 @@ import com.unciv.ui.components.widgets.TabbedPager
 import com.unciv.ui.components.widgets.UncivTextField
 import com.unciv.ui.images.ImageGetter
 import com.unciv.ui.popups.ToastPopup
+import com.unciv.ui.screens.basescreen.BaseScreen
+import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.multiplayerscreens.LobbyChrome.control
 import com.unciv.ui.screens.multiplayerscreens.LobbyChrome.field
 import com.unciv.ui.screens.pickerscreens.PickerScreen
@@ -46,7 +49,7 @@ import com.unciv.utils.launchOnGLThread
 class AuthoritativeLobbyScreen(
     private val initialLobby: ApiV3Lobby,
     private val session: AuthoritativeMultiplayerSession,
-) : PickerScreen() {
+) : PickerScreen(), RecreateOnResize {
     private var lobby = initialLobby
     private var configurationEditor: AuthoritativeLobbyConfigurationEditor? = null
     private var requestInFlight = false
@@ -246,6 +249,31 @@ class AuthoritativeLobbyScreen(
             row.add(LobbyChrome.readyBadge(false, waitingText = "Waiting")).right()
             playersCard.add(row).colspan(4).growX().row()
         }
+        renderAiSeats()
+    }
+
+    /**
+     * The server-run seats sit in the same roster as the humans, so the room
+     * reads as one match instead of a human list with a hidden machine count.
+     */
+    private fun renderAiSeats() {
+        val roster = lobby.setup.aiCivilizations.orEmpty()
+            .ifEmpty {
+                List((lobby.setup.majorCivilizations - lobby.humanSlots).coerceAtLeast(0)) {
+                    ApiV3AiSlot()
+                }
+            }
+        for ((index, slot) in roster.withIndex()) {
+            val row = LobbyChrome.row().apply { left() }
+            row.add(LobbyChrome.nationBadge(ruleset, slot.civilizationId, 32f)).left()
+            row.add(
+                if (slot.civilizationId.isBlank()) LobbyChrome.hint("Chosen by the server")
+                else LobbyChrome.nationLabel(ruleset, slot.civilizationId),
+            ).growX().left().padLeft(6f)
+            row.add(LobbyChrome.caption("AI ${index + 1}")).right().padRight(6f)
+            row.add(LobbyChrome.hint("Server-run")).right()
+            playersCard.add(row).colspan(4).growX().row()
+        }
     }
 
     private fun renderSeat() {
@@ -260,7 +288,7 @@ class AuthoritativeLobbyScreen(
                 .colspan(2).left().row()
             return
         }
-        val civilization = civilizationSelect(available, available.first())
+        val civilization = CivilizationSelect(civilizationOptions(available), selectedId = "")
         val password = UncivTextField("Lobby password").apply { isPasswordMode = true }
         seatCard.control("Civilization", civilization)
         if (lobby.passwordRequired) seatCard.control("Match password", password)
@@ -269,7 +297,7 @@ class AuthoritativeLobbyScreen(
                 runAction {
                     session.joinLobby(
                         lobby,
-                        civilization.selected,
+                        civilization.selectedCivilizationId,
                         password.text.takeIf(String::isNotEmpty),
                     )
                     session.lobby(lobby.gameId)
@@ -285,14 +313,14 @@ class AuthoritativeLobbyScreen(
             seatCard.add("No civilization is currently available.".toLabel(LobbyChrome.danger))
                 .colspan(2).left().row()
         } else {
-            val civilization = civilizationSelect(choices, current)
+            val civilization = CivilizationSelect(civilizationOptions(choices), current)
             seatCard.add(LobbyChrome.nationBadge(ruleset, current, 56f)).left().padRight(6f)
             seatCard.add(civilization).growX().left().row()
             // Choosing a faction is the member's own canonical mutation, so it
             // commits immediately: everyone sees the claim before readying up.
             civilization.onChange {
-                if (civilization.selected != current)
-                    runAction { session.selectLobbyFaction(lobby, civilization.selected) }
+                if (civilization.selectedCivilizationId != current)
+                    runAction { session.selectLobbyFaction(lobby, civilization.selectedCivilizationId) }
             }
         }
         val ready = lobby.actorReady == true
@@ -320,11 +348,17 @@ class AuthoritativeLobbyScreen(
             .toList()
     }
 
-    private fun civilizationSelect(choices: List<String>, selectedValue: String) =
-        com.badlogic.gdx.scenes.scene2d.ui.SelectBox<String>(skin).apply {
-            items = com.badlogic.gdx.utils.Array(choices.toTypedArray())
-            if (selectedValue in choices) selected = selectedValue
+    /** Leader display names paired with the server civilization IDs they name. */
+    private fun civilizationOptions(choices: List<String>): List<Pair<String, String>> {
+        val displayNames = choices.map { id ->
+            ruleset.nations[id]?.getLeaderDisplayName()?.tr() ?: id
         }
+        val ambiguous = displayNames.groupBy { it }.filterValues { it.size > 1 }.keys
+        return choices.mapIndexed { index, id ->
+            val name = displayNames[index]
+            if (name in ambiguous) id to id else name to id
+        }
+    }
 
     private fun renderSummary() {
         LobbyChrome.resetCard(summaryCard, "Match summary")
@@ -738,6 +772,9 @@ class AuthoritativeLobbyScreen(
         super.dispose()
     }
 
+    /** A resize rebuilds the whole room around the newest known lobby state. */
+    override fun recreate(): BaseScreen = AuthoritativeLobbyScreen(lobby, session)
+
     // endregion
 
     private companion object {
@@ -747,6 +784,29 @@ class AuthoritativeLobbyScreen(
          */
         const val COMMIT_DEBOUNCE_SECONDS = 0.9f
     }
+}
+
+/**
+ * A faction picker that shows what players recognize - the leader display name -
+ * while every session call keeps using the server's civilization ID.
+ *
+ * Options whose display names collide fall back to the raw ID, so two modded
+ * nations with the same leader label can still be told apart.
+ */
+private class CivilizationSelect(
+    options: List<Pair<String, String>>,
+    selectedId: String,
+) : com.badlogic.gdx.scenes.scene2d.ui.SelectBox<String>(BaseScreen.skin) {
+    private val ids = options.map { it.second }
+
+    init {
+        items = com.badlogic.gdx.utils.Array(options.map { it.first }.toTypedArray())
+        val index = ids.indexOf(selectedId)
+        if (index >= 0) selectedIndex = index
+    }
+
+    val selectedCivilizationId: String
+        get() = ids.getOrNull(selectedIndex) ?: ""
 }
 
 private fun AuthoritativeLobbyConfiguration.matches(lobby: ApiV3Lobby) =

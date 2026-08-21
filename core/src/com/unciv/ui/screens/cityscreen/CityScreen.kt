@@ -51,7 +51,16 @@ class CityScreen(
     /** City ambience sound player proxies can be passed from one CityScreen instance to the next
      *  to avoid premature stops or rewinds. Only the fresh CityScreen from WorldScreen or Overview
      *  will instantiate a new CityAmbiencePlayer and start playing. */
-    ambiencePlayer: CityAmbiencePlayer? = null
+    ambiencePlayer: CityAmbiencePlayer? = null,
+    /**
+     * Forces every state-changing control off, regardless of whose turn it is.
+     *
+     * An API-v3 client opens this screen to look at a city it does not own the
+     * canonical state of: its controls mutate GameInfo directly, which V3
+     * forbids, so such a caller passes `true` and drives actions through typed
+     * commands instead. Single-player never sets it.
+     */
+    private val forceReadOnly: Boolean = false,
 ): BaseScreen(), RecreateOnResize {
     companion object {
         /** Distance from stage edges to floating widgets */
@@ -63,7 +72,10 @@ class CityScreen(
 
     private val selectedCiv: Civilization = cityView.getViewingCiv()
 
-    internal val isSpying = selectedCiv.gameInfo.isEspionageEnabled() && !cityView.isOwnedByViewer() && !selectedCiv.isSpectator()
+    // Espionage is a game setting; a projection client has no game behind its
+    // civilization, so there is no espionage layer and nothing to spy with.
+    internal val isSpying = selectedCiv.gameInfoOrNull?.isEspionageEnabled() == true
+        && !cityView.isOwnedByViewer() && !selectedCiv.isSpectator()
 
     /**
      * This is the regular civ city list if we are not spying, if we are spying then it is every foreign city that our spies are in
@@ -71,7 +83,7 @@ class CityScreen(
     val viewableCities: List<CityView> = cityView.getViewableCities()
 
     /** Toggles or adds/removes all state changing buttons */
-    val canChangeState = GUI.isAllowedChangeState() && !isSpying
+    val canChangeState = !forceReadOnly && GUI.isAllowedChangeState() && !isSpying
 
     // Clockwise from the top-left
 

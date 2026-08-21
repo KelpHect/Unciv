@@ -164,6 +164,32 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `api/construction_commands.rs`; and `postgres/commands.rs` (802) delegates
   construction execution to `postgres/construction_commands.rs`. No
   non-test Rust source file now exceeds 800 lines.
+- [x] Rebuild the projection-only world screen as a single-player-style
+  surface. The hex map now fills the screen under floating chrome instead of
+  sitting in a scrollable stack of buttons: a full-width top bar carries the
+  nation portrait, the game/revision/turn identity line, the treasury, the
+  turn state ("Your turn" / "Waiting for [leader]"), the connection status,
+  and Leave; the game's own unit table is docked bottom-left with the
+  server-advertised action and order rows stacked above it exactly like the
+  single-player action row; End turn sits in the bottom-right corner with the
+  real tile readout above it. Every server-advertised decision (research,
+  policies, prompts, spies, religion, diplomacy, trade, history) moved into
+  one slide-in panel that opens from the top bar or by tapping one of your own
+  cities, auto-opens once per revision while end-turn blockers remain, and
+  keeps retry/reconnect controls at its top. The screen implements
+  `RecreateOnResize`, hosts `GUI.hudHost` while it is active so HUD widgets
+  consulting `GUI.isAllowedChangeState` are answered by it (and only it), and
+  clears that host on dispose. New source-routing pins keep the fullscreen
+  floating-HUD shape, the hudHost lifecycle, the lobby's resize rebuild, the
+  leader-name faction picker, and the AI seats in the staging-room roster from
+  regressing.
+- [x] Fix the staging room's broken-feeling edges: the lobby now rebuilds on
+  resize (`RecreateOnResize`) instead of keeping a stale desktop layout after
+  rotation; the faction picker shows leader display names instead of raw
+  civilization IDs (ambiguous modded names fall back to the ID, and every
+  session call still sends the server ID); and the AI seats render inside the
+  players card alongside the human roster, labelled "Server-run", so the room
+  reads as one match rather than a human list with a hidden machine count.
 
 ## P0: required before v3 can replace legacy online play
 

@@ -918,6 +918,56 @@ class AuthoritativeProductionRoutingTests {
         )) assertFalse("Projection map must not reference $forbidden", map.contains(forbidden))
     }
 
+    /**
+     * The online match plays on the same kind of surface as a local one: the hex
+     * map fills the screen under floating chrome - top bar, unit dock, End turn,
+     * tile readout - and every server-advertised decision lives in one slide-in
+     * panel instead of a permanent stack of buttons. The screen also hosts the
+     * HUD seam for widgets that consult `GUI.isAllowedChangeState`, and answers
+     * false once it is no longer the host.
+     */
+    @Test
+    fun projectionWorldUsesAFloatingSinglePlayerStyleHudInsteadOfAButtonStack() {
+        val world = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt",
+        ).readText()
+
+        // A fullscreen surface with floating chrome, not a picker table stack.
+        assertTrue(world.contains("BaseScreen(), WorldHudHost, RecreateOnResize"))
+        assertFalse(world.contains("PickerScreen"))
+        assertTrue(world.contains("stage.addActor(mapHolder)"))
+        assertTrue(world.contains("mapHolder.setSize(stage.width, stage.height)"))
+        for (widget in listOf("topBar", "unitDock", "endTurnButton", "sidePanel")) {
+            assertTrue("Missing world HUD widget: $widget", world.contains("private val $widget"))
+        }
+        // The HUD seam is owned by this screen while it hosts it, and by nobody
+        // afterwards.
+        assertTrue(world.contains("GUI.hudHost = this"))
+        assertTrue(world.contains("if (GUI.hudHost === this) GUI.hudHost = null"))
+    }
+
+    /**
+     * The staging room must survive a device rotation or window resize, name
+     * factions by what players recognize - the leader display name - while every
+     * session call keeps using the server civilization ID, and show the AI seats
+     * in the same roster as the humans.
+     */
+    @Test
+    fun stagingRoomSurvivesResizeNamesFactionsByLeaderAndShowsAiSeats() {
+        val lobby = sourceFile(
+            "core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeLobbyScreen.kt",
+        ).readText()
+
+        assertTrue(lobby.contains("PickerScreen(), RecreateOnResize"))
+        assertTrue(lobby.contains("override fun recreate(): BaseScreen = AuthoritativeLobbyScreen(lobby, session)"))
+        assertTrue(lobby.contains("private class CivilizationSelect"))
+        assertTrue(lobby.contains("val selectedCivilizationId"))
+        // The raw-ID select box must not come back.
+        assertFalse(lobby.contains("SelectBox<String>(skin)"))
+        assertTrue(lobby.contains("renderAiSeats()"))
+        assertTrue(lobby.contains("Server-run"))
+    }
+
     @Test
     fun authoritativeAdministrationSeparatesActiveAndClosedLifecycleActions() {
         val source = sourceFile(

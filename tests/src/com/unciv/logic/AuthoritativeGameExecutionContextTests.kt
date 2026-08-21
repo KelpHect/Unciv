@@ -228,7 +228,7 @@ class AuthoritativeGameExecutionContextTests {
     }
 
     @Test
-    fun spectatorProjectionContainsOnlyTheExplicitPublicSummary() {
+    fun spectatorProjectionDisclosesTheFullMapAndNoOwnerPrivateFamilies() {
         val engine = HeadlessGameEngine(serverContext { serverTime })
         val game = engine.createGame(testSetup()).game
         game.getCivilization("Rome").addNotification(
@@ -236,13 +236,25 @@ class AuthoritativeGameExecutionContextTests {
             NotificationCategory.General,
         )
 
-        val encoded = Json.encodeToString(
-            SpectatorProjection.serializer(),
-            engine.spectatorProjection(game),
+        val projection = engine.spectatorProjection(game)
+        val encoded = Json.encodeToString(SpectatorProjection.serializer(), projection)
+
+        // Full-reveal parity since spectator v4: the object carries every
+        // tile, city and public unit marker the canonical game holds.
+        Assert.assertEquals(game.tileMap.tileList.size, projection.mapTiles.size)
+        Assert.assertEquals(game.getCities().count(), projection.mapCities.size)
+        Assert.assertEquals(
+            game.civilizations.sumOf { it.units.getCivUnits().count() },
+            projection.mapUnits.size,
         )
+        Assert.assertEquals(game.tileMap.mapParameters.worldWrap, projection.worldWrap)
 
         Assert.assertFalse(encoded.contains("SPECTATOR_PRIVATE_SENTINEL"))
-        for (forbidden in listOf("gold", "unit", "city", "tile", "research", "policy", "diplomacy", "notification", "queue", "rng"))
+        for (forbidden in listOf(
+            "gold", "research", "policy", "diplomacy", "notification",
+            "queue", "rng", "moveDestinations", "posture", "promotions",
+            "currentMovement",
+        ))
             Assert.assertFalse("spectator projection leaked $forbidden", encoded.contains(forbidden, ignoreCase = true))
     }
 

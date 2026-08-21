@@ -15500,6 +15500,24 @@
         },
         "additionalProperties": false
       },
+      "ProjectedDiplomacyModifier": {
+        "type": "object",
+        "description": "One labelled line of the classic diplomacy modifier breakdown.",
+        "required": [
+          "label",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectedDiplomacyPartner": {
         "type": "object",
         "required": [
@@ -15508,9 +15526,7 @@
           "canDeclareWar",
           "canDenounce",
           "canOfferFriendship",
-          "availableDemands",
-          "relationshipLevel",
-          "opinionOfUs"
+          "availableDemands"
         ],
         "properties": {
           "adoptedPolicyBranches": {
@@ -15537,6 +15553,13 @@
           "civilizationId": {
             "type": "string"
           },
+          "modifiersTowardUs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedDiplomacyModifier"
+            },
+            "description": "The partner's labelled modifier breakdown toward the actor, exactly the\nfigures the classic diplomacy screen prints."
+          },
           "opinionOfUs": {
             "type": "integer",
             "format": "int32"
@@ -15548,9 +15571,21 @@
             ],
             "format": "int32"
           },
+          "promisesTheyMadeUs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiplomaticDemand"
+            }
+          },
+          "promisesWeMadeThem": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiplomaticDemand"
+            }
+          },
           "relationshipLevel": {
             "$ref": "#/components/schemas/ProjectedRelationshipLevel",
-            "description": "How this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed."
+            "description": "How this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed.\nHow this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed."
           }
         },
         "additionalProperties": false
@@ -15897,8 +15932,7 @@
           "selectableTargets",
           "appendableTargets",
           "freeTechnologyChoices",
-          "completionPrompts",
-          "researchableTechEstimates"
+          "completionPrompts"
         ],
         "properties": {
           "appendableTargets": {
@@ -18603,6 +18637,37 @@
           }
         }
       },
+      "SpectatorMapUnit": {
+        "type": "object",
+        "required": [
+          "id",
+          "civilizationId",
+          "name",
+          "x",
+          "y"
+        ],
+        "properties": {
+          "civilizationId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "y": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "SpectatorProjection": {
         "type": "object",
         "required": [
@@ -18627,6 +18692,27 @@
               "$ref": "#/components/schemas/SpectatorCivilization"
             }
           },
+          "mapCities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedForeignCity"
+            },
+            "description": "Every city with its border tiles, so centres and borders render."
+          },
+          "mapTiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedTileVisibility"
+            },
+            "description": "Full-reveal parity with a single-player spectator: the whole map,\nevery tile visible. Owner-private families stay outside this payload."
+          },
+          "mapUnits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpectatorMapUnit"
+            },
+            "description": "Public unit markers: identity and position only - never orders,\nmovement, promotions or postures."
+          },
           "protocolVersion": {
             "type": "integer",
             "format": "int32",
@@ -18645,6 +18731,9 @@
                 "$ref": "#/components/schemas/ProjectedVictory"
               }
             ]
+          },
+          "worldWrap": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

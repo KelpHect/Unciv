@@ -262,10 +262,25 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   grid (tap to select, selection ring, leader labels, IDs-only transport),
   ready toggles click, and membership joins/leaves announce themselves as
   toasts so the room feels live between polls.
-- [ ] Spectator map view remains deliberately withheld: the spectator
-  projection intentionally carries only public match status, so a spectator
-  minimap/HUD requires its own visibility-boundary decision first. The
-  spectator screen stays a public-status summary until that decision is made.
+- [x] Spectator map view, authorized as a product decision (spectator
+  projection 3 → 4): invited spectators now watch on the game's real surface -
+  the fully revealed hex map fills the screen under floating chrome with the
+  minimap seam, tile readout, standings drawer and leave control. The payload
+  discloses terrain, cities with borders, and public unit markers (identity +
+  position only); owner-private families stay structurally absent, classified
+  `legally_known` per leaf, and guarded by rewritten sentinel tests plus a
+  worker-side count-parity test against the canonical game.
+- [x] Diplomacy display parity completed through disclosure decisions
+  (player projection 64 → 65): each major partner now carries the classic
+  screen's labelled modifier breakdown toward us plus both directions of
+  demand-promise history, rendered as colour-coded breakdown lines and promise
+  rows beside relationship band, opinion, influence levels and peace cooldown.
+  The sentinel matrix already proves directionality: our own hidden modifier
+  sentinels never appear in the projection. Literal `DiplomacyScreen`
+  instantiation remains deliberately unreplaced - its action half writes
+  canonical state and cross-player popup alerts directly and couples to the
+  trade-manager tables; those flows are served by typed commands today, and
+  any future literal reuse would need action-seam work beyond disclosure.
 
 ## P0: required before v3 can replace legacy online play
 

@@ -454,7 +454,13 @@
       "availableDemands": ["do_not_settle_near_us"],
       "relationshipLevel": "neutral",
       "opinionOfUs": 5,
-      "peaceTreatyCooldownTurns": null
+      "peaceTreatyCooldownTurns": null,
+      "modifiersTowardUs": [
+        { "label": "Shared enemy", "amount": 4 },
+        { "label": "Declared friendship", "amount": 5 }
+      ],
+      "promisesTheyMadeUs": ["do_not_settle_near_us"],
+      "promisesWeMadeThem": []
     }
   ],
   "diplomacyPrompts": [

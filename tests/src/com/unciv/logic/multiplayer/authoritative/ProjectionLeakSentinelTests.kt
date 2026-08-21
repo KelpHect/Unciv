@@ -109,7 +109,7 @@ class ProjectionLeakSentinelTests {
     }
 
     @Test
-    fun spectatorProjectionContainsOnlyItsPublicSummaryForTheSameCanonicalGame() {
+    fun spectatorProjectionDisclosesTheFullMapButNoOwnerPrivateFamilies() {
         val fixture = privateSubsystemFixture()
 
         val projection = SpectatorProjectionBuilder.build(fixture.testGame.gameInfo)
@@ -119,13 +119,38 @@ class ProjectionLeakSentinelTests {
             fixture.testGame.gameInfo.civilizations.count { it.isMajorCiv() },
             projection.majorCivilizations.size,
         )
-        assertNone(encoded, PRIVATE_SENTINELS + OWN_CITY_PUBLIC_SENTINEL)
-        assertFalse(encoded.contains("\"cities\""))
-        assertFalse(encoded.contains("\"units\""))
+        // Full-reveal parity with a single-player spectator: city names and
+        // positions are public to this role, on every tile.
+        assertTrue(projection.mapTiles.isNotEmpty())
+        assertEquals(
+            fixture.testGame.gameInfo.tileMap.tileList.size,
+            projection.mapTiles.size,
+        )
+        assertTrue(encoded.contains(OWN_CITY_PUBLIC_SENTINEL))
+        assertTrue(encoded.contains(FOREIGN_CITY_SENTINEL))
+
+        // Owner-private families stay withheld even though the map is not.
+        assertNone(
+            encoded,
+            PRIVATE_SENTINELS - setOf(
+                FOREIGN_CITY_SENTINEL,
+                UNKNOWN_CITY_SENTINEL,
+                CITY_STATE_CITY_SENTINEL,
+            ),
+        )
         assertFalse(encoded.contains("\"spies\""))
         assertFalse(encoded.contains("\"notifications\""))
         assertFalse(encoded.contains("\"religion\""))
         assertFalse(encoded.contains("\"diplomacy\""))
+        // Public unit markers carry identity and position only - no orders,
+        // movement, promotions or postures ever reach the spectator payload.
+        for (unit in projection.mapUnits) {
+            assertTrue(unit.civilizationId.isNotBlank())
+            assertFalse(encoded.contains("\"moveDestinations\""))
+        }
+        assertFalse(encoded.contains("\"moveDestinations\""))
+        assertFalse(encoded.contains("\"posture\""))
+        assertFalse(encoded.contains("\"promotions\""))
     }
 
     private fun privateSubsystemFixture(): PrivateSubsystemFixture {

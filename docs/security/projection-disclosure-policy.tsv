@@ -418,3 +418,32 @@ player	player.ownCities[].stats.happiness	player_private	Authenticated actor-own
 player	player.diplomacyPartners[].relationshipLevel	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].opinionOfUs	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].peaceTreatyCooldownTurns	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+spectator	spectator.worldWrap	legally_known	Invited spectators see the whole match like a single-player spectator; map shape is public to the role.
+spectator	spectator.mapTiles[].x	legally_known	Full-reveal parity: an invited spectator sees every tile, exactly like a single-player spectator.
+spectator	spectator.mapTiles[].y	legally_known	Full-reveal parity: an invited spectator sees every tile, exactly like a single-player spectator.
+spectator	spectator.mapTiles[].visible	legally_known	Always true for the spectator role; kept so clients share one tile renderer with players.
+spectator	spectator.mapTiles[].baseTerrain	legally_known	Terrain is world-public information for the invited-spectator role.
+spectator	spectator.mapTiles[].terrainFeatures[]	legally_known	Terrain features are world-public information for the invited-spectator role.
+spectator	spectator.mapTiles[].naturalWonderName	legally_known	Natural wonders are world-public information for the invited-spectator role.
+spectator	spectator.mapTiles[].resourceName	legally_known	Resources are revealed to the spectator role together with the full map.
+spectator	spectator.mapTiles[].resourceAmount	legally_known	Resources are revealed to the spectator role together with the full map.
+spectator	spectator.mapTiles[].improvementName	legally_known	Improvements are visible on the fully revealed spectator map.
+spectator	spectator.mapTiles[].improvementPillaged	legally_known	Improvement state is visible on the fully revealed spectator map.
+spectator	spectator.mapTiles[].roadStatus	legally_known	Roads are visible on the fully revealed spectator map.
+spectator	spectator.mapTiles[].roadPillaged	legally_known	Road state is visible on the fully revealed spectator map.
+spectator	spectator.mapCities[].id	legally_known	City identity and position are public to the invited-spectator role.
+spectator	spectator.mapCities[].name	legally_known	City names are public to the invited-spectator role, as in single-player spectating.
+spectator	spectator.mapCities[].civilizationId	legally_known	City ownership is public to the invited-spectator role.
+spectator	spectator.mapCities[].x	legally_known	City position is public to the invited-spectator role.
+spectator	spectator.mapCities[].y	legally_known	City position is public to the invited-spectator role.
+spectator	spectator.mapCities[].ownedTiles[].x	legally_known	Borders are drawn from owned tiles; positions are public to this role.
+spectator	spectator.mapCities[].ownedTiles[].y	legally_known	Borders are drawn from owned tiles; positions are public to this role.
+spectator	spectator.mapUnits[].id	legally_known	Public unit markers: identity and position only, no orders or plans.
+spectator	spectator.mapUnits[].civilizationId	legally_known	Unit ownership is visible to the invited-spectator role.
+spectator	spectator.mapUnits[].name	legally_known	Unit types are visible to the invited-spectator role; instance names stay private.
+spectator	spectator.mapUnits[].x	legally_known	Unit positions are visible to the invited-spectator role.
+spectator	spectator.mapUnits[].y	legally_known	Unit positions are visible to the invited-spectator role.
+player	player.diplomacyPartners[].modifiersTowardUs[].label	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].modifiersTowardUs[].amount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].promisesTheyMadeUs[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].promisesWeMadeThem[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.

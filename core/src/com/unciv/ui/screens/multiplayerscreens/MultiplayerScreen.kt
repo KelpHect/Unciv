@@ -372,6 +372,7 @@ class MultiplayerScreen : PickerScreen() {
                                     summary,
                                     opened.projection,
                                     activeSession,
+                                    ruleset,
                                 ),
                             )
                         }

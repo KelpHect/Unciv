@@ -12111,3 +12111,63 @@ prior to doc updates.
 Delivery closure note: this milestone was pushed to origin/master immediately
 afterward (user-requested); push acceptance is recorded in the delivery table
 of the accompanying handoff message, not here.
+
+## Spectator full-map view (v3 -> v4) and diplomacy display parity (player 64 -> 65) (2026-08-21)
+
+The two deliberately-withheld boundary decisions were authorized and shipped
+together, with every disclosure touchpoint in the same change:
+
+**Spectator projection 3 -> 4.** `SpectatorProjection` gains `worldWrap`,
+`mapTiles` (every tile of the map, always visible), `mapCities` (identity,
+owner, position, borders) and `mapUnits` (public markers: civilization, type,
+position). This is full-reveal parity with single-player spectating: the union
+of everything happening in the match, which is what an invited spectator would
+see over a shoulder anyway. Owner-private families remain structurally absent
+(yields, queues, research, policies, diplomacy internals, spies,
+notifications, RNG), now asserted positively by a rewritten sentinel test and
+a worker-side execution test proving exact count parity against the canonical
+game plus per-family bans (no orders/movement/promotions/postures ever reach
+the payload). The spectator screen was rebuilt on the game's real surface:
+fullscreen revealed hex map under floating chrome - match identity/turn bar,
+tile readout, minimap seam, standings drawer with portraits and current-player
+marker, leave control - read-only by construction (`hudCanChangeState = false`),
+with revision-preserving pan/zoom and RecreateOnResize.
+
+**Player projection 64 -> 65.** Each major partner additionally carries the
+classic screen's labelled modifier breakdown toward the actor
+(`modifiersTowardUs`) and both directions of demand-promise history
+(`promisesTheyMadeUs` / `promisesWeMadeThem`). The diplomacy panel renders
+these as colour-coded breakdown lines and promise rows beside relationship
+band, opinion, city-state influence levels and peace cooldown. The sentinel
+matrix already proves directionality: hidden modifier sentinels planted on the
+actor's own manager never appear in the projection.
+
+Cross-boundary hygiene: every new Kotlin-defaulted field is mirrored by
+`#[serde(default)]` on the Rust side (including a `Default` impl for
+`ProjectedRelationshipLevel` and `world_wrap`), so plain-Json encodings that
+omit default values still decode fail-closed. Touchpoints shipped together:
+Rust mirrors + consistency validators, both version constants + compatibility
+contract, regenerated OpenAPI, 29 new spectator disclosure rows and 4 player
+rows, threat-model paragraphs, projection fixture partner/map samples, and
+rewritten sentinel + worker-execution tests.
+
+Final-state verification
+Revision: branch master at base HEAD `18fb5eb0`; tracked diff hash
+`36327d0b83356be77d07c5b07ee8bd1ca1019ce0` over the 20 files listed by git
+status at record time (Kotlin engine/UI/tests, Rust spectator+projection+api,
+compatibility contract, OpenAPI, disclosure TSV, threat model, fixture,
+missing_multiplayer). This record is the only edit after that hash. No
+material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeSpectatorScreen.kt`
+prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete suite incl. rewritten sentinel tests, worker-side spectator count parity, disclosure enumeration with all new leaves | 1229 tests / 0 failures / 17 documented skips | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | `cargo test --all-targets --all-features`, fmt --check, clippy -D warnings (authoritative-server) | spectator closedness under full reveal; compatibility contract matches runtime constants at v65/v4; OpenAPI drift check passes after regeneration | lib 214 passed / bin 32 passed; fmt 0; clippy clean | - |
+| PostgreSQL | not affected | - | no schema or query change; JSON payload shape only | - | - |
+| Android | not affected | - | no android source changed; shared core exercised by :tests:test | - | - |
+
+Delivery closure note: pushed to origin/master immediately after commit
+(user-requested); acceptance recorded in the accompanying handoff message.

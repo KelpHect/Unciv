@@ -56,6 +56,25 @@ internal class AuthoritativeDiplomacyPanel(
                     "Peace treaty possible in $turns turns".toLabel(LobbyChrome.muted),
                 ).left().padLeft(40f).row()
             }
+            // The classic screen's modifier breakdown and promise table.
+            for (modifier in partner.modifiersTowardUs.sortedByDescending { it.amount }) {
+                add(
+                    (
+                        (if (modifier.amount >= 0) "+" else "") +
+                            "${modifier.amount} ${modifier.label}"
+                        ).toLabel(
+                        if (modifier.amount >= 0) LobbyChrome.ready else LobbyChrome.danger,
+                    ),
+                ).left().padLeft(40f).row()
+            }
+            for (promise in partner.promisesTheyMadeUs)
+                add(
+                    "Promised us: [${promise.name}]".toLabel(LobbyChrome.muted),
+                ).left().padLeft(40f).row()
+            for (promise in partner.promisesWeMadeThem)
+                add(
+                    "We promised: [${promise.name}]".toLabel(LobbyChrome.muted),
+                ).left().padLeft(40f).row()
             add(
                 (
                     "policies: " +

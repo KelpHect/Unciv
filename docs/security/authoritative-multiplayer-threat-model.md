@@ -200,6 +200,22 @@ partner's visible stance) and guarded by the fail-closed
 proving relationship facts mirror only the partner's canonical visible stance
 and city stats appear on owned cities only.
 
+The 2026-08-21 spectator bump (3 → 4), authorized as a product decision,
+grants invited spectators full-reveal parity with a single-player spectator:
+`SpectatorProjection` now carries `mapTiles` (every tile, always visible),
+`mapCities` (identity, owner, position, borders) and `mapUnits` (public
+markers: civilization, type, position - never orders, movement, promotions or
+postures). This discloses the union of everything happening in the match -
+which is precisely what spectating means, and what a player watching over an
+invited shoulder would see anyway. Owner-private families stay structurally
+absent: yields, construction queues, research, policies, diplomacy internals,
+spy networks, notifications and RNG state are not fields of this payload, and
+the sentinel tests assert their absence alongside per-family bans. Every new
+leaf is classified `legally_known` under the spectator audience in
+`projection-disclosure-policy.tsv`; the worker-side execution test proves the
+counts match the canonical game exactly and that private sentinels never
+appear.
+
 The gate is deliberately the same one `visibleForeignUnits` already uses: a
 rival city is disclosed only when its centre tile is in the viewing
 civilization's `viewableTiles`. Explored-but-currently-fogged cities are

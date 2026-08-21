@@ -43,6 +43,20 @@ object DiplomacyCommandExecutor {
                     ProjectedRelationshipLevel.valueOf(theirView.relationshipLevel().name),
                 opinionOfUs = theirView.opinionOfOtherCiv().toInt(),
                 peaceTreatyCooldownTurns = if (peaceful) null else diplomacy.turnsToPeaceTreaty(),
+                modifiersTowardUs = theirView.diplomaticModifiers.asSequence()
+                    .map { (label, amount) -> ProjectedDiplomacyModifier(label, amount.toInt()) }
+                    .sortedBy { it.label }
+                    .toList(),
+                promisesTheyMadeUs = Demand.entries.asSequence()
+                    .filter { theirView.hasFlag(it.agreedToDemand) }
+                    .map { DiplomaticDemand.valueOf(it.name) }
+                    .sorted()
+                    .toList(),
+                promisesWeMadeThem = Demand.entries.asSequence()
+                    .filter { diplomacy.hasFlag(it.agreedToDemand) }
+                    .map { DiplomaticDemand.valueOf(it.name) }
+                    .sorted()
+                    .toList(),
             )
         }
         .sortedBy { it.civilizationId }

@@ -44,7 +44,7 @@ data class PlayerProjection(
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 64
+        const val CURRENT_PROJECTION_VERSION = 65
     }
 }
 
@@ -157,6 +157,27 @@ data class ProjectedDiplomacyPartner(
     val relationshipLevel: ProjectedRelationshipLevel = ProjectedRelationshipLevel.Neutral,
     val opinionOfUs: Int = 0,
     val peaceTreatyCooldownTurns: Int? = null,
+    /**
+     * The partner's diplomacy-screen modifier breakdown toward the actor -
+     * the same labelled figures ("+4 Shared enemy", "-2 Declared friendship
+     * broken") the classic screen prints. Labels come from canonical
+     * DiplomacyManager keys; nothing beyond that display is disclosed.
+     */
+    val modifiersTowardUs: List<ProjectedDiplomacyModifier> = emptyList(),
+    /**
+     * Demand promises, both directions, by exact demand identity: demands this
+     * partner agreed to (they promised us) and demands we agreed to (we
+     * promised them). These gate the classic promise table.
+     */
+    val promisesTheyMadeUs: List<DiplomaticDemand> = emptyList(),
+    val promisesWeMadeThem: List<DiplomaticDemand> = emptyList(),
+)
+
+/** One labelled line of the classic diplomacy modifier breakdown. */
+@Serializable
+data class ProjectedDiplomacyModifier(
+    val label: String,
+    val amount: Int,
 )
 
 /** The diplomacy screen's own relationship bands, projected verbatim. */

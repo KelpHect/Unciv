@@ -175,19 +175,40 @@ pub struct ProjectedDiplomacyPartner {
     pub available_demands: Vec<DiplomaticDemand>,
     /// How this partner sees the actor, exactly as the classic diplomacy
     /// screen displays it. Nothing beyond the visible stance is disclosed.
+    /// How this partner sees the actor, exactly as the classic diplomacy
+    /// screen displays it. Nothing beyond the visible stance is disclosed.
+    #[serde(default)]
     pub relationship_level: ProjectedRelationshipLevel,
+    #[serde(default)]
     pub opinion_of_us: i32,
     pub peace_treaty_cooldown_turns: Option<i32>,
+    /// The partner's labelled modifier breakdown toward the actor, exactly the
+    /// figures the classic diplomacy screen prints.
+    #[serde(default)]
+    pub modifiers_toward_us: Vec<ProjectedDiplomacyModifier>,
+    #[serde(default)]
+    pub promises_they_made_us: Vec<DiplomaticDemand>,
+    #[serde(default)]
+    pub promises_we_made_them: Vec<DiplomaticDemand>,
+}
+
+/// One labelled line of the classic diplomacy modifier breakdown.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedDiplomacyModifier {
+    pub label: String,
+    pub amount: i32,
 }
 
 /// The diplomacy screen's own relationship bands, projected verbatim.
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectedRelationshipLevel {
     Unforgivable,
     Enemy,
     Afraid,
     Competitor,
+    #[default]
     Neutral,
     Favorable,
     Friend,
@@ -408,6 +429,7 @@ pub struct ProjectedResearch {
     pub completion_prompts: Vec<ProjectedResearchCompletion>,
     /// Worker-computed turn estimates for researchable/queued technologies.
     /// Difficulty, speed, map size, and known-civ modifiers stay server-owned.
+    #[serde(default)]
     pub researchable_tech_estimates: BTreeMap<String, i32>,
 }
 

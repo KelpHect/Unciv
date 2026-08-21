@@ -1,6 +1,58 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.Constants
 import com.unciv.logic.civilization.Civilization
+import com.unciv.models.stats.Stats
+
+/**
+ * Shapes a [SpectatorProjection]'s revealed world into the feed
+ * `AuthoritativeProjectionWorldMap` renders, so spectators watch the match on
+ * the game's real hex renderer with a minimap - same as players, minus every
+ * private family (the adapter leaves them empty).
+ */
+fun SpectatorProjection.toPlayerShapedProjection(): PlayerProjection = PlayerProjection(
+    civilizationId = Constants.spectator,
+    turn = turn,
+    currentPlayerCivilizationId = currentPlayerCivilizationId,
+    isCurrentTurn = false,
+    victory = victory,
+    pendingTurnActions = emptyList(),
+    research = ProjectedResearch(
+        currentTechnology = null,
+        researchedTechnologies = emptyList(),
+        queue = emptyList(),
+        queueEntries = emptyList(),
+        overflowScience = 0,
+        selectableTargets = emptyList(),
+        appendableTargets = emptyList(),
+        freeTechnologyChoices = emptyList(),
+        completionPrompts = emptyList(),
+    ),
+    policies = ProjectedPolicies(
+        storedCulture = 0,
+        cultureNeededForNextPolicy = 0,
+        freePolicies = 0,
+        adoptedPolicies = emptyList(),
+        selectablePolicies = emptyList(),
+    ),
+    gold = 0,
+    knownCivilizations = majorCivilizations.map { it.civilizationId }.sorted(),
+    ownCities = emptyList(),
+    ownUnits = emptyList(),
+    exploredTiles = mapTiles,
+    visibleForeignUnits = mapUnits.map {
+        ProjectedUnit(
+            id = it.id,
+            civilizationId = it.civilizationId,
+            name = it.name,
+            x = it.x,
+            y = it.y,
+            health = 100,
+            currentMovement = null,
+        )
+    },
+    visibleForeignCities = mapCities,
+)
 
 /**
  * Fills a civilization that deliberately exists outside a [GameInfo] with the

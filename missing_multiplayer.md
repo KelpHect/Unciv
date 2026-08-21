@@ -190,6 +190,26 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   session call still sends the server ID); and the AI seats render inside the
   players card alongside the human roster, labelled "Server-run", so the room
   reads as one match rather than a human list with a hidden machine count.
+- [x] Put the game's own minimap on the online world. `Minimap` and
+  `MinimapHolder` now render through a `MinimapMapHolder` seam implemented by
+  both `WorldMapHolder` (single-player, unchanged behavior) and the projection
+  map holder, so the V3 world screen gets the same bottom-right minimap with
+  overlay toggles, resize drag, maximize, and tap-to-center, with the tile
+  readout above it and End turn beside it. The materialized projection map
+  declares a rectangular bounding box of exactly what the server sent, and a
+  null viewing civilization reveals the whole projected area - correct because
+  the projection already contains only what that player may see.
+- [x] Open the real single-player city screen from the online city panel.
+  `CityScreen` gains a `projectedCity` parameter carried alongside
+  `forceReadOnly`: the construction queue, available-constructions list, and
+  selected-construction info render the server's own figures (stored/cost/
+  turns) instead of locally computed ones; difficulty-scaled stat
+  recomputation, buy buttons, and the detailed-stats popup are skipped rather
+  than guessed; religion/espionage/god-mode view reads fall back to off
+  without a game; paging, recreation, and re-entry keep both read-only flags;
+  and exiting recenters whichever HUD hosts the map through `WorldHudHost`.
+  The pinned boundary stands: construction costs are never computed
+  client-side.
 
 ## P0: required before v3 can replace legacy online play
 
@@ -1331,42 +1351,49 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   only file above 800 lines and is the environment-gated integration fixture
   include, not implementation.
 
-## Upstream sync (2026-08-13)
+## Upstream sync (2026-08-21 re-audit)
 
-`upstream/master` (yairm210/Unciv, `94e893d8a`) is 118 commits ahead of this
-fork's `master` (`e6c3151ae`); this fork is 324 commits ahead on the
-authoritative-v3 surface. The delta is dominated by the desktop/Android
-"View implementation" refactor (#15280) and is safe to defer, but several
-engine/worker-relevant fixes are missing and should be ported in order of
-canonical impact:
+`upstream/master` (yairm210/Unciv, `cad5b3c2a`) remains ahead of this fork on
+the desktop/Android "View implementation" refactor (#15280), which stays
+deliberately deferred: it is orthogonal to authoritative multiplayer and
+conflicts heavily with the projection-only V3 client. The previously listed
+engine/worker-relevant fixes are now **all verified present** in this fork —
+most arrived through earlier syncs whose records predate this list, and the
+carrier-payload and city-baseline fixes landed together in `b1fc4226f`:
 
-- [ ] Port `d72ad396e` — "preserve carrier payloads during paradrop and
-  transform". This is a canonical-state correctness fix: a full carrier lost
-  its transported aircraft because the relocation filter used `canTransport`,
-  which returns false once the carrier is full. Our private Kotlin worker
-  executes the same rules code, so it inherits this bug.
-- [ ] Port `c4486df80` — "compute city baseline for building stats once instead
-  of per-building" (saves ~20% of next-turn computation in a late-game save).
-  This is the single highest-value latency fix for the worker's AI
-  `EndTurn` path.
-- [ ] Port the remaining AI/rules fixes: `e6ac35917` (AI bug fixes),
-  `680f51c7c` (AI war-for-gold kamikaze guard), `92e3ee8d3` (stealth-bomber
-  evasion + no negative interception damage), `4422044ea` (no XP ruin rewards
-  for civilians), `507309947` (city-construction gold usage), `4a7a1f97f`
-  (non-vanilla ranking types), `8b8411542` (max players with spectator).
+- [x] Port `d72ad396e` — carrier payloads preserved during paradrop and
+  transform (`teleportTransportedUnitsTo`, payload matching by
+  isTransported/owner/isTransportTypeOf). In `b1fc4226f`.
+- [x] Port `c4486df80` — city baseline computed once for building stats in
+  `ConstructionAutomation` (worker AI `EndTurn` latency). In `b1fc4226f`.
+- [x] Port `e6ac35917` — AI team war penalty and defensive-pact
+  motivation/offer-gate fixes. Patch-equivalent present (verified by
+  `git cherry`).
+- [x] Port `680f51c7c` — AI trade-for-war kamikaze guard. Present.
+- [x] Port `92e3ee8d3` — stealth bomber Evasion promotion and non-negative
+  interception damage floor. Present.
+- [x] Port `4422044ea` — no XP ruin rewards for civilians in base rulesets.
+  Present.
+- [x] Port `507309947` — gold usage refinement for city constructions
+  (acceptable hurry-cost modifier scales with saved gold). Present.
+- [x] Port `4a7a1f97f` — non-vanilla ranking types. Present.
+- [x] Port `8b8411542` — max players with spectator, `removeRange` helper,
+  WillNotBeChosenForNewGames consistency. Present.
 - [ ] Evaluate the build-toolchain bump (`ca69ef198` Gradle 8.11→9.4 + AGP +
-  Kotlin, `37eee47d9` LibGDX 1.14.0→1.14.2, `dd7de0e19` target SDK 36) under
-  the AGENTS.md whole-family version-alignment guardrail; do not cherry-pick
-  these without rerunning the V3 server and Android gates.
+    Kotlin, `37eee47d9` LibGDX 1.14.0→1.14.2, `dd7de0e19` target SDK 36) under
+    the AGENTS.md whole-family version-alignment guardrail; do not cherry-pick
+    these without rerunning the V3 server and Android gates. Note this fork
+    already builds on Gradle 9.4.1 independently; an upstream-aligned bump is
+    a separate alignment exercise.
 - [ ] Defer the entire #15280 "View implementation" series. It is a massive
-  desktop/Android UI migration that is orthogonal to authoritative
-  multiplayer and conflicts heavily with the projection-only V3 client; it is
-  a separate project, not a prerequisite for V3 correctness.
+    desktop/Android UI migration that is orthogonal to authoritative
+    multiplayer and conflicts heavily with the projection-only V3 client; it is
+    a separate project, not a prerequisite for V3 correctness.
 
 Legacy multiplayer posture is unchanged: `core/src/com/unciv/logic/multiplayer/`
 still contains the `apiv2` and `LegacyMultiplayer` compatibility shims, but the
 production multiplayer screen is API-v3-only and legacy upload/download is
-unreachable from it. No upstream commit in the 118-commit delta extends the
+unreachable from it. No upstream commit in the current delta extends the
 legacy client-authored protocol, so there is nothing new to quarantine.
 
 Update this file whenever a gap is completed, split, newly discovered, or

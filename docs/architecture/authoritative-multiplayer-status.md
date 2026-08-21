@@ -11921,3 +11921,66 @@ Last material edit: `core/src/com/unciv/ui/screens/multiplayerscreens/Authoritat
 | Desktop | not affected | - | no desktop-only source changed; core compiles under allWarningsAsErrors | - | - |
 | Android | not affected | - | no android source changed; UI is shared core code exercised by :tests:test | - | - |
 | Rust | not affected | - | no Rust source changed; client-only presentation rework | - | - |
+
+## Minimap, projection-fed city screen, and upstream-sync re-audit (2026-08-21)
+
+Three gaps closed, one stale list corrected:
+
+- **Real minimap on the online world.** New `MinimapMapHolder` seam
+  (`worldscreen/minimap/MinimapMapHolder.kt`) exposes exactly what the minimap
+  needs - tileMap, wrap flag, viewport-changed listener and notification,
+  host stage dimension, tap-to-center. `WorldMapHolder` implements it for
+  single-player (behavior unchanged; `MinimapHolder` now takes the
+  `WorldHudHost` instead of reading `GUI.getViewingPlayer()`/worldScreen
+  settings), and `AuthoritativeProjectionMapHolder` implements it for V3. The
+  projection world screen hosts the same bottom-right minimap with overlay
+  toggles, resize drag, maximize, and tap-to-center; the materialized
+  projection map now declares a rectangular bounding box of exactly the
+  projected coordinates so minimap math is correct, and the minimap is rebuilt
+  with each committed revision.
+- **The real city screen over a projected city.** `CityScreen` gains an
+  internal `projectedCity: ProjectedCity?` carried alongside `forceReadOnly`
+  through paging, recreation, and re-entry. The construction queue,
+  available-constructions list, and construction info render server figures
+  (`storedProduction`/`productionCost`/`estimatedTurns`, infinity glyph for
+  perpetual); difficulty-scaled local stat recomputation, buy buttons, and the
+  detailed-stats popup are skipped when there is no canonical game;
+  `CivView.isReligionEnabled`, `ForeignCityView.isEspionageEnabled/
+  isReligionEnabled`, and `CityView.isGodModeEnabled` fall back to off via
+  `gameInfoOrNull`; `exit()` recenters any `WorldHudHost`. The world screen's
+  city panel gained "Open city screen". The pinned boundary holds: production
+  costs are never computed client-side (ProjectionCityViewTests still asserts
+  the throw).
+- **Upstream sync list was stale.** Every engine fix listed as missing on
+  2026-08-13 is verified present: five patch-equivalent (`git cherry`),
+  carrier-payload + city-baseline in `b1fc4226f`, and stealth-bomber evasion /
+  max-players-spectator confirmed by direct content inspection after a
+  cherry-pick produced an empty diff. The section is rewritten with checked
+  items and evidence; only the toolchain-alignment evaluation and the
+  deliberate #15280 deferral remain.
+- **Full-match release run status.** Tooling verified present
+  (`authoritative-server/tests/run-authoritative-verification.{sh,ps1}` lanes
+  rust/kotlin/desktop/android/postgres; the `account_handoff` preflight). The
+  two-person Android/desktop Domination run itself remains externally gated on
+  a second human, an Android device, and a deployed candidate bundle per
+  `docs/operations/authoritative-full-match-qualification.md`.
+
+Final-state verification
+Revision: branch `v3-world-completion` at base HEAD `5618bec03`; tracked diff
+hash `8ff29aeb40d8de74450cff058096355215caa85d` covering the minimap seam,
+projection map/world/city screens, CityScreen and its panels, view fallbacks,
+routing tests, ProjectionCityViewTests, and missing_multiplayer.md. This
+record is the only edit after that hash. No material untracked files.
+Last material edit: `core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt` (minimap wiring) prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (focused) | passed | `./gradlew :tests:test --tests "...AuthoritativeProductionRoutingTests" --tests "...ProjectionCityViewTests"` | three new routing pins (minimap seam, projection-fed read-only city screen, map-holder hosting) plus view-fallback behavior over a projection city | 0 failures | - |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete core suite incl. minimap seam refactor of single-player WorldScreen | 1227 tests / 0 failures / 17 documented skips | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging with the shared UI changes | BUILD SUCCESSFUL | - |
+| Android | not affected | - | no android source changed; changed code is shared core exercised by :tests:test | - | - |
+| Rust | not affected | - | no Rust source changed; client presentation + doc re-audit only | - | - |
+
+Delivery closure note: the full-match human run stays open as the P0 release
+gate with its exact procedure in
+`docs/operations/authoritative-full-match-qualification.md`; nothing in this
+milestone weakens or substitutes it.

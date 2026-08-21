@@ -4858,6 +4858,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#spectator-full-map-view-v3-v4-and-diplomacy-display-parity-player-64-65-2026-08-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spectator full-map view (v3 -&gt; v4) and diplomacy display parity (player 64 -&gt; 65) (2026-08-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9086,6 +9097,17 @@
     <span class="md-ellipsis">
       
         Projection v64: research estimates, city yields, relationship display; victory, chat, empire, lobby feel (2026-08-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spectator-full-map-view-v3-v4-and-diplomacy-display-parity-player-64-65-2026-08-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spectator full-map view (v3 -&gt; v4) and diplomacy display parity (player 64 -&gt; 65) (2026-08-21)
       
     </span>
   </a>
@@ -20386,6 +20408,58 @@ prior to doc updates.</p>
 <p>Delivery closure note: this milestone was pushed to origin/master immediately
 afterward (user-requested); push acceptance is recorded in the delivery table
 of the accompanying handoff message, not here.</p>
+<h2 id="spectator-full-map-view-v3-v4-and-diplomacy-display-parity-player-64-65-2026-08-21">Spectator full-map view (v3 -&gt; v4) and diplomacy display parity (player 64 -&gt; 65) (2026-08-21)</h2>
+<p>The two deliberately-withheld boundary decisions were authorized and shipped
+together, with every disclosure touchpoint in the same change:</p>
+<p><strong>Spectator projection 3 -&gt; 4.</strong> <code>SpectatorProjection</code> gains <code>worldWrap</code>,
+<code>mapTiles</code> (every tile of the map, always visible), <code>mapCities</code> (identity,
+owner, position, borders) and <code>mapUnits</code> (public markers: civilization, type,
+position). This is full-reveal parity with single-player spectating: the union
+of everything happening in the match, which is what an invited spectator would
+see over a shoulder anyway. Owner-private families remain structurally absent
+(yields, queues, research, policies, diplomacy internals, spies,
+notifications, RNG), now asserted positively by a rewritten sentinel test and
+a worker-side execution test proving exact count parity against the canonical
+game plus per-family bans (no orders/movement/promotions/postures ever reach
+the payload). The spectator screen was rebuilt on the game's real surface:
+fullscreen revealed hex map under floating chrome - match identity/turn bar,
+tile readout, minimap seam, standings drawer with portraits and current-player
+marker, leave control - read-only by construction (<code>hudCanChangeState = false</code>),
+with revision-preserving pan/zoom and RecreateOnResize.</p>
+<p><strong>Player projection 64 -&gt; 65.</strong> Each major partner additionally carries the
+classic screen's labelled modifier breakdown toward the actor
+(<code>modifiersTowardUs</code>) and both directions of demand-promise history
+(<code>promisesTheyMadeUs</code> / <code>promisesWeMadeThem</code>). The diplomacy panel renders
+these as colour-coded breakdown lines and promise rows beside relationship
+band, opinion, city-state influence levels and peace cooldown. The sentinel
+matrix already proves directionality: hidden modifier sentinels planted on the
+actor's own manager never appear in the projection.</p>
+<p>Cross-boundary hygiene: every new Kotlin-defaulted field is mirrored by
+<code>#[serde(default)]</code> on the Rust side (including a <code>Default</code> impl for
+<code>ProjectedRelationshipLevel</code> and <code>world_wrap</code>), so plain-Json encodings that
+omit default values still decode fail-closed. Touchpoints shipped together:
+Rust mirrors + consistency validators, both version constants + compatibility
+contract, regenerated OpenAPI, 29 new spectator disclosure rows and 4 player
+rows, threat-model paragraphs, projection fixture partner/map samples, and
+rewritten sentinel + worker-execution tests.</p>
+<p>Final-state verification
+Revision: branch master at base HEAD <code>18fb5eb0</code>; tracked diff hash
+<code>36327d0b83356be77d07c5b07ee8bd1ca1019ce0</code> over the 20 files listed by git
+status at record time (Kotlin engine/UI/tests, Rust spectator+projection+api,
+compatibility contract, OpenAPI, disclosure TSV, threat model, fixture,
+missing_multiplayer). This record is the only edit after that hash. No
+material untracked files.
+Last material edit:
+<code>core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeSpectatorScreen.kt</code>
+prior to doc updates.</p>
+<p>| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full) | passed | <code>./gradlew :tests:test</code> | complete suite incl. rewritten sentinel tests, worker-side spectator count parity, disclosure enumeration with all new leaves | 1229 tests / 0 failures / 17 documented skips | - |
+| Desktop | passed | <code>./gradlew :desktop:dist</code> | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | <code>cargo test --all-targets --all-features</code>, fmt --check, clippy -D warnings (authoritative-server) | spectator closedness under full reveal; compatibility contract matches runtime constants at v65/v4; OpenAPI drift check passes after regeneration | lib 214 passed / bin 32 passed; fmt 0; clippy clean | - |
+| PostgreSQL | not affected | - | no schema or query change; JSON payload shape only | - | - |
+| Android | not affected | - | no android source changed; shared core exercised by :tests:test | - | - |</p>
+<p>Delivery closure note: pushed to origin/master immediately after commit
+(user-requested); acceptance recorded in the accompanying handoff message.</p>
 
 
 

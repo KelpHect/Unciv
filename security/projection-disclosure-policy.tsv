@@ -447,3 +447,29 @@ player	player.diplomacyPartners[].modifiersTowardUs[].label	legally_known	Disclo
 player	player.diplomacyPartners[].modifiersTowardUs[].amount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].promisesTheyMadeUs[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].promisesWeMadeThem[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.notifications[].category	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].text	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].icons[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].type	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.location.x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.location.y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.tech.technologyName	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.city.x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.city.y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.diplomacy.civilizationId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.map_unit.x	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.map_unit.y	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.map_unit.unitId	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.civilopedia.link	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.policy.select	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.notifications[].actions[].value.link.url	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].growth.foodStored	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].growth.foodToNextPopulation	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].growth.turnsToNewPopulation	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].growth.turnsToStarvation	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].growth.cultureToNextTile	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].builtBuildings[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].cultureStored	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].resistanceTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].wltkTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].demandedResource	player_private	Authenticated actor-owned state required for private presentation and reconciliation.

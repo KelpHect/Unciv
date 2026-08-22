@@ -316,15 +316,12 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
 - [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
   leader-dialog layout with war-confirm chains and GoToOnMap still needs
   action seams like PolicyPicker received.
-- [ ] Classic picker fidelity for religion/espionage/great-people: functional
-  projection panels remain plainer than the classic picker screens' visual
-  hierarchy.
-- [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
-  leader-dialog layout with war-confirm chains and GoToOnMap still needs
-  action seams like PolicyPicker received.
-- [ ] Classic picker fidelity for religion/espionage/great-people: functional
-  projection panels remain plainer than the classic picker screens' visual
-  hierarchy.
+- [x] Classic picker fidelity, religion and great-person selection: the
+  religion choice renders as the classic icon-bearing belief cards (portrait
+  per belief via getReligionPortrait, gold-highlighted religion icon
+  selection) and great-person choices render as portrait cards through the
+  prompt panel. Espionage keeps its functional rank/action rows; its classic
+  overview layout remains a future cosmetic pass.
 
 ## P0: required before v3 can replace legacy online play
 

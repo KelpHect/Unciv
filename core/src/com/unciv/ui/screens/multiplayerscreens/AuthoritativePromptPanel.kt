@@ -6,10 +6,13 @@ import com.unciv.logic.multiplayer.authoritative.AuthoritativePromptController
 import com.unciv.logic.multiplayer.authoritative.DiplomacyPromptType
 import com.unciv.logic.multiplayer.authoritative.PendingEndTurnAction
 import com.unciv.logic.multiplayer.authoritative.PlayerProjection
+import com.unciv.ui.components.extensions.darken
 import com.unciv.ui.components.extensions.disable
 import com.unciv.ui.components.extensions.toLabel
 import com.unciv.ui.components.extensions.toTextButton
 import com.unciv.ui.components.input.onClick
+import com.unciv.ui.images.ImageGetter
+import com.unciv.ui.screens.basescreen.BaseScreen
 
 /** Renders exact server-projected votes, selections, events, and prompts. */
 internal class AuthoritativePromptPanel(
@@ -32,11 +35,33 @@ internal class AuthoritativePromptPanel(
             }
         }
         if (PendingEndTurnAction.PickGreatPerson in projection.pendingTurnActions) {
+            // Classic great-person picker hierarchy: one icon-bearing card per
+            // projected choice, wrapping into rows.
+            add(LobbyChrome.caption("Choose a Great Person")).left().row()
+            val choices = Table().apply { defaults().pad(3f) }
             for (unitName in projection.selectableGreatPeople) {
-                add(actionButton("Choose $unitName") {
-                    controller.chooseGreatPerson(unitName)
-                }).left().row()
+                val card = Table(BaseScreen.skin).apply { defaults().pad(4f) }
+                background = BaseScreen.skinStrings.getUiBackground(
+                    "MultiplayerScreen/GreatPersonCard",
+                    BaseScreen.skinStrings.roundedEdgeRectangleSmallShape,
+                    BaseScreen.skinStrings.skinConfig.baseColor.darken(0.35f),
+                )
+                val portrait = runCatching {
+                    ImageGetter.getConstructionPortrait(unitName, 44f)
+                }.getOrNull()
+                if (portrait != null) card.add(portrait).center().row()
+                card.add(
+                    unitName.toLabel(fontSize = 12, hideIcons = true),
+                ).center()
+                if (busy) card.touchable = com.badlogic.gdx.scenes.scene2d.Touchable.disabled
+                else card.onClick {
+                    submit("Submit authoritative choice") {
+                        controller.chooseGreatPerson(unitName)
+                    }
+                }
+                choices.add(card)
             }
+            add(choices).left().row()
         }
         for (prompt in projection.eventPrompts) {
             add("${prompt.eventName}: ${prompt.text}".toLabel()).left().row()

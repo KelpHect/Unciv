@@ -58,6 +58,10 @@ pub struct PlayerProjection {
     /// what a projection client can faithfully do.
     #[serde(default)]
     pub notifications: Vec<ProjectedNotification>,
+    /// Empire-wide resource supply summed across cities and trades - the
+    /// classic Resources tab's numbers. Actor-private.
+    #[serde(default)]
+    pub resources: Vec<ProjectedResourceSummary>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -384,6 +388,14 @@ pub struct ProjectedCityGrowth {
     pub turns_to_new_population: Option<i32>,
     pub turns_to_starvation: Option<i32>,
     pub culture_to_next_tile: i32,
+}
+
+/// One resource's empire-wide total, for the classic Resources tab.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedResourceSummary {
+    pub name: String,
+    pub amount: i32,
 }
 
 /// One classic notification card: category grouping, untranslated text, icons

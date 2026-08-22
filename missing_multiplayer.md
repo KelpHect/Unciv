@@ -301,14 +301,24 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   growth/expansion/resistance strings now render server figures instead of
   degrading; `applyProjectionPresentation` populates the materialized cities
   through canonical paths so buildings lists render for real.
-- [ ] Classic trade UI upgrade (TradeTable-style two-column offer composition,
-  counter-offer editing, active-trades list): still a bounded composer panel;
-  the generic `(name,type,amount,duration)` offer model already covers classic's
-  taxonomy, so this is client-only work against existing families.
-- [ ] Full Empire overview tabs (Stats/Resources/Units/Cities/Wonders/Trades/
-  Global-Politics): the compact panel covers treasury/cities-with-yields/
-  units/research/policies; deeper tabs need further disclosure decisions
-  (resource supply tables, full stat breakdown trees).
+- [x] Classic trade UI upgrade: the composer is now the classic two-column
+  offer table - "We offer" / "We ask" columns composed by clicking pooled
+  offers with per-offer amount steppers and removal, counter-offer composition
+  on incoming requests, pending-offer state with retraction. Drafts are owned
+  by the hosting screen so projection refreshes never wipe mid-composition.
+- [x] Full Empire overview as a projection-fed screen (Cities/Units/Resources/
+  Wonders/Trades/Politics tabs): cities with yields and growth, unit roster,
+  empire resource supply (`resources` family, player projection 66 → 67),
+  wonder list derived from projected built buildings through the pinned
+  ruleset, trade standing including pending offers/requests, and a politics
+  tab with relationship bands. Full per-city stat breakdown trees remain
+  server-side; headline yields are the disclosed figures.
+- [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
+  leader-dialog layout with war-confirm chains and GoToOnMap still needs
+  action seams like PolicyPicker received.
+- [ ] Classic picker fidelity for religion/espionage/great-people: functional
+  projection panels remain plainer than the classic picker screens' visual
+  hierarchy.
 - [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
   leader-dialog layout with war-confirm chains and GoToOnMap still needs
   action seams like PolicyPicker received.

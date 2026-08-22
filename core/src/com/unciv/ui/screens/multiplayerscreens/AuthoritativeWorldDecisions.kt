@@ -29,6 +29,9 @@ internal class AuthoritativeWorldDecisions(
     private val submit: (taskName: String, operation: suspend () -> Unit) -> Unit,
     /** Presentation-only ruleset for partner identity; never decides anything. */
     private val ruleset: com.unciv.models.ruleset.Ruleset? = null,
+    /** Per-partner trade drafts owned by the hosting screen across refreshes. */
+    private val tradeDrafts: MutableMap<String, AuthoritativeTradePanel.Draft> =
+        mutableMapOf(),
 ) {
     fun build(): Table = Table().apply {
         defaults().pad(3f)
@@ -91,6 +94,7 @@ internal class AuthoritativeWorldDecisions(
                 controller.projection,
                 controller.trade,
                 busy,
+                tradeDrafts,
                 submit,
             ).build(),
         ).left().row()

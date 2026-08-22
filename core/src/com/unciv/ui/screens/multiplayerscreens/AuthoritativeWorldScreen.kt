@@ -200,6 +200,9 @@ class AuthoritativeWorldScreen(
     private var seenNotificationCount = 0
     private val notificationsFeed by lazy { AuthoritativeNotificationsFeed(ruleset, feedHandler) }
 
+    /** Per-partner trade composition drafts, owned across projection refreshes. */
+    private val tradeDrafts = mutableMapOf<String, AuthoritativeTradePanel.Draft>()
+
     // endregion
 
     init {
@@ -348,6 +351,18 @@ class AuthoritativeWorldScreen(
             rebuild()
         }
         topBar.add(feed).right().padLeft(10f)
+
+        val empire = "Empire".toTextButton()
+        empire.onClick {
+            world.viewer.applyProjectionPresentation(controller.projection)
+            game.pushScreen(
+                AuthoritativeEmpireScreen(
+                    projectionFeed = { controller.current.projection },
+                    ruleset = ruleset,
+                ),
+            )
+        }
+        topBar.add(empire).right().padLeft(10f)
 
         val leave = "Leave match".toTextButton()
         leave.keyShortcuts.add(KeyCharAndCode.BACK)
@@ -540,6 +555,7 @@ class AuthoritativeWorldScreen(
                         runOperation(taskName, operation = operation)
                     },
                     ruleset = ruleset,
+                    tradeDrafts = tradeDrafts,
                 ).build(),
             ).apply {
                 setScrollingDisabled(false, false)

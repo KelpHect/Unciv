@@ -526,6 +526,11 @@
       "y": null
     }
   ],
+  "resources": [
+    { "name": "Gold", "amount": 4 },
+    { "name": "Horses", "amount": 2 },
+    { "name": "Iron", "amount": 6 }
+  ],
   "notifications": [
     {
       "category": "War",

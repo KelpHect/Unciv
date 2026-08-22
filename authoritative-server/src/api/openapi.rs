@@ -249,6 +249,7 @@ use super::*;
         unciv_authoritative_server::projection::ProjectedCityGrowth,
         unciv_authoritative_server::projection::ProjectedNotification,
         unciv_authoritative_server::projection::ProjectedNotificationAction,
+        unciv_authoritative_server::projection::ProjectedResourceSummary,
         unciv_authoritative_server::projection::ProjectedDiplomacyPrompt,
         unciv_authoritative_server::projection::ProjectedCityStatePartner,
         unciv_authoritative_server::projection::ProjectedCityStateInfluenceLevel,

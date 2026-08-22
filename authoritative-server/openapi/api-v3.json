@@ -14547,6 +14547,13 @@
           "research": {
             "$ref": "#/components/schemas/ProjectedResearch"
           },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedResourceSummary"
+            },
+            "description": "Empire-wide resource supply summed across cities and trades - the\nclassic Resources tab's numbers. Actor-private."
+          },
           "selectableGreatPeople": {
             "type": "array",
             "items": {
@@ -16333,6 +16340,24 @@
             "format": "int32"
           },
           "technologyName": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedResourceSummary": {
+        "type": "object",
+        "description": "One resource's empire-wide total, for the classic Resources tab.",
+        "required": [
+          "name",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
             "type": "string"
           }
         },

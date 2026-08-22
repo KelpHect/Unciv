@@ -60,9 +60,14 @@ data class PlayerProjection(
      * restricted to what a projection client can faithfully do.
      */
     val notifications: List<ProjectedNotification> = emptyList(),
+    /**
+     * Empire-wide resource supply, summed across this player's cities and
+     * trades - the classic Resources tab's numbers. Actor-private.
+     */
+    val resources: List<ProjectedResourceSummary> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 66
+        const val CURRENT_PROJECTION_VERSION = 67
     }
 }
 
@@ -120,6 +125,13 @@ data class ProjectedVictory(
     val winningCivilizationId: String,
     val victoryType: String,
     val victoryTurn: Int,
+)
+
+/** One resource's empire-wide total, for the classic Resources tab. */
+@Serializable
+data class ProjectedResourceSummary(
+    val name: String,
+    val amount: Int,
 )
 
 @Serializable
@@ -629,6 +641,15 @@ object PlayerProjectionBuilder {
             eventPrompts = EventChoiceCommandExecutor.prompts(actor),
             wonderEvents = WonderEventProjection.build(game, actor),
             notifications = notificationProjection(actor),
+            resources = actor.getCivResourceSupply()
+                .asSequence()
+                .filter { supply -> supply.amount > 0 }
+                .groupBy { supply -> supply.resource.name }
+                .map { (name, supplies) ->
+                    ProjectedResourceSummary(name, supplies.sumOf { it.amount })
+                }
+                .sortedBy { it.name }
+                .toList(),
             ownCities = actor.cities.map {
                 val constructionOptions = CityEconomyProjection.options(it)
                 ProjectedCity(

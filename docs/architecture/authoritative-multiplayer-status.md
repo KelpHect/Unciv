@@ -12222,3 +12222,45 @@ prior to doc updates.
 Remaining from the requested list (recorded in missing_multiplayer.md):
 classic trade UI columns, full empire overview tabs, literal DiplomacyScreen
 instantiation, classic picker fidelity - each with precise next steps noted.
+
+## Classic trade columns and Empire overview screen (player projection 66 -> 67) (2026-08-21)
+
+Two more classic-surface ports:
+
+**Trade UI.** `AuthoritativeTradePanel` is now the classic two-column offer
+table: "We offer" / "We ask" columns composed by clicking pooled offers
+(remaining amounts shown, per-offer +/- steppers clamped to pool maxima,
+removal), pending-outgoing state with retraction, and counter-offer
+composition on incoming requests. Drafts live in a map owned by the hosting
+world screen and are threaded through AuthoritativeWorldDecisions, so the
+per-revision rebuild never wipes mid-composition. All commits remain typed
+commands (offer/retract/accept/decline/counter).
+
+**Empire overview screen.** New projection-fed `AuthoritativeEmpireScreen`
+with Cities/Units/Resources/Wonders/Trades/Politics tabs behind a TabbedPager,
+opened from a top-bar Empire button (which first refreshes materialized city
+presentation). Wonders derive from projected builtBuildings through the pinned
+ruleset; politics shows relationship bands per met partner. To feed the
+Resources tab, player projection 66 -> 67 adds `resources` - empire-wide
+supply summed by `getCivResourceSupply()` on the worker side, classified
+player_private (2 rows).
+
+Final-state verification
+Revision: branch master at base HEAD `3cbf4650`; tracked diff hash
+`5ff0a85eb877d41e5bfdd1b62610a71e180de6be` over trade panel/world decisions/
+world screen/empire screen/projection DTOs/Rust mirror/contract/openapi/
+fixture/disclosure policy/missing_multiplayer. This record is the only edit
+after that hash. No material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeEmpireScreen.kt`
+prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete suite incl. disclosure enumeration (+2 resource rows) | all green | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | `cargo test --all-targets --all-features`, fmt --check, clippy -D warnings (authoritative-server) | fixture round-trip at v67 incl. resources family; OpenAPI regenerated with ProjectedResourceSummary | lib 214 / bin 32 passed; fmt 0; clippy clean | - |
+| PostgreSQL | not affected | - | no schema or query change | - | - |
+| Android | not affected | - | no android source changed | - | - |
+
+Remaining from the requested list: literal DiplomacyScreen instantiation
+(action seams) and religion/espionage/GP picker visual hierarchy.

@@ -2,6 +2,7 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.Constants
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.city.CityFlags
 import com.unciv.models.stats.Stats
 
 /**
@@ -101,7 +102,7 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
     for (projectedCity in projection.ownCities) {
         val city = cities.firstOrNull { it.id == projectedCity.id } ?: continue
         projectedCity.stats?.let { stats ->
-            city.cityStats.currentCityStats = com.unciv.models.stats.Stats(
+            city.cityStats.currentCityStats = Stats(
                 food = stats.food.toFloat(),
                 production = stats.production.toFloat(),
                 gold = stats.gold.toFloat(),
@@ -110,6 +111,23 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
                 faith = stats.faith.toFloat(),
                 happiness = stats.happiness.toFloat(),
             )
+        }
+        projectedCity.growth?.let { growth ->
+            city.population.foodStored = growth.foodStored
+        }
+        city.expansion.cultureStored = projectedCity.cultureStored
+        if (projectedCity.resistanceTurns > 0)
+            city.flagsCountdown[CityFlags.Resistance.name] = projectedCity.resistanceTurns
+        if (projectedCity.wltkTurns > 0)
+            city.flagsCountdown[CityFlags.WeLoveTheKing.name] = projectedCity.wltkTurns
+        city.demandedResource = projectedCity.demandedResource.orEmpty()
+        // Built buildings drive the buildings lists and great-person points;
+        // adding them through the canonical path keeps transients consistent.
+        val builtNow = projectedCity.builtBuildings.toSet()
+        val missing = builtNow - city.cityConstructions.builtBuildings
+        if (missing.isNotEmpty()) {
+            city.cityConstructions.builtBuildings.addAll(missing)
+            city.cityConstructions.setTransients()
         }
     }
 }

@@ -12171,3 +12171,54 @@ prior to doc updates.
 
 Delivery closure note: pushed to origin/master immediately after commit
 (user-requested); acceptance recorded in the accompanying handoff message.
+
+## Notification feed and city fidelity (player projection 65 -> 66) (2026-08-21)
+
+The biggest daily-driver gap closed: the online world now has the classic
+notification cards. `PlayerProjection.notifications` (newest first, capped at
+50) carries category, untranslated text, icons, and projected click-through
+actions as a tagged sealed family - location, tech, city, diplomacy, map-unit
+(with stable id), civilopedia, policy, link. Classic actions without a
+faithful online equivalent are dropped by the worker rather than approximated.
+The world screen docks the card stack under the top bar behind a Feed button
+with an unseen counter; taps dispatch round-robin through the projected
+actions into projection-faithful handlers (hudCenterOn, own-city CityScreen,
+projection-fed TechPicker/PolicyPicker, unit selection via the materialized
+map, Civilopedia, external URLs).
+
+Same bump carries city fidelity: per-city `growth` (foodStored,
+foodToNextPopulation, turnsToNewPopulation, turnsToStarvation,
+cultureToNextTile), builtBuildings, cultureStored, resistanceTurns,
+wltkTurns, demandedResource. The real CityScreen's growth/expansion strings
+now render server figures (those getters read gameInfo.speed client-side and
+crashed over a projection); applyProjectionPresentation populates the
+materialized cities through canonical paths so buildings lists render.
+
+Boundary movement: the actor's OWN notification sentinel is now asserted
+PRESENT in the player projection (disclosed to self) while remaining forbidden
+to the spectator payload; 26 new leaves classified player_private in the
+disclosure policy. Rust mirror includes the tagged action enum
+(rename_all_fields camelCase - caught by the fixture round-trip test when the
+first cut only renamed variants), version 66 across lib.rs + compatibility
+contract, regenerated OpenAPI with the four new schemas, fixture samples for
+notifications/actions/growth/built buildings.
+
+Final-state verification
+Revision: branch master at base HEAD `771e4628`; tracked diff hash
+`097d883b93f1d92753999869f05071d2c999142b` over the 16 files listed by git
+status at record time. This record is the only edit after that hash. No
+material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeWorldScreen.kt`
+prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full) | passed | `./gradlew :tests:test` | complete suite incl. disclosure enumeration (+26 rows), sentinel boundary move, spectator Gold-resource substring fix | 1229 tests / 0 failures / 17 documented skips | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | `cargo test --all-targets --all-features`, fmt --check, clippy -D warnings (authoritative-server) | fixture round-trip catches wire-shape drift; compatibility contract v66; OpenAPI regenerated | lib 214 passed / bin 32 passed; fmt 0; clippy clean | - |
+| PostgreSQL | not affected | - | no schema or query change; JSON payload shape only | - | - |
+| Android | not affected | - | no android source changed; shared core exercised by :tests:test | - | - |
+
+Remaining from the requested list (recorded in missing_multiplayer.md):
+classic trade UI columns, full empire overview tabs, literal DiplomacyScreen
+instantiation, classic picker fidelity - each with precise next steps noted.

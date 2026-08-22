@@ -104,6 +104,8 @@ class ProjectionLeakSentinelTests {
             ))
 
             assertTrue(encoded.contains(OWN_CITY_PUBLIC_SENTINEL))
+            // The actor's own notification feed is disclosed to itself.
+            assertTrue(encoded.contains(NOTIFICATION_SENTINEL))
             assertNone(encoded, PRIVATE_SENTINELS)
         }
     }
@@ -283,7 +285,12 @@ class ProjectionLeakSentinelTests {
         const val CITY_STATE_CITY_SENTINEL = "__CITY_STATE_CITY_PRIVATE_SENTINEL__"
         const val BARBARIAN_UNIT_SENTINEL = "__BARBARIAN_UNIT_PRIVATE_SENTINEL__"
         const val FOREIGN_UNIT_NAME_SENTINEL = "__FOREIGN_UNIT_NAME_SENTINEL__"
-        const val NOTIFICATION_SENTINEL = "__NOTIFICATION_PRIVATE_SENTINEL__"
+        /**
+         * The actor's own notification feed is disclosed to the actor itself
+         * since v66 - it stays forbidden to the SPECTATOR projection below,
+         * but the player projection must contain it.
+         */
+        const val NOTIFICATION_SENTINEL = "__NOTIFICATION_OWN_FEED_SENTINEL__"
         const val DIPLOMACY_SENTINEL = "__DIPLOMACY_MODIFIER_PRIVATE_SENTINEL__"
         const val FOREIGN_SPY_SENTINEL = "__FOREIGN_SPY_PRIVATE_SENTINEL__"
         const val RELIGION_SENTINEL = "__FOREIGN_RELIGION_PRIVATE_SENTINEL__"
@@ -293,7 +300,6 @@ class ProjectionLeakSentinelTests {
             UNKNOWN_CITY_SENTINEL,
             CITY_STATE_CITY_SENTINEL,
             BARBARIAN_UNIT_SENTINEL,
-            NOTIFICATION_SENTINEL,
             DIPLOMACY_SENTINEL,
             FOREIGN_SPY_SENTINEL,
             RELIGION_SENTINEL,

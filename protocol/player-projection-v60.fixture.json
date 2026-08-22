@@ -198,7 +198,19 @@
         "culture": 5,
         "faith": 0,
         "happiness": 1
-      }
+      },
+      "growth": {
+        "foodStored": 12,
+        "foodToNextPopulation": 24,
+        "turnsToNewPopulation": 4,
+        "turnsToStarvation": null,
+        "cultureToNextTile": 30
+      },
+      "builtBuildings": ["Monument", "Granary"],
+      "cultureStored": 45,
+      "resistanceTurns": 0,
+      "wltkTurns": 0,
+      "demandedResource": null
     }
   ],
   "ownUnits": [
@@ -512,6 +524,26 @@
       "cityName": null,
       "x": null,
       "y": null
+    }
+  ],
+  "notifications": [
+    {
+      "category": "War",
+      "text": "[Greece] declared war on us!",
+      "icons": ["NationIcons/Greece"],
+      "actions": [
+        { "type": "location", "x": 3, "y": -1 },
+        { "type": "diplomacy", "civilizationId": "Greece" }
+      ]
+    },
+    {
+      "category": "Production",
+      "text": "[Rome] finished the Great Library",
+      "icons": ["Wonder/Great Library"],
+      "actions": [
+        { "type": "city", "x": 2, "y": -1 },
+        { "type": "civilopedia", "link": "Wonder/Great Library" }
+      ]
     }
   ]
 }

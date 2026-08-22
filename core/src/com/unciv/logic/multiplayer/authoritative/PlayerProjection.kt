@@ -1,7 +1,19 @@
 package com.unciv.logic.multiplayer.authoritative
 
+import com.unciv.Constants
 import com.unciv.logic.GameInfo
+import com.unciv.logic.city.CityFlags
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.civilization.CivilopediaAction
+import com.unciv.logic.civilization.CityAction
+import com.unciv.logic.civilization.DiplomacyAction
+import com.unciv.logic.civilization.LinkAction
+import com.unciv.logic.civilization.LocationAction
+import com.unciv.logic.civilization.MapUnitAction
+import com.unciv.logic.civilization.Notification
+import com.unciv.logic.civilization.NotificationAction
+import com.unciv.logic.civilization.PolicyAction
+import com.unciv.logic.civilization.TechAction
 import com.unciv.logic.civilization.managers.ReligionState
 import com.unciv.logic.map.mapunit.MapUnit
 import kotlinx.serialization.SerialName
@@ -42,10 +54,65 @@ data class PlayerProjection(
     val spies: List<ProjectedSpy> = emptyList(),
     val eventPrompts: List<ProjectedEventPrompt> = emptyList(),
     val wonderEvents: List<ProjectedWonderEvent> = emptyList(),
+    /**
+     * This player's own notification feed, newest first, capped - exactly the
+     * cards the classic world screen shows, with click-through actions
+     * restricted to what a projection client can faithfully do.
+     */
+    val notifications: List<ProjectedNotification> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 65
+        const val CURRENT_PROJECTION_VERSION = 66
     }
+}
+
+@Serializable
+data class ProjectedNotification(
+    val category: String,
+    val text: String,
+    val icons: List<String> = emptyList(),
+    val actions: List<ProjectedNotificationAction> = emptyList(),
+)
+
+/**
+ * Click-through targets restricted to what a projection client can faithfully
+ * do. Classic actions without a faithful online equivalent (Maya calendar,
+ * promotion picker, overview pages, espionage, religion overview) are dropped
+ * by the builder rather than approximated.
+ */
+@Serializable
+sealed class ProjectedNotificationAction {
+    @Serializable
+    @SerialName("location")
+    data class Location(val x: Int, val y: Int) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("tech")
+    data class Tech(val technologyName: String) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("city")
+    data class City(val x: Int, val y: Int) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("diplomacy")
+    data class Diplomacy(val civilizationId: String) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("map_unit")
+    data class MapUnit(val x: Int, val y: Int, val unitId: Int? = null) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("civilopedia")
+    data class Civilopedia(val link: String) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("policy")
+    data class Policy(val select: String? = null) : ProjectedNotificationAction()
+
+    @Serializable
+    @SerialName("link")
+    data class Link(val url: String) : ProjectedNotificationAction()
 }
 
 @Serializable
@@ -305,6 +372,24 @@ data class ProjectedCity(
      * game it does not have.
      */
     val stats: ProjectedCityStats? = null,
+    /** Growth bookkeeping for the classic growth/resistance strings. */
+    val growth: ProjectedCityGrowth? = null,
+    /** Built buildings, newest-agnostic sorted by name - empire and city display. */
+    val builtBuildings: List<String> = emptyList(),
+    val cultureStored: Int = 0,
+    val resistanceTurns: Int = 0,
+    val wltkTurns: Int = 0,
+    val demandedResource: String? = null,
+)
+
+@Serializable
+data class ProjectedCityGrowth(
+    val foodStored: Int,
+    val foodToNextPopulation: Int,
+    val turnsToNewPopulation: Int?,
+    val turnsToStarvation: Int?,
+    /** Border-growth bookkeeping - speed-scaled canonical math stays server-side. */
+    val cultureToNextTile: Int,
 )
 
 @Serializable
@@ -469,6 +554,9 @@ private fun activePlayerCivilizationIds(game: GameInfo): List<String> =
     } else listOf(game.currentPlayer)
 
 object PlayerProjectionBuilder {
+    /** The feed shows recent cards, not archives - same spirit as the classic scroll. */
+    private const val MAX_NOTIFICATIONS = 50
+
     fun build(game: GameInfo, actor: Civilization): PlayerProjection {
         val canIssueTurnCommands =
             if (game.gameParameters.simultaneousHumanTurns) {
@@ -540,6 +628,7 @@ object PlayerProjectionBuilder {
             spies = EspionageCommandExecutor.spies(actor),
             eventPrompts = EventChoiceCommandExecutor.prompts(actor),
             wonderEvents = WonderEventProjection.build(game, actor),
+            notifications = notificationProjection(actor),
             ownCities = actor.cities.map {
                 val constructionOptions = CityEconomyProjection.options(it)
                 ProjectedCity(
@@ -615,6 +704,23 @@ object PlayerProjectionBuilder {
                             happiness = stats.happiness.toInt(),
                         )
                     },
+                    growth = ProjectedCityGrowth(
+                        foodStored = it.population.foodStored,
+                        foodToNextPopulation = it.population.getFoodToNextPopulation(),
+                        turnsToNewPopulation = it.population.getNumTurnsToNewPopulation(),
+                        turnsToStarvation = it.population.getNumTurnsToStarvation(),
+                        cultureToNextTile = it.expansion.getCultureToNextTile(),
+                    ),
+                    builtBuildings = it.cityConstructions.getBuiltBuildings()
+                        .map { building -> building.name }
+                        .sorted()
+                        .toList(),
+                    cultureStored = it.expansion.cultureStored,
+                    resistanceTurns =
+                        if (it.isInResistance()) it.getFlag(CityFlags.Resistance) else 0,
+                    wltkTurns =
+                        if (it.isWeLoveTheKingDayActive()) it.getFlag(CityFlags.WeLoveTheKing) else 0,
+                    demandedResource = it.demandedResource.takeIf(String::isNotEmpty),
                 )
             }.sortedBy { it.id },
             ownUnits = ownUnits,
@@ -666,6 +772,38 @@ object PlayerProjectionBuilder {
         else actor.diplomacyFunctions.getKnownCivsSorted(includeCityStates = false)
             .map { it.civID }
             .toList()
+
+    /** Newest first, capped: the classic feed shows recent cards, not archives. */
+    private fun notificationProjection(actor: Civilization): List<ProjectedNotification> =
+        actor.notifications.asSequence()
+            .toList()
+            .takeLast(MAX_NOTIFICATIONS)
+            .asReversed()
+            .map { it.toProjected() }
+            .toList()
+
+    private fun Notification.toProjected() = ProjectedNotification(
+        category = category.name,
+        text = text,
+        icons = icons.toList(),
+        actions = actions.mapNotNull { it.toProjected() },
+    )
+
+    private fun NotificationAction.toProjected(): ProjectedNotificationAction? = when (this) {
+        is LocationAction -> ProjectedNotificationAction.Location(location.x, location.y)
+        is TechAction -> ProjectedNotificationAction.Tech(techName)
+        is CityAction -> ProjectedNotificationAction.City(city.x, city.y)
+        is DiplomacyAction -> ProjectedNotificationAction.Diplomacy(otherCivName)
+        is MapUnitAction -> ProjectedNotificationAction.MapUnit(
+            location.x, location.y,
+            unitId = id.takeIf { it != Constants.NO_ID },
+        )
+        is CivilopediaAction -> ProjectedNotificationAction.Civilopedia(link)
+        is PolicyAction -> ProjectedNotificationAction.Policy(select)
+        is LinkAction -> ProjectedNotificationAction.Link(url)
+        // No faithful online equivalent yet - dropped rather than approximated.
+        else -> null
+    }
 
     private fun unitProjection(
         unit: MapUnit,

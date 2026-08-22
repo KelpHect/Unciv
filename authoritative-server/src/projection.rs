@@ -53,6 +53,11 @@ pub struct PlayerProjection {
     pub spies: Vec<ProjectedSpy>,
     pub event_prompts: Vec<ProjectedEventPrompt>,
     pub wonder_events: Vec<ProjectedWonderEvent>,
+    /// The actor's own notification feed, newest first and capped - the
+    /// classic world screen's cards, with click-through actions restricted to
+    /// what a projection client can faithfully do.
+    #[serde(default)]
+    pub notifications: Vec<ProjectedNotification>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -341,6 +346,19 @@ pub struct ProjectedCity {
     /// The owner's own headline yields; absent for foreign cities.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stats: Option<ProjectedCityStats>,
+    /// Growth and border-growth bookkeeping for the classic city strings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub growth: Option<ProjectedCityGrowth>,
+    #[serde(default)]
+    pub built_buildings: Vec<String>,
+    #[serde(default)]
+    pub culture_stored: i32,
+    #[serde(default)]
+    pub resistance_turns: i32,
+    #[serde(default)]
+    pub wltk_turns: i32,
+    #[serde(default)]
+    pub demanded_resource: Option<String>,
 }
 
 /// Headline per-city yields, exactly the figures the classic city screen's
@@ -355,6 +373,71 @@ pub struct ProjectedCityStats {
     pub culture: i32,
     pub faith: i32,
     pub happiness: i32,
+}
+
+/// Growth and border-growth bookkeeping; speed-scaled math stays server-side.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityGrowth {
+    pub food_stored: i32,
+    pub food_to_next_population: i32,
+    pub turns_to_new_population: Option<i32>,
+    pub turns_to_starvation: Option<i32>,
+    pub culture_to_next_tile: i32,
+}
+
+/// One classic notification card: category grouping, untranslated text, icons
+/// and the projected click-through actions (round-robin on tap).
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedNotification {
+    pub category: String,
+    pub text: String,
+    #[serde(default)]
+    pub icons: Vec<String>,
+    #[serde(default)]
+    pub actions: Vec<ProjectedNotificationAction>,
+}
+
+/// Click-through targets restricted to what a projection client can faithfully
+/// do. Classic actions without a faithful online equivalent are dropped by the
+/// worker rather than approximated.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(
+    tag = "type",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ProjectedNotificationAction {
+    Location {
+        x: i32,
+        y: i32,
+    },
+    Tech {
+        technology_name: String,
+    },
+    City {
+        x: i32,
+        y: i32,
+    },
+    Diplomacy {
+        civilization_id: String,
+    },
+    MapUnit {
+        x: i32,
+        y: i32,
+        unit_id: Option<i32>,
+    },
+    Civilopedia {
+        link: String,
+    },
+    Policy {
+        select: Option<String>,
+    },
+    Link {
+        url: String,
+    },
 }
 
 /// A rival city on a tile the worker already decided this player can see.

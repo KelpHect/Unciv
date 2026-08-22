@@ -250,8 +250,14 @@ class AuthoritativeGameExecutionContextTests {
         Assert.assertEquals(game.tileMap.mapParameters.worldWrap, projection.worldWrap)
 
         Assert.assertFalse(encoded.contains("SPECTATOR_PRIVATE_SENTINEL"))
+        // Owner-private FAMILIES stay structurally absent. Bare-substring
+        // bans like "gold" stopped working the moment the revealed map could
+        // contain a Gold resource - what matters is that no treasury,
+        // research, policy, diplomacy, notification, queue or RNG field
+        // exists in this payload at all.
+        Assert.assertFalse(encoded.contains("\"gold\""))
         for (forbidden in listOf(
-            "gold", "research", "policy", "diplomacy", "notification",
+            "research", "policy", "diplomacy", "notification",
             "queue", "rng", "moveDestinations", "posture", "promotions",
             "currentMovement",
         ))

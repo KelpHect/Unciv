@@ -14489,6 +14489,13 @@
               "type": "string"
             }
           },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedNotification"
+            },
+            "description": "The actor's own notification feed, newest first and capped - the\nclassic world screen's cards, with click-through actions restricted to\nwhat a projection client can faithfully do."
+          },
           "ownCities": {
             "type": "array",
             "items": {
@@ -14772,6 +14779,12 @@
               "$ref": "#/components/schemas/ProjectedBombardTarget"
             }
           },
+          "builtBuildings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "citizenFocus": {
             "$ref": "#/components/schemas/CitizenFocus"
           },
@@ -14793,6 +14806,27 @@
               "$ref": "#/components/schemas/ProjectedConstructionQueueEntry"
             }
           },
+          "cultureStored": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "demandedResource": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "growth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedCityGrowth",
+                "description": "Growth and border-growth bookkeeping for the classic city strings."
+              }
+            ]
+          },
           "health": {
             "type": "integer",
             "format": "int32"
@@ -14813,6 +14847,10 @@
             "type": "string"
           },
           "population": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resistanceTurns": {
             "type": "integer",
             "format": "int32"
           },
@@ -14869,6 +14907,10 @@
               "$ref": "#/components/schemas/ProjectedUnitPromotionPreference"
             }
           },
+          "wltkTurns": {
+            "type": "integer",
+            "format": "int32"
+          },
           "x": {
             "type": "integer",
             "format": "int32"
@@ -14899,6 +14941,44 @@
           },
           "cityName": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityGrowth": {
+        "type": "object",
+        "description": "Growth and border-growth bookkeeping; speed-scaled math stays server-side.",
+        "required": [
+          "foodStored",
+          "foodToNextPopulation",
+          "cultureToNextTile"
+        ],
+        "properties": {
+          "cultureToNextTile": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "foodStored": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "foodToNextPopulation": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "turnsToNewPopulation": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "turnsToStarvation": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -15788,6 +15868,211 @@
           }
         },
         "additionalProperties": false
+      },
+      "ProjectedNotification": {
+        "type": "object",
+        "description": "One classic notification card: category grouping, untranslated text, icons\nand the projected click-through actions (round-robin on tap).",
+        "required": [
+          "category",
+          "text"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedNotificationAction"
+            }
+          },
+          "category": {
+            "type": "string"
+          },
+          "icons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedNotificationAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "x",
+              "y",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "location"
+                ]
+              },
+              "x": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "y": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "technology_name",
+              "type"
+            ],
+            "properties": {
+              "technology_name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "tech"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "x",
+              "y",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "city"
+                ]
+              },
+              "x": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "y": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "civilization_id",
+              "type"
+            ],
+            "properties": {
+              "civilization_id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "diplomacy"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "x",
+              "y",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "map_unit"
+                ]
+              },
+              "unit_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int32"
+              },
+              "x": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "y": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "link",
+              "type"
+            ],
+            "properties": {
+              "link": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "civilopedia"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "select": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "policy"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "url",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "link"
+                ]
+              },
+              "url": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Click-through targets restricted to what a projection client can faithfully\ndo. Classic actions without a faithful online equivalent are dropped by the\nworker rather than approximated."
       },
       "ProjectedNuclearEffectDisclosure": {
         "type": "string",

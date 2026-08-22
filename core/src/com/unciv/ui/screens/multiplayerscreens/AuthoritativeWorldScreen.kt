@@ -194,6 +194,12 @@ class AuthoritativeWorldScreen(
     private val victoryOverlay = Table(BaseScreen.skin)
     private var victoryShownForRevision: Long? = null
 
+    /** The classic notification cards, fed by the projection. */
+    private val notificationsPanel = Table(BaseScreen.skin)
+    private var notificationsVisible = false
+    private var seenNotificationCount = 0
+    private val notificationsFeed by lazy { AuthoritativeNotificationsFeed(ruleset, feedHandler) }
+
     // endregion
 
     init {
@@ -211,6 +217,7 @@ class AuthoritativeWorldScreen(
         stage.addActor(tileInfoTable)
         stage.addActor(minimapWrapper)
         stage.addActor(sidePanel)
+        stage.addActor(notificationsPanel)
         stage.addActor(victoryOverlay)
 
         rebuild()
@@ -236,6 +243,7 @@ class AuthoritativeWorldScreen(
         rebuildTopBar()
         rebuildUnitDock()
         rebuildSidePanel()
+        rebuildNotifications()
         rebuildVictoryOverlay()
         // The minimap tracks the current map and the show/hide setting; a null
         // viewer reveals everything, which is correct - the projection already
@@ -328,6 +336,18 @@ class AuthoritativeWorldScreen(
         val decisions = decisionsButtonText().toTextButton()
         decisions.onClick { toggleSidePanel(PanelMode.Decisions) }
         topBar.add(decisions).right().padLeft(10f)
+
+        val unseen =
+            (controller.projection.notifications.size - seenNotificationCount).coerceAtLeast(0)
+        val feedText = if (unseen > 0) "Feed [$unseen]" else "Feed"
+        val feed = feedText.toTextButton()
+        feed.onClick {
+            notificationsVisible = !notificationsVisible
+            if (notificationsVisible) seenNotificationCount =
+                controller.projection.notifications.size
+            rebuild()
+        }
+        topBar.add(feed).right().padLeft(10f)
 
         val leave = "Leave match".toTextButton()
         leave.keyShortcuts.add(KeyCharAndCode.BACK)
@@ -548,33 +568,126 @@ class AuthoritativeWorldScreen(
         }
     }
 
-    /**
-     * Opens the real single-player city screen over this projected city:
+    /** Opens the real single-player city screen over this projected city:
      * read-only, with the server's own construction figures fed in, because a
      * client without canonical state can neither compute costs nor mutate
-     * anything.
-     */
+     * anything. */
     private fun openCityScreenButton(city: ProjectedCity) = "Open city screen".toTextButton().apply {
         onClick {
-            val materialized = world.viewer.cities.firstOrNull { it.id == city.id }
-            if (materialized == null) {
-                ToastPopup("This city is not on the current projection", this@AuthoritativeWorldScreen)
-                return@onClick
-            }
-            game.pushScreen(
-                CityScreen(
-                    world.gameView.getCityView(materialized),
-                    forceReadOnly = true,
-                    projectedCity = city,
-                ),
-            )
+            openProjectedCityScreen(city)
         }
     }
 
     // endregion
 
-    /** The terminal moment: winner, victory type, and turn, over the map. */
-    private fun rebuildVictoryOverlay() {
+    /** The classic notification cards, docked under the top bar on the left. */
+    private fun rebuildNotifications() {
+        val notifications = controller.projection.notifications
+        notificationsPanel.clear()
+        notificationsPanel.defaults().pad(3f)
+        notificationsPanel.isVisible = notificationsVisible && notifications.isNotEmpty()
+        if (!notificationsVisible) return
+
+        notificationsPanel.add(
+            ScrollPane(
+                notificationsFeed.rebuild(notifications),
+            ).apply {
+                setScrollingDisabled(true, false)
+                setOverscroll(false, false)
+            },
+        ).grow().row()
+    }
+
+    /** Click-through dispatch for projected notification cards. */
+    private val feedHandler = object : AuthoritativeNotificationsFeed.Handler {
+        override fun centerOn(x: Int, y: Int) = hudCenterOn(HexCoord(x, y))
+
+        override fun openTechTree(centerOnTech: String?) {
+            if (busy || !controller.canAcceptProjectedInput) return
+            world.viewer.applyProjectionPresentation(controller.projection)
+            game.pushScreen(
+                TechPickerScreen(
+                    world.viewer,
+                    ruleset.technologies[centerOnTech],
+                    projectedResearch = controller.projection.research,
+                    onCommitQueue = { queue ->
+                        runOperation("Commit authoritative research queue") {
+                            controller.commitResearchQueue(queue, ruleset)
+                        }
+                    },
+                    onSelectFreeTechnology = { name ->
+                        runOperation("Claim authoritative free technology") {
+                            controller.chooseProjectedFreeTechnology(name)
+                        }
+                    },
+                ),
+            )
+        }
+
+        override fun openCityScreenAt(x: Int, y: Int) {
+            val city = controller.projection.ownCities.firstOrNull {
+                it.x == x && it.y == y
+            } ?: return
+            openProjectedCityScreen(city)
+        }
+
+        override fun focusDiplomacyPartner(civilizationId: String) {
+            // The diplomacy panel lives in the decisions drawer; raise it.
+            toggleSidePanel(PanelMode.Decisions)
+        }
+
+        override fun selectUnitAt(x: Int, y: Int, unitId: Int?) {
+            hudCenterOn(HexCoord(x, y))
+            val materialized = unitId?.let(::materializedUnit) ?: return
+            unitTable.selectUnit(materialized)
+            syncControllerSelection()
+            rebuild()
+        }
+
+        override fun openCivilopedia(link: String) {
+            this@AuthoritativeWorldScreen.openCivilopedia(link)
+        }
+
+        override fun openPolicyPicker(select: String?) {
+            if (busy || !controller.canAcceptProjectedInput) return
+            world.viewer.applyProjectionPresentation(controller.projection)
+            game.pushScreen(
+                PolicyPickerScreen(
+                    world.viewer,
+                    canChangeState = true,
+                    select = select,
+                    projectedPolicies = controller.projection.policies,
+                    onAdopt = { name ->
+                        runOperation("Adopt authoritative policy") {
+                            controller.adoptProjectedPolicy(name)
+                        }
+                    },
+                ),
+            )
+        }
+
+        override fun openUrl(url: String) {
+            com.badlogic.gdx.Gdx.net.openURI(url)
+        }
+    }
+
+    /** Shared by the city panel button and notification click-through. */
+    private fun openProjectedCityScreen(city: ProjectedCity) {
+        val materialized = world.viewer.cities.firstOrNull { it.id == city.id }
+        if (materialized == null) {
+            ToastPopup("This city is not on the current projection", this@AuthoritativeWorldScreen)
+            return
+        }
+        game.pushScreen(
+            CityScreen(
+                world.gameView.getCityView(materialized),
+                forceReadOnly = true,
+                projectedCity = city,
+            ),
+        )
+    }
+
+    /** The terminal moment: winner, victory type, and turn, over the map. */    private fun rebuildVictoryOverlay() {
         val victory = controller.projection.victory
         val revision = controller.current.committedRevision
         if (victory == null) {
@@ -651,6 +764,12 @@ class AuthoritativeWorldScreen(
                 stage.width - sidePanel.width - 8f,
                 topBar.y - sidePanel.height - 6f,
             )
+        }
+        if (notificationsPanel.isVisible) {
+            notificationsPanel.width = (stage.width * 0.26f).coerceAtMost(300f)
+            notificationsPanel.height = (stage.height * 0.45f)
+                .coerceAtMost(topBar.y - minimapWrapper.height - 20f)
+            notificationsPanel.setPosition(8f, topBar.y - notificationsPanel.height - 6f)
         }
     }
 

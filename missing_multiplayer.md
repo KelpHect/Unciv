@@ -280,7 +280,41 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   instantiation remains deliberately unreplaced - its action half writes
   canonical state and cross-player popup alerts directly and couples to the
   trade-manager tables; those flows are served by typed commands today, and
-  any future literal reuse would need action-seam work beyond disclosure.
+   any future literal reuse would need action-seam work beyond disclosure.
+- [x] Project the actor's own notification feed (player projection 65 → 66,
+  consolidated with city fidelity below): `PlayerProjection.notifications`
+  carries newest-first capped cards - category, untranslated text, icons, and
+  click-through actions restricted to what a projection client can faithfully
+  do (look at places, open own cities, open tech/policy pickers, focus
+  diplomacy, select units, civilopedia links, external URLs). Classic actions
+  without a faithful online equivalent are dropped rather than approximated.
+  The world screen renders the classic card stack docked under the top bar
+  behind a Feed button with an unseen counter; taps dispatch round-robin
+  through projected actions exactly like the classic scroll. The sentinel
+  boundary moves accordingly: the actor's own notification sentinel is now
+  asserted PRESENT in the player projection while remaining forbidden to the
+  spectator payload.
+- [x] Project per-city growth and border-growth bookkeeping (`growth` with
+  foodStored/foodToNextPopulation/turnsToNewPopulation/turnsToStarvation/
+  cultureToNextTile), built buildings, stored border culture, resistance and
+  WLTK turns, and demanded resource (same v66 bump). The real CityScreen's
+  growth/expansion/resistance strings now render server figures instead of
+  degrading; `applyProjectionPresentation` populates the materialized cities
+  through canonical paths so buildings lists render for real.
+- [ ] Classic trade UI upgrade (TradeTable-style two-column offer composition,
+  counter-offer editing, active-trades list): still a bounded composer panel;
+  the generic `(name,type,amount,duration)` offer model already covers classic's
+  taxonomy, so this is client-only work against existing families.
+- [ ] Full Empire overview tabs (Stats/Resources/Units/Cities/Wonders/Trades/
+  Global-Politics): the compact panel covers treasury/cities-with-yields/
+  units/research/policies; deeper tabs need further disclosure decisions
+  (resource supply tables, full stat breakdown trees).
+- [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
+  leader-dialog layout with war-confirm chains and GoToOnMap still needs
+  action seams like PolicyPicker received.
+- [ ] Classic picker fidelity for religion/espionage/great-people: functional
+  projection panels remain plainer than the classic picker screens' visual
+  hierarchy.
 
 ## P0: required before v3 can replace legacy online play
 

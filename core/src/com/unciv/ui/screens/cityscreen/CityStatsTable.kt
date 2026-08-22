@@ -131,19 +131,46 @@ class CityStatsTable(private val cityScreen: CityScreen) : Table() {
         if (cityScreen.canChangeState)
             unassignedPopLabel.onClick { cityView.tryReassignPopulation(); cityScreen.update() }
 
+        val projectedGrowth = cityScreen.projectedCity?.growth
+        val projectedCultureToNext = cityScreen.projectedCity?.growth?.cultureToNextTile
+
         var turnsToExpansionString =
-                if (cityView.getCurrentCityStats().culture > 0 && cityView.hasChoosableTiles()) {
+                if (projectedCultureToNext != null) {
+                    // Border-growth cost is speed-scaled canonical math; the
+                    // server's figure is the only honest source.
+                    if (cityView.getCurrentCityStats().culture > 0 && cityView.hasChoosableTiles()) {
+                        val remainingCulture = projectedCultureToNext - cityView.getCultureStored()
+                        var turnsToExpansion = ceil(remainingCulture / cityView.getCurrentCityStats().culture).toInt()
+                        if (turnsToExpansion < 1) turnsToExpansion = 1
+                        "[$turnsToExpansion] turns to expansion".tr()
+                    } else "Stopped expansion".tr()
+                } else if (cityView.getCurrentCityStats().culture > 0 && cityView.hasChoosableTiles()) {
                     val remainingCulture = cityView.getCultureToNextTile() - cityView.getCultureStored()
                     var turnsToExpansion = ceil(remainingCulture / cityView.getCurrentCityStats().culture).toInt()
                     if (turnsToExpansion < 1) turnsToExpansion = 1
                     "[$turnsToExpansion] turns to expansion".tr()
                 } else "Stopped expansion".tr()
-        if (cityView.hasChoosableTiles())
+        if (cityView.hasChoosableTiles()) {
+            val cultureToNext =
+                if (projectedCultureToNext != null) projectedCultureToNext
+                else cityView.getCultureToNextTile()
             turnsToExpansionString +=
-                    " (${cityView.getCultureStored()}${Fonts.culture}/${cityView.getCultureToNextTile()}${Fonts.culture})"
+                    " (${cityView.getCultureStored()}${Fonts.culture}/$cultureToNext${Fonts.culture})"
+        }
 
+        val starvingTurns = projectedGrowth?.turnsToStarvation
+        val growingTurns = projectedGrowth?.turnsToNewPopulation
         var turnsToPopString =
                 when {
+                    projectedGrowth != null && starvingTurns != null ->
+                        "[$starvingTurns] turns to lose population"
+                    projectedGrowth != null &&
+                            cityView.getRuleset().units[cityView.currentConstructionName()]
+                                .let { it != null && it.hasUnique(UniqueType.ConvertFoodToProductionWhenConstructed) }
+                    -> "Food converts to production"
+                    projectedGrowth != null && growingTurns != null ->
+                        "[$growingTurns] turns to new population"
+                    projectedGrowth != null -> "Stopped population growth"
                     cityView.isStarving() -> "[${cityView.getNumTurnsToStarvation()}] turns to lose population"
                     cityView.getRuleset().units[cityView.currentConstructionName()]
                         .let { it != null && it.hasUnique(UniqueType.ConvertFoodToProductionWhenConstructed) }
@@ -151,7 +178,9 @@ class CityStatsTable(private val cityScreen: CityScreen) : Table() {
                     cityView.isGrowing() -> "[${cityView.getNumTurnsToNewPopulation()}] turns to new population"
                     else -> "Stopped population growth"
                 }.tr()
-        turnsToPopString += " (${cityView.getFoodStored()}${Fonts.food}/${cityView.getFoodToNextPopulation()}${Fonts.food})"
+        val foodStored = projectedGrowth?.foodStored ?: cityView.getFoodStored()
+        val foodToNext = projectedGrowth?.foodToNextPopulation ?: cityView.getFoodToNextPopulation()
+        turnsToPopString += " ($foodStored${Fonts.food}/$foodToNext${Fonts.food})"
 
         lowerTable.add(unassignedPopLabel).row()
         lowerTable.add(turnsToExpansionString.toLabel()).row()

@@ -37,7 +37,7 @@ interface NotificationAction : IsPartOfGameInfoSerialization {
 }
 
 /** A notification action that shows map places. */
-class LocationAction(private val location: HexCoord = HexCoord.Zero) : NotificationAction {
+class LocationAction(internal val location: HexCoord = HexCoord.Zero) : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         worldScreen.mapHolder.setCenterPosition(location, selectUnit = false)
     }
@@ -60,7 +60,7 @@ class LocationAction(private val location: HexCoord = HexCoord.Zero) : Notificat
 }
 
 /** show tech screen */
-class TechAction(private val techName: String = "") : NotificationAction {
+class TechAction(internal val techName: String = "") : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         val tech = worldScreen.gameInfo.ruleset.technologies[techName]
         worldScreen.game.pushScreen(TechPickerScreen(worldScreen.selectedCiv, tech))
@@ -68,7 +68,7 @@ class TechAction(private val techName: String = "") : NotificationAction {
 }
 
 /** enter city */
-class CityAction(private val city: HexCoord = HexCoord.Zero) : NotificationAction {
+class CityAction(internal val city: HexCoord = HexCoord.Zero) : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         val cityObject = worldScreen.mapHolder.tileMap[city].getCity()
             ?: return
@@ -82,7 +82,7 @@ class CityAction(private val city: HexCoord = HexCoord.Zero) : NotificationActio
 
 /** enter diplomacy screen */
 class DiplomacyAction : NotificationAction {
-    private val otherCivName: String
+    internal val otherCivName: String
     private var showTrade: Boolean
     @Transient
     private lateinit var otherCiv: Civilization
@@ -137,8 +137,8 @@ class MayaLongCountAction : NotificationAction {
  *  Activation without unit id also works for cities, selecting them - so a bombard is one click less.
  */
 class MapUnitAction(
-    private val location: HexCoord = HexCoord.Zero,
-    private val id: Int = Constants.NO_ID
+    internal val location: HexCoord = HexCoord.Zero,
+    internal val id: Int = Constants.NO_ID
 ) : NotificationAction {
     constructor(unit: MapUnit) : this(unit.currentTile.position.toHexCoord(), unit.id)
     override fun execute(worldScreen: WorldScreen) {
@@ -161,7 +161,7 @@ class MapUnitAction(
 }
 
 /** A notification action that shows a Civilopedia entry, e.g. for a Wonder. */
-class CivilopediaAction(private val link: String = "") : NotificationAction {
+class CivilopediaAction(internal val link: String = "") : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         worldScreen.openCivilopedia(link)
     }
@@ -202,7 +202,7 @@ class OverviewAction(
 
 /** Open policy picker, optionally preselecting [select] (how or if at all that works for branches is [PolicyPickerScreen]'s business) */
 class PolicyAction(
-    private val select: String? = null
+    internal val select: String? = null
 ) : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         worldScreen.game.pushScreen(PolicyPickerScreen(worldScreen.selectedCiv, worldScreen.canChangeState, select))
@@ -221,7 +221,7 @@ class EspionageAction : NotificationAction {
 }
 
 /** Open [url] externally in the browser */
-class LinkAction(private val url: String = "") : NotificationAction {
+class LinkAction(internal val url: String = "") : NotificationAction {
     override fun execute(worldScreen: WorldScreen) {
         if (url.isNotEmpty()) Gdx.net.openURI(url)
     }

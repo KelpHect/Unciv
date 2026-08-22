@@ -60,7 +60,7 @@ pub use projection_lobby_terrain::LobbyTerrainProjection;
 pub use repository::{CommitError, InMemoryGameRepository};
 
 pub const PROTOCOL_VERSION: u16 = 4;
-pub const PROJECTION_VERSION: u16 = 65;
+pub const PROJECTION_VERSION: u16 = 66;
 pub const SPECTATOR_PROJECTION_VERSION: u16 = 4;
 pub const LOBBY_TERRAIN_PROJECTION_VERSION: u16 = 1;
 pub const MAX_SNAPSHOT_BYTES: usize = 16 * 1024 * 1024;

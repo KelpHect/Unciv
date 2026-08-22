@@ -473,3 +473,5 @@ player	player.ownCities[].cultureStored	player_private	Authenticated actor-owned
 player	player.ownCities[].resistanceTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.ownCities[].wltkTurns	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.ownCities[].demandedResource	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.resources[].name	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.resources[].amount	player_private	Authenticated actor-owned state required for private presentation and reconciliation.

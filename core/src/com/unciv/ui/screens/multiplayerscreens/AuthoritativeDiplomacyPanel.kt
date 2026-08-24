@@ -73,7 +73,9 @@ internal class AuthoritativeDiplomacyPanel(
                 ).left().padLeft(40f).row()
             for (promise in partner.promisesWeMadeThem)
                 add(
-                    "We promised: [${promise.name}]".toLabel(LobbyChrome.muted),
+                    (
+                        "We promised: [${promise.name}]"
+                        ).toLabel(LobbyChrome.muted),
                 ).left().padLeft(40f).row()
             add(
                 (

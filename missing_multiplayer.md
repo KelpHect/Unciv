@@ -313,9 +313,24 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   ruleset, trade standing including pending offers/requests, and a politics
   tab with relationship bands. Full per-city stat breakdown trees remain
   server-side; headline yields are the disclosed figures.
-- [ ] Literal DiplomacyScreen instantiation: display parity is complete; the
-  leader-dialog layout with war-confirm chains and GoToOnMap still needs
-  action seams like PolicyPicker received.
+- [x] Literal DiplomacyScreen instantiation via a PolicyPicker-style action
+  seam: `DiplomacyScreen` gains an optional `DiplomacyScreenDelegate` (generic
+  classic-package interface, no authoritative imports) whose null default
+  preserves single-player behavior exactly. With a delegate supplied, the
+  left-hand civilization list comes from the host, city-state selection renders
+  a projection-fed summary, Trade/Negotiate-Peace entries hide
+  (`canOpenTrade = false`; trades live in their own panel), and every
+  relationship change - declare war (with the full defensive-pact cascade
+  confirmation text), denounce, offer friendship, make demand - routes through
+  typed commands instead of canonical/cross-player writes. The V3 world screen
+  populates detached diplomacy managers from the projection (status, modifier
+  breakdown reproducing opinion and relationship band through canonical math,
+  friendship/denunciation flags reconstructed from capability flags, demand
+  promises as 30-turn display flags) and opens the real leader dialog from a
+  top-bar Diplomacy button and notification click-through. Promise remaining-
+  turns are approximated as 30 on the reconstructed display flags; exact
+  per-promise turn counts stay server-side pending their own disclosure
+  decision.
 - [x] Classic picker fidelity, religion and great-person selection: the
   religion choice renders as the classic icon-bearing belief cards (portrait
   per belief via getReligionPortrait, gold-highlighted religion icon

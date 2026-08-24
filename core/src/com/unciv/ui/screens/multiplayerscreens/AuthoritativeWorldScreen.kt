@@ -5,6 +5,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.unciv.GUI
 import com.unciv.logic.map.HexCoord
 import com.unciv.logic.map.tile.Tile
+import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.multiplayer.authoritative.DiplomaticDemand
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameProjection
 import com.unciv.logic.multiplayer.authoritative.ApiV3GameSummary
 import com.unciv.logic.multiplayer.authoritative.AuthoritativeGameDirectory
@@ -30,9 +32,13 @@ import com.unciv.ui.popups.ToastPopup
 import com.unciv.ui.screens.basescreen.BaseScreen
 import com.unciv.ui.screens.basescreen.RecreateOnResize
 import com.unciv.ui.screens.cityscreen.CityScreen
+import com.unciv.ui.screens.diplomacyscreen.DiplomacyScreen
+import com.unciv.ui.screens.diplomacyscreen.DiplomacyScreenDelegate
+import com.unciv.view.ForeignCivView
 import com.unciv.ui.screens.pickerscreens.PolicyPickerScreen
 import com.unciv.ui.screens.pickerscreens.TechPickerScreen
 import com.unciv.logic.multiplayer.authoritative.applyProjectionPresentation
+import com.unciv.logic.multiplayer.authoritative.populateDiplomacyPresentation
 import com.unciv.ui.screens.worldscreen.WorldHudHost
 import com.unciv.ui.screens.worldscreen.bottombar.TileInfoTable
 import com.unciv.ui.screens.worldscreen.minimap.MinimapHolder
@@ -364,6 +370,10 @@ class AuthoritativeWorldScreen(
         }
         topBar.add(empire).right().padLeft(10f)
 
+        val diplomacy = "Diplomacy".toTextButton()
+        diplomacy.onClick { openLiteralDiplomacyScreen(null) }
+        topBar.add(diplomacy).right().padLeft(10f)
+
         val leave = "Leave match".toTextButton()
         leave.keyShortcuts.add(KeyCharAndCode.BACK)
         leave.onClick { game.popScreen() }
@@ -648,8 +658,7 @@ class AuthoritativeWorldScreen(
         }
 
         override fun focusDiplomacyPartner(civilizationId: String) {
-            // The diplomacy panel lives in the decisions drawer; raise it.
-            toggleSidePanel(PanelMode.Decisions)
+            openLiteralDiplomacyScreen(civilizationId)
         }
 
         override fun selectUnitAt(x: Int, y: Int, unitId: Int?) {
@@ -701,6 +710,99 @@ class AuthoritativeWorldScreen(
                 projectedCity = city,
             ),
         )
+    }
+
+    /**
+     * Opens the literal classic DiplomacyScreen over the detached
+     * civilizations: presentation state is populated from the projection, and
+     * every relationship action routes back through typed commands via the
+     * delegate. Trades stay in their own panel (canOpenTrade = false).
+     */
+    private fun openLiteralDiplomacyScreen(selectCivId: String?) {
+        if (!controller.canAcceptProjectedInput) return
+        world.viewer.applyProjectionPresentation(controller.projection)
+        world.viewer.populateDiplomacyPresentation(controller.projection) { id ->
+            world.findCivilization(id)
+        }
+        val selectCiv = selectCivId?.let { world.findCivilization(it) }
+        game.pushScreen(
+            DiplomacyScreen(
+                viewingCivView = world.gameView.civView,
+                selectCivView = selectCiv?.let { ForeignCivView(it, world.viewer) },
+                delegate = literalDiplomacyDelegate,
+            ),
+        )
+    }
+
+    /** Routes the classic screen's relationship actions to typed commands. */
+    private val literalDiplomacyDelegate = object : DiplomacyScreenDelegate {
+        override fun knownCivs(): List<Civilization> =
+            world.knownCivilizations()
+                .filter { it.civID != world.viewer.civID && !it.isBarbarian }
+                .sortedBy { it.civID }
+
+        override fun declareWar(otherCivName: String) {
+            runOperation("Declare authoritative war") {
+                controller.diplomacy.declareWar(otherCivName)
+            }
+        }
+
+        override fun denounce(otherCivName: String) {
+            runOperation("Submit authoritative denouncement") {
+                controller.diplomacy.denounce(otherCivName)
+            }
+        }
+
+        override fun offerFriendship(otherCivName: String) {
+            runOperation("Offer authoritative friendship") {
+                controller.diplomacy.offerFriendship(otherCivName)
+            }
+        }
+
+        override fun makeDemand(otherCivName: String, demandName: String) {
+            val demand = DiplomaticDemand.entries.firstOrNull {
+                it.name.equals(demandName, ignoreCase = true)
+            } ?: return
+            runOperation("Make authoritative demand") {
+                controller.diplomacy.makeDemand(otherCivName, demand)
+            }
+        }
+
+        override fun negotiatePeace(otherCivName: String) {
+            // Peace is negotiated through the trade panel's peace flow; raise
+            // the decisions drawer where trades live.
+            toggleSidePanel(PanelMode.Decisions)
+        }
+
+        override fun goToOnMap(otherCivName: String) {
+            val partner = controller.projection.diplomacyPartners.firstOrNull {
+                it.civilizationId == otherCivName
+            } ?: return
+            val capital = world.findCivilization(otherCivName)?.getCapital() ?: return
+            hudCenterOn(capital.location.toHexCoord())
+            ToastPopup("Capital of [$otherCivName]", this@AuthoritativeWorldScreen)
+            @Suppress("UNUSED_EXPRESSION") partner
+        }
+
+        override val canOpenTrade: Boolean get() = false
+
+        override fun onCityStateSelected(
+            otherCiv: Civilization,
+            screen: DiplomacyScreen,
+        ): Boolean {
+            val cs = controller.projection.cityStatePartners.firstOrNull {
+                it.civilizationId == otherCiv.civID
+            } ?: return false
+            screen.setRightSideFlavorText(
+                otherCiv,
+                (
+                    "Influence [${cs.influence}] - ${cs.influenceLevel}\n" +
+                        "Quests: " + cs.quests.joinToString { it.questName }.ifEmpty { "none" }
+                    ),
+                "Very well.",
+            )
+            return true
+        }
     }
 
     /** The terminal moment: winner, victory type, and turn, over the map. */    private fun rebuildVictoryOverlay() {

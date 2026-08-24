@@ -162,6 +162,12 @@ internal class AuthoritativeProjectionWorldMap(
     private fun existingPosition(x: Int, y: Int): HexCoord? =
         tileMap.getIfTileExistsOrNull(x, y)?.position
 
+    /** A detached civilization by server id, or null when unknown. */
+    fun findCivilization(civilizationId: String): Civilization? = civilizations[civilizationId]
+
+    /** Every detached civilization this projection named. */
+    fun knownCivilizations(): Collection<Civilization> = civilizations.values
+
     /** One lightweight civilization per identity the projection names. */
     private fun civilization(civilizationId: String): Civilization =
         civilizations.getOrPut(civilizationId) {

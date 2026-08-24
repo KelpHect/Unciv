@@ -2,6 +2,10 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.Constants
 import com.unciv.logic.civilization.Civilization
+import com.unciv.logic.civilization.diplomacy.Demand
+import com.unciv.logic.civilization.diplomacy.DiplomacyManager
+import com.unciv.logic.civilization.diplomacy.DiplomacyFlags
+import com.unciv.logic.civilization.diplomacy.DiplomaticStatus
 import com.unciv.logic.city.CityFlags
 import com.unciv.models.stats.Stats
 
@@ -129,5 +133,55 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
             city.cityConstructions.builtBuildings.addAll(missing)
             city.cityConstructions.setTransients()
         }
+    }
+}
+
+/**
+ * Populates the detached civilizations' [com.unciv.logic.civilization.diplomacy.DiplomacyManager]s
+ * from the projected relationship facts, so the literal classic
+ * DiplomacyScreen renders exactly what the server disclosed: war/peace
+ * status, the partner's labelled modifier breakdown (which also reproduces
+ * opinion and relationship band through the same canonical math), demand
+ * promises with remaining turns, and friendship/denunciation state
+ * reconstructed from the projected capability flags.
+ *
+ * Presentation-only; never call on civilizations inside a real game.
+ */
+fun Civilization.populateDiplomacyPresentation(
+    projection: PlayerProjection,
+    findCivilization: (String) -> Civilization?,
+) {
+    fun ensurePair(other: Civilization): Pair<DiplomacyManager, DiplomacyManager> {
+        val ours = diplomacy.getOrPut(other.civID) { DiplomacyManager(this, other) }
+        val theirs = other.diplomacy.getOrPut(civID) { DiplomacyManager(other, this) }
+        return ours to theirs
+    }
+
+    for (partner in projection.diplomacyPartners) {
+        val other = findCivilization(partner.civilizationId) ?: continue
+        val (ours, theirs) = ensurePair(other)
+        val atWar = partner.peaceTreatyCooldownTurns != null
+        ours.diplomaticStatus =
+            if (atWar) DiplomaticStatus.War else DiplomaticStatus.Peace
+        theirs.diplomaticStatus = ours.diplomaticStatus
+
+        theirs.diplomaticModifiers.clear()
+        for (modifier in partner.modifiersTowardUs)
+            theirs.diplomaticModifiers[modifier.label] = modifier.amount.toFloat()
+
+        // Reconstruct the display flags the classic screen gates on. With no
+        // cross-player popup alerts in a projection, "cannot offer" means the
+        // friendship/denunciation flag is already set on the wire.
+        if (!atWar && !partner.canOfferFriendship && !partner.canDenounce) {
+            ours.flagsCountdown[DiplomacyFlags.DeclarationOfFriendship.name] = 30
+            theirs.flagsCountdown[DiplomacyFlags.DeclarationOfFriendship.name] = 30
+        }
+        if (!atWar && !partner.canDenounce && partner.canOfferFriendship)
+            theirs.flagsCountdown[DiplomacyFlags.Denunciation.name] = 30
+
+        for (promise in partner.promisesTheyMadeUs)
+            theirs.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] = 30
+        for (promise in partner.promisesWeMadeThem)
+            ours.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] = 30
     }
 }

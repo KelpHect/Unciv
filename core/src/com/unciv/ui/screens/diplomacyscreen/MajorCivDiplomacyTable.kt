@@ -25,6 +25,7 @@ import kotlin.math.roundToInt
 
 class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
     val viewingCiv = diplomacyScreen.viewingCiv
+    private fun delegate(): DiplomacyScreenDelegate? = diplomacyScreen.delegate
 
     fun getMajorCivDiplomacyTable(otherCiv: Civilization): Table {
         val otherCivDiplomacyManager = otherCiv.getDiplomacyManager(viewingCiv)!!
@@ -46,12 +47,13 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         diplomacyTable.addSeparator()
 
         val diplomaticRelationshipsCanChange =
-            !viewingCiv.gameInfo.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)
+            !viewingCiv.ruleset.modOptions.hasUnique(UniqueType.DiplomaticRelationshipsCannotChange)
 
         val diplomacyManager = viewingCiv.getDiplomacyManager(otherCiv)!!
 
         if (!viewingCiv.isAtWarWith(otherCiv)) {
-            diplomacyTable.add(getTradeButton(otherCiv)).row()
+            val d = delegate(); if (d == null || d.canOpenTrade)
+                diplomacyTable.add(getTradeButton(otherCiv)).row()
 
 
             if (!diplomacyManager.hasFlag(DiplomacyFlags.DeclarationOfFriendship))
@@ -105,6 +107,11 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
     ): TextButton {
         val negotiatePeaceButton = "Negotiate Peace".toTextButton()
         negotiatePeaceButton.onClick {
+            val d = delegate()
+            if (d != null) {
+                d.negotiatePeace(otherCiv.civID)
+                return@onClick
+            }
             val tradeTable = diplomacyScreen.setTrade(otherCiv)
             val peaceTreaty = TradeOffer(Constants.peaceTreaty, TradeOfferType.Treaty, speed = viewingCiv.gameInfo.speed)
             tradeTable.tradeView.theirStagedOffers().add(peaceTreaty)
@@ -130,16 +137,20 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val denounceButton = "Denounce ([30] turns)".toTextButton()
         denounceButton.onClick {
             ConfirmPopup(diplomacyScreen, "Denounce [${otherCiv.civName}]?", "Denounce ([30] turns)") {
-                diplomacyManager.denounce()
-                diplomacyScreen.updateLeftSideTable(otherCiv)
-                diplomacyScreen.setRightSideFlavorText(
-                    otherCiv,
-                    if (otherCiv.nation.denounced.isNotEmpty()) otherCiv.nation.denounced else "We will remember this.",
-                    "Very well."
-                )
+                val d = delegate()
+                if (d != null) d.denounce(otherCiv.civID)
+                else {
+                    diplomacyManager.denounce()
+                    diplomacyScreen.updateLeftSideTable(otherCiv)
+                    diplomacyScreen.setRightSideFlavorText(
+                        otherCiv,
+                        if (otherCiv.nation.denounced.isNotEmpty()) otherCiv.nation.denounced else "We will remember this.",
+                        "Very well."
+                    )
 
-                val music = UncivGame.Current.musicController
-                music.playVoice("${otherCiv.nation.name}.denounced")
+                    val music = UncivGame.Current.musicController
+                    music.playVoice("${otherCiv.nation.name}.denounced")
+                }
             }.open()
         }
         if (diplomacyScreen.isNotPlayersTurn()) denounceButton.disable()
@@ -150,7 +161,9 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
         val declareFriendshipButton =
             "Offer Declaration of Friendship ([30] turns)".toTextButton()
         declareFriendshipButton.onClick {
-            otherCiv.popupAlerts.add(
+            val d = delegate()
+            if (d != null) d.offerFriendship(otherCiv.civID)
+            else otherCiv.popupAlerts.add(
                 PopupAlert(
                     AlertType.DeclarationOfFriendship,
                     viewingCiv.civID
@@ -158,10 +171,7 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
             )
             declareFriendshipButton.disable()
         }
-        if (diplomacyScreen.isNotPlayersTurn() || otherCiv.popupAlerts
-                .any { it.type == AlertType.DeclarationOfFriendship && it.value == viewingCiv.civID }
-        )
-            declareFriendshipButton.disable()
+        if (diplomacyScreen.isNotPlayersTurn()) declareFriendshipButton.disable()
         return declareFriendshipButton
     }
 
@@ -229,12 +239,18 @@ class MajorCivDiplomacyTable(private val diplomacyScreen: DiplomacyScreen) {
 
             val button = demand.demandText.toTextButton()
 
-            if (otherCiv.popupAlerts.any { it.type == demand.demandAlert && it.value == viewingCiv.civID } // Already demanded
+            val d = delegate()
+            val alreadyDemanded = d == null && otherCiv.popupAlerts.any {
+                it.type == demand.demandAlert && it.value == viewingCiv.civID
+            }
+            if (alreadyDemanded
                 || diplomacyManager.hasFlag(demand.agreedToDemand)) { // already agreed
                 button.disable()
             } else {
                 button.onClick {
-                    otherCiv.popupAlerts.add(PopupAlert(demand.demandAlert, viewingCiv.civID))
+                    val d = delegate()
+                    if (d != null) d.makeDemand(otherCiv.civID, demand.name)
+                    else otherCiv.popupAlerts.add(PopupAlert(demand.demandAlert, viewingCiv.civID))
                     button.disable()
                 }
             }

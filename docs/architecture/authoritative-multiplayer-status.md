@@ -12264,3 +12264,63 @@ prior to doc updates.
 
 Remaining from the requested list: literal DiplomacyScreen instantiation
 (action seams) and religion/espionage/GP picker visual hierarchy.
+
+## Literal DiplomacyScreen instantiation via action seam (2026-08-21)
+
+The classic leader dialog is now the V3 diplomacy surface. `DiplomacyScreen`
+gains an optional `DiplomacyScreenDelegate` - a generic interface in the
+classic package with no authoritative imports, so the routing guards on
+`diplomacyscreen/*` files still hold. Null (default) preserves single-player
+behavior byte-for-byte; every changed call site branches on its presence:
+
+- Left-hand civilization list: delegate `knownCivs()` replaces the canonical
+  `getKnownCivsSorted()` walk (which reads gameInfo).
+- City-state selection: `onCityStateSelected` renders a projection-fed
+  influence/quest summary instead of the canonical city-state table.
+- Trade and Negotiate Peace entries hide when `canOpenTrade == false`
+  (V3 trades live in their own panel); Go To On Map routes through the
+  delegate instead of `resetToWorldScreen()` (which casts to WorldScreen).
+- Declare war keeps the full defensive-pact cascade confirmation text but
+  routes through `delegate.declareWar`; denounce, offer friendship, and the
+  demands table route likewise instead of writing managers/cross-player
+  popupAlerts.
+
+The V3 world screen populates detached civilization pairs from the projection
+(`populateDiplomacyPresentation`: war/peace from the projected cooldown,
+modifier breakdown reproducing opinion and relationship band through the same
+canonical math since opinionOfOtherCiv is exactly the modifier sum,
+friendship/denunciation display flags reconstructed from projected capability
+flags, demand promises as 30-turn display flags) and opens the real screen
+from a top-bar Diplomacy button plus notification click-through.
+
+**Failure repair (recorded per contract):** an initial cut also reshaped
+promises into typed demand+turns objects (v68 bump). Full-suite runs then
+failed order-dependently in unrelated headless hash-stability tests
+(InstantImprovement/ResearchQueue/CityTileBatch "WithoutMutation" tests) while
+passing in isolation; stashing the whole change set restored green at HEAD,
+and bisecting by reverting only the two engine files (projection DTO/builder)
+restored green with everything else kept - identifying the reshape as the
+owner. Root cause was not pinned beyond that empirical isolation, so the
+reshape was dropped rather than landed spooky: promises remain name-lists
+(v67 shape), reconstructed display flags approximate 30 turns, and exact
+per-promise remaining turns stay server-side pending a dedicated disclosure +
+determinism investigation.
+
+Final-state verification
+Revision: branch master at base HEAD `e00c729d6`; tracked diff hash
+`90c14408ba059d5d0f91169596d300085d8bb52c` over the 8 files listed by git
+status at record time. This record is the only edit after that hash. No
+material untracked files.
+Last material edit:
+`core/src/com/unciv/ui/screens/diplomacyscreen/MajorCivDiplomacyTable.kt`
+prior to doc updates.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin (full, fresh) | passed | `./gradlew :tests:test --rerun-tasks` | complete suite incl. routing guards on diplomacyscreen files and hash-stability tests at the final engine state | all green after dropping the promise-turn reshape | - |
+| Desktop | passed | `./gradlew :desktop:dist` | production desktop packaging | BUILD SUCCESSFUL | - |
+| Rust | passed | OpenAPI drift check + fmt --check + clippy -D warnings (authoritative-server) | contract matches HEAD sources; no Rust behavior change this milestone | all clean | - |
+| PostgreSQL / Android | not affected | - | no schema/query/android source change | - | - |
+
+Remaining cosmetic item: espionage overview layout parity (functional rows
+already served); exact promise turn counts need a dedicated disclosure +
+determinism investigation before re-attempting.

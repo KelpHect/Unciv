@@ -51,7 +51,14 @@ class DiplomacyScreen(
     internal val viewingCivView: CivView,
     private val selectCivView: ForeignCivView? = null,
     private val selectTrade: Trade? = null,
-    private val showTrade: Boolean = selectTrade != null
+    private val showTrade: Boolean = selectTrade != null,
+    /**
+     * Optional action seam: when supplied, relationship changes route through
+     * this delegate instead of writing canonical state, and the left-hand
+     * list comes from [com.unciv.ui.screens.diplomacyscreen.DiplomacyScreenDelegate.knownCivs].
+     * Null preserves classic behavior.
+     */
+    internal val delegate: DiplomacyScreenDelegate? = null,
 ): BaseScreen(), RecreateOnResize {
     companion object {
         private const val nationIconSize = 100f
@@ -141,7 +148,9 @@ class DiplomacyScreen(
 
         var selectCivY = 0f
 
-        for (civ in viewingCiv.diplomacyFunctions.getKnownCivsSorted()) {
+        val knownCivs = delegate?.knownCivs()
+            ?: viewingCiv.diplomacyFunctions.getKnownCivsSorted().toList()
+        for (civ in knownCivs) {
             if (civ == selectCiv) {
                 selectCivY = leftSideTable.prefHeight
             }
@@ -166,7 +175,7 @@ class DiplomacyScreen(
             civIndicator.addActor(relationshipIcon)
 
             if (civ.isCityState) {
-                val innerColor = civ.gameInfo.ruleset.nations[civ.civName]!!.getInnerColor()
+                val innerColor = civ.ruleset.nations[civ.civName]!!.getInnerColor()
                 val typeIcon = ImageGetter.getImage("CityStateIcons/"+civ.cityStateType.name)
                     .surroundWithCircle(size = 35f, color = innerColor).apply {
                         actor.color = ImageGetter.CHARCOAL
@@ -217,6 +226,8 @@ class DiplomacyScreen(
         rightSideTable.clear()
         UncivGame.Current.musicController.chooseTrack(otherCiv.civName,
             MusicMood.peaceOrWar(viewingCiv.isAtWarWith(otherCiv)),MusicTrackChooserFlags.setSelectNation)
+        if (otherCiv.isCityState && delegate?.onCityStateSelected(otherCiv, this) == true)
+            return
         rightSideTable.add(ScrollPane(
             if (otherCiv.isCityState) CityStateDiplomacyTable(this).getCityStateDiplomacyTable(otherCiv)
             else MajorCivDiplomacyTable(this).getMajorCivDiplomacyTable(otherCiv)
@@ -322,12 +333,15 @@ class DiplomacyScreen(
         }
         declareWarButton.onClick {
             ConfirmPopup(this, getDeclareWarButtonText(otherCiv), "Declare war") {
-                diplomacyManager.declareWar()
-                setRightSideFlavorText(otherCiv, otherCiv.nation.attacked, "Very well.")
-                updateLeftSideTable(otherCiv)
-                val music = UncivGame.Current.musicController
-                music.chooseTrack(otherCiv.civName, MusicMood.War, MusicTrackChooserFlags.setSpecific)
-                music.playVoice("${otherCiv.civName}.attacked")
+                if (delegate != null) delegate.declareWar(otherCiv.civID)
+                else {
+                    diplomacyManager.declareWar()
+                    setRightSideFlavorText(otherCiv, otherCiv.nation.attacked, "Very well.")
+                    updateLeftSideTable(otherCiv)
+                    val music = UncivGame.Current.musicController
+                    music.chooseTrack(otherCiv.civName, MusicMood.War, MusicTrackChooserFlags.setSpecific)
+                    music.playVoice("${otherCiv.civName}.attacked")
+                }
             }.open()
         }
         if (isNotPlayersTurn()) declareWarButton.disable()
@@ -395,6 +409,10 @@ class DiplomacyScreen(
     internal fun getGoToOnMapButton(civilization: Civilization): TextButton {
         val goToOnMapButton = "Go to on map".toTextButton()
         goToOnMapButton.onClick {
+            if (delegate != null) {
+                delegate.goToOnMap(civilization.civID)
+                return@onClick
+            }
             val worldScreen = UncivGame.Current.resetToWorldScreen()
             worldScreen.mapHolder.setCenterPosition(civilization.getCapital()!!.location.toHexCoord(), selectUnit = false)
         }
@@ -421,5 +439,5 @@ class DiplomacyScreen(
         positionCloseButton()
     }
 
-    override fun recreate(): BaseScreen = DiplomacyScreen(viewingCivView, selectCivView, selectTrade, showTrade)
+    override fun recreate(): BaseScreen = DiplomacyScreen(viewingCivView, selectCivView, selectTrade, showTrade, delegate)
 }

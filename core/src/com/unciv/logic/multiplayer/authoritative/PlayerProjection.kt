@@ -67,7 +67,7 @@ data class PlayerProjection(
     val resources: List<ProjectedResourceSummary> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 68
+        const val CURRENT_PROJECTION_VERSION = 69
     }
 }
 
@@ -391,6 +391,7 @@ data class ProjectedCity(
      * game it does not have.
      */
     val stats: ProjectedCityStats? = null,
+    val statBreakdown: ProjectedCityStatBreakdown? = null,
     /** Growth bookkeeping for the classic growth/resistance strings. */
     val growth: ProjectedCityGrowth? = null,
     /** Built buildings, newest-agnostic sorted by name - empire and city display. */
@@ -420,6 +421,31 @@ data class ProjectedCityStats(
     val culture: Int,
     val faith: Int,
     val happiness: Int,
+)
+
+@Serializable
+data class ProjectedStatValues(
+    val food: Float = 0f,
+    val production: Float = 0f,
+    val gold: Float = 0f,
+    val science: Float = 0f,
+    val culture: Float = 0f,
+    val faith: Float = 0f,
+    val happiness: Float = 0f,
+)
+
+@Serializable
+data class ProjectedStatTreeLine(
+    val path: List<String>,
+    val total: ProjectedStatValues,
+)
+
+@Serializable
+data class ProjectedCityStatBreakdown(
+    val base: List<ProjectedStatTreeLine>,
+    val bonuses: List<ProjectedStatTreeLine>,
+    val final: Map<String, ProjectedStatValues>,
+    val happiness: Map<String, Float>,
 )
 
 /**
@@ -732,6 +758,14 @@ object PlayerProjectionBuilder {
                             happiness = stats.happiness.toInt(),
                         )
                     },
+                    statBreakdown = ProjectedCityStatBreakdown(
+                        base = projectStatTree(it.cityStats.baseStatTree),
+                        bonuses = projectStatTree(it.cityStats.statPercentBonusTree),
+                        final = it.cityStats.finalStatList.toSortedMap().mapValues { entry ->
+                            projectStats(entry.value)
+                        },
+                        happiness = it.cityStats.happinessList.toSortedMap(),
+                    ),
                     growth = ProjectedCityGrowth(
                         foodStored = it.population.foodStored,
                         foodToNextPopulation = it.population.getFoodToNextPopulation(),
@@ -794,6 +828,25 @@ object PlayerProjectionBuilder {
             religionChoice = ReligionChoiceExecutor.projection(actor),
         )
     }
+
+    private fun projectStatTree(
+        node: com.unciv.logic.city.StatTreeNode,
+        path: List<String> = emptyList(),
+    ): List<ProjectedStatTreeLine> = node.children.toSortedMap().flatMap { (name, child) ->
+        val childPath = path + name
+        listOf(ProjectedStatTreeLine(childPath, projectStats(child.totalStats))) +
+            projectStatTree(child, childPath)
+    }
+
+    private fun projectStats(stats: com.unciv.models.stats.Stats) = ProjectedStatValues(
+        food = stats.food,
+        production = stats.production,
+        gold = stats.gold,
+        science = stats.science,
+        culture = stats.culture,
+        faith = stats.faith,
+        happiness = stats.happiness,
+    )
 
     internal fun diplomaticVoteCandidates(actor: Civilization): List<String> =
         if (!actor.mayVoteForDiplomaticVictory()) emptyList()

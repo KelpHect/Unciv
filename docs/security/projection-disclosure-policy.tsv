@@ -415,6 +415,30 @@ player	player.ownCities[].stats.science	player_private	Authenticated actor-owned
 player	player.ownCities[].stats.culture	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.ownCities[].stats.faith	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.ownCities[].stats.happiness	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
+player	player.ownCities[].statBreakdown.base[].path[]	player_private	Owner-only source hierarchy label for the city's detailed yield display.
+player	player.ownCities[].statBreakdown.base[].total.food	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.production	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.gold	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.science	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.culture	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.faith	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.base[].total.happiness	player_private	Owner-only worker-computed city yield breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].path[]	player_private	Owner-only source hierarchy label for the city's detailed bonus display.
+player	player.ownCities[].statBreakdown.bonuses[].total.food	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.production	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.gold	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.science	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.culture	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.faith	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.bonuses[].total.happiness	player_private	Owner-only worker-computed city bonus breakdown.
+player	player.ownCities[].statBreakdown.final{}.food	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.production	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.gold	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.science	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.culture	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.faith	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.final{}.happiness	player_private	Owner-only final city yield source.
+player	player.ownCities[].statBreakdown.happiness{}	player_private	Owner-only happiness source breakdown.
 player	player.diplomacyPartners[].relationshipLevel	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].opinionOfUs	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].peaceTreatyCooldownTurns	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.

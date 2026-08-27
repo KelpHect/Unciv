@@ -208,6 +208,13 @@ absent. Keeping the established lists unchanged and adding bounded maps avoids
 changing the existing projection semantics; Rust rejects unknown fields and
 the disclosure policy enumerates both new map leaves.
 
+The 2026-08-27 projection bump (68 -> 69) adds owner-private detailed city
+yield sources. Base and percentage trees cross the wire as bounded path lists,
+not recursive engine objects; final yield and happiness source maps are copied
+from the worker. These fields exist only on `ownCities`, are reconstructed into
+disposable presentation trees, and never expose rival-city interiors or permit
+client-side yield calculation.
+
 The 2026-08-21 spectator bump (3 → 4), authorized as a product decision,
 grants invited spectators full-reveal parity with a single-player spectator:
 `SpectatorProjection` now carries `mapTiles` (every tile, always visible),

@@ -14879,6 +14879,16 @@
               "$ref": "#/components/schemas/ProjectedSpecialist"
             }
           },
+          "statBreakdown": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProjectedCityStatBreakdown"
+              }
+            ]
+          },
           "stats": {
             "oneOf": [
               {
@@ -14986,6 +14996,49 @@
               "null"
             ],
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedCityStatBreakdown": {
+        "type": "object",
+        "required": [
+          "base",
+          "bonuses",
+          "final",
+          "happiness"
+        ],
+        "properties": {
+          "base": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedStatTreeLine"
+            }
+          },
+          "bonuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedStatTreeLine"
+            }
+          },
+          "final": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProjectedStatValues"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "happiness": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "float"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false
@@ -16506,6 +16559,68 @@
           "counter_intelligence",
           "dead"
         ]
+      },
+      "ProjectedStatTreeLine": {
+        "type": "object",
+        "required": [
+          "path",
+          "total"
+        ],
+        "properties": {
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total": {
+            "$ref": "#/components/schemas/ProjectedStatValues"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectedStatValues": {
+        "type": "object",
+        "required": [
+          "food",
+          "production",
+          "gold",
+          "science",
+          "culture",
+          "faith",
+          "happiness"
+        ],
+        "properties": {
+          "culture": {
+            "type": "number",
+            "format": "float"
+          },
+          "faith": {
+            "type": "number",
+            "format": "float"
+          },
+          "food": {
+            "type": "number",
+            "format": "float"
+          },
+          "gold": {
+            "type": "number",
+            "format": "float"
+          },
+          "happiness": {
+            "type": "number",
+            "format": "float"
+          },
+          "production": {
+            "type": "number",
+            "format": "float"
+          },
+          "science": {
+            "type": "number",
+            "format": "float"
+          }
+        },
+        "additionalProperties": false
       },
       "ProjectedTargetCoordinate": {
         "type": "object",

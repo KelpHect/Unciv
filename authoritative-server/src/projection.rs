@@ -354,6 +354,8 @@ pub struct ProjectedCity {
     /// The owner's own headline yields; absent for foreign cities.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stats: Option<ProjectedCityStats>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stat_breakdown: Option<ProjectedCityStatBreakdown>,
     /// Growth and border-growth bookkeeping for the classic city strings.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub growth: Option<ProjectedCityGrowth>,
@@ -381,6 +383,36 @@ pub struct ProjectedCityStats {
     pub culture: i32,
     pub faith: i32,
     pub happiness: i32,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedStatValues {
+    pub food: f32,
+    pub production: f32,
+    pub gold: f32,
+    pub science: f32,
+    pub culture: f32,
+    pub faith: f32,
+    pub happiness: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedStatTreeLine {
+    pub path: Vec<String>,
+    pub total: ProjectedStatValues,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectedCityStatBreakdown {
+    pub base: Vec<ProjectedStatTreeLine>,
+    pub bonuses: Vec<ProjectedStatTreeLine>,
+    #[serde(rename = "final")]
+    #[schema(rename = "final")]
+    pub final_values: BTreeMap<String, ProjectedStatValues>,
+    pub happiness: BTreeMap<String, f32>,
 }
 
 /// Growth and border-growth bookkeeping; speed-scaled math stays server-side.

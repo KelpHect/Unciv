@@ -199,6 +199,7 @@
         "faith": 0,
         "happiness": 1
       },
+      "statBreakdown": null,
       "growth": {
         "foodStored": 12,
         "foodToNextPopulation": 24,

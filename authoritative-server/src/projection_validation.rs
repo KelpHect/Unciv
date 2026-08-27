@@ -544,6 +544,21 @@ impl PlayerProjection {
                         !city.available_governance_actions[index + 1..].contains(action)
                     })
                 && (self.is_current_turn || city.available_governance_actions.is_empty())
+                && city.stat_breakdown.as_ref().is_none_or(|breakdown| {
+                    let lines = breakdown.base.iter().chain(&breakdown.bonuses);
+                    breakdown.base.len() <= MAX_PROJECTED_CHOICES
+                        && breakdown.bonuses.len() <= MAX_PROJECTED_CHOICES
+                        && breakdown.final_values.len() <= MAX_PROJECTED_CHOICES
+                        && breakdown.happiness.len() <= MAX_PROJECTED_CHOICES
+                        && lines.into_iter().all(|line| {
+                            !line.path.is_empty()
+                                && line.path.len() <= 16
+                                && line
+                                    .path
+                                    .iter()
+                                    .all(|part| !part.is_empty() && part.chars().count() <= 128)
+                        })
+                })
         })
     }
 

@@ -204,8 +204,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   `forceReadOnly`: the construction queue, available-constructions list, and
   selected-construction info render the server's own figures (stored/cost/
   turns) instead of locally computed ones; difficulty-scaled stat
-  recomputation, buy buttons, and the detailed-stats popup are skipped rather
-  than guessed; religion/espionage/god-mode view reads fall back to off
+  recomputation and buy buttons are skipped rather than guessed; projection
+  v69 carries owner-private bounded stat-source paths and final/happiness maps,
+  enabling the literal detailed-stats popup without client rules execution;
+  religion/espionage/god-mode view reads fall back to off
   without a game; paging, recreation, and re-entry keep both read-only flags;
   and exiting recenters whichever HUD hosts the map through `WorldHudHost`.
   The pinned boundary stands: construction costs are never computed
@@ -311,8 +313,9 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   empire resource supply (`resources` family, player projection 66 → 67),
   wonder list derived from projected built buildings through the pinned
   ruleset, trade standing including pending offers/requests, and a politics
-  tab with relationship bands. Full per-city stat breakdown trees remain
-  server-side; headline yields are the disclosed figures.
+  tab with relationship bands. Projection v69 also exposes each owned city's
+  bounded worker-computed stat-source breakdown for the classic city popup;
+  foreign-city interiors remain excluded.
 - [x] Literal DiplomacyScreen instantiation via a PolicyPicker-style action
   seam: `DiplomacyScreen` gains an optional `DiplomacyScreenDelegate` (generic
   classic-package interface, no authoritative imports) whose null default

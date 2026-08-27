@@ -116,6 +116,14 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
                 happiness = stats.happiness.toFloat(),
             )
         }
+        projectedCity.statBreakdown?.let { breakdown ->
+            city.cityStats.baseStatTree = breakdown.base.toStatTreeNode()
+            city.cityStats.statPercentBonusTree = breakdown.bonuses.toStatTreeNode()
+            city.cityStats.finalStatList = LinkedHashMap(
+                breakdown.final.mapValues { it.value.toStats() },
+            )
+            city.cityStats.happinessList = LinkedHashMap(breakdown.happiness)
+        }
         projectedCity.growth?.let { growth ->
             city.population.foodStored = growth.foodStored
         }
@@ -134,6 +142,35 @@ fun Civilization.applyProjectionPresentation(projection: PlayerProjection) {
             city.cityConstructions.setTransients()
         }
     }
+}
+
+private fun ProjectedStatValues.toStats() = Stats(
+    food = food,
+    production = production,
+    gold = gold,
+    science = science,
+    culture = culture,
+    faith = faith,
+    happiness = happiness,
+)
+
+private fun List<ProjectedStatTreeLine>.toStatTreeNode(): com.unciv.logic.city.StatTreeNode {
+    val root = com.unciv.logic.city.StatTreeNode()
+    val totals = associate { it.path to it.total.toStats() }
+    for (line in sortedBy { it.path.size }) {
+        var node = root
+        for (part in line.path) node = node.children.getOrPut(part) {
+            com.unciv.logic.city.StatTreeNode()
+        }
+    }
+    for ((path, total) in totals.entries.sortedByDescending { it.key.size }) {
+        var node = root
+        for (part in path) node = node.children.getValue(part)
+        val inner = total.clone()
+        for (child in node.children.values) inner.add(child.totalStats.times(-1))
+        node.addStats(inner)
+    }
+    return root
 }
 
 /**

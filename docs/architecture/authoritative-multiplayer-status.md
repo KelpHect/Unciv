@@ -12378,3 +12378,32 @@ Last material edit: `core/src/com/unciv/ui/screens/multiplayerscreens/Authoritat
 | Android | not affected | - | no Android-specific UI, credential, routing, or platform source changed | - | - |
 | PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery change | - | - |
 | Legacy | not affected | - | authoritative-only panel changed; classic `EspionageOverviewScreen` is untouched | - | - |
+
+## City detailed-stat breakdown (player projection v69, 2026-08-27)
+
+Owned cities now carry the private worker's base-yield and percentage-bonus
+hierarchies as bounded path lists, plus final-yield and happiness source maps.
+The projection presentation layer reconstructs disposable `StatTreeNode`s and
+the literal `DetailedStatsPopup` is enabled whenever those projected final
+sources exist. Foreign cities remain on their separate public shape, and the
+client performs no yield-rule computation.
+
+Failure repair
+1. Failed check: `cargo test generated_openapi_matches_checked_in_contract` in `authoritative-server` exited with Windows `STATUS_STACK_OVERFLOW` after the first recursive DTO design; later `./gradlew :tests:test --rerun-tasks --console=plain` failed one `PlayerProjectionContractTests` semantic fixture comparison because Kotlin encoded the new nullable field while the fixture omitted it.
+2. Minimal reproduction: OpenAPI generation with `ProjectedStatTreeNode.children: Map<String, ProjectedStatTreeNode>` reproduced the stack overflow; the contract test alone reproduced the fixture mismatch.
+3. Causal diagnosis: utoipa recursively expanded the self-referential schema without a terminating reference; replacing it with path lists removed recursion and generated successfully. The second failure's diff contained only `"statBreakdown":null`, localizing it to fixture drift rather than behavior.
+4. Bounded repair owner: projection DTO/Rust mirror changed from recursive nodes to bounded `ProjectedStatTreeLine` arrays; the shared fixture explicitly records the nullable field.
+5. Final state: base HEAD `3714860dc`; pre-record tracked diff hash `61176f21728b3c70098533ea7a831a0be2213adb`; no material untracked files. This record is the only subsequent documentation edit.
+6. Final rerun: focused contract/disclosure tests passed; `./gradlew :tests:test --rerun-tasks --console=plain` then passed all 1,229 tests (17 skipped), and Rust fmt/clippy passed after final formatting.
+
+Final-state verification
+Revision: base HEAD `3714860dc`; worktree and hash above; no material untracked files.
+Last material edit: `authoritative-server/src/projection_validation.rs` bounds stat paths, source counts, and hierarchy depth.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | focused projection contract/disclosure/city rendering tests; `./gradlew :tests:test --rerun-tasks --console=plain` | owner-only source projection, fixture parity, popup presentation reconstruction, shared gameplay regressions | BUILD SUCCESSFUL; 1,229 tests, 17 skipped | - |
+| Rust | passed | regenerated OpenAPI drift test; `cargo fmt --all -- --check`; `cargo clippy --all-targets --all-features -- -D warnings` | flat bounded mirror, checked contract, warnings-as-errors | passed | - |
+| Desktop | passed | `./gradlew :desktop:dist --console=plain` | production city popup packaging | BUILD SUCCESSFUL in 10s | - |
+| Android | not affected | - | shared projection DTO changed but no Android-specific production UI, routing, credential, or platform source changed | - | - |
+| PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery behavior changed | - | - |
+| Legacy | passed | included in final full suite | classic popup behavior remains canonical when a normal game is present | passed | - |

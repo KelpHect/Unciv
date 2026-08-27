@@ -2,6 +2,7 @@ package com.unciv.logic.multiplayer.authoritative
 
 import com.unciv.logic.civilization.NotificationCategory
 import com.unciv.logic.civilization.diplomacy.DiplomaticStatus
+import com.unciv.logic.civilization.diplomacy.Demand
 import com.unciv.logic.map.HexCoord
 import com.unciv.models.Religion
 import com.unciv.models.Spy
@@ -226,6 +227,11 @@ class ProjectionLeakSentinelTests {
     @Test
     fun relationshipAndCityStatsDiscloseOnlyVisibleStanceAndOwnedYields() {
         val fixture = privateSubsystemFixture()
+        val demand = Demand.DoNotSettleNearUs
+        fixture.foreign.getDiplomacyManager(fixture.actor)!!
+            .setFlag(demand.agreedToDemand, 12)
+        fixture.actor.getDiplomacyManager(fixture.foreign)!!
+            .setFlag(demand.agreedToDemand, 7)
 
         for (status in DiplomaticStatus.entries) {
             val actorDiplomacy = fixture.actor.getDiplomacyManager(fixture.foreign)!!
@@ -254,6 +260,8 @@ class ProjectionLeakSentinelTests {
             } else {
                 assertNull(partner.peaceTreatyCooldownTurns)
             }
+            assertEquals(12, partner.theyPromiseTurns[DiplomaticDemand.DoNotSettleNearUs])
+            assertEquals(7, partner.wePromiseTurns[DiplomaticDemand.DoNotSettleNearUs])
 
             // Yields are owner-private: every own city carries them, and no
             // other projection family does.

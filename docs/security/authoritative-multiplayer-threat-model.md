@@ -200,6 +200,14 @@ partner's visible stance) and guarded by the fail-closed
 proving relationship facts mirror only the partner's canonical visible stance
 and city stats appear on owned cities only.
 
+The 2026-08-27 projection bump (67 -> 68) adds remaining-turn maps alongside
+the existing promise-name lists on each diplomacy partner. Both directions are
+facts directly involving the authenticated actor: promises that partner made
+to them and promises they made to that partner. Third-party promises remain
+absent. Keeping the established lists unchanged and adding bounded maps avoids
+changing the existing projection semantics; Rust rejects unknown fields and
+the disclosure policy enumerates both new map leaves.
+
 The 2026-08-21 spectator bump (3 → 4), authorized as a product decision,
 grants invited spectators full-reveal parity with a single-player spectator:
 `SpectatorProjection` now carries `mapTiles` (every tile, always visible),

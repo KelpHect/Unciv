@@ -69,12 +69,13 @@ internal class AuthoritativeDiplomacyPanel(
             }
             for (promise in partner.promisesTheyMadeUs)
                 add(
-                    "Promised us: [${promise.name}]".toLabel(LobbyChrome.muted),
+                    "Promised us: [${promise.name}] (${requireNotNull(partner.theyPromiseTurns[promise])} turns)"
+                        .toLabel(LobbyChrome.muted),
                 ).left().padLeft(40f).row()
             for (promise in partner.promisesWeMadeThem)
                 add(
                     (
-                        "We promised: [${promise.name}]"
+                        "We promised: [${promise.name}] (${requireNotNull(partner.wePromiseTurns[promise])} turns)"
                         ).toLabel(LobbyChrome.muted),
                 ).left().padLeft(40f).row()
             add(

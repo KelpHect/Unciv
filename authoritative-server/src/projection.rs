@@ -199,6 +199,10 @@ pub struct ProjectedDiplomacyPartner {
     pub promises_they_made_us: Vec<DiplomaticDemand>,
     #[serde(default)]
     pub promises_we_made_them: Vec<DiplomaticDemand>,
+    #[serde(default)]
+    pub they_promise_turns: BTreeMap<DiplomaticDemand, i32>,
+    #[serde(default)]
+    pub we_promise_turns: BTreeMap<DiplomaticDemand, i32>,
 }
 
 /// One labelled line of the classic diplomacy modifier breakdown.
@@ -253,7 +257,7 @@ pub enum CityStateProtectionResponse {
     WithdrawProtection,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, ToSchema, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum DiplomaticDemand {
     DontSpyOnUs,

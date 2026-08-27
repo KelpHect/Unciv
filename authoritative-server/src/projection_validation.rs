@@ -333,6 +333,21 @@ impl PlayerProjection {
                         .adopted_policy_branches
                         .windows(2)
                         .all(|pair| pair[0] < pair[1])
+                    && partner
+                        .they_promise_turns
+                        .keys()
+                        .copied()
+                        .eq(partner.promises_they_made_us.iter().copied())
+                    && partner
+                        .we_promise_turns
+                        .keys()
+                        .copied()
+                        .eq(partner.promises_we_made_them.iter().copied())
+                    && partner
+                        .they_promise_turns
+                        .values()
+                        .chain(partner.we_promise_turns.values())
+                        .all(|turns| *turns > 0)
             })
     }
 

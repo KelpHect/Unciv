@@ -15673,6 +15673,38 @@
           "relationshipLevel": {
             "$ref": "#/components/schemas/ProjectedRelationshipLevel",
             "description": "How this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed.\nHow this partner sees the actor, exactly as the classic diplomacy\nscreen displays it. Nothing beyond the visible stance is disclosed."
+          },
+          "theyPromiseTurns": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "dont_spy_on_us",
+                "do_not_spread_religion",
+                "do_not_settle_near_us",
+                "do_not_attack_us"
+              ]
+            }
+          },
+          "wePromiseTurns": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "dont_spy_on_us",
+                "do_not_spread_religion",
+                "do_not_settle_near_us",
+                "do_not_attack_us"
+              ]
+            }
           }
         },
         "additionalProperties": false

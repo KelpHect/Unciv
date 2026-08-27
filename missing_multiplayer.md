@@ -327,10 +327,10 @@ canonical revisions; PostgreSQL 19 Beta 2 is the sole production/test database.
   breakdown reproducing opinion and relationship band through canonical math,
   friendship/denunciation flags reconstructed from capability flags, demand
   promises as 30-turn display flags) and opens the real leader dialog from a
-  top-bar Diplomacy button and notification click-through. Promise remaining-
-  turns are approximated as 30 on the reconstructed display flags; exact
-  per-promise turn counts stay server-side pending their own disclosure
-  decision.
+  top-bar Diplomacy button and notification click-through. Projection v68 adds
+  actor-scoped remaining-turn maps alongside the established promise lists, so
+  the reconstructed classic flags and summary rows now show exact durations
+  without exposing third-party diplomacy.
 - [x] Classic picker fidelity, religion and great-person selection: the
   religion choice renders as the classic icon-bearing belief cards (portrait
   per belief via getReligionPortrait, gold-highlighted religion icon

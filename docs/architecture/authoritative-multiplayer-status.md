@@ -12324,3 +12324,34 @@ prior to doc updates.
 Remaining cosmetic item: espionage overview layout parity (functional rows
 already served); exact promise turn counts need a dedicated disclosure +
 determinism investigation before re-attempting.
+
+## Exact diplomacy promise durations (player projection v68, 2026-08-27)
+
+Projection v68 supplies exact remaining turns without replacing either v67
+promise-name list. `theyPromiseTurns` and `wePromiseTurns` are bounded maps
+keyed by the same `DiplomaticDemand` enum; the Kotlin worker derives them from
+the same actor/partner `flagsCountdown` entries that establish list membership.
+Rust requires each map's ordered key set to equal its corresponding list and
+requires every duration to be positive. The classic detached diplomacy manager
+and the V3 summary therefore consume exact canonical durations, with no 30-turn
+approximation and no third-party relationship disclosure.
+
+Failure repair
+1. Failed check: the prior replacement-shape attempt recorded above produced order-dependent failures in `./gradlew :tests:test --rerun-tasks` at its then-current worktree; the failing no-mutation hash tests varied between runs.
+2. Minimal reproduction: replacement of the two established promise-name lists by demand-plus-turn objects; reverting the DTO/builder pair restored the full suite while retaining the UI seam.
+3. Causal diagnosis: the failure boundary was the replacement contract, not reading `getFlag`: the additive v68 implementation reads those same values while preserving both established fields and passed two consecutive fresh full-suite runs. The unsupported replacement was rejected rather than retried.
+4. Bounded repair owner: `ProjectedDiplomacyPartner` adds two parallel maps; existing list types, ordering, and builder membership logic remain unchanged. Rust enforces list/map equivalence.
+5. Final state: base HEAD `fa4fa5ed4`; pre-record tracked diff hash `8c379328678bc3fe0a12dec570ce2ad194efa6ab`; no material untracked files. This verification record is the only subsequent documentation edit.
+6. Final rerun: focused disclosure/sentinel/contract tests passed, followed by two consecutive `./gradlew :tests:test --rerun-tasks` passes; final affected gates are recorded below.
+
+Final-state verification
+Revision: base HEAD `fa4fa5ed4`; worktree described above; pre-record tracked diff hash `8c379328678bc3fe0a12dec570ce2ad194efa6ab`; no material untracked files.
+Last material edit: `authoritative-server/src/projection_validation.rs` list/map equivalence and positive-duration validation.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.ProjectionLeakSentinelTests" --tests "com.unciv.logic.multiplayer.authoritative.ProjectionDisclosurePolicyTests" --tests "com.unciv.logic.multiplayer.authoritative.PlayerProjectionContractTests" --console=plain`; then `./gradlew :tests:test --rerun-tasks --console=plain` twice | directional exact durations, fail-closed disclosure inventory, compatibility, and prior order-dependent hash risk | focused pass; two consecutive fresh full-suite passes (2m03s and 1m45s) | - |
+| Rust | passed | `cargo test generated_openapi_matches_checked_in_contract` with `UNCIV_V3_REGENERATE_OPENAPI=1`; `cargo fmt --all -- --check`; `cargo clippy --all-targets --all-features -- -D warnings` | Rust mirror/OpenAPI parity and warnings-as-errors | passed | - |
+| Desktop | passed | `./gradlew :desktop:dist --console=plain` | exact durations package in production desktop client | BUILD SUCCESSFUL in 24s | - |
+| Android | not affected | - | shared DTO changed, but no Android-specific UI, credential, routing, or platform behavior changed; desktop is the production UI owner for this milestone | - | - |
+| PostgreSQL | not affected | - | projection-only change; no schema, query, concurrency, backup, or recovery behavior changed | - | - |
+| Legacy | passed | included in both fresh `:tests:test` runs | additive V3 boundary preserves single-player, save, hotseat, and API-v2 behavior | passed | - |

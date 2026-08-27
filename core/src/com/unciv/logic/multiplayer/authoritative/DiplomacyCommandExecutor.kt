@@ -57,6 +57,16 @@ object DiplomacyCommandExecutor {
                     .map { DiplomaticDemand.valueOf(it.name) }
                     .sorted()
                     .toList(),
+                theyPromiseTurns = Demand.entries.asSequence()
+                    .filter { theirView.hasFlag(it.agreedToDemand) }
+                    .associate {
+                        DiplomaticDemand.valueOf(it.name) to theirView.getFlag(it.agreedToDemand)
+                    },
+                wePromiseTurns = Demand.entries.asSequence()
+                    .filter { diplomacy.hasFlag(it.agreedToDemand) }
+                    .associate {
+                        DiplomaticDemand.valueOf(it.name) to diplomacy.getFlag(it.agreedToDemand)
+                    },
             )
         }
         .sortedBy { it.civilizationId }

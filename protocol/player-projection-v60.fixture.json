@@ -472,7 +472,9 @@
         { "label": "Declared friendship", "amount": 5 }
       ],
       "promisesTheyMadeUs": ["do_not_settle_near_us"],
-      "promisesWeMadeThem": []
+      "promisesWeMadeThem": [],
+      "theyPromiseTurns": { "do_not_settle_near_us": 12 },
+      "wePromiseTurns": {}
     }
   ],
   "diplomacyPrompts": [

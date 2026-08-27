@@ -180,8 +180,10 @@ fun Civilization.populateDiplomacyPresentation(
             theirs.flagsCountdown[DiplomacyFlags.Denunciation.name] = 30
 
         for (promise in partner.promisesTheyMadeUs)
-            theirs.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] = 30
+            theirs.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] =
+                requireNotNull(partner.theyPromiseTurns[promise])
         for (promise in partner.promisesWeMadeThem)
-            ours.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] = 30
+            ours.flagsCountdown[Demand.valueOf(promise.name).agreedToDemand.name] =
+                requireNotNull(partner.wePromiseTurns[promise])
     }
 }

@@ -67,7 +67,7 @@ data class PlayerProjection(
     val resources: List<ProjectedResourceSummary> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_PROJECTION_VERSION = 67
+        const val CURRENT_PROJECTION_VERSION = 68
     }
 }
 
@@ -250,6 +250,13 @@ data class ProjectedDiplomacyPartner(
      */
     val promisesTheyMadeUs: List<DiplomaticDemand> = emptyList(),
     val promisesWeMadeThem: List<DiplomaticDemand> = emptyList(),
+    /**
+     * Remaining turns per demand promise.
+     * Purely additive companion to the two promise lists above - the lists
+     * carry which promises exist, these maps carry how long each has left.
+     */
+    val theyPromiseTurns: Map<DiplomaticDemand, Int> = emptyMap(),
+    val wePromiseTurns: Map<DiplomaticDemand, Int> = emptyMap(),
 )
 
 /** One labelled line of the classic diplomacy modifier breakdown. */

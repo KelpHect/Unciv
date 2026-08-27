@@ -447,6 +447,8 @@ player	player.diplomacyPartners[].modifiersTowardUs[].label	legally_known	Disclo
 player	player.diplomacyPartners[].modifiersTowardUs[].amount	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].promisesTheyMadeUs[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
 player	player.diplomacyPartners[].promisesWeMadeThem[]	legally_known	Disclosed only when canonical visibility or diplomatic knowledge permits this field.
+player	player.diplomacyPartners[].theyPromiseTurns{}	legally_known	Remaining duration of a promise made to the authenticated actor; no third-party diplomacy is disclosed.
+player	player.diplomacyPartners[].wePromiseTurns{}	legally_known	Remaining duration of the authenticated actor's own promise; no third-party diplomacy is disclosed.
 player	player.notifications[].category	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.notifications[].text	player_private	Authenticated actor-owned state required for private presentation and reconciliation.
 player	player.notifications[].icons[]	player_private	Authenticated actor-owned state required for private presentation and reconciliation.

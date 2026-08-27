@@ -4902,6 +4902,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#exact-diplomacy-promise-durations-player-projection-v68-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact diplomacy promise durations (player projection v68, 2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9174,6 +9185,17 @@
     <span class="md-ellipsis">
       
         Literal DiplomacyScreen instantiation via action seam (2026-08-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exact-diplomacy-promise-durations-player-projection-v68-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exact diplomacy promise durations (player projection v68, 2026-08-27)
       
     </span>
   </a>
@@ -20659,6 +20681,32 @@ prior to doc updates.</p>
 <p>Remaining cosmetic item: espionage overview layout parity (functional rows
 already served); exact promise turn counts need a dedicated disclosure +
 determinism investigation before re-attempting.</p>
+<h2 id="exact-diplomacy-promise-durations-player-projection-v68-2026-08-27">Exact diplomacy promise durations (player projection v68, 2026-08-27)</h2>
+<p>Projection v68 supplies exact remaining turns without replacing either v67
+promise-name list. <code>theyPromiseTurns</code> and <code>wePromiseTurns</code> are bounded maps
+keyed by the same <code>DiplomaticDemand</code> enum; the Kotlin worker derives them from
+the same actor/partner <code>flagsCountdown</code> entries that establish list membership.
+Rust requires each map's ordered key set to equal its corresponding list and
+requires every duration to be positive. The classic detached diplomacy manager
+and the V3 summary therefore consume exact canonical durations, with no 30-turn
+approximation and no third-party relationship disclosure.</p>
+<p>Failure repair
+1. Failed check: the prior replacement-shape attempt recorded above produced order-dependent failures in <code>./gradlew :tests:test --rerun-tasks</code> at its then-current worktree; the failing no-mutation hash tests varied between runs.
+2. Minimal reproduction: replacement of the two established promise-name lists by demand-plus-turn objects; reverting the DTO/builder pair restored the full suite while retaining the UI seam.
+3. Causal diagnosis: the failure boundary was the replacement contract, not reading <code>getFlag</code>: the additive v68 implementation reads those same values while preserving both established fields and passed two consecutive fresh full-suite runs. The unsupported replacement was rejected rather than retried.
+4. Bounded repair owner: <code>ProjectedDiplomacyPartner</code> adds two parallel maps; existing list types, ordering, and builder membership logic remain unchanged. Rust enforces list/map equivalence.
+5. Final state: base HEAD <code>fa4fa5ed4</code>; pre-record tracked diff hash <code>8c379328678bc3fe0a12dec570ce2ad194efa6ab</code>; no material untracked files. This verification record is the only subsequent documentation edit.
+6. Final rerun: focused disclosure/sentinel/contract tests passed, followed by two consecutive <code>./gradlew :tests:test --rerun-tasks</code> passes; final affected gates are recorded below.</p>
+<p>Final-state verification
+Revision: base HEAD <code>fa4fa5ed4</code>; worktree described above; pre-record tracked diff hash <code>8c379328678bc3fe0a12dec570ce2ad194efa6ab</code>; no material untracked files.
+Last material edit: <code>authoritative-server/src/projection_validation.rs</code> list/map equivalence and positive-duration validation.</p>
+<p>| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | <code>./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.ProjectionLeakSentinelTests" --tests "com.unciv.logic.multiplayer.authoritative.ProjectionDisclosurePolicyTests" --tests "com.unciv.logic.multiplayer.authoritative.PlayerProjectionContractTests" --console=plain</code>; then <code>./gradlew :tests:test --rerun-tasks --console=plain</code> twice | directional exact durations, fail-closed disclosure inventory, compatibility, and prior order-dependent hash risk | focused pass; two consecutive fresh full-suite passes (2m03s and 1m45s) | - |
+| Rust | passed | <code>cargo test generated_openapi_matches_checked_in_contract</code> with <code>UNCIV_V3_REGENERATE_OPENAPI=1</code>; <code>cargo fmt --all -- --check</code>; <code>cargo clippy --all-targets --all-features -- -D warnings</code> | Rust mirror/OpenAPI parity and warnings-as-errors | passed | - |
+| Desktop | passed | <code>./gradlew :desktop:dist --console=plain</code> | exact durations package in production desktop client | BUILD SUCCESSFUL in 24s | - |
+| Android | not affected | - | shared DTO changed, but no Android-specific UI, credential, routing, or platform behavior changed; desktop is the production UI owner for this milestone | - | - |
+| PostgreSQL | not affected | - | projection-only change; no schema, query, concurrency, backup, or recovery behavior changed | - | - |
+| Legacy | passed | included in both fresh <code>:tests:test</code> runs | additive V3 boundary preserves single-player, save, hotseat, and API-v2 behavior | passed | - |</p>
 
 
 

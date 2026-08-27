@@ -12407,3 +12407,32 @@ Last material edit: `authoritative-server/src/projection_validation.rs` bounds s
 | Android | not affected | - | shared projection DTO changed but no Android-specific production UI, routing, credential, or platform source changed | - | - |
 | PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery behavior changed | - | - |
 | Legacy | passed | included in final full suite | classic popup behavior remains canonical when a normal game is present | passed | - |
+
+## Requested external/deferred gates assessment (2026-08-27)
+
+Final-state verification
+Revision: `c0e8b68d8d2923fad9755b88bd4834e467b53750`; clean worktree; `master` equals `origin/master`; no material untracked files.
+Last material edit: the v69 city detailed-stat milestone committed at this revision.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Two-person full match | unavailable | `docs/operations/authoritative-full-match-qualification.md` Android/desktop Domination qualification | two distinct humans/devices use the packaged release through canonical terminal victory | - | Requires two human participants, Android and desktop devices, and a deployed candidate bundle; resume by executing the runbook against one immutable candidate revision. Existing 1-human+AI 263-turn evidence is not substituted. |
+| PostgreSQL upgrade | unavailable | PostgreSQL 19 successor upgrade/rollback rehearsal in `docs/operations/authoritative-postgresql-19.md` | migrate Beta 2 data to the next beta/RC/final and prove rollback/restore invariants | - | PostgreSQL 19 Beta 2 remains the newest published PostgreSQL 19 image; resume when a successor digest exists, before adoption. |
+| Upstream #15280 | not affected | - | explicitly deferred desktop/Android View migration is orthogonal to these projection milestones and conflicts broadly with the projection-only client | - | Separate project requiring its own impact design and full Android/desktop/V3 gates; not silently included here. |
+
+Delivery closure
+Target revision: `c0e8b68d8d2923fad9755b88bd4834e467b53750`; clean worktree; `master` equals `origin/master`.
+Requested delivery: exact promise durations (`a7625a3ae`), espionage overview layout (`3714860dc`), and city detailed-stat popup projection v69 (`c0e8b68d8`) committed to and pushed on `origin/master`.
+
+Local validation
+| Check | Status | Result | Blocker |
+| `./gradlew :tests:test --rerun-tasks --console=plain` | passed | final v69 run: 1,229 tests, 17 skipped, BUILD SUCCESSFUL | - |
+| `./gradlew :desktop:dist --console=plain` | passed | BUILD SUCCESSFUL | - |
+| Rust OpenAPI drift, fmt, clippy `-D warnings` | passed | all passed at the corresponding final protocol states | - |
+
+Delivery acceptance
+| Boundary | Decision | Evidence | Recovery owner | Blocker or next action |
+| Commit | accepted | `a7625a3ae`, `3714860dc`, `c0e8b68d8` | repository maintainer; revert the bounded commit and rerun its recorded gates if regression is found | - |
+| PR / CI / merge | not requested | direct authorized push to `master`; no PR boundary requested | repository maintainer | monitor branch CI separately |
+| Release / deployment | not requested | no release or deployment requested | release operator | execute release runbook when a candidate is authorized |
+| APK | not requested | no APK delivery requested | Android release owner | package only under an authorized release task |
+| Desktop artifact | not requested | local `:desktop:dist` validation only; no artifact acceptance requested | desktop release owner | publish only under an authorized release task |

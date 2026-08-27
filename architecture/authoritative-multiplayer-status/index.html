@@ -4913,6 +4913,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#espionage-overview-layout-parity-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Espionage overview layout parity (2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9196,6 +9207,17 @@
     <span class="md-ellipsis">
       
         Exact diplomacy promise durations (player projection v68, 2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#espionage-overview-layout-parity-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Espionage overview layout parity (2026-08-27)
       
     </span>
   </a>
@@ -20707,6 +20729,25 @@ Last material edit: <code>authoritative-server/src/projection_validation.rs</cod
 | Android | not affected | - | shared DTO changed, but no Android-specific UI, credential, routing, or platform behavior changed; desktop is the production UI owner for this milestone | - | - |
 | PostgreSQL | not affected | - | projection-only change; no schema, query, concurrency, backup, or recovery behavior changed | - | - |
 | Legacy | passed | included in both fresh <code>:tests:test</code> runs | additive V3 boundary preserves single-player, save, hotseat, and API-v2 behavior | passed | - |</p>
+<h2 id="espionage-overview-layout-parity-2026-08-27">Espionage overview layout parity (2026-08-27)</h2>
+<p>The production V3 spy panel now follows the classic espionage overview's
+two-pane information architecture instead of emitting a flat stream of action
+buttons. The left roster has Spy, Rank, Location, Action, and selection columns
+with the classic spy-and-stars rank badge. Selecting a spy rebuilds the right
+destination pane with hideout, projected legal cities, spy-occupancy markers,
+and coup controls. Every enabled button still comes exclusively from the
+projection's destination/coup capability allowlists and submits the existing
+typed commands; no canonical state or local rules execution was introduced.</p>
+<p>Final-state verification
+Revision: base HEAD <code>a7625a3ae</code>; pre-record tracked diff hash <code>f103f289af0b583d7ae0cb63b8829fb3824b46f5</code>; no material untracked files. This record is the only subsequent documentation edit.
+Last material edit: <code>core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeSpyPanel.kt</code> two-pane roster/destination rendering.</p>
+<p>| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | <code>./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeProductionRoutingTests" --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeSpyControllerTests" --console=plain</code> | production spy routing remains projection-only and typed-command-backed | BUILD SUCCESSFUL in 10s | - |
+| Desktop | passed | <code>./gradlew :desktop:dist --console=plain</code> | production desktop espionage layout packaging | BUILD SUCCESSFUL in 22s | - |
+| Rust | not affected | - | no protocol, API, persistence, or Rust source changed | - | - |
+| Android | not affected | - | no Android-specific UI, credential, routing, or platform source changed | - | - |
+| PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery change | - | - |
+| Legacy | not affected | - | authoritative-only panel changed; classic <code>EspionageOverviewScreen</code> is untouched | - | - |</p>
 
 
 

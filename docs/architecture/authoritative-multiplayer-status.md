@@ -12355,3 +12355,26 @@ Last material edit: `authoritative-server/src/projection_validation.rs` list/map
 | Android | not affected | - | shared DTO changed, but no Android-specific UI, credential, routing, or platform behavior changed; desktop is the production UI owner for this milestone | - | - |
 | PostgreSQL | not affected | - | projection-only change; no schema, query, concurrency, backup, or recovery behavior changed | - | - |
 | Legacy | passed | included in both fresh `:tests:test` runs | additive V3 boundary preserves single-player, save, hotseat, and API-v2 behavior | passed | - |
+
+## Espionage overview layout parity (2026-08-27)
+
+The production V3 spy panel now follows the classic espionage overview's
+two-pane information architecture instead of emitting a flat stream of action
+buttons. The left roster has Spy, Rank, Location, Action, and selection columns
+with the classic spy-and-stars rank badge. Selecting a spy rebuilds the right
+destination pane with hideout, projected legal cities, spy-occupancy markers,
+and coup controls. Every enabled button still comes exclusively from the
+projection's destination/coup capability allowlists and submits the existing
+typed commands; no canonical state or local rules execution was introduced.
+
+Final-state verification
+Revision: base HEAD `a7625a3ae`; pre-record tracked diff hash `f103f289af0b583d7ae0cb63b8829fb3824b46f5`; no material untracked files. This record is the only subsequent documentation edit.
+Last material edit: `core/src/com/unciv/ui/screens/multiplayerscreens/AuthoritativeSpyPanel.kt` two-pane roster/destination rendering.
+
+| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Kotlin | passed | `./gradlew :tests:test --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeProductionRoutingTests" --tests "com.unciv.logic.multiplayer.authoritative.AuthoritativeSpyControllerTests" --console=plain` | production spy routing remains projection-only and typed-command-backed | BUILD SUCCESSFUL in 10s | - |
+| Desktop | passed | `./gradlew :desktop:dist --console=plain` | production desktop espionage layout packaging | BUILD SUCCESSFUL in 22s | - |
+| Rust | not affected | - | no protocol, API, persistence, or Rust source changed | - | - |
+| Android | not affected | - | no Android-specific UI, credential, routing, or platform source changed | - | - |
+| PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery change | - | - |
+| Legacy | not affected | - | authoritative-only panel changed; classic `EspionageOverviewScreen` is untouched | - | - |

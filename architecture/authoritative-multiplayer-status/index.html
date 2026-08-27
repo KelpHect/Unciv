@@ -4935,6 +4935,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#requested-externaldeferred-gates-assessment-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requested external/deferred gates assessment (2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -9240,6 +9251,17 @@
     <span class="md-ellipsis">
       
         City detailed-stat breakdown (player projection v69, 2026-08-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requested-externaldeferred-gates-assessment-2026-08-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requested external/deferred gates assessment (2026-08-27)
       
     </span>
   </a>
@@ -20794,6 +20816,29 @@ Last material edit: <code>authoritative-server/src/projection_validation.rs</cod
 | Android | not affected | - | shared projection DTO changed but no Android-specific production UI, routing, credential, or platform source changed | - | - |
 | PostgreSQL | not affected | - | no schema, query, concurrency, backup, or recovery behavior changed | - | - |
 | Legacy | passed | included in final full suite | classic popup behavior remains canonical when a normal game is present | passed | - |</p>
+<h2 id="requested-externaldeferred-gates-assessment-2026-08-27">Requested external/deferred gates assessment (2026-08-27)</h2>
+<p>Final-state verification
+Revision: <code>c0e8b68d8d2923fad9755b88bd4834e467b53750</code>; clean worktree; <code>master</code> equals <code>origin/master</code>; no material untracked files.
+Last material edit: the v69 city detailed-stat milestone committed at this revision.</p>
+<p>| Lane | Status | Command or gate | Covered invariant | Result | Blocker |
+| Two-person full match | unavailable | <code>docs/operations/authoritative-full-match-qualification.md</code> Android/desktop Domination qualification | two distinct humans/devices use the packaged release through canonical terminal victory | - | Requires two human participants, Android and desktop devices, and a deployed candidate bundle; resume by executing the runbook against one immutable candidate revision. Existing 1-human+AI 263-turn evidence is not substituted. |
+| PostgreSQL upgrade | unavailable | PostgreSQL 19 successor upgrade/rollback rehearsal in <code>docs/operations/authoritative-postgresql-19.md</code> | migrate Beta 2 data to the next beta/RC/final and prove rollback/restore invariants | - | PostgreSQL 19 Beta 2 remains the newest published PostgreSQL 19 image; resume when a successor digest exists, before adoption. |
+| Upstream #15280 | not affected | - | explicitly deferred desktop/Android View migration is orthogonal to these projection milestones and conflicts broadly with the projection-only client | - | Separate project requiring its own impact design and full Android/desktop/V3 gates; not silently included here. |</p>
+<p>Delivery closure
+Target revision: <code>c0e8b68d8d2923fad9755b88bd4834e467b53750</code>; clean worktree; <code>master</code> equals <code>origin/master</code>.
+Requested delivery: exact promise durations (<code>a7625a3ae</code>), espionage overview layout (<code>3714860dc</code>), and city detailed-stat popup projection v69 (<code>c0e8b68d8</code>) committed to and pushed on <code>origin/master</code>.</p>
+<p>Local validation
+| Check | Status | Result | Blocker |
+| <code>./gradlew :tests:test --rerun-tasks --console=plain</code> | passed | final v69 run: 1,229 tests, 17 skipped, BUILD SUCCESSFUL | - |
+| <code>./gradlew :desktop:dist --console=plain</code> | passed | BUILD SUCCESSFUL | - |
+| Rust OpenAPI drift, fmt, clippy <code>-D warnings</code> | passed | all passed at the corresponding final protocol states | - |</p>
+<p>Delivery acceptance
+| Boundary | Decision | Evidence | Recovery owner | Blocker or next action |
+| Commit | accepted | <code>a7625a3ae</code>, <code>3714860dc</code>, <code>c0e8b68d8</code> | repository maintainer; revert the bounded commit and rerun its recorded gates if regression is found | - |
+| PR / CI / merge | not requested | direct authorized push to <code>master</code>; no PR boundary requested | repository maintainer | monitor branch CI separately |
+| Release / deployment | not requested | no release or deployment requested | release operator | execute release runbook when a candidate is authorized |
+| APK | not requested | no APK delivery requested | Android release owner | package only under an authorized release task |
+| Desktop artifact | not requested | local <code>:desktop:dist</code> validation only; no artifact acceptance requested | desktop release owner | publish only under an authorized release task |</p>
 
 
 
